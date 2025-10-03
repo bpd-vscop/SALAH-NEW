@@ -1,0 +1,33 @@
+﻿{
+    "name":  "server",
+    "version":  "1.0.0",
+    "description":  "",
+    "main":  "src/server.js",
+    "scripts":  {
+                    "test":  "npm run lint",
+                    "lint":  "echo \"lint not configured\"",
+                    "dev":  "nodemon src/server.js",
+                    "start":  "node src/server.js"
+                },
+    "keywords":  [
+
+                 ],
+    "author":  "",
+    "license":  "ISC",
+    "dependencies":  {
+                         "bcrypt":  "^6.0.0",
+                         "connect-mongo":  "^5.1.0",
+                         "cors":  "^2.8.5",
+                         "dotenv":  "^17.2.3",
+                         "express":  "^5.1.0",
+                         "express-session":  "^1.18.2",
+                         "mongoose":  "^8.19.0",
+                         "morgan":  "^1.10.1",
+                         "multer":  "^2.0.2",
+                         "uuid":  "^13.0.0",
+                         "zod":  "^4.1.11"
+                     },
+    "devDependencies":  {
+                            "nodemon":  "^3.1.10"
+                        }
+}
