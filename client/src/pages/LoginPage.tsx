@@ -2,6 +2,7 @@
 import type { FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
 
 type SignupStep = 0 | 1 | 2;
 
@@ -44,12 +45,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   const [signupData, setSignupData] = useState<SignupData>(defaultSignup);
   const [signupError, setSignupError] = useState<string | null>(null);
   const [signupLoading, setSignupLoading] = useState(false);
+  const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCode: '+1', number: '' });
 
   const resetSignup = () => {
     setSignupData(defaultSignup);
     setSignupStep(0);
     setSignupError(null);
     setSignupLoading(false);
+    setPhoneValue({ countryCode: '+1', number: '' });
   };
 
   const showSignup = () => {
@@ -293,11 +296,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
 
                     <label className="login-field">
                       <span>Phone Number (optional)</span>
-                      <input
-                        type="tel"
-                        value={signupData.phone}
-                        onChange={(event) => setSignupData((prev) => ({ ...prev, phone: event.target.value }))}
-                        placeholder="(555) 123-4567"
+                      <PhoneNumberInput
+                        value={phoneValue}
+                        onChange={(val) => {
+                          setPhoneValue(val);
+                          setSignupData((prev) => ({ ...prev, phone: `${val.countryCode}${val.number}` }));
+                        }}
+                        placeholder="1234567890"
                       />
                     </label>
 

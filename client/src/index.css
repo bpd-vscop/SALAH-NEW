@@ -1217,6 +1217,140 @@ button.danger,
   color: #6b7280;
 }
 
+.phone-input-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.phone-country-select {
+  position: relative;
+}
+
+.phone-country-button {
+  min-width: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.78rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1f2937;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.phone-country-button:hover:not(:disabled) {
+  border-color: rgba(160, 11, 11, 0.4);
+}
+
+.phone-country-button:focus {
+  outline: none;
+  border-color: rgba(160, 11, 11, 0.6);
+  box-shadow: 0 0 0 4px rgba(160, 11, 11, 0.12);
+}
+
+.phone-country-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.phone-country-dropdown {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  width: 260px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.15);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.phone-country-search {
+  width: 100%;
+  padding: 0.75rem 0.85rem;
+  border: none;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.phone-country-search:focus {
+  background: rgba(160, 11, 11, 0.02);
+}
+
+.phone-country-list {
+  max-height: 192px;
+  overflow-y: auto;
+}
+
+.phone-country-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.phone-country-item:hover {
+  background: rgba(160, 11, 11, 0.06);
+}
+
+.phone-country-code {
+  font-weight: 600;
+  color: #1f2937;
+  min-width: 48px;
+}
+
+.phone-country-name {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.phone-country-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.phone-number-input {
+  flex: 1;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.78rem 0.85rem;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.phone-number-input:focus {
+  outline: none;
+  border-color: rgba(160, 11, 11, 0.6);
+  box-shadow: 0 0 0 4px rgba(160, 11, 11, 0.12);
+}
+
+.phone-number-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.signup-stage {
+  position: relative;
+  min-height: 320px;
+}
+
 @media (max-width: 580px) {
   .login-card-inner {
     padding: 2.5rem 1.9rem;
@@ -1225,6 +1359,15 @@ button.danger,
   .login-panel,
   .signup-panel {
     padding: 1.4rem 0;
+  }
+
+  .phone-input-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .phone-country-button {
+    width: 100%;
   }
 }
 
