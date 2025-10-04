@@ -10,11 +10,15 @@ const buildMongoUri = () => {
   const host = process.env.MONGO_HOST || '127.0.0.1';
   const port = process.env.MONGO_PORT || '27017';
   const db = process.env.MONGO_DB || 'salah_store';
-  const auth = process.env.MONGO_USER
-    ? ${process.env.MONGO_USER}:@
-    : '';
+  let auth = '';
 
-  return mongodb://System.Management.Automation.Internal.Host.InternalHost:/;
+  if (process.env.MONGO_USER && process.env.MONGO_PASSWORD) {
+    auth = `${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@`;
+  } else if (process.env.MONGO_USER) {
+    auth = `${process.env.MONGO_USER}@`;
+  }
+
+  return `mongodb://${auth}${host}:${port}/${db}`;
 };
 
 const initMongo = async () => {
@@ -26,20 +30,17 @@ const initMongo = async () => {
 
   mongoose.set('strictQuery', true);
 
-  connectionInstance = mongoose
-    .connect(uri, {
+  try {
+    connectionInstance = await mongoose.connect(uri, {
       autoIndex: false,
       maxPoolSize: Number(process.env.MONGO_POOL_SIZE || 10),
-    })
-    .then((conn) => {
-      console.log('MongoDB connected');
-      return conn;
-    })
-    .catch((err) => {
-      console.error('Mongo connection error', err);
-      connectionInstance = null;
-      throw err;
     });
+    console.log('MongoDB connected');
+  } catch (error) {
+    console.error('Mongo connection error', error);
+    connectionInstance = null;
+    throw error;
+  }
 
   return connectionInstance;
 };

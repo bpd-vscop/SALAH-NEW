@@ -24,3 +24,5 @@ const updateCart = async (req, res, next) => {
 
 module.exports = {
   getCart,
+  updateCart,
+};

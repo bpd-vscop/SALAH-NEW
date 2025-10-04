@@ -1,0 +1,19 @@
+﻿# Node / Vite
+node_modules/
+coverage/
+.vite/
+*.log
+
+# Build outputs
+dist/
+server/uploads/
+
+# Environment files
+server/.env
+server/.env.local
+client/.env
+
+# Editor
+.vscode/
+.idea/
+.DS_Store

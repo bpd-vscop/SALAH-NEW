@@ -9,11 +9,15 @@ const registerRoutes = require('./routes');
 const { initMongo } = require('./config/mongo');
 const { getSessionConfig } = require('./config/session');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandlers');
+const { bootstrap } = require('./config/bootstrap');
 const { attachCurrentUser } = require('./middleware/auth');
 
 const app = express();
+app.disable('x-powered-by');
 
-initMongo();
+initMongo()
+  .then(() => bootstrap())
+  .catch((err) => console.error('Mongo initialization failed', err));
 
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));

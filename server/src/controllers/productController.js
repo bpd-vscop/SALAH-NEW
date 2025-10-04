@@ -1,7 +1,7 @@
 ﻿const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
-const { validateProduct } = require('../validators/product');
+const { validateCreateProduct, validateUpdateProduct } = require('../validators/product');
 const { notFound, badRequest } = require('../utils/appError');
 
 const listProducts = async (req, res, next) => {
@@ -44,7 +44,7 @@ const getProduct = async (req, res, next) => {
 
 const createProduct = async (req, res, next) => {
   try {
-    const data = validateProduct(req.body || {});
+    const data = validateCreateProduct(req.body || {});
 
     const category = await Category.findById(data.categoryId);
     if (!category) {
@@ -65,7 +65,7 @@ const createProduct = async (req, res, next) => {
 const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const data = validateProduct(req.body || {});
+    const data = validateUpdateProduct(req.body || {});
 
     const product = await Product.findById(id);
     if (!product) {
@@ -80,11 +80,11 @@ const updateProduct = async (req, res, next) => {
       product.categoryId = data.categoryId;
     }
 
-    if (data.name) {
+    if (typeof data.name !== 'undefined') {
       product.name = data.name;
     }
 
-    if (data.tags) {
+    if (typeof data.tags !== 'undefined') {
       product.tags = data.tags;
     }
 
@@ -92,7 +92,7 @@ const updateProduct = async (req, res, next) => {
       product.description = data.description;
     }
 
-    if (data.images) {
+    if (typeof data.images !== 'undefined') {
       product.images = data.images;
     }
 
@@ -100,7 +100,7 @@ const updateProduct = async (req, res, next) => {
       product.price = data.price;
     }
 
-    if (data.attributes) {
+    if (typeof data.attributes !== 'undefined') {
       product.attributes = data.attributes;
     }
 

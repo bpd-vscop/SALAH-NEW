@@ -8,18 +8,41 @@ const objectId = z
   .string()
   .refine((val) => mongoose.Types.ObjectId.isValid(val), 'Invalid identifier');
 
-const productSchema = z
+const baseFields = {
+  name: z.string().min(2).max(200),
+  categoryId: objectId,
+  tags: z.array(tagsEnum).optional(),
+  description: z.string().max(5000).optional(),
+  images: z.array(z.string().url()).max(10).optional(),
+  price: z.number().min(0).optional(),
+  attributes: z.record(z.string()).optional(),
+};
+
+const createProductSchema = z
   .object({
-    name: z.string().min(2).max(200),
-    categoryId: objectId,
-    tags: z.array(tagsEnum).optional(),
-    description: z.string().max(5000).optional(),
-    images: z.array(z.string().url()).max(10).optional(),
-    price: z.number().min(0).optional(),
-    attributes: z.record(z.string()).optional(),
+    name: baseFields.name,
+    categoryId: baseFields.categoryId,
+    tags: baseFields.tags,
+    description: baseFields.description,
+    images: baseFields.images,
+    price: baseFields.price,
+    attributes: baseFields.attributes,
+  })
+  .strict();
+
+const updateProductSchema = z
+  .object({
+    name: baseFields.name.optional(),
+    categoryId: baseFields.categoryId.optional(),
+    tags: baseFields.tags,
+    description: baseFields.description,
+    images: baseFields.images,
+    price: baseFields.price,
+    attributes: baseFields.attributes,
   })
   .strict();
 
 module.exports = {
-  validateProduct: (payload) => parseWithSchema(productSchema, payload),
+  validateCreateProduct: (payload) => parseWithSchema(createProductSchema, payload),
+  validateUpdateProduct: (payload) => parseWithSchema(updateProductSchema, payload),
 };

@@ -23,6 +23,13 @@ const createCategory = async (req, res, next) => {
       throw badRequest('Category with the same name already exists');
     }
 
+    if (data.parentId) {
+      const parent = await Category.findById(data.parentId);
+      if (!parent) {
+        throw badRequest('Parent category not found');
+      }
+    }
+
     const category = await Category.create({
       name: data.name,
       parentId: data.parentId || null,
@@ -40,6 +47,10 @@ const updateCategory = async (req, res, next) => {
     const { id } = req.params;
     const data = validateCategory(req.body || {});
 
+    if (data.parentId && String(data.parentId) === String(id)) {
+      throw badRequest('Category cannot reference itself');
+    }
+
     const category = await Category.findById(id);
     if (!category) {
       throw notFound('Category not found');
@@ -55,7 +66,18 @@ const updateCategory = async (req, res, next) => {
       category.slug = slug;
     }
 
-    category.parentId = data.parentId || null;
+    if (typeof data.parentId !== 'undefined') {
+      if (data.parentId) {
+        const parent = await Category.findById(data.parentId);
+        if (!parent) {
+          throw badRequest('Parent category not found');
+        }
+        category.parentId = data.parentId;
+      } else {
+        category.parentId = null;
+      }
+    }
+
     await category.save();
 
     res.json({ category: category.toJSON() });
