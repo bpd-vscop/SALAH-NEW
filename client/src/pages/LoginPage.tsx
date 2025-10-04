@@ -216,20 +216,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
             >
               <h1 className="login-heading">Welcome to ULKS</h1>
 
-              <button type="button" className="login-google" disabled>
-                <span className="login-google-icon" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17.64 9.20404C17.64 8.56619 17.5827 7.95247 17.4764 7.36389H9V10.8457H13.8436C13.635 11.9707 13.0009 12.8894 12.0482 13.5245V15.7662H14.9563C16.6582 14.2081 17.64 11.915 17.64 9.20404Z" fill="#4285F4" />
-                    <path d="M9 18C11.43 18 13.4527 17.1943 14.9564 15.7662L12.0482 13.5245C11.235 14.0668 10.2073 14.4002 9 14.4002C6.65591 14.4002 4.67182 12.8252 3.96409 10.7109H0.957275V13.0314C2.45273 15.984 5.47864 18 9 18Z" fill="#34A853" />
-                    <path d="M3.96409 10.7109C3.78409 10.1686 3.68182 9.59184 3.68182 9C3.68182 8.40814 3.78409 7.83136 3.96409 7.28905V4.96857H0.957273C0.347727 6.18359 0 7.55454 0 9C0 10.4455 0.347727 11.8164 0.957273 13.0314L3.96409 10.7109Z" fill="#FBBC05" />
-                    <path d="M9 3.59977C10.3186 3.59977 11.4968 4.053 12.4036 4.92273L15.0205 2.30591C13.4477 0.845455 11.4259 0 9 0C5.47864 0 2.45273 2.016 0.957275 4.96859L3.96409 7.28909C4.67182 5.17477 6.65591 3.59977 9 3.59977Z" fill="#EA4335" />
-                  </svg>
-                </span>
-                Continue with Google
-              </button>
-
-              <div className="login-divider"><span>OR</span></div>
-
               <form className="login-form" onSubmit={handleLogin}>
                 <label className="login-field">
                   <span>Email Address</span>
@@ -295,20 +281,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
               role="tabpanel"
             >
               <h1 className="login-heading">Create your ULKS Account</h1>
-
-              <button type="button" className="login-google" disabled>
-                <span className="login-google-icon" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17.64 9.20404C17.64 8.56619 17.5827 7.95247 17.4764 7.36389H9V10.8457H13.8436C13.635 11.9707 13.0009 12.8894 12.0482 13.5245V15.7662H14.9563C16.6582 14.2081 17.64 11.915 17.64 9.20404Z" fill="#4285F4" />
-                    <path d="M9 18C11.43 18 13.4527 17.1943 14.9564 15.7662L12.0482 13.5245C11.235 14.0668 10.2073 14.4002 9 14.4002C6.65591 14.4002 4.67182 12.8252 3.96409 10.7109H0.957275V13.0314C2.45273 15.984 5.47864 18 9 18Z" fill="#34A853" />
-                    <path d="M3.96409 10.7109C3.78409 10.1686 3.68182 9.59184 3.68182 9C3.68182 8.40814 3.78409 7.83136 3.96409 7.28905V4.96857H0.957273C0.347727 6.18359 0 7.55454 0 9C0 10.4455 0.347727 11.8164 0.957273 13.0314L3.96409 10.7109Z" fill="#FBBC05" />
-                    <path d="M9 3.59977C10.3186 3.59977 11.4968 4.053 12.4036 4.92273L15.0205 2.30591C13.4477 0.845455 11.4259 0 9 0C5.47864 0 2.45273 2.016 0.957275 4.96859L3.96409 7.28909C4.67182 5.17477 6.65591 3.59977 9 3.59977Z" fill="#EA4335" />
-                  </svg>
-                </span>
-                Sign up with Google
-              </button>
-
-              <div className="login-divider"><span>OR</span></div>
 
               {/* Step indicators */}
               <div className="signup-steps" aria-hidden="true">

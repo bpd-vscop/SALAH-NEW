@@ -904,7 +904,7 @@ button.danger,
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
-  min-height: 680px;
+  min-height: 850px;
 }
 
 .login-logo-stack {
