@@ -899,12 +899,15 @@ button.danger,
 .login-card-inner {
   position: relative;
   z-index: 1;
-  padding: 3rem 2.7rem 2rem;
+  padding-top: 3rem;
+  padding-right: 2.7rem;
+  padding-bottom: 0;
+  padding-left: 2.7rem;
   background: transparent;
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-  min-height: 850px;
+  gap: 1rem;
+  min-height: 600px;
 }
 
 .login-logo-stack {
@@ -926,13 +929,6 @@ button.danger,
   font-size: 1.6rem;
   letter-spacing: 0.45rem;
   color: #a00b0b;
-}
-
-.login-logo-text {
-  font-size: 0.78rem;
-  letter-spacing: 0.3rem;
-  text-transform: uppercase;
-  color: #6b7280;
 }
 
 .login-switch {
@@ -1006,27 +1002,6 @@ button.danger,
   font-size: 0.95rem;
 }
 
-.login-google {
-  width: calc(100% - 0.4rem);
-  align-self: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  padding: 0.8rem 1rem;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  background: #ffffff;
-  font-weight: 600;
-  color: #1f2937;
-  transition: all 0.2s ease;
-}
-
-.login-google:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: rgba(148, 163, 184, 0.6);
-}
-
 .login-divider {
   display: flex;
   align-items: center;
@@ -1070,12 +1045,43 @@ button.danger,
   padding: 0.78rem 0.85rem;
   font-size: 0.95rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+}
+
+.login-field > div > input[type="password"],
+.login-field > div > input[type="text"] {
+  padding-right: 2.75rem;
 }
 
 .login-field input:focus {
   outline: none;
   border-color: rgba(160, 11, 11, 0.6);
   box-shadow: 0 0 0 4px rgba(160, 11, 11, 0.12);
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+  color: #374151;
+}
+
+.password-toggle:focus {
+  outline: none;
+  color: rgba(160, 11, 11, 0.8);
 }
 
 .login-utility {
@@ -1137,7 +1143,7 @@ button.danger,
 }
 
 .login-footer {
-  text-align: center;
+  text-align: center-bottom;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1146,7 +1152,7 @@ button.danger,
   font-size: 0.9rem;
   color: #74829a;
   margin-top: auto;
-  padding-top: 1.5rem;
+  padding-top: 2rem;
 }
 
 .login-footer-link {

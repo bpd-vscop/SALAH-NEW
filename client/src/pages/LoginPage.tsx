@@ -40,12 +40,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   const [rememberMe, setRememberMe] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   const [signupStep, setSignupStep] = useState<SignupStep>(0);
   const [signupData, setSignupData] = useState<SignupData>(defaultSignup);
   const [signupError, setSignupError] = useState<string | null>(null);
   const [signupLoading, setSignupLoading] = useState(false);
   const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCode: '+1', number: '' });
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const resetSignup = () => {
     setSignupData(defaultSignup);
@@ -179,7 +182,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
               alt="ULKS Logo"
               className="login-logo-img"
             />
-            <div className="login-logo-text">ULKSUPPLY</div>
           </div>
 
           <div className="login-switch" role="tablist" aria-label="Authentication">
@@ -230,14 +232,34 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                 </label>
                 <label className="login-field">
                   <span>Password</span>
-                  <input
-                    type="password"
-                    value={loginPassword}
-                    onChange={(event) => setLoginPassword(event.target.value)}
-                    placeholder="Enter your password"
-                    autoComplete="current-password"
-                    required
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showLoginPassword ? 'text' : 'password'}
+                      value={loginPassword}
+                      onChange={(event) => setLoginPassword(event.target.value)}
+                      placeholder="Enter your password"
+                      autoComplete="current-password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="password-toggle"
+                      aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showLoginPassword ? (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                          <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                      ) : (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </label>
                 <div className="login-utility">
                   <label className="login-remember">
@@ -372,23 +394,63 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                     </label>
                     <label className="login-field">
                       <span>Password</span>
-                      <input
-                        type="password"
-                        value={signupData.password}
-                        onChange={(event) => setSignupData((prev) => ({ ...prev, password: event.target.value }))}
-                        placeholder="Create a password"
-                        required
-                      />
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type={showSignupPassword ? 'text' : 'password'}
+                          value={signupData.password}
+                          onChange={(event) => setSignupData((prev) => ({ ...prev, password: event.target.value }))}
+                          placeholder="Create a password"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSignupPassword(!showSignupPassword)}
+                          className="password-toggle"
+                          aria-label={showSignupPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showSignupPassword ? (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                              <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                          ) : (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     </label>
                     <label className="login-field">
                       <span>Confirm Password</span>
-                      <input
-                        type="password"
-                        value={signupData.confirmPassword}
-                        onChange={(event) => setSignupData((prev) => ({ ...prev, confirmPassword: event.target.value }))}
-                        placeholder="Confirm your password"
-                        required
-                      />
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={signupData.confirmPassword}
+                          onChange={(event) => setSignupData((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+                          placeholder="Confirm your password"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="password-toggle"
+                          aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showConfirmPassword ? (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                              <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                          ) : (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     </label>
                     <div className="signup-actions">
                       <button type="button" className="signup-back" onClick={() => setSignupStep(0)}>
