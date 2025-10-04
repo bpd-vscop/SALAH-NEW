@@ -136,11 +136,38 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   return (
     <div className="auth-shell">
       <div className="login-card">
-        <div className="login-card-bg" aria-hidden="true" />
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          transform: 'translate(-50%, -50%)',
+          width: '15rem',
+          height: '10rem',
+          borderRadius: '9999px',
+          background: '#eab308',
+          opacity: 0.15,
+          filter: 'blur(100px)',
+        }} />
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          right: 0,
+          transform: 'translate(50%, 50%)',
+          width: '15rem',
+          height: '10rem',
+          borderRadius: '9999px',
+          background: '#b91c1c',
+          opacity: 0.15,
+          filter: 'blur(100px)',
+        }} />
         <div className="login-card-inner">
           <div className="login-logo-stack">
-            <div className="login-logo-mark">ULK</div>
-            <div className="login-logo-text">SUPPLY</div>
+            <img
+              src="https://i.postimg.cc/nVjjhfsz/qt-q-95.png"
+              alt="ULKS Logo"
+              className="login-logo-img"
+            />
+            <div className="login-logo-text">ULKSUPPLY</div>
           </div>
 
           <div className="login-switch" role="tablist" aria-label="Authentication">
@@ -167,7 +194,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
           {activeTab === 'login' ? (
             <div className="login-panel" role="tabpanel">
               <h1 className="login-heading">Welcome to ULKS</h1>
-              <p className="login-subcopy">Sign in to continue to your account.</p>
+              <p className="login-subcopy">Sign in to continue to your account</p>
 
               <button type="button" className="login-google" disabled>
                 <span className="login-google-icon" aria-hidden="true">
@@ -239,13 +266,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
             </div>
           ) : (
             <div className="signup-panel" role="tabpanel">
-              <h1 className="login-heading">Create your account</h1>
-              <p className="login-subcopy">Register to purchase and manage orders.</p>
+              <h1 className="login-heading">Create your ULKS Account</h1>
+              <p className="login-subcopy">Join ULKS for professional locksmith supplies</p>
 
               <div className="signup-steps" aria-hidden="true">
-                <div className={signupStep === 0 ? 'step-dot is-current' : 'step-dot'} />
-                <div className={signupStep === 1 ? 'step-dot is-current' : 'step-dot'} />
-                <div className={signupStep === 2 ? 'step-dot is-current' : 'step-dot'} />
+                <div className={signupStep === 0 ? 'step-dot is-current' : 'step-dot'}>
+                  {signupStep === 0 && '1'}
+                </div>
+                <div className={signupStep === 1 ? 'step-dot is-current' : 'step-dot'}>
+                  {signupStep === 1 && '2'}
+                </div>
+                <div className={signupStep === 2 ? 'step-dot is-current' : 'step-dot'}>
+                  {signupStep === 2 && '3'}
+                </div>
               </div>
 
               {signupError && (
@@ -270,16 +303,34 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                       ))}
                     </div>
 
-                    <label className="login-field">
-                      <span>Full Name</span>
-                      <input
-                        type="text"
-                        value={signupData.fullName}
-                        onChange={(event) => setSignupData((prev) => ({ ...prev, fullName: event.target.value }))}
-                        placeholder="Your full name"
-                        required
-                      />
-                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <label className="login-field">
+                        <span>First Name</span>
+                        <input
+                          type="text"
+                          value={signupData.fullName.split(' ')[0] || ''}
+                          onChange={(event) => {
+                            const lastName = signupData.fullName.split(' ').slice(1).join(' ');
+                            setSignupData((prev) => ({ ...prev, fullName: `${event.target.value} ${lastName}`.trim() }));
+                          }}
+                          placeholder="First name"
+                          required
+                        />
+                      </label>
+                      <label className="login-field">
+                        <span>Last Name</span>
+                        <input
+                          type="text"
+                          value={signupData.fullName.split(' ').slice(1).join(' ') || ''}
+                          onChange={(event) => {
+                            const firstName = signupData.fullName.split(' ')[0] || '';
+                            setSignupData((prev) => ({ ...prev, fullName: `${firstName} ${event.target.value}`.trim() }));
+                          }}
+                          placeholder="Last name"
+                          required
+                        />
+                      </label>
+                    </div>
 
                     {signupData.accountType === 'B2B' && (
                       <label className="login-field">
@@ -295,7 +346,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                     )}
 
                     <label className="login-field">
-                      <span>Phone Number (optional)</span>
+                      <span>Phone (numbers only)</span>
                       <PhoneNumberInput
                         value={phoneValue}
                         onChange={(val) => {
@@ -306,9 +357,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                       />
                     </label>
 
-                    <button type="submit" className="login-submit">
-                      Continue
-                    </button>
+                    <div className="signup-next-wrapper">
+                      <button type="submit" className="login-submit" style={{ width: 'auto', minWidth: '120px' }}>
+                        Next
+                      </button>
+                    </div>
                   </form>
                 )}
 

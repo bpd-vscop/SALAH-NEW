@@ -62,6 +62,8 @@ export function PhoneNumberInput({
 }: PhoneNumberInputProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [dropdownStyle, setDropdownStyle] = useState<{ top: number; left: number } | null>(null);
+  const buttonRef = useState<HTMLButtonElement | null>(null)[0];
 
   const selected = useMemo(() => {
     return COUNTRIES.find((c) => c.code === value.countryCode) || COUNTRIES[0];
@@ -77,13 +79,24 @@ export function PhoneNumberInput({
     );
   }, [search]);
 
+  const handleToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!open) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setDropdownStyle({
+        top: rect.bottom + 4,
+        left: rect.left,
+      });
+    }
+    setOpen(!open);
+  };
+
   return (
     <div className="phone-input-wrapper">
       <div className="phone-country-select">
         <button
           type="button"
           className="phone-country-button"
-          onClick={() => setOpen(!open)}
+          onClick={handleToggle}
           disabled={disabled}
         >
           <span>{value.countryCode}</span>
@@ -104,8 +117,11 @@ export function PhoneNumberInput({
             />
           </svg>
         </button>
-        {open && (
-          <div className="phone-country-dropdown">
+        {open && dropdownStyle && (
+          <div
+            className="phone-country-dropdown"
+            style={dropdownStyle}
+          >
             <input
               type="text"
               className="phone-country-search"
