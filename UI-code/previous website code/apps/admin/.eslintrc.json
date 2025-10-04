@@ -1,0 +1,4 @@
+// File Path: automotive-salah\apps\admin\.eslintrc.json
+{
+  "extends": ["next/core-web-vitals"]
+}

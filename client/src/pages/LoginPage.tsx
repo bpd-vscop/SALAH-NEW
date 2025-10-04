@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -17,7 +17,7 @@ type SignupData = {
 };
 
 const defaultSignup: SignupData = {
-  accountType: 'C2B',
+  accountType: 'B2B',
   fullName: '',
   companyName: '',
   phone: '',
@@ -66,6 +66,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     setLoginLoading(false);
   };
 
+  const switchTab = (tab: 'login' | 'signup') => {
+    if (tab === 'login') {
+      showLogin();
+    } else {
+      showSignup();
+    }
+  };
+
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoginLoading(true);
@@ -87,8 +95,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
 
   const handleSignupStep0 = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!signupData.fullName.trim()) {
-      setSignupError('Please enter your full name.');
+    const [firstName, ...lastNameParts] = signupData.fullName.trim().split(' ');
+    if (!firstName || lastNameParts.length === 0) {
+      setSignupError('Please enter your full name (first and last name).');
       return;
     }
     if (signupData.accountType === 'B2B' && !signupData.companyName.trim()) {
@@ -133,6 +142,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     }
   };
 
+  const isB2B = signupData.accountType === 'B2B';
+  const stepCount = isB2B ? 3 : 2;
+
   return (
     <div className="auth-shell">
       <div className="login-card">
@@ -171,6 +183,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
           </div>
 
           <div className="login-switch" role="tablist" aria-label="Authentication">
+            <div className={`login-switch-slider ${activeTab === 'signup' ? 'is-right' : ''}`}></div>
             <button
               type="button"
               className={activeTab === 'login' ? 'login-switch-btn is-active' : 'login-switch-btn'}
@@ -191,10 +204,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
             </button>
           </div>
 
-          {activeTab === 'login' ? (
-            <div className="login-panel" role="tabpanel">
+          <div style={{ position: 'relative', minHeight: '460px' }}>
+            {/* Login panel */}
+            <div
+              className={`login-panel transition-transform duration-500 ease-in-out ${
+                activeTab === 'login'
+                  ? 'opacity-100 translate-x-0 relative'
+                  : 'opacity-0 translate-x-6 absolute inset-0 pointer-events-none'
+              }`}
+              role="tabpanel"
+            >
               <h1 className="login-heading">Welcome to ULKS</h1>
-              <p className="login-subcopy">Sign in to continue to your account</p>
 
               <button type="button" className="login-google" disabled>
                 <span className="login-google-icon" aria-hidden="true">
@@ -264,21 +284,42 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                 <span className="login-legal">© {new Date().getFullYear()} ULK Supply LLC. All rights reserved.</span>
               </div>
             </div>
-          ) : (
-            <div className="signup-panel" role="tabpanel">
-              <h1 className="login-heading">Create your ULKS Account</h1>
-              <p className="login-subcopy">Join ULKS for professional locksmith supplies</p>
 
+            {/* Signup panel */}
+            <div
+              className={`signup-panel transition-transform duration-500 ease-in-out ${
+                activeTab === 'signup'
+                  ? 'opacity-100 translate-x-0 relative'
+                  : 'opacity-0 -translate-x-6 absolute inset-0 pointer-events-none'
+              }`}
+              role="tabpanel"
+            >
+              <h1 className="login-heading">Create your ULKS Account</h1>
+
+              <button type="button" className="login-google" disabled>
+                <span className="login-google-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.64 9.20404C17.64 8.56619 17.5827 7.95247 17.4764 7.36389H9V10.8457H13.8436C13.635 11.9707 13.0009 12.8894 12.0482 13.5245V15.7662H14.9563C16.6582 14.2081 17.64 11.915 17.64 9.20404Z" fill="#4285F4" />
+                    <path d="M9 18C11.43 18 13.4527 17.1943 14.9564 15.7662L12.0482 13.5245C11.235 14.0668 10.2073 14.4002 9 14.4002C6.65591 14.4002 4.67182 12.8252 3.96409 10.7109H0.957275V13.0314C2.45273 15.984 5.47864 18 9 18Z" fill="#34A853" />
+                    <path d="M3.96409 10.7109C3.78409 10.1686 3.68182 9.59184 3.68182 9C3.68182 8.40814 3.78409 7.83136 3.96409 7.28905V4.96857H0.957273C0.347727 6.18359 0 7.55454 0 9C0 10.4455 0.347727 11.8164 0.957273 13.0314L3.96409 10.7109Z" fill="#FBBC05" />
+                    <path d="M9 3.59977C10.3186 3.59977 11.4968 4.053 12.4036 4.92273L15.0205 2.30591C13.4477 0.845455 11.4259 0 9 0C5.47864 0 2.45273 2.016 0.957275 4.96859L3.96409 7.28909C4.67182 5.17477 6.65591 3.59977 9 3.59977Z" fill="#EA4335" />
+                  </svg>
+                </span>
+                Sign up with Google
+              </button>
+
+              <div className="login-divider"><span>OR</span></div>
+
+              {/* Step indicators */}
               <div className="signup-steps" aria-hidden="true">
-                <div className={signupStep === 0 ? 'step-dot is-current' : 'step-dot'}>
-                  {signupStep === 0 && '1'}
-                </div>
-                <div className={signupStep === 1 ? 'step-dot is-current' : 'step-dot'}>
-                  {signupStep === 1 && '2'}
-                </div>
-                <div className={signupStep === 2 ? 'step-dot is-current' : 'step-dot'}>
-                  {signupStep === 2 && '3'}
-                </div>
+                {Array.from({ length: stepCount + 1 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`step-dot ${signupStep === i ? 'is-current' : ''}`}
+                  >
+                    {signupStep === i && (i + 1)}
+                  </div>
+                ))}
               </div>
 
               {signupError && (
@@ -303,34 +344,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                       ))}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <label className="login-field">
-                        <span>First Name</span>
-                        <input
-                          type="text"
-                          value={signupData.fullName.split(' ')[0] || ''}
-                          onChange={(event) => {
-                            const lastName = signupData.fullName.split(' ').slice(1).join(' ');
-                            setSignupData((prev) => ({ ...prev, fullName: `${event.target.value} ${lastName}`.trim() }));
-                          }}
-                          placeholder="First name"
-                          required
-                        />
-                      </label>
-                      <label className="login-field">
-                        <span>Last Name</span>
-                        <input
-                          type="text"
-                          value={signupData.fullName.split(' ').slice(1).join(' ') || ''}
-                          onChange={(event) => {
-                            const firstName = signupData.fullName.split(' ')[0] || '';
-                            setSignupData((prev) => ({ ...prev, fullName: `${firstName} ${event.target.value}`.trim() }));
-                          }}
-                          placeholder="Last name"
-                          required
-                        />
-                      </label>
-                    </div>
+                    <label className="login-field">
+                      <span>Full Name</span>
+                      <input
+                        type="text"
+                        value={signupData.fullName}
+                        onChange={(event) => setSignupData((prev) => ({ ...prev, fullName: event.target.value }))}
+                        placeholder="Your full name"
+                        required
+                      />
+                    </label>
 
                     {signupData.accountType === 'B2B' && (
                       <label className="login-field">
@@ -346,7 +369,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                     )}
 
                     <label className="login-field">
-                      <span>Phone (numbers only)</span>
+                      <span>Phone Number (optional)</span>
                       <PhoneNumberInput
                         value={phoneValue}
                         onChange={(val) => {
@@ -357,11 +380,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                       />
                     </label>
 
-                    <div className="signup-next-wrapper">
-                      <button type="submit" className="login-submit" style={{ width: 'auto', minWidth: '120px' }}>
-                        Next
-                      </button>
-                    </div>
+                    <button type="submit" className="login-submit">
+                      Continue
+                    </button>
                   </form>
                 )}
 
@@ -419,8 +440,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                   </div>
                 )}
               </div>
+
+              <div className="login-footer">
+                <span>
+                  Already have an account?{' '}
+                  <button type="button" className="login-footer-link" onClick={showLogin}>
+                    Sign in
+                  </button>
+                </span>
+                <span className="login-legal">© {new Date().getFullYear()} ULK Supply LLC. All Rights Reserved.</span>
+              </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

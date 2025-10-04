@@ -1,0 +1,43 @@
+{
+    "name": "web",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "build": "next build",
+        "dev": "next dev",
+        "lint": "next lint",
+        "start": "next start"
+    },
+    "dependencies": {
+        "@automotive/api": "file:../../apps/api",
+        "@automotive/auth": "file:../../packages/auth",
+        "@automotive/config": "file:../../packages/config",
+        "@automotive/database": "file:../../packages/database",
+        "@automotive/types": "file:../../packages/types",
+        "@automotive/ui": "file:../../packages/ui",
+        "@next/font": "14.0.3",
+        "@tanstack/react-query": "^4.36.1",
+        "@tanstack/react-query-devtools": "^4.36.1",
+        "bcryptjs": "^2.4.3",
+        "lucide-react": "^0.294.0",
+        "next": "14.0.3",
+        "next-auth": "^4.24.5",
+        "react": "^18",
+        "react-dom": "^18",
+        "zod": "^3.22.4",
+        "@auth/mongodb-adapter": "^3.10.0"
+    },
+    "devDependencies": {
+        "@types/bcryptjs": "^2.4.6",
+        "@types/node": "^20",
+        "@types/react": "^18",
+        "@types/react-dom": "^18",
+        "autoprefixer": "^10.0.1",
+        "eslint": "^8",
+        "eslint-config-next": "14.0.3",
+        "postcss": "^8",
+        "postcss-syntax": "^0.36.2",
+        "tailwindcss": "^3.3.0",
+        "typescript": "^5"
+    }
+}
