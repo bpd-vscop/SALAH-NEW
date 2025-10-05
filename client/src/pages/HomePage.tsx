@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bannersApi } from '../api/banners';
 import { categoriesApi } from '../api/categories';
 import { productsApi } from '../api/products';
@@ -45,84 +45,154 @@ export const HomePage: React.FC = () => {
 
   return (
     <SiteLayout>
-      <div className="home-hero">
+      <div className="mb-12 overflow-hidden rounded-3xl border border-border bg-gradient-to-r from-primary/10 via-surface to-surface shadow-md">
         {advertisingBanner ? (
-          <img src={advertisingBanner.imageUrl} alt={advertisingBanner.text ?? 'Promoted banner'} />
+          <img
+            src={advertisingBanner.imageUrl}
+            alt={advertisingBanner.text ?? 'Promoted banner'}
+            className="h-64 w-full object-cover sm:h-80"
+          />
         ) : (
-          <div className="hero-placeholder">Welcome to SALAH Store — Premium automotive and industrial supplies.</div>
+          <div className="flex h-64 flex-col justify-center gap-3 px-8 sm:h-80 sm:px-16">
+            <span className="text-xs font-semibold uppercase tracking-[0.4em] text-primary">Salah Store</span>
+            <h1 className="max-w-xl text-3xl font-semibold sm:text-4xl">
+              Premium automotive and industrial supplies without the fuss.
+            </h1>
+            <p className="max-w-lg text-slate-600">
+              Thousands of parts, tools, and consumables trusted by locksmiths, fleet operators, and workshops across the country.
+            </p>
+          </div>
         )}
       </div>
-      <section className="home-section">
-        <h2>Popular Categories</h2>
+
+      <section className="mb-12 space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-slate-900">Popular Categories</h2>
+            <p className="text-sm text-muted">Browse our most in-demand product groups.</p>
+          </div>
+        </div>
         {categories.length ? (
-          <div className="category-grid">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {categories.map((category) => (
-              <div key={category.id} className="category-card">
-                <h3>{category.name}</h3>
-                <p>{category.parentId ? 'Subcategory' : 'Top category'}</p>
+              <div
+                key={category.id}
+                className="rounded-2xl border border-border bg-surface p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
+              >
+                <h3 className="text-lg font-semibold text-slate-900">{category.name}</h3>
+                <p className="mt-2 text-sm text-muted">
+                  {category.parentId ? 'Subcategory' : 'Top category'}
+                </p>
               </div>
             ))}
           </div>
         ) : (
-          <p>No categories yet.</p>
+          <p className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
+            No categories yet.
+          </p>
         )}
       </section>
 
-      <section className="home-section">
-        <h2>Featured Offers</h2>
-        {loading && <div className="home-loading">Loading featured products…</div>}
-        {error && <div className="home-error">{error}</div>}
-        <div className="product-grid">
+      <section className="mb-12 space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-slate-900">Featured Offers</h2>
+            <p className="text-sm text-muted">Take advantage of current promotions and bundle pricing.</p>
+          </div>
+        </div>
+        {loading && (
+          <div className="flex items-center justify-center rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
+            Loading featured products...
+          </div>
+        )}
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-6 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {featured.map((product) => (
-            <div key={product.id} className="product-card">
-              <div className="product-media">
+            <article
+              key={product.id}
+              className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
+            >
+              <div className="relative aspect-[4/3] w-full overflow-hidden">
                 <img
                   src={product.images[0] ?? 'https://placehold.co/400x300?text=Product'}
                   alt={product.name}
                   loading="lazy"
+                  className="h-full w-full object-cover"
                 />
-                <div className="product-tags">
-                  {product.tags.map((tag) => (
-                    <span key={tag} className="product-tag">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+                {product.tags.length > 0 && (
+                  <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                    {product.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-primary/90 px-3 py-1 text-xs font-semibold text-white shadow-sm"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="product-body">
-                <h3>{product.name}</h3>
-                <p>{formatCurrency(product.price ?? 0)}</p>
+              <div className="flex flex-1 flex-col gap-3 p-5">
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold text-slate-900">{product.name}</h3>
+                  <p className="text-sm font-semibold text-primary">
+                    {formatCurrency(product.price ?? 0)}
+                  </p>
+                </div>
                 <button
                   type="button"
-                  className="primary-button"
+                  className="mt-auto inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20"
                   onClick={() => addItem({ productId: product.id, quantity: 1 }, product)}
                 >
                   Add to cart
                 </button>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       </section>
 
       {!!rowBanners.length && (
-        <section className="home-section row-banner-section">
-          <div className="row-banner-grid">
+        <section className="mb-12">
+          <div className="grid gap-4 md:grid-cols-2">
             {rowBanners.map((banner) => (
-              <img key={banner.id} src={banner.imageUrl} alt={banner.text ?? 'Row banner'} />
+              <img
+                key={banner.id}
+                src={banner.imageUrl}
+                alt={banner.text ?? 'Row banner'}
+                className="h-full w-full rounded-2xl object-cover"
+              />
             ))}
           </div>
         </section>
       )}
 
       {!!slideBanner.length && (
-        <section className="home-section">
-          <h2>Announcements</h2>
-          <div className="slide-banner">
+        <section className="mb-12 space-y-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold text-slate-900">Announcements</h2>
+              <p className="text-sm text-muted">Updates, events, and notices from the SALAH team.</p>
+            </div>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-3">
             {slideBanner.map((banner) => (
-              <article key={banner.id}>
-                <img src={banner.imageUrl} alt={banner.text ?? 'Announcement'} />
-                {banner.text && <p>{banner.text}</p>}
+              <article
+                key={banner.id}
+                className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm"
+              >
+                <img
+                  src={banner.imageUrl}
+                  alt={banner.text ?? 'Announcement'}
+                  className="h-40 w-full object-cover"
+                />
+                {banner.text && (
+                  <p className="px-5 py-4 text-sm text-slate-700">{banner.text}</p>
+                )}
               </article>
             ))}
           </div>

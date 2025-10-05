@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ordersApi } from '../api/orders';
 import { productsApi } from '../api/products';
@@ -47,7 +47,9 @@ export const CheckoutPage: React.FC = () => {
   if (!user) {
     return (
       <SiteLayout>
-        <div className="checkout-error">Authentication required.</div>
+        <div className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-center text-sm text-muted">
+          Authentication required.
+        </div>
       </SiteLayout>
     );
   }
@@ -57,7 +59,7 @@ export const CheckoutPage: React.FC = () => {
     const input = event.currentTarget.elements.namedItem('verification') as HTMLInputElement | null;
     const file = input?.files?.[0];
     if (!file) {
-      setError('Please choose a PDF or image file');
+      setError('Please choose a PDF or image file.');
       return;
     }
 
@@ -108,58 +110,87 @@ export const CheckoutPage: React.FC = () => {
 
   return (
     <SiteLayout>
-      <section className="checkout-page">
-        <h1>Checkout</h1>
-        <div className="checkout-grid">
-          <div className="checkout-panel">
-            <h2>Verification</h2>
+      <section className="space-y-6">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-semibold text-slate-900">Checkout</h1>
+          <p className="text-sm text-muted">Verify account, confirm items, and submit your purchase order.</p>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="space-y-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">Verification</h2>
             {user.verificationFileUrl ? (
-              <p className="verification-status">
+              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                 Verification file on record.{' '}
-                <a href={user.verificationFileUrl} target="_blank" rel="noreferrer">
+                <a className="font-semibold text-primary hover:text-primary-dark" href={user.verificationFileUrl} target="_blank" rel="noreferrer">
                   View file
                 </a>
               </p>
             ) : (
-              <p className="verification-status warning">Upload a PDF or image to verify your eligibility.</p>
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                Upload a PDF or image to verify your eligibility.
+              </p>
             )}
-            <form className="verification-form" onSubmit={handleUpload}>
-              <label className="file-input">
-                <span>Upload verification file (PDF, PNG, JPG)</span>
-                <input type="file" name="verification" accept="application/pdf,image/*" />
+            <form
+              className="flex flex-col gap-4 rounded-xl border border-dashed border-border bg-background p-4"
+              onSubmit={handleUpload}
+            >
+              <label className="flex flex-col gap-2 text-sm text-slate-700">
+                <span className="font-medium">Upload verification file (PDF, PNG, JPG)</span>
+                <input
+                  type="file"
+                  name="verification"
+                  accept="application/pdf,image/*"
+                  className="rounded-lg border border-border bg-white px-3 py-2 text-sm file:mr-4 file:rounded-lg file:border-none file:bg-primary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
+                />
               </label>
-              <button type="submit" className="primary-button" disabled={uploading}>
-                {uploading ? 'Uploading…' : 'Upload'}
+              <button
+                type="submit"
+                className="inline-flex w-fit items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={uploading}
+              >
+                {uploading ? 'Uploading...' : 'Upload'}
               </button>
             </form>
           </div>
-          <div className="checkout-panel">
-            <h2>Order Summary</h2>
-            <ul className="checkout-items">
+          <div className="space-y-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">Order Summary</h2>
+            <ul className="space-y-3 text-sm text-slate-700">
               {items.map((line) => {
                 const product = productMap[line.productId];
+                const unitPrice = product?.price ?? 0;
                 return (
-                  <li key={line.productId}>
+                  <li key={line.productId} className="flex items-center justify-between gap-4">
                     <span>{product?.name ?? 'Item'}</span>
-                    <span>
-                      {line.quantity} × {formatCurrency(product?.price ?? 0)} = {formatCurrency((product?.price ?? 0) * line.quantity)}
+                    <span className="font-medium text-slate-900">
+                      {line.quantity} x {formatCurrency(unitPrice)} = {formatCurrency(unitPrice * line.quantity)}
                     </span>
                   </li>
                 );
               })}
             </ul>
-            <div className="checkout-total">
-              <span>Total</span>
-              <strong>{formatCurrency(total)}</strong>
+            <div className="flex items-center justify-between rounded-xl border border-border bg-background px-4 py-3">
+              <span className="text-sm text-muted">Total</span>
+              <strong className="text-lg text-slate-900">{formatCurrency(total)}</strong>
             </div>
-            <p className="checkout-policy">All sales are final. No returns are accepted.</p>
-            <button type="button" className="primary-button" disabled={placingOrder} onClick={placeOrder}>
-              {placingOrder ? 'Placing order…' : 'Place order'}
+            <p className="text-xs text-muted">All sales are final. No returns are accepted.</p>
+            <button
+              type="button"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
+              disabled={placingOrder}
+              onClick={placeOrder}
+            >
+              {placingOrder ? 'Placing order...' : 'Place order'}
             </button>
           </div>
         </div>
-        {statusMessage && <div className="checkout-status">{statusMessage}</div>}
-        {error && <div className="checkout-error">{error}</div>}
+        {statusMessage && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {statusMessage}
+          </div>
+        )}
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        )}
       </section>
     </SiteLayout>
   );

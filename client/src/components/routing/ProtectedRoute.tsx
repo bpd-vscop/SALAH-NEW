@@ -1,4 +1,4 @@
-﻿import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import type { UserRole } from '../../types/api';
 
@@ -15,7 +15,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const location = useLocation();
 
   if (initializing) {
-    return <div className="page-loading">Loading...</div>;
+    return (
+      <div className="flex h-64 items-center justify-center text-sm text-muted">
+        Loading...
+      </div>
+    );
   }
 
   if (!user) {

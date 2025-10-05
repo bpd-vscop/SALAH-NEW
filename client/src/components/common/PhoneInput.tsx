@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 type Country = { code: string; name: string };
 
@@ -62,51 +62,53 @@ export function PhoneNumberInput({
 }: PhoneNumberInputProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [dropdownStyle, setDropdownStyle] = useState<{ top: number; left: number } | null>(null);
-  const buttonRef = useState<HTMLButtonElement | null>(null)[0];
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const selected = useMemo(() => {
-    return COUNTRIES.find((c) => c.code === value.countryCode) || COUNTRIES[0];
-  }, [value.countryCode]);
+  const selected = useMemo(
+    () => COUNTRIES.find((c) => c.code === value.countryCode) || COUNTRIES[0],
+    [value.countryCode]
+  );
 
   const filteredCountries = useMemo(() => {
     if (!search) return COUNTRIES;
     const lowerSearch = search.toLowerCase();
     return COUNTRIES.filter(
-      (c) =>
-        c.name.toLowerCase().includes(lowerSearch) ||
-        c.code.includes(lowerSearch)
+      (c) => c.name.toLowerCase().includes(lowerSearch) || c.code.includes(lowerSearch)
     );
   }, [search]);
 
-  const handleToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (!open) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      setDropdownStyle({
-        top: rect.bottom + 4,
-        left: rect.left,
-      });
+  useEffect(() => {
+    const handler = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener('mousedown', handler);
+      return () => document.removeEventListener('mousedown', handler);
     }
-    setOpen(!open);
-  };
+
+    return undefined;
+  }, [open]);
 
   return (
-    <div className="phone-input-wrapper">
-      <div className="phone-country-select">
+    <div ref={containerRef} className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="relative w-full sm:w-auto">
         <button
           type="button"
-          className="phone-country-button"
-          onClick={handleToggle}
+          className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium shadow-sm transition hover:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={() => !disabled && setOpen((prev) => !prev)}
           disabled={disabled}
         >
-          <span>{value.countryCode}</span>
+          <span>{selected.code}</span>
           <svg
             width="12"
             height="12"
             viewBox="0 0 12 12"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            style={{ opacity: 0.6 }}
+            className="opacity-60"
           >
             <path
               d="M3 4.5L6 7.5L9 4.5"
@@ -117,38 +119,37 @@ export function PhoneNumberInput({
             />
           </svg>
         </button>
-        {open && dropdownStyle && (
-          <div
-            className="phone-country-dropdown"
-            style={dropdownStyle}
-          >
-            <input
-              type="text"
-              className="phone-country-search"
-              placeholder="Search country..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              autoFocus
-            />
-            <div className="phone-country-list">
+        {open && (
+          <div className="absolute left-0 z-50 mt-2 w-64 overflow-hidden rounded-xl border border-border bg-white shadow-md">
+            <div className="border-b border-border p-2">
+              <input
+                type="text"
+                className="h-10 w-full rounded-lg border border-border px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="Search country..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="max-h-56 overflow-y-auto">
               {filteredCountries.length > 0 ? (
-                filteredCountries.map((c, idx) => (
+                filteredCountries.map((country) => (
                   <button
-                    key={`${c.name}-${idx}`}
+                    key={`${country.name}-${country.code}`}
                     type="button"
-                    className="phone-country-item"
+                    className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-primary/10 hover:text-primary"
                     onClick={() => {
-                      onChange({ countryCode: c.code, number: value.number });
+                      onChange({ countryCode: country.code, number: value.number });
                       setOpen(false);
                       setSearch('');
                     }}
                   >
-                    <span className="phone-country-code">{c.code}</span>
-                    <span className="phone-country-name">{c.name}</span>
+                    <span className="font-medium">{country.code}</span>
+                    <span className="text-xs text-muted">{country.name}</span>
                   </button>
                 ))
               ) : (
-                <div className="phone-country-empty">No country found.</div>
+                <div className="px-4 py-6 text-center text-sm text-muted">No country found.</div>
               )}
             </div>
           </div>
@@ -166,7 +167,7 @@ export function PhoneNumberInput({
           onChange({ countryCode: value.countryCode, number: digitsOnly });
         }}
         maxLength={13}
-        className="phone-number-input"
+        className="h-12 w-full rounded-xl border border-border bg-white px-4 text-sm shadow-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
       />
     </div>
   );

@@ -2,7 +2,9 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { SiteLayout } from '../components/layout/SiteLayout';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
+import { cn } from '../utils/cn';
 
 type SignupStep = 0 | 1 | 2;
 
@@ -107,6 +109,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
       setSignupError('Company name is required for business accounts.');
       return;
     }
+    if (!phoneValue.number) {
+      setSignupError('Provide a contact phone number.');
+      return;
+    }
     setSignupError(null);
     setSignupStep(1);
   };
@@ -145,349 +151,348 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     }
   };
 
-  const isB2B = signupData.accountType === 'B2B';
-  const stepCount = isB2B ? 3 : 2;
+  const steps = ['Business details', 'Credentials', 'Complete'] as const;
+
+  const renderLoginForm = () => (
+    <form className="space-y-4" onSubmit={handleLogin}>
+      <label className="flex flex-col gap-2 text-sm text-slate-600">
+        <span>Username</span>
+        <input
+          type="text"
+          value={loginUsername}
+          onChange={(event) => setLoginUsername(event.target.value)}
+          placeholder="you@example.com"
+          autoComplete="username"
+          className="h-12 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          required
+        />
+      </label>
+      <label className="flex flex-col gap-2 text-sm text-slate-600">
+        <span>Password</span>
+        <div className="relative">
+          <input
+            type={showLoginPassword ? 'text' : 'password'}
+            value={loginPassword}
+            onChange={(event) => setLoginPassword(event.target.value)}
+            placeholder="Enter your password"
+            autoComplete="current-password"
+            className="h-12 w-full rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowLoginPassword((prev) => !prev)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-primary hover:text-primary-dark"
+            aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
+          >
+            {showLoginPassword ? 'Hide' : 'Show'}
+          </button>
+        </div>
+      </label>
+      <div className="flex items-center justify-between text-xs text-muted">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(event) => setRememberMe(event.target.checked)}
+            className="h-4 w-4 rounded border border-border text-primary focus:ring-primary/30"
+          />
+          Remember me
+        </label>
+        <button type="button" className="font-medium text-primary hover:text-primary-dark">
+          Forgot password?
+        </button>
+      </div>
+      {loginError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {loginError}
+        </div>
+      )}
+      <button
+        type="submit"
+        className="inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
+        disabled={loginLoading}
+      >
+        {loginLoading ? 'Signing in...' : 'Sign in'}
+      </button>
+      <p className="text-center text-sm text-muted">
+        Need an account?{' '}
+        <button type="button" className="font-semibold text-primary hover:text-primary-dark" onClick={showSignup}>
+          Register now
+        </button>
+      </p>
+    </form>
+  );
+
+  const renderSignupStep0 = () => (
+    <form className="space-y-4" onSubmit={handleSignupStep0}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {(['B2B', 'C2B'] as const).map((type) => {
+          const isActive = signupData.accountType === type;
+          return (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setSignupData((prev) => ({ ...prev, accountType: type }))}
+              className={cn(
+                'rounded-xl border px-4 py-3 text-sm font-medium transition',
+                isActive ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-border bg-white text-slate-600 hover:border-primary hover:text-primary'
+              )}
+            >
+              {type === 'B2B' ? 'Business account' : 'Personal account'}
+            </button>
+          );
+        })}
+      </div>
+      <label className="flex flex-col gap-2 text-sm text-slate-600">
+        <span>Full name</span>
+        <input
+          type="text"
+          value={signupData.fullName}
+          onChange={(event) => setSignupData((prev) => ({ ...prev, fullName: event.target.value }))}
+          placeholder="First Last"
+          className="h-12 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          required
+        />
+      </label>
+      {signupData.accountType === 'B2B' && (
+        <label className="flex flex-col gap-2 text-sm text-slate-600">
+          <span>Company name</span>
+          <input
+            type="text"
+            value={signupData.companyName}
+            onChange={(event) => setSignupData((prev) => ({ ...prev, companyName: event.target.value }))}
+            placeholder="Your business or trade name"
+            className="h-12 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+        </label>
+      )}
+      <div className="space-y-2 text-sm text-slate-600">
+        <span>Contact phone</span>
+        <PhoneNumberInput
+          value={phoneValue}
+          onChange={(val) => {
+            setPhoneValue(val);
+            setSignupData((prev) => ({ ...prev, phone: `${val.countryCode}${val.number}` }));
+          }}
+        />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+        <span>Step 1 of 2</span>
+        <button type="submit" className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20">
+          Continue
+        </button>
+      </div>
+    </form>
+  );
+
+  const renderSignupStep1 = () => (
+    <form className="space-y-4" onSubmit={handleSignupCredentials}>
+      <label className="flex flex-col gap-2 text-sm text-slate-600">
+        <span>Email address</span>
+        <input
+          type="email"
+          value={signupData.username}
+          onChange={(event) => setSignupData((prev) => ({ ...prev, username: event.target.value }))}
+          placeholder="you@example.com"
+          autoComplete="email"
+          className="h-12 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          required
+        />
+      </label>
+      <label className="flex flex-col gap-2 text-sm text-slate-600">
+        <span>Password</span>
+        <div className="relative">
+          <input
+            type={showSignupPassword ? 'text' : 'password'}
+            value={signupData.password}
+            onChange={(event) => setSignupData((prev) => ({ ...prev, password: event.target.value }))}
+            placeholder="Create a password"
+            className="h-12 w-full rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowSignupPassword((prev) => !prev)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-primary hover:text-primary-dark"
+          >
+            {showSignupPassword ? 'Hide' : 'Show'}
+          </button>
+        </div>
+      </label>
+      <label className="flex flex-col gap-2 text-sm text-slate-600">
+        <span>Confirm password</span>
+        <div className="relative">
+          <input
+            type={showConfirmPassword ? 'text' : 'password'}
+            value={signupData.confirmPassword}
+            onChange={(event) => setSignupData((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+            placeholder="Confirm your password"
+            className="h-12 w-full rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword((prev) => !prev)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-primary hover:text-primary-dark"
+          >
+            {showConfirmPassword ? 'Hide' : 'Show'}
+          </button>
+        </div>
+      </label>
+      <div className="flex justify-between gap-3">
+        <button
+          type="button"
+          className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted transition hover:border-primary hover:text-primary"
+          onClick={() => setSignupStep(0)}
+        >
+          Back
+        </button>
+        <button
+          type="submit"
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
+          disabled={signupLoading}
+        >
+          {signupLoading ? 'Creating...' : 'Create account'}
+        </button>
+      </div>
+    </form>
+  );
+
+  const renderSignupStep2 = () => (
+    <div className="flex flex-col items-center gap-4 text-center">
+      <div className="grid h-16 w-16 place-items-center rounded-full bg-primary text-white">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
+      </div>
+      <h2 className="text-xl font-semibold text-slate-900">Account created!</h2>
+      <p className="max-w-sm text-sm text-muted">You can now sign in using your new credentials.</p>
+      <button
+        type="button"
+        className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20"
+        onClick={() => {
+          showLogin();
+          resetSignup();
+        }}
+      >
+        Go to login
+      </button>
+    </div>
+  );
+
+  const renderSignup = () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3 text-xs font-medium text-muted">
+        {steps.map((label, index) => {
+          const isActive = signupStep === index;
+          const isComplete = signupStep > index;
+          return (
+            <div key={label} className="flex items-center gap-2">
+              <span
+                className={cn(
+                  'grid h-8 w-8 place-items-center rounded-full border text-sm font-semibold',
+                  isComplete ? 'border-primary bg-primary text-white' : isActive ? 'border-primary text-primary' : 'border-border text-muted'
+                )}
+              >
+                {isComplete ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                ) : (
+                  index + 1
+                )}
+              </span>
+              <span className={cn('text-xs font-medium', isActive || isComplete ? 'text-slate-900' : 'text-muted')}>
+                {label}
+              </span>
+              {index < steps.length - 1 && <span className="hidden w-8 border-t border-dashed border-border sm:block" />}
+            </div>
+          );
+        })}
+      </div>
+      {signupError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {signupError}
+        </div>
+      )}
+      {signupStep === 0 && renderSignupStep0()}
+      {signupStep === 1 && renderSignupStep1()}
+      {signupStep === 2 && renderSignupStep2()}
+      {signupStep !== 2 && (
+        <p className="text-center text-sm text-muted">
+          Already have an account?{' '}
+          <button type="button" className="font-semibold text-primary hover:text-primary-dark" onClick={showLogin}>
+            Sign in
+          </button>
+        </p>
+      )}
+    </div>
+  );
+  const isLogin = activeTab === 'login';
 
   return (
-    <div className="auth-shell">
-      <div className="login-card">
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          transform: 'translate(-50%, -50%)',
-          width: '15rem',
-          height: '10rem',
-          borderRadius: '9999px',
-          background: '#eab308',
-          opacity: 0.15,
-          filter: 'blur(100px)',
-        }} />
-        <div style={{
-          position: 'absolute',
-          bottom: 0,
-          right: 0,
-          transform: 'translate(50%, 50%)',
-          width: '15rem',
-          height: '10rem',
-          borderRadius: '9999px',
-          background: '#b91c1c',
-          opacity: 0.15,
-          filter: 'blur(100px)',
-        }} />
-        <div className="login-card-inner">
-          <div className="login-logo-stack">
-            <img
-              src="https://i.postimg.cc/nVjjhfsz/qt-q-95.png"
-              alt="ULKS Logo"
-              className="login-logo-img"
-            />
-          </div>
-
-          <div className="login-switch" role="tablist" aria-label="Authentication">
-            <div className={`login-switch-slider ${activeTab === 'signup' ? 'is-right' : ''}`}></div>
-            <button
-              type="button"
-              className={activeTab === 'login' ? 'login-switch-btn is-active' : 'login-switch-btn'}
-              onClick={showLogin}
-              role="tab"
-              aria-selected={activeTab === 'login'}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              className={activeTab === 'signup' ? 'login-switch-btn is-active' : 'login-switch-btn'}
-              onClick={showSignup}
-              role="tab"
-              aria-selected={activeTab === 'signup'}
-            >
-              Sign Up
-            </button>
-          </div>
-
-          <div style={{ position: 'relative', minHeight: '460px' }}>
-            {/* Login panel */}
-            <div
-              className={`login-panel transition-transform duration-500 ease-in-out ${
-                activeTab === 'login'
-                  ? 'opacity-100 translate-x-0 relative'
-                  : 'opacity-0 translate-x-6 absolute inset-0 pointer-events-none'
-              }`}
-              role="tabpanel"
-            >
-              <h1 className="login-heading">Welcome to ULKS</h1>
-
-              <form className="login-form" onSubmit={handleLogin}>
-                <label className="login-field">
-                  <span>Email Address</span>
-                  <input
-                    type="text"
-                    value={loginUsername}
-                    onChange={(event) => setLoginUsername(event.target.value.toLowerCase())}
-                    placeholder="you@example.com"
-                    autoComplete="username"
-                    required
-                  />
-                </label>
-                <label className="login-field">
-                  <span>Password</span>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type={showLoginPassword ? 'text' : 'password'}
-                      value={loginPassword}
-                      onChange={(event) => setLoginPassword(event.target.value)}
-                      placeholder="Enter your password"
-                      autoComplete="current-password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="password-toggle"
-                      aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showLoginPassword ? (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                          <line x1="1" y1="1" x2="23" y2="23"></line>
-                        </svg>
-                      ) : (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                          <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                </label>
-                <div className="login-utility">
-                  <label className="login-remember">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(event) => setRememberMe(event.target.checked)}
-                    />
-                    Remember me
-                  </label>
-                  <span className="login-forgot">Forgot password?</span>
-                </div>
-                {loginError && (
-                  <div className="login-error" role="alert">
-                    {loginError}
-                  </div>
-                )}
-                <button type="submit" className="login-submit" disabled={loginLoading}>
-                  {loginLoading ? 'Signing in…' : 'Sign In'}
-                </button>
-              </form>
-
-              <div className="login-footer">
-                <span>
-                  Don&apos;t have an account?{' '}
-                  <button type="button" className="login-footer-link" onClick={showSignup}>
-                    Create one
-                  </button>
-                </span>
-                <span className="login-legal">© {new Date().getFullYear()} ULK Supply LLC. All rights reserved.</span>
+    <SiteLayout>
+      <div className="mx-auto max-w-5xl">
+        <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-md">
+          <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="hidden h-full flex-col justify-between bg-gradient-to-br from-primary via-primary-dark to-slate-900 p-10 text-white lg:flex">
+              <div className="space-y-6">
+                <p className="text-xs uppercase tracking-[0.35em] text-white/70">SALAH Store</p>
+                <h2 className="text-3xl font-semibold leading-tight">Streamline industrial sourcing</h2>
+                <p className="max-w-sm text-sm text-white/80">
+                  Centralize purchasing for locksmiths, fleets, and maintenance teams with transparent pricing and rapid fulfillment.
+                </p>
               </div>
+              <ul className="space-y-3 text-sm text-white/80">
+                <li>- Consolidated B2B account management</li>
+                <li>- Managed order workflows and approvals</li>
+                <li>- Volume pricing and allocation tracking</li>
+                <li>- Dedicated support from industry specialists</li>
+              </ul>
             </div>
-
-            {/* Signup panel */}
-            <div
-              className={`signup-panel transition-transform duration-500 ease-in-out ${
-                activeTab === 'signup'
-                  ? 'opacity-100 translate-x-0 relative'
-                  : 'opacity-0 -translate-x-6 absolute inset-0 pointer-events-none'
-              }`}
-              role="tabpanel"
-            >
-              <h1 className="login-heading">Create your ULKS Account</h1>
-
-              {/* Step indicators */}
-              <div className="signup-steps" aria-hidden="true">
-                {Array.from({ length: stepCount + 1 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`step-dot ${signupStep === i ? 'is-current' : ''}`}
-                  >
-                    {signupStep === i && (i + 1)}
-                  </div>
-                ))}
-              </div>
-
-              {signupError && (
-                <div className="login-error" role="alert">
-                  {signupError}
+            <div className="p-8 sm:p-10">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h1 className="text-2xl font-semibold text-slate-900">
+                    {isLogin ? 'Sign in' : 'Create an account'}
+                  </h1>
+                  <p className="text-sm text-muted">
+                    {isLogin
+                      ? 'Access your orders, approvals, and team settings.'
+                      : 'Unlock wholesale pricing and priority access to inventory.'}
+                  </p>
                 </div>
-              )}
-
-              <div className="signup-stage">
-                {signupStep === 0 && (
-                  <form className="signup-form" onSubmit={handleSignupStep0}>
-                    <div className="signup-account-type" role="tablist" aria-label="Account type">
-                      {(['B2B', 'C2B'] as const).map((type) => (
-                        <button
-                          type="button"
-                          key={type}
-                          className={signupData.accountType === type ? 'signup-type is-selected' : 'signup-type'}
-                          onClick={() => setSignupData((prev) => ({ ...prev, accountType: type }))}
-                        >
-                          {type === 'B2B' ? 'Business (B2B)' : 'Individual (C2B)'}
-                        </button>
-                      ))}
-                    </div>
-
-                    <label className="login-field">
-                      <span>Full Name</span>
-                      <input
-                        type="text"
-                        value={signupData.fullName}
-                        onChange={(event) => setSignupData((prev) => ({ ...prev, fullName: event.target.value }))}
-                        placeholder="Your full name"
-                        required
-                      />
-                    </label>
-
-                    {signupData.accountType === 'B2B' && (
-                      <label className="login-field">
-                        <span>Company Name</span>
-                        <input
-                          type="text"
-                          value={signupData.companyName}
-                          onChange={(event) => setSignupData((prev) => ({ ...prev, companyName: event.target.value }))}
-                          placeholder="Your business"
-                          required
-                        />
-                      </label>
+                <div className="flex rounded-full border border-border bg-background p-1 text-sm font-medium">
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex-1 rounded-full px-4 py-2 transition',
+                      isLogin ? 'bg-white text-slate-900 shadow' : 'text-muted hover:text-slate-900'
                     )}
-
-                    <label className="login-field">
-                      <span>Phone Number (optional)</span>
-                      <PhoneNumberInput
-                        value={phoneValue}
-                        onChange={(val) => {
-                          setPhoneValue(val);
-                          setSignupData((prev) => ({ ...prev, phone: `${val.countryCode}${val.number}` }));
-                        }}
-                        placeholder="1234567890"
-                      />
-                    </label>
-
-                    <button type="submit" className="login-submit">
-                      Continue
-                    </button>
-                  </form>
-                )}
-
-                {signupStep === 1 && (
-                  <form className="signup-form" onSubmit={handleSignupCredentials}>
-                    <label className="login-field">
-                      <span>Email Address</span>
-                      <input
-                        type="email"
-                        value={signupData.username}
-                        onChange={(event) => setSignupData((prev) => ({ ...prev, username: event.target.value }))}
-                        placeholder="you@example.com"
-                        required
-                      />
-                    </label>
-                    <label className="login-field">
-                      <span>Password</span>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type={showSignupPassword ? 'text' : 'password'}
-                          value={signupData.password}
-                          onChange={(event) => setSignupData((prev) => ({ ...prev, password: event.target.value }))}
-                          placeholder="Create a password"
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowSignupPassword(!showSignupPassword)}
-                          className="password-toggle"
-                          aria-label={showSignupPassword ? 'Hide password' : 'Show password'}
-                        >
-                          {showSignupPassword ? (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                              <line x1="1" y1="1" x2="23" y2="23"></line>
-                            </svg>
-                          ) : (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                              <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                          )}
-                        </button>
-                      </div>
-                    </label>
-                    <label className="login-field">
-                      <span>Confirm Password</span>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type={showConfirmPassword ? 'text' : 'password'}
-                          value={signupData.confirmPassword}
-                          onChange={(event) => setSignupData((prev) => ({ ...prev, confirmPassword: event.target.value }))}
-                          placeholder="Confirm your password"
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="password-toggle"
-                          aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                        >
-                          {showConfirmPassword ? (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                              <line x1="1" y1="1" x2="23" y2="23"></line>
-                            </svg>
-                          ) : (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                              <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                          )}
-                        </button>
-                      </div>
-                    </label>
-                    <div className="signup-actions">
-                      <button type="button" className="signup-back" onClick={() => setSignupStep(0)}>
-                        Back
-                      </button>
-                      <button type="submit" className="login-submit" disabled={signupLoading}>
-                        {signupLoading ? 'Creating…' : 'Create Account'}
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {signupStep === 2 && (
-                  <div className="signup-success">
-                    <div className="signup-success-badge">✔</div>
-                    <h2>Account created!</h2>
-                    <p>You can now sign in using your new credentials.</p>
-                    <button type="button" className="login-submit" onClick={() => { showLogin(); resetSignup(); }}>
-                      Go to Login
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="login-footer">
-                <span>
-                  Already have an account?{' '}
-                  <button type="button" className="login-footer-link" onClick={showLogin}>
+                    onClick={() => switchTab('login')}
+                  >
                     Sign in
                   </button>
-                </span>
-                <span className="login-legal">© {new Date().getFullYear()} ULK Supply LLC. All Rights Reserved.</span>
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex-1 rounded-full px-4 py-2 transition',
+                      !isLogin ? 'bg-white text-slate-900 shadow' : 'text-muted hover:text-slate-900'
+                    )}
+                    onClick={() => switchTab('signup')}
+                  >
+                    Register
+                  </button>
+                </div>
+              </div>
+              <div className="mt-8">
+                {isLogin ? renderLoginForm() : renderSignup()}
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </SiteLayout>
   );
 };
