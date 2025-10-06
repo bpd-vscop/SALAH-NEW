@@ -187,7 +187,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
         <div className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 w-60 h-40 rounded-full bg-red-700 opacity-15 blur-[100px]" />
 
         {/* Card Content */}
-        <div className="pt-12 px-11 pb-0 bg-transparent flex flex-col gap-4 min-h-auto">
+        <div className="pt-12 px-12 bg-transparent flex flex-col gap-4 min-h-auto">
           {/* Logo */}
           <div className="flex items-center flex-col gap-1 mb-2">
             <img
@@ -198,7 +198,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
           </div>
 
           {/* Tabs */}
-          <div className="relative grid grid-cols-2 gap-1 p-1 rounded-full bg-white/70 border border-gray-200 w-full max-w-xs mx-auto">
+          <div className="relative grid grid-cols-2 gap-1 p-4 rounded-full bg-white/70 border border-gray-200 w-full max-w-xs mx-auto">
             {/* Sliding Background */}
             <div
               className={`absolute top-1 left-1 rounded-full z-0 transition-transform duration-300 ease-in-out ${
@@ -336,7 +336,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                 </button>
               </form>
 
-              <div className="text-center flex flex-col items-center justify-center gap-2 text-sm text-gray-600 mt-4">
+              <div className="text-center flex flex-col items-center justify-center gap-2 text-sm text-gray-600 m-8">
                 <span>
                   Don&apos;t have an account?{' '}
                   <button type="button" className="text-orange-600 hover:text-red-700 font-medium cursor-pointer" onClick={showSignup}>
@@ -387,10 +387,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                 </div>
               )}
 
-              <div className="relative overflow-hidden min-h-[420px] mt-4">
+              <div className="relative overflow min-h-auto mt-2">
                 {/* Step 0: Personal Info */}
                 {signupStep === 0 && (
-                  <form className="w-full self-center grid gap-[1.1rem]" onSubmit={handleSignupStep0}>
+                  <form className="w-full self-center grid gap-4" onSubmit={handleSignupStep0}>
                     {/* Account Type */}
                     <div className="grid grid-cols-2 gap-2.5">
                       {(['B2B', 'C2B'] as const).map((type) => (
@@ -398,7 +398,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                           key={type}
                           type="button"
                           onClick={() => setSignupData((prev) => ({ ...prev, accountType: type }))}
-                          className={`rounded-xl px-3.5 py-3 border font-semibold cursor-pointer transition-all duration-300 ease-in-out ${
+                          className={`rounded-full px-3.5 py-3 mt-1 border font-semibold cursor-pointer transition-all duration-300 ease-in-out ${
                             signupData.accountType === type
                               ? 'border-transparent text-white scale-[1.01]'
                               : 'border-slate-400/40 bg-white/70 text-slate-600 hover:border-slate-400/55 hover:bg-white/95 hover:-translate-y-0.5 hover:shadow-md'
@@ -868,7 +868,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                 )}
               </div>
 
-              <div className="text-center flex flex-col items-center justify-center gap-2 text-sm text-gray-600 mt-4">
+              <div className="text-center flex flex-col items-center justify-center gap-2 text-sm text-gray-600 m-8">
                 <span>
                   Already have an account?{' '}
                   <button type="button" className="text-orange-600 hover:text-red-700 font-medium cursor-pointer" onClick={showLogin}>
