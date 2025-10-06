@@ -202,7 +202,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
             {/* Sliding Background */}
             <div
               className={`absolute top-1 left-1 rounded-full z-0 transition-transform duration-300 ease-in-out ${
-                activeTab === 'signup' ? 'translate-x-[calc(100%+0.5rem)]' : ''
+                activeTab === 'signup' ? 'translate-x-[calc(97.5%+0.5rem)]' : ''
               }`}
               style={{
                 width: 'calc(50% - 0.375rem)',
