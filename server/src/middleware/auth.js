@@ -1,9 +1,35 @@
-﻿const User = require('../models/User');
+const User = require('../models/User');
 const { unauthorized, forbidden } = require('../utils/appError');
+const { verifyAuthToken, getAuthCookieName } = require('../config/jwt');
+
+const extractToken = (req) => {
+  const cookieName = getAuthCookieName();
+  const cookieToken = req.cookies?.[cookieName];
+  if (cookieToken) return cookieToken;
+  const authHeader = req.headers?.authorization || '';
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7);
+  }
+  return null;
+};
 
 const attachCurrentUser = async (req, _res, next) => {
   try {
-    const userId = req.session?.userId;
+    const token = extractToken(req);
+    if (!token) {
+      req.user = null;
+      return next();
+    }
+
+    let decoded;
+    try {
+      decoded = verifyAuthToken(token);
+    } catch (_e) {
+      req.user = null;
+      return next();
+    }
+
+    const userId = decoded?.sub;
     if (!userId) {
       req.user = null;
       return next();
@@ -12,7 +38,6 @@ const attachCurrentUser = async (req, _res, next) => {
     const user = await User.findById(userId);
     if (!user || user.status !== 'active') {
       req.user = null;
-      req.session.userId = null;
       return next();
     }
 
@@ -45,3 +70,4 @@ module.exports = {
   requireAuth,
   requireRole,
 };
+

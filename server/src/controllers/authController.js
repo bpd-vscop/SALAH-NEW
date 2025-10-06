@@ -1,30 +1,19 @@
-﻿const User = require('../models/User');
+const User = require('../models/User');
 const { hashPassword, comparePassword } = require('../utils/password');
 const { validateRegister, validateLogin, validateChangePassword } = require('../validators/auth');
 const { mergeGuestCartIntoUser } = require('../services/cartService');
 const { badRequest, unauthorized } = require('../utils/appError');
+const { signAuthToken, getCookieOptions, getAuthCookieName } = require('../config/jwt');
 
-const startUserSession = (req, user) =>
-  new Promise((resolve, reject) => {
-    req.session.regenerate((error) => {
-      if (error) {
-        return reject(error);
-      }
-      req.session.userId = user.id;
-      req.session.role = user.role;
-      req.session.save((saveError) => {
-        if (saveError) {
-          return reject(saveError);
-        }
-        resolve();
-      });
-    });
-  });
+const setAuthCookie = (res, token) => {
+  const cookieName = getAuthCookieName();
+  res.cookie(cookieName, token, getCookieOptions());
+};
 
-const clearSessionCookie = (res) => {
-  const sameSite = process.env.SESSION_SAMESITE || 'lax';
-  const secure = process.env.SESSION_SECURE === 'true';
-  res.clearCookie('connect.sid', { path: '/', sameSite, secure, httpOnly: true });
+const clearAuthCookie = (res) => {
+  const cookieName = getAuthCookieName();
+  const opts = getCookieOptions();
+  res.clearCookie(cookieName, { path: '/', sameSite: opts.sameSite, secure: opts.secure, httpOnly: true });
 };
 
 const register = async (req, res, next) => {
@@ -48,7 +37,9 @@ const register = async (req, res, next) => {
 
     await mergeGuestCartIntoUser(user, guestCart);
     await user.save();
-    await startUserSession(req, user);
+
+    const token = signAuthToken(user);
+    setAuthCookie(res, token);
 
     res.status(201).json({ user: user.toJSON() });
   } catch (error) {
@@ -76,7 +67,9 @@ const login = async (req, res, next) => {
 
     await mergeGuestCartIntoUser(user, guestCart);
     await user.save();
-    await startUserSession(req, user);
+
+    const token = signAuthToken(user);
+    setAuthCookie(res, token);
 
     res.json({ user: user.toJSON() });
   } catch (error) {
@@ -84,17 +77,9 @@ const login = async (req, res, next) => {
   }
 };
 
-const logout = async (req, res, next) => {
+const logout = async (_req, res, next) => {
   try {
-    await new Promise((resolve, reject) => {
-      req.session.destroy((err) => {
-        if (err) {
-          return reject(err);
-        }
-        resolve();
-      });
-    });
-    clearSessionCookie(res);
+    clearAuthCookie(res);
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -137,3 +122,4 @@ module.exports = {
   currentUser,
   changePassword,
 };
+

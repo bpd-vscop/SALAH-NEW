@@ -1,13 +1,11 @@
 ﻿const path = require('path');
 const express = require('express');
-const session = require('express-session');
-const MongoStore = require('connect-mongo');
 const morgan = require('morgan');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 
 const registerRoutes = require('./routes');
 const { initMongo } = require('./config/mongo');
-const { getSessionConfig } = require('./config/session');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandlers');
 const { bootstrap } = require('./config/bootstrap');
 const { attachCurrentUser } = require('./middleware/auth');
@@ -28,8 +26,7 @@ app.use(
     credentials: true,
   })
 );
-
-app.use(session(getSessionConfig(MongoStore)));
+app.use(cookieParser());
 app.use(attachCurrentUser);
 
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));

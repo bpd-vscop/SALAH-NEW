@@ -60,12 +60,14 @@ export const Header: React.FC = () => {
             <div className="relative">
               <span className="text-sm font-semibold text-slate-900">Hi, {user.name.split(' ')[0]}</span>
               <div className="mt-2 flex gap-3 text-xs text-slate-600 lg:justify-end">
-                <Link className="transition hover:text-primary" to="/account">
-                  Dashboard
-                </Link>
+                {user.role === 'client' && (
+                  <Link className="transition hover:text-primary" to="/account">
+                    Account Dashboard
+                  </Link>
+                )}
                 {(user.role === 'admin' || user.role === 'manager' || user.role === 'staff') && (
                   <Link className="transition hover:text-primary" to="/admin">
-                    Admin
+                    {user.role === 'admin' ? 'Admin Dashboard' : 'Staff Dashboard'}
                   </Link>
                 )}
                 <button

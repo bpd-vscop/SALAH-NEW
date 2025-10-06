@@ -396,6 +396,8 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  const dashboardTitle = user?.role === 'admin' ? 'Admin Dashboard' : 'Staff Dashboard';
+
   const sidebar = (
     <nav className="flex flex-col gap-2 text-sm">
       {adminTabs.map((tab) => (
@@ -1135,7 +1137,7 @@ export const AdminDashboardPage: React.FC = () => {
   return (
     <SiteLayout>
       <DashboardLayout
-        title="Admin Control Center"
+        title={dashboardTitle}
         subtitle="Manage storefront data and monitor operations"
         sidebar={sidebar}
       >

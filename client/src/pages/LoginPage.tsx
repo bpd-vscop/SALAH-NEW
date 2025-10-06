@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import type { FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -42,6 +43,8 @@ type LoginPageProps = {
 export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) => {
   const { login, register: registerUser } = useAuth();
   const { items, loadFromServer } = useCart();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>(initialTab);
   const [loginUsername, setLoginUsername] = useState('');
@@ -83,12 +86,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     setLoginLoading(true);
     setLoginError(null);
     try {
-      await login({
+      const user = await login({
         username: loginUsername,
         password: loginPassword,
         guestCart: items.map((item: CartLine) => ({ productId: item.productId, quantity: item.quantity })),
       });
       await loadFromServer();
+      // Redirect based on role (admin/manager/staff -> /admin, client -> /account)
+      if (user.role === 'admin' || user.role === 'manager' || user.role === 'staff') {
+        navigate('/admin', { replace: true });
+      } else {
+        // If user came from a protected route, prefer that
+        const from = (location.state as any)?.from?.pathname as string | undefined;
+        navigate(from && from !== '/login' ? from : '/account', { replace: true });
+      }
     } catch (error) {
       console.error(error);
       setLoginError(error instanceof Error ? error.message : 'Login failed');
