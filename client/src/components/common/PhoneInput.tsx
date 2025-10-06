@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type Country = { code: string; name: string };
 
@@ -63,6 +64,8 @@ export function PhoneNumberInput({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
 
   const selected = useMemo(
     () => COUNTRIES.find((c) => c.code === value.countryCode) || COUNTRIES[0],
@@ -78,9 +81,24 @@ export function PhoneNumberInput({
   }, [search]);
 
   useEffect(() => {
+    if (open && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const dropdownHeight = 300; // Approximate height of dropdown
+      setDropdownPosition({
+        top: rect.top + window.scrollY - dropdownHeight - 8,
+        left: rect.left + window.scrollX,
+      });
+    }
+  }, [open]);
+
+  useEffect(() => {
     const handler = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
+      if (
+        !containerRef.current?.contains(event.target as Node) &&
+        !dropdownRef.current?.contains(event.target as Node)
+      ) {
         setOpen(false);
+        setSearch('');
       }
     };
 
@@ -91,6 +109,12 @@ export function PhoneNumberInput({
 
     return undefined;
   }, [open]);
+
+  const handleCountrySelect = (country: Country) => {
+    onChange({ countryCode: country.code, number: value.number });
+    setOpen(false);
+    setSearch('');
+  };
 
   return (
     <div ref={containerRef} className="flex items-center gap-2">
@@ -119,8 +143,15 @@ export function PhoneNumberInput({
             />
           </svg>
         </button>
-        {open && (
-          <div className="absolute left-0 bottom-full z-50 mb-2 w-64 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl">
+        {open && createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed z-[9999] w-64 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl"
+            style={{
+              top: `${dropdownPosition.top}px`,
+              left: `${dropdownPosition.left}px`,
+            }}
+          >
             <div className="border-b border-slate-200 p-2">
               <input
                 type="text"
@@ -138,11 +169,7 @@ export function PhoneNumberInput({
                     key={`${country.name}-${country.code}`}
                     type="button"
                     className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-red-50 hover:text-red-700"
-                    onClick={() => {
-                      onChange({ countryCode: country.code, number: value.number });
-                      setOpen(false);
-                      setSearch('');
-                    }}
+                    onClick={() => handleCountrySelect(country)}
                   >
                     <span className="font-medium">{country.code}</span>
                     <span className="text-xs text-slate-500">{country.name}</span>
@@ -152,7 +179,8 @@ export function PhoneNumberInput({
                 <div className="px-4 py-6 text-center text-sm text-slate-500">No country found.</div>
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
       <input
