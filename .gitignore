@@ -8,13 +8,17 @@ coverage/
 dist/
 server/uploads/
 
-# Environment files
-server/.env
-server/.env.local
-client/.env
+# Environment files *add .env files
+# server/.env
+# server/.env.local
+# client/.env
 
 # Editor
 .vscode/
 .idea/
 .DS_Store
 # UI code and screenshots
+
+
+# agents/rule files 
+Agents.md
