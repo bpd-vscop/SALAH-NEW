@@ -191,9 +191,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
           {/* Logo */}
           <div className="flex items-center flex-col gap-1 mb-2">
             <img
-              src="https://i.postimg.cc/nVjjhfsz/qt-q-95.png"
+              src="/logo.png"
               alt="ULKS Logo"
-              className="h-16 w-auto mx-auto"
+              className="h-20 w-auto mx-auto"
             />
           </div>
 
