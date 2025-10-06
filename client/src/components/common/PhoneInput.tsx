@@ -120,7 +120,7 @@ export function PhoneNumberInput({
           </svg>
         </button>
         {open && (
-          <div className="absolute left-0 z-50 mt-2 w-64 overflow-hidden rounded-xl border border-border bg-white shadow-md">
+          <div className="absolute left-0 bottom-full z-50 mb-2 w-64 overflow-hidden rounded-xl border border-border bg-white shadow-md">
             <div className="border-b border-border p-2">
               <input
                 type="text"
