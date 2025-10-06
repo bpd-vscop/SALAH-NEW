@@ -214,7 +214,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
             <button
               type="button"
               onClick={showLogin}
-              className={`translate-x-[calc(0%-0.5rem)] text-sm font-medium py-2 rounded-full transition-colors relative z-10 ${
+              className={`translate-x-[calc(0%-0.2rem)] text-sm font-medium py-2 rounded-full transition-colors relative z-10 ${
                 activeTab === 'login' ? 'text-white' : 'text-gray-700'
               }`}
             >
@@ -223,7 +223,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
             <button
               type="button"
               onClick={showSignup}
-              className={`translate-x-[calc(0%+0.5rem)] text-sm font-medium py-2 rounded-full transition-colors relative z-10 ${
+              className={`translate-x-[calc(0%+0.2rem)] text-sm font-medium py-2 rounded-full transition-colors relative z-10 ${
                 activeTab === 'signup' ? 'text-white' : 'text-gray-700'
               }`}
             >
