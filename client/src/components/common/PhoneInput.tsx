@@ -93,22 +93,22 @@ export function PhoneNumberInput({
   }, [open]);
 
   return (
-    <div ref={containerRef} className="flex flex-col gap-3 sm:flex-row sm:items-center">
-      <div className="relative w-full sm:w-auto">
+    <div ref={containerRef} className="flex items-center gap-2">
+      <div className="relative w-[20%] flex-shrink-0">
         <button
           type="button"
-          className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium shadow-sm transition hover:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-between gap-1 rounded-xl border border-slate-400/45 bg-white/95 px-2 py-3 text-sm font-medium transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 disabled:cursor-not-allowed disabled:opacity-60"
           onClick={() => !disabled && setOpen((prev) => !prev)}
           disabled={disabled}
         >
-          <span>{selected.code}</span>
+          <span className="text-[0.95rem]">{selected.code}</span>
           <svg
             width="12"
             height="12"
             viewBox="0 0 12 12"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            className="opacity-60"
+            className="opacity-60 flex-shrink-0"
           >
             <path
               d="M3 4.5L6 7.5L9 4.5"
@@ -120,11 +120,11 @@ export function PhoneNumberInput({
           </svg>
         </button>
         {open && (
-          <div className="absolute left-0 bottom-full z-50 mb-2 w-64 overflow-hidden rounded-xl border border-border bg-white shadow-md">
-            <div className="border-b border-border p-2">
+          <div className="absolute left-0 bottom-full z-50 mb-2 w-64 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl">
+            <div className="border-b border-slate-200 p-2">
               <input
                 type="text"
-                className="h-10 w-full rounded-lg border border-border px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-700/20"
                 placeholder="Search country..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -137,7 +137,7 @@ export function PhoneNumberInput({
                   <button
                     key={`${country.name}-${country.code}`}
                     type="button"
-                    className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-primary/10 hover:text-primary"
+                    className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-red-50 hover:text-red-700"
                     onClick={() => {
                       onChange({ countryCode: country.code, number: value.number });
                       setOpen(false);
@@ -145,11 +145,11 @@ export function PhoneNumberInput({
                     }}
                   >
                     <span className="font-medium">{country.code}</span>
-                    <span className="text-xs text-muted">{country.name}</span>
+                    <span className="text-xs text-slate-500">{country.name}</span>
                   </button>
                 ))
               ) : (
-                <div className="px-4 py-6 text-center text-sm text-muted">No country found.</div>
+                <div className="px-4 py-6 text-center text-sm text-slate-500">No country found.</div>
               )}
             </div>
           </div>
@@ -167,7 +167,7 @@ export function PhoneNumberInput({
           onChange({ countryCode: value.countryCode, number: digitsOnly });
         }}
         maxLength={13}
-        className="h-12 w-full rounded-xl border border-border bg-white px-4 text-sm shadow-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex-1 rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 disabled:cursor-not-allowed disabled:opacity-60"
       />
     </div>
   );
