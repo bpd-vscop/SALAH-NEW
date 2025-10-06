@@ -198,7 +198,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
           </div>
 
           {/* Tabs */}
-          <div className="relative grid grid-cols-2 gap-1 p-4 rounded-full bg-white/70 border border-gray-200 w-full max-w-xs mx-auto">
+          <div className="relative grid grid-cols-2 gap-1 p-2 rounded-full bg-white/70 border border-gray-200 w-full max-w-xs mx-auto">
             {/* Sliding Background */}
             <div
               className={`absolute top-1 left-1 rounded-full z-0 transition-transform duration-300 ease-in-out ${
