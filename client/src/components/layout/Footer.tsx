@@ -1,20 +1,10 @@
 import { useMemo, type FC, type ReactNode } from 'react';
 
-const supplyLinks = [
-  { label: 'By Manufacturer', href: '#' },
-  { label: 'Clearance', href: '#' },
-  { label: 'Deals', href: '#' },
-  { label: 'New Products', href: '#' },
-  { label: 'RFID Windows', href: '#' },
-];
-
 const corporateLinks = [
   { label: 'Track Your Order', href: '#' },
   { label: 'Help / FAQ', href: '#' },
   { label: 'About Us', href: '#' },
   { label: 'Contact Us', href: '#' },
-  { label: 'Do Not Sell My Info - CA Residents Only', href: '#' },
-  { label: 'Key Buy Program Details', href: '#' },
 ];
 
 const legalLinks = [
@@ -44,7 +34,7 @@ function FacebookIcon({ className }: { className?: string }) {
 function TwitterIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <path d="M21.54 6.05c-.73.33-1.5.55-2.32.65a4.06 4.06 0 0 0 1.78-2.23 8.11 8.11 0 0 1-2.6.99 4.02 4.02 0 0 0-6.85 3.66 11.4 11.4 0 0 1-8.29-4.2 4.02 4.02 0 0 0 1.24 5.37 3.97 3.97 0 0 1-1.82-.5v.05a4.03 4.03 0 0 0 3.23 3.95 4.03 4.03 0 0 1-1.81.07 4.03 4.03 0 0 0 3.76 2.8A8.07 8.07 0 0 1 2 18.57a11.36 11.36 0 0 0 17.5-9.57c0-.17 0-.35-.01-.52a8.2 8.2 0 0 0 2.05-2.09Z" />
+      <path d="M21.742 21.75l-7.563-11.179 7.056-8.321h-2.456l-5.691 6.714-4.54-6.714H2.359l7.29 10.776L2.25 21.75h2.456l6.035-7.118 4.818 7.118h6.191-.008zM7.739 3.818L18.81 20.182h-2.447L5.29 3.818h2.447z" />
     </svg>
   );
 }
@@ -88,20 +78,28 @@ export const Footer: FC = () => {
   return (
     <footer className="relative bg-[#1e1817] text-white">
       <div className="mx-auto max-w-content px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-4 lg:grid-cols-10">
-          <FooterColumn title="Automotive Locksmith Supplies" spanClasses="lg:col-span-2">
-            <ul className="space-y-2 text-sm text-white/80">
-              {supplyLinks.map((link) => (
-                <li key={link.label}>
-                  <a href={link.href} className="transition hover:text-white">
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </FooterColumn>
+        <div className="mb-10 flex flex-col items-center gap-4 rounded-2xl border border-white/15 bg-white/10 p-6 text-white/80 shadow-[0_24px_48px_rgba(0,0,0,0.35)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-center text-3xl font-semibold tracking-[0.12em] text-white sm:text-left">Working Hours</h2>
+          <div className="flex flex-col items-center gap-3 text-base font-medium text-white sm:flex-row sm:gap-8">
+            <div className="flex gap-4 sm:contents">
+              <span className="flex flex-col items-center gap-1 sm:inline-block sm:items-start">
+                <strong className="text-white">Monday - Friday</strong>
+                <span className="text-white sm:ml-2"> 9am - 5pm</span>
+              </span>
+              <span className="flex flex-col items-center gap-1 sm:inline-block sm:items-start">
+                <strong className="text-white">Saturday</strong>
+                <span className="inline-block rounded-full bg-[#facc15] px-3 py-1 text-sm text-black sm:ml-2">By appointment</span>
+              </span>
+            </div>
+            <span className="flex flex-col items-center gap-1 sm:inline-block sm:items-start">
+              <strong className="text-white">Sunday</strong>
+              <span className="inline-block rounded-full bg-[#ff4d4f] px-3 py-1 text-sm font-bold text-white sm:ml-2">Closed</span>
+            </span>
+          </div>
+        </div>
 
-          <FooterColumn title="Corporate" spanClasses="lg:col-span-2">
+        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-8">
+          <FooterColumn title="Corporate" spanClasses="col-span-1 lg:col-span-2 text-center sm:text-left">
             <ul className="space-y-2 text-sm text-white/80">
               {corporateLinks.map((link) => (
                 <li key={link.label}>
@@ -113,7 +111,7 @@ export const Footer: FC = () => {
             </ul>
           </FooterColumn>
 
-          <FooterColumn title="Legal Documents" spanClasses="lg:col-span-2">
+          <FooterColumn title="Legal Documents" spanClasses="col-span-1 lg:col-span-2 text-center sm:text-left">
             <ul className="space-y-2 text-sm text-white/80">
               {legalLinks.map((link) => (
                 <li key={link.label}>
@@ -125,44 +123,77 @@ export const Footer: FC = () => {
             </ul>
           </FooterColumn>
 
-          <div className="lg:col-span-2">
-            <h3 className="mb-3 text-lg font-semibold">Contact Us</h3>
-            <address className="not-italic space-y-3 text-sm text-white/80">
-              <div>
-                <p className="flex items-start gap-2">
-                  <PhoneIcon className="h-4 w-4 text-[#ff6f61]" />
-                  <span className="flex flex-col">
-                    {contactPhones.map((phone) => (
-                      <a key={phone} href={`tel:${phone.replace(/[^+\d]/g, '')}`} className="hover:text-white">
-                        {phone}
-                      </a>
-                    ))}
-                  </span>
-                </p>
+          <div className="col-span-2 sm:col-span-3 lg:col-span-2">
+            <h3 className="mb-3 text-lg font-semibold text-center lg:text-left">Contact</h3>
+            <address className="not-italic space-y-2 text-sm text-white/80">
+              {/* Mobile: two-column layout for phones and emails */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 lg:hidden">
+                <div>
+                  <p className="flex items-start gap-2">
+                    <PhoneIcon className="h-4 w-4 text-[#ff6f61] flex-shrink-0" />
+                    <span className="flex flex-col">
+                      {contactPhones.map((phone) => (
+                        <a key={phone} href={`tel:${phone.replace(/[^+\d]/g, '')}`} className="hover:text-white">
+                          {phone}
+                        </a>
+                      ))}
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <p className="flex items-start gap-2">
+                    <MailIcon className="h-4 w-4 text-[#ff6f61] flex-shrink-0" />
+                    <span className="flex flex-col">
+                      {contactEmails.map((email) => (
+                        <a key={email} href={`mailto:${email}`} className="hover:text-white">
+                          {email}
+                        </a>
+                      ))}
+                    </span>
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="flex items-start gap-2">
-                  <MailIcon className="h-4 w-4 text-[#ff6f61]" />
-                  <span className="flex flex-col">
-                    {contactEmails.map((email) => (
-                      <a key={email} href={`mailto:${email}`} className="hover:text-white">
-                        {email}
-                      </a>
-                    ))}
+
+              {/* Desktop: stacked layout */}
+              <div className="hidden lg:block lg:space-y-3">
+                <div>
+                  <p className="flex items-start gap-2">
+                    <PhoneIcon className="h-4 w-4 text-[#ff6f61] flex-shrink-0" />
+                    <span className="flex flex-col">
+                      {contactPhones.map((phone) => (
+                        <a key={phone} href={`tel:${phone.replace(/[^+\d]/g, '')}`} className="hover:text-white">
+                          {phone}
+                        </a>
+                      ))}
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <p className="flex items-start gap-2">
+                    <MailIcon className="h-4 w-4 text-[#ff6f61] flex-shrink-0" />
+                    <span className="flex flex-col">
+                      {contactEmails.map((email) => (
+                        <a key={email} href={`mailto:${email}`} className="hover:text-white">
+                          {email}
+                        </a>
+                      ))}
+                    </span>
+                  </p>
+                </div>
+                {/* Address - desktop only, left-aligned */}
+                <div className="flex items-start gap-2 text-white/75">
+                  <MapPinIcon className="mt-0.5 h-4 w-4 text-[#ff6f61] flex-shrink-0" />
+                  <span>
+                    1508 W Vine St
+                    <br />
+                    Kissimmee, FL 34741
                   </span>
-                </p>
-              </div>
-              <div className="flex items-start gap-2">
-                <MapPinIcon className="mt-0.5 h-4 w-4 text-[#ff6f61]" />
-                <span>
-                  1508 W Vine St
-                  <br />
-                  Kissimmee, FL 34741
-                </span>
+                </div>
               </div>
             </address>
-            <div className="mt-4 flex gap-4">
-              {socialLinks.map(({ label, href, Icon }) => (
+            {/* Social icons - centered in contact column, hidden on mobile */}
+            <div className="mt-4 hidden justify-center gap-4 lg:flex">
+                {socialLinks.map(({ label, href, Icon }) => (
                 <a
                   key={label}
                   href={href}
@@ -175,8 +206,8 @@ export const Footer: FC = () => {
             </div>
           </div>
 
-          <div className="md:col-span-2 lg:col-span-2">
-            <div className="relative h-48 w-full overflow-hidden rounded-xl border border-white/15 bg-black/10 sm:h-56 lg:h-64">
+          <div className="col-span-2 sm:col-span-3 lg:col-span-2">
+            <div className="relative mx-auto h-48 w-full overflow-hidden rounded-xl border border-white/15 bg-black/10 sm:h-56 lg:h-64">
               <iframe
                 src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d14051.322168483486!2d-81.418344!3d28.303457!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x88dd851677b224a3%3A0x1d2529c0a54763e4!2sULK%20Supply%20LLC!5e0!3m2!1sen!2sus!4v1748259865220!5m2!1sen!2sus&disableDefaultUI=true&gestureHandling=cooperative&zoomControl=false&mapTypeControl=false&streetViewControl=false&fullscreenControl=false"
                 title="ULK Supply Location"
@@ -186,6 +217,26 @@ export const Footer: FC = () => {
                 className="h-full w-full opacity-90"
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+            </div>
+            {/* Address - mobile only, centered below map */}
+            <div className="mt-4 flex items-start justify-center gap-2 text-sm text-white/75 lg:hidden">
+              <MapPinIcon className="mt-0.5 h-4 w-4 text-[#ff6f61] flex-shrink-0" />
+              <span className="whitespace-nowrap">
+                1508 W Vine St Kissimmee, FL 34741
+              </span>
+            </div>
+            {/* Social icons - centered below address on mobile only */}
+            <div className="mt-4 flex justify-center gap-4 lg:hidden">
+              {socialLinks.map(({ label, href, Icon }) => (
+                <a
+                  key={label}
+                  href={href}
+                  aria-label={label}
+                  className="transition-transform hover:scale-110 hover:text-white"
+                >
+                  <Icon className="h-5 w-5" />
+                </a>
+              ))}
             </div>
           </div>
         </div>
@@ -209,7 +260,15 @@ export const Footer: FC = () => {
         className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-red-700 text-white shadow-lg transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-transparent"
         aria-label="Back to top"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-5 w-5"
+        >
           <path d="M18 15l-6-6-6 6" />
         </svg>
       </button>
