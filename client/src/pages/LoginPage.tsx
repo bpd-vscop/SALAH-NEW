@@ -6,6 +6,12 @@ import { useCart } from '../context/CartContext';
 import type { CartLine } from '../context/CartContext';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
 
+type LocationState = {
+  from?: {
+    pathname: string;
+  };
+};
+
 type SignupStep = 0 | 1 | 2 | 3;
 
 type SignupData = {
@@ -97,7 +103,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
         navigate('/admin', { replace: true });
       } else {
         // If user came from a protected route, prefer that
-        const from = (location.state as any)?.from?.pathname as string | undefined;
+        const from = (location.state as LocationState)?.from?.pathname;
         navigate(from && from !== '/login' ? from : '/account', { replace: true });
       }
     } catch (error) {
