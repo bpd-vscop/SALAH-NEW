@@ -98,8 +98,8 @@ export const Footer: FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-8">
-          <FooterColumn title="Corporate" spanClasses="col-span-1 lg:col-span-2 text-center sm:text-left">
+        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-[repeat(3,1fr)_2fr]">
+          <FooterColumn title="Corporate" spanClasses="col-span-1 text-center sm:text-left">
             <ul className="space-y-2 text-sm text-white/80">
               {corporateLinks.map((link) => (
                 <li key={link.label}>
@@ -111,7 +111,7 @@ export const Footer: FC = () => {
             </ul>
           </FooterColumn>
 
-          <FooterColumn title="Legal Documents" spanClasses="col-span-1 lg:col-span-2 text-center sm:text-left">
+          <FooterColumn title="Legal Documents" spanClasses="col-span-1 text-center sm:text-left">
             <ul className="space-y-2 text-sm text-white/80">
               {legalLinks.map((link) => (
                 <li key={link.label}>
@@ -123,7 +123,7 @@ export const Footer: FC = () => {
             </ul>
           </FooterColumn>
 
-          <div className="col-span-2 sm:col-span-3 lg:col-span-2">
+          <div className="col-span-2 sm:col-span-3 lg:col-span-1">
             <h3 className="mb-3 text-lg font-semibold text-center lg:text-left">Contact</h3>
             <address className="not-italic space-y-2 text-sm text-white/80">
               {/* Mobile: two-column layout for phones and emails */}
@@ -206,7 +206,7 @@ export const Footer: FC = () => {
             </div>
           </div>
 
-          <div className="col-span-2 sm:col-span-3 lg:col-span-2">
+          <div className="col-span-2 sm:col-span-3 lg:col-span-1">
             <div className="relative mx-auto h-48 w-full overflow-hidden rounded-xl border border-white/15 bg-black/10 sm:h-56 lg:h-64">
               <iframe
                 src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d14051.322168483486!2d-81.418344!3d28.303457!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x88dd851677b224a3%3A0x1d2529c0a54763e4!2sULK%20Supply%20LLC!5e0!3m2!1sen!2sus!4v1748259865220!5m2!1sen!2sus&disableDefaultUI=true&gestureHandling=cooperative&zoomControl=false&mapTypeControl=false&streetViewControl=false&fullscreenControl=false"
