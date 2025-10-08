@@ -74,6 +74,55 @@ Product {
 
 `Banner { id: string, type: 'slide' | 'row' | 'advertising', imageUrl: string, linkUrl?: string | null, text?: string | null, order?: number, isActive?: boolean }`
 
+## Hero Slides
+- `GET /api/hero-slides` → `{ slides: HeroSlide[] }`
+- `POST /api/hero-slides` → `{ slide: HeroSlide }`
+- `PUT /api/hero-slides/:id` → `{ slide: HeroSlide }`
+- `DELETE /api/hero-slides/:id` → `204`
+
+```
+HeroSlide {
+  id: string,
+  title: string,
+  subtitle?: string,
+  caption?: string,
+  ctaText?: string,
+  linkUrl: string,
+  altText?: string,
+  order?: number,
+  desktopImage: string, // base64 data URL
+  mobileImage: string,  // base64 data URL
+  createdAt: string | null,
+  updatedAt: string | null
+}
+```
+
+## Featured Showcase
+- `GET /api/featured-showcase` → `{ items: FeaturedShowcase[] }`
+- `POST /api/featured-showcase` → `{ item: FeaturedShowcase }`
+- `PUT /api/featured-showcase/:id` → `{ item: FeaturedShowcase }`
+- `DELETE /api/featured-showcase/:id` → `204`
+
+```
+FeaturedShowcase {
+  id: string,
+  variant: 'feature' | 'tile',
+  title: string,
+  subtitle?: string,
+  category?: string,
+  offer?: string,
+  badgeText?: string,
+  ctaText?: string,
+  linkUrl: string,
+  price?: string,
+  altText?: string,
+  order?: number,
+  image: string, // base64 data URL
+  createdAt: string | null,
+  updatedAt: string | null
+}
+```
+
 ## Orders
 - `GET /api/orders` → `{ orders: Order[] }`
 - `GET /api/orders/:id` → `{ order: Order }`

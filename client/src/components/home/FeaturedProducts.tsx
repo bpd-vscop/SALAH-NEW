@@ -1,122 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { productsApi } from '../../api/products';
-import { formatCurrency } from '../../utils/format';
-
-interface CarouselItem {
-  id: string | number;
-  imageSrc: string;
-  altText: string;
-  category: string;
-  offer: string | null;
-  title: string | null;
-  caption: string | null;
-  ctaText: string;
-  ctaLink: string;
-  price: string | null;
-}
-
-interface SmallCardItem extends CarouselItem {
-  badgeText: string | null;
-}
-
-const fallbackCarouselData: CarouselItem[] = [
-  {
-    id: 1,
-    imageSrc: 'https://i.postimg.cc/wjQzdm7N/Screenshot-2025-04-22-161755.png',
-    altText: 'Professional automotive key cutting equipment',
-    category: 'AERO',
-    offer: '30% OFF',
-    title: 'IN-STOCK SALE',
-    caption: 'Check out the great offers',
-    ctaText: 'SHOP NOW',
-    ctaLink: '/products',
-    price: '$149.99',
-  },
-  {
-    id: 2,
-    imageSrc: 'https://m.media-amazon.com/images/I/71FzXOP+b-L._AC_UF894,1000_QL80_.jpg',
-    altText: 'Advanced diagnostic tools and equipment',
-    category: 'DIAGNOSTIC',
-    offer: '25% OFF',
-    title: 'PRO TOOLS',
-    caption: 'Professional grade equipment',
-    ctaText: 'SHOP NOW',
-    ctaLink: '/products',
-    price: '$299.99',
-  },
-  {
-    id: 3,
-    imageSrc: 'https://i.ebayimg.com/images/g/GDwAAeSwCfFnvsR7/s-l1200.jpg',
-    altText: 'Premium key programming devices',
-    category: 'PROGRAMMING',
-    offer: '40% OFF',
-    title: 'SMART KEYS',
-    caption: 'Latest technology solutions',
-    ctaText: 'SHOP NOW',
-    ctaLink: '/products',
-    price: '$459.99',
-  },
-];
-
-const fallbackSmallCardsData: SmallCardItem[] = [
-  {
-    id: 4,
-    imageSrc:
-      'https://img1.wsimg.com/isteam/ip/4000732a-f94c-4a6b-af0e-3bed8608d9b9/ols/Orange%20and%20Grey%20Modern%20Colorful%20Skinca-dddffcc.png/:/rs=w:982,h:982',
-    altText: 'Placeholder graphic for bike lights',
-    category: 'BIKE LIGHTING',
-    offer: null,
-    title: 'STAY IN SIGHT',
-    caption: null,
-    ctaText: 'SHOP NOW',
-    ctaLink: '/products',
-    price: '$45.00',
-    badgeText: null,
-  },
-  {
-    id: 5,
-    imageSrc:
-      'https://img1.wsimg.com/isteam/ip/4000732a-f94c-4a6b-af0e-3bed8608d9b9/ols/Orange%20and%20Grey%20Modern%20Colorful%20Skinca-aa8fe5c.png/:/rs=w:982,h:982',
-    altText: 'Placeholder graphic for bike saddle',
-    category: 'ELITE BIKE SADDLE',
-    offer: '10% OFF',
-    title: 'SELECT SADDLE',
-    caption: null,
-    ctaText: 'SHOP NOW',
-    ctaLink: '/products',
-    price: '$89.95',
-    badgeText: null,
-  },
-  {
-    id: 6,
-    imageSrc:
-      'https://img1.wsimg.com/isteam/ip/4000732a-f94c-4a6b-af0e-3bed8608d9b9/ols/Post%20de%20Instagram%20Ubicación%20y%20Horarios-e785029.png/:/rs=w:982,h:982',
-    altText: 'Placeholder graphic for urban bike',
-    category: 'URBAN BIKES',
-    offer: null,
-    title: 'FIND YOUR FAST',
-    caption: null,
-    ctaText: 'SHOP NOW',
-    ctaLink: '/products',
-    price: '$799.00',
-    badgeText: 'BEST DEAL',
-  },
-  {
-    id: 7,
-    imageSrc:
-      'https://img1.wsimg.com/isteam/ip/4000732a-f94c-4a6b-af0e-3bed8608d9b9/ols/WhatsApp%20Image%202025-04-22%20at%2011.41.11_83884d2e.jpg/:/rs=w:982,h:982',
-    altText: 'Placeholder graphic for pedals',
-    category: 'PEDAL SET',
-    offer: 'UP TO 15% OFF',
-    title: null,
-    caption: null,
-    ctaText: 'SHOP NOW',
-    ctaLink: '/products',
-    price: '$64.50',
-    badgeText: null,
-  },
-];
+import {
+  featuredShowcaseApi,
+  type FeaturedShowcaseItem,
+} from '../../api/featuredShowcase';
 
 const StyledShopNow = ({ text }: { text: string }) => (
   <div className="inline-block mt-1.5 border-b border-red-600 group-hover:border-red-600 transition-colors duration-200 md:mt-2 md:border-b-2">
@@ -209,10 +96,14 @@ const CarouselIndicators = ({
   );
 };
 
+const MAX_FEATURE_SLIDES = 3;
+
+const sortByOrder = (items: FeaturedShowcaseItem[]) =>
+  [...items].sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
+
 export const FeaturedProducts: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [carouselData, setCarouselData] = useState<CarouselItem[]>(fallbackCarouselData);
-  const [smallCardData, setSmallCardData] = useState<SmallCardItem[]>(fallbackSmallCardsData);
+  const [items, setItems] = useState<FeaturedShowcaseItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -222,37 +113,9 @@ export const FeaturedProducts: React.FC = () => {
       setLoading(true);
       setHasError(false);
       try {
-        const { products } = await productsApi.list({ tags: ['on sale'] });
-        if (!isMounted || !products.length) {
-          return;
-        }
-
-        const normalized = products.map<CarouselItem & { badgeText?: string | null }>((product) => ({
-          id: product.id,
-          imageSrc: product.images[0] ?? 'https://placehold.co/800x800/1f2937/fff?text=Product',
-          altText: product.name,
-          category: product.tags[0]?.toUpperCase() ?? 'FEATURED',
-          offer: product.tags.includes('on sale') ? 'ON SALE' : null,
-          title: product.name,
-          caption: product.description ? `${product.description.slice(0, 60)}${
-            product.description.length > 60 ? '…' : ''
-          }` : null,
-          ctaText: 'Shop Now',
-          ctaLink: `/products/${product.id}`,
-          price: formatCurrency(product.price ?? 0),
-        }));
-
-        const nextCarousel = normalized.slice(0, 3);
-        const nextCards = normalized.slice(3, 7).map<SmallCardItem>((item) => ({
-          ...item,
-          badgeText: item.offer ?? null,
-        }));
-
-        if (nextCarousel.length) {
-          setCarouselData(nextCarousel);
-        }
-        if (nextCards.length) {
-          setSmallCardData(nextCards);
+        const response = await featuredShowcaseApi.list();
+        if (isMounted) {
+          setItems(response.items);
         }
       } catch (error) {
         console.error('Failed to load featured products', error);
@@ -273,22 +136,29 @@ export const FeaturedProducts: React.FC = () => {
     };
   }, []);
 
-  const effectiveCarousel = useMemo(() => carouselData, [carouselData]);
-  const effectiveCards = useMemo(() => smallCardData, [smallCardData]);
+  const featureSlides = useMemo(
+    () => sortByOrder(items.filter((item) => item.variant === 'feature')).slice(0, MAX_FEATURE_SLIDES),
+    [items]
+  );
+
+  const tileItems = useMemo(
+    () => sortByOrder(items.filter((item) => item.variant === 'tile')).slice(0, MAX_FEATURE_SLIDES),
+    [items]
+  );
 
   useEffect(() => {
-    if (currentSlide >= effectiveCarousel.length) {
+    if (currentSlide >= featureSlides.length) {
       setCurrentSlide(0);
     }
-  }, [currentSlide, effectiveCarousel.length]);
+  }, [currentSlide, featureSlides.length]);
 
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % Math.max(effectiveCarousel.length, 1));
+    setCurrentSlide((prev) => (prev + 1) % Math.max(featureSlides.length, 1));
   };
 
   const prevSlide = () => {
     setCurrentSlide((prev) =>
-      (prev - 1 + Math.max(effectiveCarousel.length, 1)) % Math.max(effectiveCarousel.length, 1)
+      (prev - 1 + Math.max(featureSlides.length, 1)) % Math.max(featureSlides.length, 1)
     );
   };
 
@@ -321,27 +191,38 @@ export const FeaturedProducts: React.FC = () => {
     );
   }
 
+  if (!featureSlides.length && !tileItems.length) {
+    return null;
+  }
+
+  const gridColumnsClass = featureSlides.length ? 'md:grid-cols-2' : 'md:grid-cols-1';
+
   return (
-    <section aria-label="Featured products" className="mx-auto mb-12 w-[88%] space-y-1">
+    <section aria-label="Featured products" className="mx-auto mb-12 w-[88%] space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-900">Featured Highlights</h2>
+          <p className="text-sm text-muted">Showcase curated promos and spotlighted gear.</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6">
-        <div className="relative overflow-hidden rounded-2xl shadow-md">
+      <div className={`grid grid-cols-1 gap-3 md:gap-6 ${gridColumnsClass}`}>
+        {featureSlides.length > 0 && (
+          <div className="relative overflow-hidden rounded-2xl shadow-md">
           <div className="relative h-full w-full overflow-hidden bg-slate-800">
             <div
               className="flex h-full transition-transform duration-500 ease-in-out"
               style={{ transform: `translateX(-${currentSlide * 100}%)` }}
             >
-              {effectiveCarousel.map((card) => (
+              {featureSlides.map((card) => (
                 <Link
                   key={card.id}
                   to={card.ctaLink}
                   className="group relative block h-full min-w-full"
                 >
                   <img
-                    src={card.imageSrc}
-                    alt={card.altText}
+                    src={card.image}
+                    alt={card.altText || card.title}
                     loading="lazy"
                     className="h-full w-full object-cover transition-all duration-300 ease-in-out group-hover:scale-105 group-hover:brightness-75 group-hover:contrast-110"
                   />
@@ -352,28 +233,27 @@ export const FeaturedProducts: React.FC = () => {
                         {card.offer}
                       </p>
                     )}
-                    {card.title && (
-                      <h3 className="text-lg font-semibold md:text-2xl lg:text-3xl">{card.title}</h3>
+                    <h3 className="text-lg font-semibold md:text-2xl lg:text-3xl">{card.title}</h3>
+                    {card.subtitle && (
+                      <p className="text-xs text-slate-200 md:text-sm">{card.subtitle}</p>
                     )}
-                    {card.caption && (
-                      <p className="text-xs text-slate-200 md:text-sm">{card.caption}</p>
-                    )}
-                    <StyledShopNow text={card.ctaText} />
+                    <StyledShopNow text={card.ctaText ?? 'Shop Now'} />
                   </div>
-                  <PriceTag price={card.price} />
+                  <PriceTag price={card.price ?? null} />
                 </Link>
               ))}
             </div>
 
-            <NavArrow direction="left" onClick={prevSlide} disabled={effectiveCarousel.length <= 1} />
-            <NavArrow direction="right" onClick={nextSlide} disabled={effectiveCarousel.length <= 1} />
+            <NavArrow direction="left" onClick={prevSlide} disabled={featureSlides.length <= 1} />
+            <NavArrow direction="right" onClick={nextSlide} disabled={featureSlides.length <= 1} />
 
-            <CarouselIndicators total={effectiveCarousel.length} current={currentSlide} onSelect={goToSlide} />
+            <CarouselIndicators total={featureSlides.length} current={currentSlide} onSelect={goToSlide} />
           </div>
         </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 md:gap-6">
-          {effectiveCards.map((card) => (
+          {tileItems.map((card) => (
             <Link
               key={card.id}
               to={card.ctaLink}
@@ -381,8 +261,8 @@ export const FeaturedProducts: React.FC = () => {
             >
               <div className="relative h-full w-full overflow-hidden bg-slate-700">
                 <img
-                  src={card.imageSrc}
-                  alt={card.altText}
+                  src={card.image}
+                  alt={card.altText || card.title}
                   loading="lazy"
                   className="h-full w-full object-cover transition-all duration-300 ease-in-out group-hover:scale-105 group-hover:brightness-75 group-hover:contrast-110"
                 />
@@ -411,15 +291,19 @@ export const FeaturedProducts: React.FC = () => {
                   {!card.offer && card.title && (
                     <h3 className="text-sm font-bold text-white md:text-lg">{card.title}</h3>
                   )}
-                  <StyledShopNow text={card.ctaText} />
+                  <StyledShopNow text={card.ctaText ?? 'Shop Now'} />
                 </div>
-                <PriceTag price={card.price} />
+                <PriceTag price={card.price ?? null} />
               </div>
             </Link>
           ))}
+          {!tileItems.length && featureSlides.length > 0 && (
+            <div className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
+              Add featured tiles from the admin dashboard to populate this grid.
+            </div>
+          )}
         </div>
       </div>
     </section>
   );
 };
-
