@@ -6,6 +6,7 @@ import type { Banner, Category, Product } from '../types/api';
 import { SiteLayout } from '../components/layout/SiteLayout';
 import { formatCurrency } from '../utils/format';
 import { useCart } from '../context/CartContext';
+import { HeroSlider } from '../components/home/HeroSlider';
 
 export const HomePage: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -45,27 +46,9 @@ export const HomePage: React.FC = () => {
 
   return (
     <SiteLayout>
-      <div className="mb-12 overflow-hidden rounded-3xl border border-border bg-gradient-to-r from-primary/10 via-surface to-surface shadow-md">
-        {advertisingBanner ? (
-          <img
-            src={advertisingBanner.imageUrl}
-            alt={advertisingBanner.text ?? 'Promoted banner'}
-            className="h-64 w-full object-cover sm:h-80"
-          />
-        ) : (
-          <div className="flex h-64 flex-col justify-center gap-3 px-8 sm:h-80 sm:px-16">
-            <span className="text-xs font-semibold uppercase tracking-[0.4em] text-primary">Salah Store</span>
-            <h1 className="max-w-xl text-3xl font-semibold sm:text-4xl">
-              Premium automotive and industrial supplies without the fuss.
-            </h1>
-            <p className="max-w-lg text-slate-600">
-              Thousands of parts, tools, and consumables trusted by locksmiths, fleet operators, and workshops across the country.
-            </p>
-          </div>
-        )}
-      </div>
+      <HeroSlider />
 
-      <section className="mb-12 space-y-6">
+      <section className="mb-12 space-y-6 w-[88%] mx-auto py-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-slate-900">Popular Categories</h2>
@@ -93,7 +76,7 @@ export const HomePage: React.FC = () => {
         )}
       </section>
 
-      <section className="mb-12 space-y-6">
+      <section className="mb-12 space-y-6 w-[88%] mx-auto py-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-slate-900">Featured Offers</h2>
@@ -157,7 +140,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {!!rowBanners.length && (
-        <section className="mb-12">
+        <section className="mb-12 w-[88%] mx-auto py-8">
           <div className="grid gap-4 md:grid-cols-2">
             {rowBanners.map((banner) => (
               <img
@@ -172,7 +155,7 @@ export const HomePage: React.FC = () => {
       )}
 
       {!!slideBanner.length && (
-        <section className="mb-12 space-y-6">
+        <section className="mb-12 space-y-6 w-[88%] mx-auto py-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-2xl font-semibold text-slate-900">Announcements</h2>
