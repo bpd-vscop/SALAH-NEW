@@ -7,6 +7,7 @@ import { SiteLayout } from '../components/layout/SiteLayout';
 import { formatCurrency } from '../utils/format';
 import { useCart } from '../context/CartContext';
 import { HeroSlider } from '../components/home/HeroSlider';
+import { FeaturedProducts } from '../components/home/FeaturedProducts';
 
 export const HomePage: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -47,6 +48,7 @@ export const HomePage: React.FC = () => {
   return (
     <SiteLayout>
       <HeroSlider />
+      <FeaturedProducts />
 
       <section className="mb-12 space-y-6 w-[88%] mx-auto py-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

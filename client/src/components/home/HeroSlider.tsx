@@ -76,11 +76,11 @@ export function HeroSlider() {
 
   return (
     <div
-      className="relative cursor-pointer sm:mx-6 lg:mx-8 mt-7 mb-6"
+      className="relative cursor-pointer mx-2 lg:mx-8 mt-10 mb-6"
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      <div className="relative overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)] isolate sm:rounded-2xl">
+      <div className="rounded-2xl relative overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)] isolate sm:rounded-2xl">
         {/* Slider Track */}
         <div
           className="flex transition-transform duration-700 ease-in-out"
@@ -94,7 +94,7 @@ export function HeroSlider() {
             className="relative min-w-full flex-shrink-0 block group"
           >
             {/* Image Container with Aspect Ratio */}
-            <div className="relative w-full h-[30vh] sm:h-auto sm:aspect-[16/9] md:aspect-[3/1]">
+            <div className="relative w-full h-[40vh] sm:h-auto sm:aspect-[16/9] md:aspect-[3/1]">
               {/* Mobile Image */}
               <img
                 src={slide.imageMobile || slide.imageDesktop}
