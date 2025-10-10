@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { bannersApi } from '../api/banners';
 import { categoriesApi } from '../api/categories';
+import { featuredShowcaseApi, type FeaturedShowcaseItem, type FeaturedVariant } from '../api/featuredShowcase';
+import { heroSlidesApi, type HeroSlide } from '../api/heroSlides';
 import { ordersApi } from '../api/orders';
 import { productsApi } from '../api/products';
 import { usersApi } from '../api/users';
@@ -23,11 +25,27 @@ import { StatusPill } from '../components/common/StatusPill';
 import { formatCurrency, formatTimestamp } from '../utils/format';
 import { cn } from '../utils/cn';
 
+const fileToDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') {
+        resolve(result);
+      } else {
+        reject(new Error('Unsupported file result'));
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+
 const adminTabs = [
   { id: 'users', label: 'Users' },
   { id: 'categories', label: 'Categories' },
   { id: 'products', label: 'Products' },
   { id: 'banners', label: 'Banners' },
+  { id: 'homepage', label: 'Homepage' },
   { id: 'orders', label: 'Orders' },
 ] as const;
 
@@ -38,6 +56,8 @@ const orderStatuses: OrderStatus[] = ['pending', 'processing', 'completed', 'can
 const canManageUsers = (role: UserRole) => role === 'admin';
 const canEditUsers = (role: UserRole) => role === 'admin' || role === 'manager';
 const canEditOrders = (role: UserRole) => role === 'admin' || role === 'manager' || role === 'staff';
+const canEditHomepage = (role: UserRole) => role === 'admin' || role === 'manager' || role === 'staff';
+const canDeleteHomepage = (role: UserRole) => role === 'admin' || role === 'manager';
 
 export const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -48,6 +68,8 @@ export const AdminDashboardPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
+  const [featuredItems, setFeaturedItems] = useState<FeaturedShowcaseItem[]>([]);
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +107,35 @@ export const AdminDashboardPage: React.FC = () => {
     isActive: true,
   });
 
+  const [selectedHeroSlideId, setSelectedHeroSlideId] = useState<string>('');
+  const [heroSlideForm, setHeroSlideForm] = useState({
+    title: '',
+    subtitle: '',
+    caption: '',
+    ctaText: 'Shop Now',
+    linkUrl: '',
+    order: 0,
+    desktopImage: '',
+    mobileImage: '',
+    altText: '',
+  });
+
+  const [selectedFeatureId, setSelectedFeatureId] = useState<string>('');
+  const [featureForm, setFeatureForm] = useState({
+    variant: 'feature' as FeaturedVariant,
+    title: '',
+    subtitle: '',
+    category: '',
+    offer: '',
+    badgeText: '',
+    ctaText: 'Shop Now',
+    linkUrl: '',
+    price: '',
+    order: 0,
+    image: '',
+    altText: '',
+  });
+
   const refreshUsers = async () => {
     const { users: data } = await usersApi.list();
     setUsers(data);
@@ -105,6 +156,16 @@ export const AdminDashboardPage: React.FC = () => {
     setBanners(data);
   };
 
+  const refreshHeroSlider = async () => {
+    const { slides } = await heroSlidesApi.list();
+    setHeroSlides(slides);
+  };
+
+  const refreshFeaturedShowcase = async () => {
+    const { items } = await featuredShowcaseApi.list();
+    setFeaturedItems(items);
+  };
+
   const refreshOrders = async () => {
     const { orders: data } = await ordersApi.list();
     setOrders(data);
@@ -119,6 +180,8 @@ export const AdminDashboardPage: React.FC = () => {
           refreshCategories(),
           refreshProducts(),
           refreshBanners(),
+          refreshHeroSlider(),
+          refreshFeaturedShowcase(),
           refreshOrders(),
         ]);
       } catch (err) {
@@ -206,6 +269,76 @@ export const AdminDashboardPage: React.FC = () => {
       });
     }
   }, [selectedBannerId, banners]);
+
+  useEffect(() => {
+    if (!selectedHeroSlideId) {
+      setHeroSlideForm({
+        title: '',
+        subtitle: '',
+        caption: '',
+        ctaText: 'Shop Now',
+        linkUrl: '',
+        order: heroSlides.length,
+        desktopImage: '',
+        mobileImage: '',
+        altText: '',
+      });
+      return;
+    }
+
+    const existing = heroSlides.find((slide) => slide.id === selectedHeroSlideId);
+    if (existing) {
+      setHeroSlideForm({
+        title: existing.title,
+        subtitle: existing.subtitle ?? '',
+        caption: existing.caption ?? '',
+        ctaText: existing.ctaText ?? 'Shop Now',
+        linkUrl: existing.linkUrl,
+        order: existing.order ?? 0,
+        desktopImage: existing.desktopImage,
+        mobileImage: existing.mobileImage,
+        altText: existing.altText ?? '',
+      });
+    }
+  }, [selectedHeroSlideId, heroSlides]);
+
+  useEffect(() => {
+    if (!selectedFeatureId) {
+      setFeatureForm({
+        variant: 'feature',
+        title: '',
+        subtitle: '',
+        category: '',
+        offer: '',
+        badgeText: '',
+        ctaText: 'Shop Now',
+        linkUrl: '',
+        price: '',
+        order: featuredItems.length,
+        image: '',
+        altText: '',
+      });
+      return;
+    }
+
+    const existing = featuredItems.find((item) => item.id === selectedFeatureId);
+    if (existing) {
+      setFeatureForm({
+        variant: existing.variant,
+        title: existing.title,
+        subtitle: existing.subtitle ?? '',
+        category: existing.category ?? '',
+        offer: existing.offer ?? '',
+        badgeText: existing.badgeText ?? '',
+        ctaText: existing.ctaText ?? 'Shop Now',
+        linkUrl: existing.linkUrl,
+        price: existing.price ?? '',
+        order: existing.order ?? 0,
+        image: existing.image,
+        altText: existing.altText ?? '',
+      });
+    }
+  }, [selectedFeatureId, featuredItems]);
 
   const setStatus = (message: string | null, errorMessage: string | null = null) => {
     setStatusMessage(message);
@@ -385,6 +518,103 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  const handleHeroSlideSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      if (!heroSlideForm.desktopImage || !heroSlideForm.mobileImage) {
+        setStatus(null, 'Desktop and mobile images are required');
+        return;
+      }
+
+      const payload = {
+        title: heroSlideForm.title,
+        subtitle: heroSlideForm.subtitle,
+        caption: heroSlideForm.caption,
+        ctaText: heroSlideForm.ctaText,
+        linkUrl: heroSlideForm.linkUrl,
+        order: Number(heroSlideForm.order) || 0,
+        desktopImage: heroSlideForm.desktopImage,
+        mobileImage: heroSlideForm.mobileImage,
+        altText: heroSlideForm.altText,
+      };
+
+      if (selectedHeroSlideId) {
+        await heroSlidesApi.update(selectedHeroSlideId, payload);
+        setStatus('Hero slide updated');
+      } else {
+        await heroSlidesApi.create(payload);
+        setStatus('Hero slide created');
+      }
+
+      await refreshHeroSlider();
+      setSelectedHeroSlideId('');
+    } catch (err) {
+      console.error(err);
+      setStatus(null, err instanceof Error ? err.message : 'Hero slide operation failed');
+    }
+  };
+
+  const deleteHeroSlide = async (id: string) => {
+    try {
+      await heroSlidesApi.delete(id);
+      await refreshHeroSlider();
+      setStatus('Hero slide deleted');
+    } catch (err) {
+      console.error(err);
+      setStatus(null, err instanceof Error ? err.message : 'Unable to delete hero slide');
+    }
+  };
+
+  const handleFeatureSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      if (!featureForm.image) {
+        setStatus(null, 'Image is required');
+        return;
+      }
+
+      const payload = {
+        variant: featureForm.variant,
+        title: featureForm.title,
+        subtitle: featureForm.subtitle,
+        category: featureForm.category,
+        offer: featureForm.offer,
+        badgeText: featureForm.badgeText,
+        ctaText: featureForm.ctaText,
+        linkUrl: featureForm.linkUrl,
+        price: featureForm.price,
+        order: Number(featureForm.order) || 0,
+        image: featureForm.image,
+        altText: featureForm.altText,
+      };
+
+      if (selectedFeatureId) {
+        await featuredShowcaseApi.update(selectedFeatureId, payload);
+        setStatus('Featured showcase updated');
+      } else {
+        await featuredShowcaseApi.create(payload);
+        setStatus('Featured showcase created');
+      }
+
+      await refreshFeaturedShowcase();
+      setSelectedFeatureId('');
+    } catch (err) {
+      console.error(err);
+      setStatus(null, err instanceof Error ? err.message : 'Featured showcase operation failed');
+    }
+  };
+
+  const deleteFeaturedItem = async (id: string) => {
+    try {
+      await featuredShowcaseApi.delete(id);
+      await refreshFeaturedShowcase();
+      setStatus('Featured item deleted');
+    } catch (err) {
+      console.error(err);
+      setStatus(null, err instanceof Error ? err.message : 'Unable to delete featured item');
+    }
+  };
+
   const updateOrderStatus = async (id: string, status: OrderStatus) => {
     try {
       await ordersApi.updateStatus(id, status);
@@ -444,6 +674,512 @@ export const AdminDashboardPage: React.FC = () => {
     if (tag === 'on sale') return 'warning';
     return 'default';
   };
+
+  const sortedHeroSlides = useMemo(
+    () => [...heroSlides].sort((a, b) => a.order - b.order || a.title.localeCompare(b.title)),
+    [heroSlides]
+  );
+
+  const featuredByVariant = useMemo(() => {
+    const feature = featuredItems
+      .filter((item) => item.variant === 'feature')
+      .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
+    const tiles = featuredItems
+      .filter((item) => item.variant === 'tile')
+      .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
+    return { feature, tiles };
+  }, [featuredItems]);
+
+  const renderHomepage = () => (
+    <div className="space-y-6">
+      <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Hero slider</h2>
+            <p className="text-sm text-muted">Upload desktop and mobile artwork for up to three slides.</p>
+          </div>
+          <p className="text-xs text-muted">Current slides: {sortedHeroSlides.length} / 3</p>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="space-y-4">
+            {sortedHeroSlides.map((slide) => (
+              <article
+                key={slide.id}
+                className={cn(
+                  'rounded-2xl border border-border bg-background p-4 shadow-sm transition hover:border-primary hover:shadow-md',
+                  selectedHeroSlideId === slide.id && 'border-primary bg-white shadow-md'
+                )}
+              >
+                <div className="flex flex-col gap-4 md:flex-row">
+                  <img
+                    src={slide.desktopImage}
+                    alt={slide.altText || slide.title}
+                    className="h-32 w-full rounded-xl object-cover md:w-48"
+                  />
+                  <div className="flex flex-1 flex-col gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="text-base font-semibold text-slate-900">{slide.title}</h3>
+                        <p className="text-xs text-muted">Order {slide.order}</p>
+                      </div>
+                      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                        Desktop &amp; mobile
+                      </span>
+                    </div>
+                    {slide.subtitle && <p className="text-sm text-slate-700">{slide.subtitle}</p>}
+                    <div className="mt-auto flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                        onClick={() => setSelectedHeroSlideId(slide.id)}
+                      >
+                        Edit
+                      </button>
+                      {canDeleteHomepage(user?.role ?? 'client') && (
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                          onClick={() => deleteHeroSlide(slide.id)}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+            {!sortedHeroSlides.length && (
+              <p className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
+                No hero slides yet. Upload artwork to get started.
+              </p>
+            )}
+          </div>
+          <form
+            className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm"
+            onSubmit={handleHeroSlideSubmit}
+          >
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-slate-900">
+                {selectedHeroSlideId ? 'Update hero slide' : 'Create hero slide'}
+              </h3>
+              <p className="text-xs text-muted">Images are stored as base64 and limited to the three most recent uploads.</p>
+            </div>
+            <label className="flex flex-col gap-2 text-sm text-slate-600">
+              Title
+              <input
+                type="text"
+                value={heroSlideForm.title}
+                onChange={(event) => setHeroSlideForm((state) => ({ ...state, title: event.target.value }))}
+                required
+                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm text-slate-600">
+              Subtitle
+              <input
+                type="text"
+                value={heroSlideForm.subtitle}
+                onChange={(event) => setHeroSlideForm((state) => ({ ...state, subtitle: event.target.value }))}
+                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm text-slate-600">
+              Caption
+              <textarea
+                value={heroSlideForm.caption}
+                onChange={(event) => setHeroSlideForm((state) => ({ ...state, caption: event.target.value }))}
+                rows={3}
+                className="rounded-xl border border-border bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                CTA label
+                <input
+                  type="text"
+                  value={heroSlideForm.ctaText}
+                  onChange={(event) => setHeroSlideForm((state) => ({ ...state, ctaText: event.target.value }))}
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Alt text
+                <input
+                  type="text"
+                  value={heroSlideForm.altText}
+                  onChange={(event) => setHeroSlideForm((state) => ({ ...state, altText: event.target.value }))}
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            </div>
+            <label className="flex flex-col gap-2 text-sm text-slate-600">
+              Link URL
+              <input
+                type="text"
+                value={heroSlideForm.linkUrl}
+                onChange={(event) => setHeroSlideForm((state) => ({ ...state, linkUrl: event.target.value }))}
+                required
+                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm text-slate-600">
+              Display order
+              <input
+                type="number"
+                min={0}
+                value={heroSlideForm.order}
+                onChange={(event) =>
+                  setHeroSlideForm((state) => ({ ...state, order: Number(event.target.value) || 0 }))
+                }
+                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Desktop image
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      const dataUrl = await fileToDataUrl(file);
+                      setHeroSlideForm((state) => ({ ...state, desktopImage: dataUrl }));
+                    }
+                  }}
+                  className="text-sm"
+                />
+                {heroSlideForm.desktopImage && (
+                  <img
+                    src={heroSlideForm.desktopImage}
+                    alt="Desktop preview"
+                    className="h-32 w-full rounded-xl object-cover"
+                  />
+                )}
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Mobile image
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      const dataUrl = await fileToDataUrl(file);
+                      setHeroSlideForm((state) => ({ ...state, mobileImage: dataUrl }));
+                    }
+                  }}
+                  className="text-sm"
+                />
+                {heroSlideForm.mobileImage && (
+                  <img
+                    src={heroSlideForm.mobileImage}
+                    alt="Mobile preview"
+                    className="h-32 w-full rounded-xl object-cover"
+                  />
+                )}
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={!canEditHomepage(user?.role ?? 'client')}
+              >
+                {selectedHeroSlideId ? 'Save changes' : 'Create slide'}
+              </button>
+              {selectedHeroSlideId && (
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted transition hover:border-primary hover:text-primary"
+                  onClick={() => setSelectedHeroSlideId('')}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Featured showcase</h2>
+            <p className="text-sm text-muted">Manage large feature panels and supporting tiles (max three each).</p>
+          </div>
+          <p className="text-xs text-muted">
+            Feature cards: {featuredByVariant.feature.length} / 3 · Tiles: {featuredByVariant.tiles.length} / 3
+          </p>
+        </div>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="space-y-5">
+            <div>
+              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Primary features</h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                {featuredByVariant.feature.map((item) => (
+                  <article
+                    key={item.id}
+                    className={cn(
+                      'rounded-2xl border border-border bg-background p-4 shadow-sm transition hover:border-primary hover:shadow-md',
+                      selectedFeatureId === item.id && 'border-primary bg-white shadow-md'
+                    )}
+                  >
+                    <img
+                      src={item.image}
+                      alt={item.altText || item.title}
+                      className="h-32 w-full rounded-xl object-cover"
+                    />
+                    <div className="mt-3 space-y-1">
+                      <h4 className="text-sm font-semibold text-slate-900">{item.title}</h4>
+                      {item.offer && <p className="text-xs font-semibold text-primary">{item.offer}</p>}
+                      <p className="text-xs text-muted">Order {item.order}</p>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                        onClick={() => setSelectedFeatureId(item.id)}
+                      >
+                        Edit
+                      </button>
+                      {canDeleteHomepage(user?.role ?? 'client') && (
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                          onClick={() => deleteFeaturedItem(item.id)}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+                {!featuredByVariant.feature.length && (
+                  <p className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted md:col-span-2">
+                    No feature cards yet.
+                  </p>
+                )}
+              </div>
+            </div>
+            <div>
+              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Tiles</h3>
+              <div className="grid gap-3 md:grid-cols-3">
+                {featuredByVariant.tiles.map((item) => (
+                  <article
+                    key={item.id}
+                    className={cn(
+                      'rounded-2xl border border-border bg-background p-3 shadow-sm transition hover:border-primary hover:shadow-md',
+                      selectedFeatureId === item.id && 'border-primary bg-white shadow-md'
+                    )}
+                  >
+                    <img
+                      src={item.image}
+                      alt={item.altText || item.title}
+                      className="h-24 w-full rounded-xl object-cover"
+                    />
+                    <div className="mt-2 space-y-1">
+                      <h4 className="text-sm font-semibold text-slate-900">{item.title}</h4>
+                      {item.badgeText && (
+                        <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                          {item.badgeText}
+                        </span>
+                      )}
+                      <p className="text-xs text-muted">Order {item.order}</p>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                        onClick={() => setSelectedFeatureId(item.id)}
+                      >
+                        Edit
+                      </button>
+                      {canDeleteHomepage(user?.role ?? 'client') && (
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                          onClick={() => deleteFeaturedItem(item.id)}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+                {!featuredByVariant.tiles.length && (
+                  <p className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted md:col-span-3">
+                    No tiles yet.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <form
+            className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm"
+            onSubmit={handleFeatureSubmit}
+          >
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-slate-900">
+                {selectedFeatureId ? 'Update featured item' : 'Create featured item'}
+              </h3>
+              <p className="text-xs text-muted">Uploads are stored as base64. The last three per variant are kept.</p>
+            </div>
+            <label className="flex flex-col gap-2 text-sm text-slate-600">
+              Variant
+              <select
+                value={featureForm.variant}
+                onChange={(event) => setFeatureForm((state) => ({ ...state, variant: event.target.value as FeaturedVariant }))}
+                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="feature">Feature</option>
+                <option value="tile">Tile</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-sm text-slate-600">
+              Title
+              <input
+                type="text"
+                value={featureForm.title}
+                onChange={(event) => setFeatureForm((state) => ({ ...state, title: event.target.value }))}
+                required
+                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm text-slate-600">
+              Subtitle
+              <input
+                type="text"
+                value={featureForm.subtitle}
+                onChange={(event) => setFeatureForm((state) => ({ ...state, subtitle: event.target.value }))}
+                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Category label
+                <input
+                  type="text"
+                  value={featureForm.category}
+                  onChange={(event) => setFeatureForm((state) => ({ ...state, category: event.target.value }))}
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Offer text
+                <input
+                  type="text"
+                  value={featureForm.offer}
+                  onChange={(event) => setFeatureForm((state) => ({ ...state, offer: event.target.value }))}
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Badge text
+                <input
+                  type="text"
+                  value={featureForm.badgeText}
+                  onChange={(event) => setFeatureForm((state) => ({ ...state, badgeText: event.target.value }))}
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                CTA label
+                <input
+                  type="text"
+                  value={featureForm.ctaText}
+                  onChange={(event) => setFeatureForm((state) => ({ ...state, ctaText: event.target.value }))}
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Link URL
+                <input
+                  type="text"
+                  value={featureForm.linkUrl}
+                  onChange={(event) => setFeatureForm((state) => ({ ...state, linkUrl: event.target.value }))}
+                  required
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Price text
+                <input
+                  type="text"
+                  value={featureForm.price}
+                  onChange={(event) => setFeatureForm((state) => ({ ...state, price: event.target.value }))}
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            </div>
+            <label className="flex flex-col gap-2 text-sm text-slate-600">
+              Alt text
+              <input
+                type="text"
+                value={featureForm.altText}
+                onChange={(event) => setFeatureForm((state) => ({ ...state, altText: event.target.value }))}
+                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm text-slate-600">
+              Display order
+              <input
+                type="number"
+                min={0}
+                value={featureForm.order}
+                onChange={(event) =>
+                  setFeatureForm((state) => ({ ...state, order: Number(event.target.value) || 0 }))
+                }
+                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm text-slate-600">
+              Image asset
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    const dataUrl = await fileToDataUrl(file);
+                    setFeatureForm((state) => ({ ...state, image: dataUrl }));
+                  }
+                }}
+                className="text-sm"
+              />
+              {featureForm.image && (
+                <img src={featureForm.image} alt="Feature preview" className="h-32 w-full rounded-xl object-cover" />
+              )}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={!canEditHomepage(user?.role ?? 'client')}
+              >
+                {selectedFeatureId ? 'Save changes' : 'Create item'}
+              </button>
+              {selectedFeatureId && (
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted transition hover:border-primary hover:text-primary"
+                  onClick={() => setSelectedFeatureId('')}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+      </section>
+    </div>
+  );
 
   const renderUsers = () => (
     <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
@@ -1153,6 +1889,7 @@ export const AdminDashboardPage: React.FC = () => {
         {activeTab === 'categories' && renderCategories()}
         {activeTab === 'products' && renderProducts()}
         {activeTab === 'banners' && renderBanners()}
+        {activeTab === 'homepage' && renderHomepage()}
         {activeTab === 'orders' && renderOrders()}
       </DashboardLayout>
     </SiteLayout>

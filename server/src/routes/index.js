@@ -8,6 +8,8 @@ const bannerRoutes = require('./banners');
 const orderRoutes = require('./orders');
 const cartRoutes = require('./cart');
 const uploadRoutes = require('./uploads');
+const heroSlideRoutes = require('./heroSlides');
+const featuredShowcaseRoutes = require('./featuredShowcase');
 
 module.exports = () => {
   const router = express.Router();
@@ -20,6 +22,8 @@ module.exports = () => {
   router.use('/orders', orderRoutes);
   router.use('/cart', cartRoutes);
   router.use('/uploads', uploadRoutes);
+  router.use('/hero-slides', heroSlideRoutes);
+  router.use('/featured-showcase', featuredShowcaseRoutes);
 
   return router;
 };

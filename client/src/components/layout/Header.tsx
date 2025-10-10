@@ -15,6 +15,7 @@ import {
   Wrench,
   Building2,
   Phone,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -198,8 +199,6 @@ const secondaryLinks = [
   { to: '/new-arrival', label: 'New Arrival', icon: Sparkles },
 ];
 
-const popularSearches = ['Xhorse', 'Autel', 'Key Machine', 'Remote Covers', 'TPMS'];
-
 const vehicleYears = ['2024', '2023', '2022', '2021', '2020', '2019'];
 const vehicleMakes = ['Toyota', 'Honda', 'Ford', 'BMW', 'Mercedes-Benz', 'Kia'];
 const vehicleModels = ['Camry', 'Accord', 'F-150', 'RAV4', 'C-Class', 'Telluride'];
@@ -237,8 +236,8 @@ const PromoBanner: React.FC = () => {
         aria-hidden
         className="pointer-events-none absolute -right-12 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-white/10 blur-2xl"
       />
-      <div className="mx-auto flex max-w-content flex-col items-center justify-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-center sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 sm:text-[0.75rem]">
-        <div className="relative flex h-8 w-full items-center justify-center sm:hidden">
+      <div className="mx-auto flex max-w-content flex-col items-center justify-center gap-2 px-4 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-center sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-6 sm:text-[0.75rem]">
+        <div className="relative flex h-6 w-full items-center justify-center sm:hidden">
           <span
             className="absolute animate-[promo-banner-shipping_14s_linear_infinite] whitespace-nowrap px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-white"
           >
@@ -289,86 +288,29 @@ const MenuCard: React.FC<MenuItem> = ({ href, imageUrl, label }) => (
   </Link>
 );
 
-const DesktopSearch: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
-  const [value, setValue] = useState('');
-  const [focused, setFocused] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handler = (event: MouseEvent) => {
-      if (!containerRef.current) {
-        return;
-      }
-      if (!containerRef.current.contains(event.target as Node)) {
-        setFocused(false);
-        onClose?.();
-      }
-    };
-    if (focused) {
-      document.addEventListener('mousedown', handler);
-    }
-    return () => document.removeEventListener('mousedown', handler);
-  }, [focused, onClose]);
-
-  return (
-    <div ref={containerRef} className="relative w-full max-w-lg">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-      <input
-        type="search"
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
-        onFocus={() => setFocused(true)}
-        placeholder="Search keyword or product..."
-        className="h-10 w-full rounded-xl border border-white/20 bg-white/95 pl-9 pr-3 text-sm text-slate-900 shadow-inner placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
-        aria-label="Search catalog"
-      />
-      {focused && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-xl border border-slate-200 bg-white p-4 shadow-2xl">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Popular searches</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {popularSearches.map((term) => (
-              <button
-                key={term}
-                type="button"
-                onClick={() => {
-                  setValue(term);
-                  setFocused(false);
-                  onClose?.();
-                }}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-left text-xs text-slate-600 transition hover:border-red-500 hover:text-red-600"
-              >
-                {term}
-              </button>
-            ))}
-          </div>
-          {value && (
-            <button
-              type="button"
-              onClick={() => {
-                setFocused(false);
-                onClose?.();
-              }}
-              className="mt-4 w-full rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-500"
-            >
-              Search for “{value}”
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
 
 interface VehicleSearchProps {
   isOpen: boolean;
   onToggle: () => void;
+  year: string;
+  setYear: (value: string) => void;
+  make: string;
+  setMake: (value: string) => void;
+  model: string;
+  setModel: (value: string) => void;
 }
 
-const VehicleSearchBar: React.FC<VehicleSearchProps> = ({ isOpen, onToggle }) => {
-  const [year, setYear] = useState('');
-  const [make, setMake] = useState('');
-  const [model, setModel] = useState('');
-
+const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
+  isOpen,
+  onToggle,
+  year,
+  setYear,
+  make,
+  setMake,
+  model,
+  setModel,
+}) => {
   return (
     <div className="bg-[#1e1817] text-white shadow-lg">
       <div className="mx-auto flex max-w-content flex-col gap-1 px-4 py-1 sm:px-6">
@@ -396,12 +338,11 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({ isOpen, onToggle }) =>
               className="overflow-hidden"
             >
               <div className="grid grid-cols-1 gap-3 pb-3 pt-2 md:grid-cols-[repeat(4,minmax(0,1fr))]">
-                <label className="flex flex-col gap-1">
-                  <span className="hidden text-xs uppercase tracking-wide text-white/70 xl:block">Year</span>
+                <label>
                   <select
                     value={year}
                     onChange={(event) => setYear(event.target.value)}
-                    className="h-10 rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                    className="h-10 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40"
                   >
                     <option value="" disabled>
                       Select year
@@ -413,15 +354,14 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({ isOpen, onToggle }) =>
                     ))}
                   </select>
                 </label>
-                <label className="flex flex-col gap-1">
-                  <span className="hidden text-xs uppercase tracking-wide text-white/70 xl:block">Make</span>
+                <label>
                   <select
                     value={make}
                     onChange={(event) => setMake(event.target.value)}
-                    className="h-10 rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                    className="h-10 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40"
                   >
                     <option value="" disabled>
-                      Select make
+                      Select brand
                     </option>
                     {vehicleMakes.map((option) => (
                       <option key={option} value={option} className="text-slate-900">
@@ -430,12 +370,11 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({ isOpen, onToggle }) =>
                     ))}
                   </select>
                 </label>
-                <label className="flex flex-col gap-1">
-                  <span className="hidden text-xs uppercase tracking-wide text-white/70 xl:block">Model</span>
+                <label>
                   <select
                     value={model}
                     onChange={(event) => setModel(event.target.value)}
-                    className="h-10 rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                    className="h-10 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40"
                   >
                     <option value="" disabled>
                       Select model
@@ -475,9 +414,17 @@ export const Header: React.FC = () => {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [vehicleSearchOpen, setVehicleSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [vehicleYear, setVehicleYear] = useState('');
+  const [vehicleMake, setVehicleMake] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
 
   const headerRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const vehicleSearchRef = useRef<HTMLDivElement>(null);
+  const desktopSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchToggleRef = useRef<HTMLButtonElement>(null);
 
   const closeMobileMenu = () => {
     setMobileMenuClosing(true);
@@ -497,6 +444,19 @@ export const Header: React.FC = () => {
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
         closeMobileMenu();
       }
+      if (vehicleSearchRef.current && !vehicleSearchRef.current.contains(target)) {
+        setVehicleSearchOpen(false);
+      }
+      if (
+        mobileSearchOpen &&
+        desktopSearchRef.current &&
+        !desktopSearchRef.current.contains(target) &&
+        mobileSearchToggleRef.current &&
+        !mobileSearchToggleRef.current.contains(target) &&
+        (!mobileSearchRef.current || !mobileSearchRef.current.contains(target))
+      ) {
+        setMobileSearchOpen(false);
+      }
     };
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -504,9 +464,10 @@ export const Header: React.FC = () => {
         closeMobileMenu();
         setMobileSearchOpen(false);
         setAccountMenuOpen(false);
+        setVehicleSearchOpen(false);
       }
     };
-    if (openMegaMenu || mobileMenuOpen || mobileSearchOpen || accountMenuOpen) {
+    if (openMegaMenu || mobileMenuOpen || mobileSearchOpen || accountMenuOpen || vehicleSearchOpen) {
       document.addEventListener('mousedown', handleClick);
       document.addEventListener('keydown', handleKey);
       return () => {
@@ -515,7 +476,7 @@ export const Header: React.FC = () => {
       };
     }
     return undefined;
-  }, [openMegaMenu, mobileMenuOpen, mobileSearchOpen, accountMenuOpen]);
+  }, [openMegaMenu, mobileMenuOpen, mobileSearchOpen, accountMenuOpen, vehicleSearchOpen]);
 
   const toggleMegaMenu = (key: MenuKey) => {
     setOpenMegaMenu((current) => (current === key ? null : key));
@@ -609,6 +570,7 @@ export const Header: React.FC = () => {
           <div className="flex items-center gap-2 text-white flex-shrink-0">
             <div className="hidden xl:flex items-center gap-2">
               <motion.div
+                ref={desktopSearchRef}
                 initial={false}
                 animate={{ width: mobileSearchOpen ? 320 : 40 }}
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
@@ -628,10 +590,22 @@ export const Header: React.FC = () => {
                       <input
                         type="search"
                         placeholder="Search keyword or product..."
-                        className="h-10 w-full rounded-xl border border-white/20 bg-white/95 pl-9 pr-3 text-sm text-slate-900 shadow-inner placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                        className="h-10 w-full rounded-xl border border-white/20 bg-white/95 pl-9 pr-9 text-sm text-slate-900 shadow-inner placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
                         aria-label="Search catalog"
                         autoFocus
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                       />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          aria-label="Clear search"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
                     </motion.div>
                   ) : (
                     <motion.button
@@ -641,7 +615,7 @@ export const Header: React.FC = () => {
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.2 }}
                       type="button"
-                      className="rounded-full p-2 transition hover:bg-white/10"
+                      className="rounded-full p-2 hover:bg-white/10"
                       onClick={() => setMobileSearchOpen(true)}
                       aria-label="Toggle search"
                       aria-expanded={mobileSearchOpen}
@@ -653,6 +627,7 @@ export const Header: React.FC = () => {
               </motion.div>
             </div>
             <button
+              ref={mobileSearchToggleRef}
               type="button"
               className="rounded-full p-2 transition hover:bg-white/10 xl:hidden"
               onClick={() => setMobileSearchOpen((state) => !state)}
@@ -738,6 +713,7 @@ export const Header: React.FC = () => {
         <AnimatePresence initial={false}>
           {mobileSearchOpen && (
             <motion.div
+              ref={mobileSearchRef}
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -749,19 +725,37 @@ export const Header: React.FC = () => {
                 <input
                   type="search"
                   placeholder="Search keyword or product..."
-                  className="h-10 w-full rounded-xl border border-white/20 bg-white/95 pl-9 pr-3 text-sm text-slate-900 shadow-inner placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                  className="h-10 w-full rounded-xl border border-white/20 bg-white/95 pl-9 pr-9 text-sm text-slate-900 shadow-inner placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
                   aria-label="Search catalog"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-7 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-      <div className="relative">
+      <div className="relative" ref={vehicleSearchRef}>
         <div className="absolute left-0 right-0 top-0 z-50">
           <VehicleSearchBar
             isOpen={vehicleSearchOpen}
             onToggle={() => setVehicleSearchOpen((state) => !state)}
+            year={vehicleYear}
+            setYear={setVehicleYear}
+            make={vehicleMake}
+            setMake={setVehicleMake}
+            model={vehicleModel}
+            setModel={setVehicleModel}
           />
         </div>
       </div>
