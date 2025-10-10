@@ -99,6 +99,7 @@ const CarouselIndicators = ({
 const MAX_FEATURE_SLIDES = 3;
 
 const sortByOrder = (items: FeaturedShowcaseItem[]) =>
+<<<<<<< HEAD
   [...items].sort((a, b) => {
     const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
     const orderB = b.order ?? Number.MAX_SAFE_INTEGER;
@@ -107,6 +108,9 @@ const sortByOrder = (items: FeaturedShowcaseItem[]) =>
     }
     return (a.title ?? '').localeCompare(b.title ?? '');
   });
+=======
+  [...items].sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
+>>>>>>> 43ec83810162a476f56443fb40697bc1258cc9c4
 
 export const FeaturedProducts: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -143,6 +147,7 @@ export const FeaturedProducts: React.FC = () => {
     };
   }, []);
 
+<<<<<<< HEAD
   const featureSlides = useMemo(() => {
     return sortByOrder(items.filter((item) => item.variant === 'feature')).slice(0, MAX_FEATURE_SLIDES);
   }, [items]);
@@ -150,6 +155,17 @@ export const FeaturedProducts: React.FC = () => {
   const tileItems = useMemo(() => {
     return sortByOrder(items.filter((item) => item.variant === 'tile')).slice(0, MAX_FEATURE_SLIDES);
   }, [items]);
+=======
+  const featureSlides = useMemo(
+    () => sortByOrder(items.filter((item) => item.variant === 'feature')).slice(0, MAX_FEATURE_SLIDES),
+    [items]
+  );
+
+  const tileItems = useMemo(
+    () => sortByOrder(items.filter((item) => item.variant === 'tile')).slice(0, MAX_FEATURE_SLIDES),
+    [items]
+  );
+>>>>>>> 43ec83810162a476f56443fb40697bc1258cc9c4
 
   useEffect(() => {
     if (currentSlide >= featureSlides.length) {
@@ -197,6 +213,7 @@ export const FeaturedProducts: React.FC = () => {
   }
 
   if (!featureSlides.length && !tileItems.length) {
+<<<<<<< HEAD
     return (
       <section aria-label="Featured products" className="mx-auto mb-12 w-[88%] space-y-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -214,6 +231,9 @@ export const FeaturedProducts: React.FC = () => {
         </div>
       </section>
     );
+=======
+    return null;
+>>>>>>> 43ec83810162a476f56443fb40697bc1258cc9c4
   }
 
   const gridColumnsClass = featureSlides.length ? 'md:grid-cols-2' : 'md:grid-cols-1';
@@ -230,7 +250,11 @@ export const FeaturedProducts: React.FC = () => {
       <div className={`grid grid-cols-1 gap-3 md:gap-6 ${gridColumnsClass}`}>
         {featureSlides.length > 0 && (
           <div className="relative overflow-hidden rounded-2xl shadow-md">
+<<<<<<< HEAD
             <div className="relative h-full w-full overflow-hidden bg-slate-800">
+=======
+          <div className="relative h-full w-full overflow-hidden bg-slate-800">
+>>>>>>> 43ec83810162a476f56443fb40697bc1258cc9c4
             <div
               className="flex h-full transition-transform duration-500 ease-in-out"
               style={{ transform: `translateX(-${currentSlide * 100}%)` }}
@@ -260,7 +284,11 @@ export const FeaturedProducts: React.FC = () => {
                     )}
                     <StyledShopNow text={card.ctaText ?? 'Shop Now'} />
                   </div>
+<<<<<<< HEAD
                   <PriceTag price={card.price ? card.price : null} />
+=======
+                  <PriceTag price={card.price ?? null} />
+>>>>>>> 43ec83810162a476f56443fb40697bc1258cc9c4
                 </Link>
               ))}
             </div>
@@ -269,8 +297,13 @@ export const FeaturedProducts: React.FC = () => {
             <NavArrow direction="right" onClick={nextSlide} disabled={featureSlides.length <= 1} />
 
             <CarouselIndicators total={featureSlides.length} current={currentSlide} onSelect={goToSlide} />
+<<<<<<< HEAD
             </div>
           </div>
+=======
+          </div>
+        </div>
+>>>>>>> 43ec83810162a476f56443fb40697bc1258cc9c4
         )}
 
         <div className="grid grid-cols-2 gap-3 md:gap-6">
@@ -314,7 +347,11 @@ export const FeaturedProducts: React.FC = () => {
                   )}
                   <StyledShopNow text={card.ctaText ?? 'Shop Now'} />
                 </div>
+<<<<<<< HEAD
                 <PriceTag price={card.price ? card.price : null} />
+=======
+                <PriceTag price={card.price ?? null} />
+>>>>>>> 43ec83810162a476f56443fb40697bc1258cc9c4
               </div>
             </Link>
           ))}
