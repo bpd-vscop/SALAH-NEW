@@ -45,7 +45,6 @@ export function HeroSlider() {
     };
   }, []);
 
-<<<<<<< HEAD
   const effectiveSlides = useMemo(() => {
     return [...slides].sort((a, b) => {
       const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
@@ -56,12 +55,6 @@ export function HeroSlider() {
       return (a.title ?? '').localeCompare(b.title ?? '');
     });
   }, [slides]);
-=======
-  const effectiveSlides = useMemo(
-    () => [...slides].sort((a, b) => a.order - b.order || a.title.localeCompare(b.title)),
-    [slides]
-  );
->>>>>>> 43ec83810162a476f56443fb40697bc1258cc9c4
 
   useEffect(() => {
     if (!effectiveSlides.length) {
@@ -137,15 +130,11 @@ export function HeroSlider() {
   }
 
   if (!effectiveSlides.length) {
-<<<<<<< HEAD
     return (
       <div className="mx-2 mt-10 mb-6 lg:mx-8">
         <div className="aspect-[16/9] w-full animate-pulse rounded-2xl bg-slate-200" />
       </div>
     );
-=======
-    return null;
->>>>>>> 43ec83810162a476f56443fb40697bc1258cc9c4
   }
 
   return (
