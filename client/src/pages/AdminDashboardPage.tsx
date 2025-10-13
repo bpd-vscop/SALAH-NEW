@@ -40,6 +40,8 @@ const fileToDataUrl = (file: File) =>
     reader.readAsDataURL(file);
   });
 
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 const adminTabs = [
   { id: 'users', label: 'Users' },
   { id: 'categories', label: 'Categories' },
@@ -835,21 +837,39 @@ export const AdminDashboardPage: React.FC = () => {
                 className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-900">Content</h4>
+              <span className="text-xs text-muted">Max file size 5 MB</span>
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Desktop image
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={async (event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      const dataUrl = await fileToDataUrl(file);
-                      setHeroSlideForm((state) => ({ ...state, desktopImage: dataUrl }));
-                    }
-                  }}
-                  className="text-sm"
-                />
+                <span className="text-xs text-muted">Desktop - ar 21:9</span>
+                <span
+                  className={`inline-flex cursor-pointer items-center justify-center rounded-xl border px-4 py-2 text-xs font-semibold transition ${
+                    heroSlideForm.desktopImage
+                      ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
+                      : 'border-red-200 bg-red-100 text-red-700'
+                  }`}
+                >
+                  <span>{heroSlideForm.desktopImage ? 'Replace image' : 'Upload image'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (event) => {
+                      const file = event.target.files?.[0];
+                      if (file) {
+                        if (file.size > MAX_IMAGE_BYTES) {
+                          setStatus(null, 'Desktop image must be 5 MB or smaller.');
+                          event.target.value = '';
+                          return;
+                        }
+                        const dataUrl = await fileToDataUrl(file);
+                        setHeroSlideForm((state) => ({ ...state, desktopImage: dataUrl }));
+                      }
+                    }}
+                    className="sr-only"
+                  />
+                </span>
                 {heroSlideForm.desktopImage && (
                   <img
                     src={heroSlideForm.desktopImage}
@@ -859,19 +879,33 @@ export const AdminDashboardPage: React.FC = () => {
                 )}
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Mobile image
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={async (event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      const dataUrl = await fileToDataUrl(file);
-                      setHeroSlideForm((state) => ({ ...state, mobileImage: dataUrl }));
-                    }
-                  }}
-                  className="text-sm"
-                />
+                <span className="text-xs text-muted">Mobile - ar 4:3</span>
+                <span
+                  className={`inline-flex cursor-pointer items-center justify-center rounded-xl border px-4 py-2 text-xs font-semibold transition ${
+                    heroSlideForm.mobileImage
+                      ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
+                      : 'border-red-200 bg-red-100 text-red-700'
+                  }`}
+                >
+                  <span>{heroSlideForm.mobileImage ? 'Replace image' : 'Upload image'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (event) => {
+                      const file = event.target.files?.[0];
+                      if (file) {
+                        if (file.size > MAX_IMAGE_BYTES) {
+                          setStatus(null, 'Mobile image must be 5 MB or smaller.');
+                          event.target.value = '';
+                          return;
+                        }
+                        const dataUrl = await fileToDataUrl(file);
+                        setHeroSlideForm((state) => ({ ...state, mobileImage: dataUrl }));
+                      }
+                    }}
+                    className="sr-only"
+                  />
+                </span>
                 {heroSlideForm.mobileImage && (
                   <img
                     src={heroSlideForm.mobileImage}
@@ -1139,20 +1173,37 @@ export const AdminDashboardPage: React.FC = () => {
                 className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
+            <div className="flex items-center justify-between text-sm text-slate-900">
+              <span className="font-semibold uppercase tracking-wide">Content</span>
+              <span className="text-xs text-muted">Max file size 5 MB</span>
+            </div>
             <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Image asset
-              <input
-                type="file"
-                accept="image/*"
-                onChange={async (event) => {
-                  const file = event.target.files?.[0];
-                  if (file) {
+              <span
+                className={`inline-flex cursor-pointer items-center justify-center rounded-xl border px-4 py-2 text-xs font-semibold transition ${
+                  featureForm.image
+                    ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
+                    : 'border-red-200 bg-red-100 text-red-700'
+                }`}
+              >
+                <span>{featureForm.image ? 'Replace image' : 'Upload image'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      if (file.size > MAX_IMAGE_BYTES) {
+                        setStatus(null, 'Image must be 5 MB or smaller.');
+                        event.target.value = '';
+                        return;
+                      }
                     const dataUrl = await fileToDataUrl(file);
                     setFeatureForm((state) => ({ ...state, image: dataUrl }));
                   }
                 }}
-                className="text-sm"
-              />
+                  className="sr-only"
+                />
+              </span>
               {featureForm.image && (
                 <img src={featureForm.image} alt="Feature preview" className="h-32 w-full rounded-xl object-cover" />
               )}

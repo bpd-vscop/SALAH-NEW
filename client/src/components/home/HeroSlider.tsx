@@ -103,7 +103,7 @@ export function HeroSlider() {
 
   const getAnimationClasses = () =>
     cn(
-      'object-contain transition-all duration-1000 w-full h-full',
+      'transition-all duration-1000 w-full h-full',
       isAnimating
         ? direction > 0
           ? 'scale-110 blur-sm opacity-80'
@@ -114,7 +114,7 @@ export function HeroSlider() {
   if (loading) {
     return (
       <div className="mx-2 mt-10 mb-6 lg:mx-8">
-        <div className="aspect-[16/9] w-full animate-pulse rounded-2xl bg-slate-200" />
+        <div className="w-full animate-pulse rounded-2xl bg-slate-200 aspect-[4/3] md:aspect-[21/9]" />
       </div>
     );
   }
@@ -132,7 +132,7 @@ export function HeroSlider() {
   if (!effectiveSlides.length) {
     return (
       <div className="mx-2 mt-10 mb-6 lg:mx-8">
-        <div className="aspect-[16/9] w-full animate-pulse rounded-2xl bg-slate-200" />
+        <div className="w-full animate-pulse rounded-2xl bg-slate-200 aspect-[4/3] md:aspect-[21/9]" />
       </div>
     );
   }
@@ -153,19 +153,25 @@ export function HeroSlider() {
               key={slide.id}
               to={slide.linkUrl || '#'}
               aria-label={slide.altText || slide.title}
-              className="group relative block min-w-full flex-shrink-0"
+              className="group relative block min-w-full flex-shrink-0 overflow-hidden rounded-2xl"
             >
-              <div className="relative h-[40vh] w-full sm:h-auto sm:aspect-[16/9] md:aspect-[3/1]">
+              <div className="relative w-full overflow-hidden rounded-2xl aspect-[4/3] md:aspect-[21/9]">
                 <img
                   src={slide.mobileImage || slide.desktopImage}
                   alt={slide.altText || slide.title}
-                  className={cn(getAnimationClasses(), 'block md:hidden sm:rounded-2xl')}
+                  className={cn(
+                    getAnimationClasses(),
+                    'absolute inset-0 h-full w-full object-cover md:hidden'
+                  )}
                   loading={index === 0 ? 'eager' : 'lazy'}
                 />
                 <img
                   src={slide.desktopImage || slide.mobileImage}
                   alt={slide.altText || slide.title}
-                  className={cn(getAnimationClasses(), 'hidden md:block sm:rounded-2xl')}
+                  className={cn(
+                    getAnimationClasses(),
+                    'absolute inset-0 hidden h-full w-full object-cover md:block'
+                  )}
                   loading={index === 0 ? 'eager' : 'lazy'}
                 />
               </div>
