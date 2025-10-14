@@ -16,7 +16,7 @@ export const homepageTabs = [
   { id: 'featured' as const, label: 'Featured highlights' },
 ];
 
-const getMenuIcon = (tabId: string) => {
+export const getMenuIcon = (tabId: string) => {
   switch (tabId) {
     case 'users':
       return (

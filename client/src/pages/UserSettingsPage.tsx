@@ -3,7 +3,7 @@ import { AdminLayout } from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../api/users';
 import { useNavigate } from 'react-router-dom';
-import { createAdminSidebar, adminTabs } from '../utils/adminSidebar';
+import { adminTabs, getMenuIcon, homepageTabs } from '../utils/adminSidebar';
 import { AdminTopNav } from '../components/dashboard/AdminTopNav';
 
 export const UserSettingsPage: React.FC = () => {
@@ -12,7 +12,7 @@ export const UserSettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [homepageExpanded, setHomepageExpanded] = useState(false);
+  const [homepageNavSelection, setHomepageNavSelection] = useState<'hero' | 'featured'>('hero');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -92,31 +92,42 @@ export const UserSettingsPage: React.FC = () => {
   };
 
   const topNavItems = useMemo(
-    () => [...adminTabs.map((tab) => ({ id: tab.id, label: tab.label })), { id: 'settings', label: 'Settings' }],
-    []
+    () =>
+      adminTabs.map((tab) => {
+        if (tab.id === 'homepage') {
+          return {
+            id: tab.id,
+            label: tab.label,
+            icon: getMenuIcon(tab.id),
+            dropdown: {
+              items: homepageTabs.map((child) => ({ id: child.id, label: child.label })),
+              activeId: homepageNavSelection,
+              groupLabel: 'Homepage',
+            },
+          };
+        }
+        return {
+          id: tab.id,
+          label: tab.label,
+          icon: getMenuIcon(tab.id),
+        };
+      }),
+    [homepageNavSelection]
   );
 
-  const handleTopNavSelect = (id: string) => {
-    if (id === 'settings') {
+  const handleTopNavSelect = (id: string, dropdownId?: string) => {
+    if (id === 'homepage') {
+      const section: 'hero' | 'featured' = dropdownId === 'featured' ? 'featured' : 'hero';
+      setHomepageNavSelection(section);
+      navigate('/admin', { state: { active: 'homepage', homepageSection: section } });
       return;
     }
-    navigate('/admin');
-  };
 
-  const sidebar = createAdminSidebar({
-    activeTab: 'settings',
-    setActiveTab: (tab) => {
-      if (tab !== 'settings') {
-        navigate('/admin');
-      }
-    },
-    homepageExpanded,
-    setHomepageExpanded,
-  });
+    navigate('/admin', { state: { active: id } });
+  };
 
   return (
     <AdminLayout
-      sidebar={sidebar}
       topNav={<AdminTopNav items={topNavItems} activeId="settings" onSelect={handleTopNavSelect} />}
       contentKey="settings"
     >

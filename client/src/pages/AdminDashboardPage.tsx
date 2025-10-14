@@ -24,7 +24,7 @@ import type {
   UserRole,
 } from '../types/api';
 import { cn } from '../utils/cn';
-import { adminTabs, homepageTabs } from '../utils/adminSidebar';
+import { adminTabs, getMenuIcon, homepageTabs } from '../utils/adminSidebar';
 import { UsersAdminSection } from '../components/dashboard/UsersAdminSection';
 import { CategoriesAdminSection } from '../components/dashboard/CategoriesAdminSection';
 import { ProductsAdminSection } from '../components/dashboard/ProductsAdminSection';
@@ -44,7 +44,7 @@ import type {
   UserFormState,
 } from '../components/dashboard/types';
 import { AdminTopNav } from '../components/dashboard/AdminTopNav';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -76,6 +76,7 @@ const canDeleteHomepage = (role: UserRole) => role === 'admin' || role === 'mana
 export const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const role = user?.role ?? 'client';
+  const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<(typeof adminTabs)[number]['id']>('users');
 
@@ -143,10 +144,33 @@ export const AdminDashboardPage: React.FC = () => {
   const [featureForm, setFeatureForm] = useState<FeatureFormState>(() => emptyFeatureForm('feature'));
 
   const [homepageSection, setHomepageSection] = useState<'hero' | 'featured'>('hero');
-  const [homepageExpanded, setHomepageExpanded] = useState(false);
   const [activeFeatureTab, setActiveFeatureTab] = useState<'feature' | 'tile'>('feature');
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>(null);
   const [orderConflict, setOrderConflict] = useState<OrderConflictState>(null);
+
+  useEffect(() => {
+    const state = (location.state ?? null) as
+      | {
+          active?: string;
+          homepageSection?: 'hero' | 'featured';
+        }
+      | null;
+
+    if (state?.active) {
+      if (state.active === 'homepage') {
+        if (state.homepageSection) {
+          setHomepageSection(state.homepageSection);
+        }
+        setActiveTab('homepage');
+      } else if (adminTabs.some((tab) => tab.id === state.active)) {
+        setActiveTab(state.active as (typeof adminTabs)[number]['id']);
+      }
+    }
+
+    if (state?.active || state?.homepageSection) {
+      navigate('/admin', { replace: true, state: null });
+    }
+  }, [location.state, navigate]);
 
   const refreshUsers = async () => {
     const { users: data } = await usersApi.list();
@@ -790,101 +814,6 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
-  const sidebar = (sidebarExpanded: boolean) => (
-    <div className="flex flex-col gap-2">
-      {adminTabs.map((tab) => {
-        if (tab.id === 'homepage') {
-          const dropdownExpanded = homepageExpanded || activeTab === 'homepage';
-          return (
-            <div key={tab.id} className="flex flex-col">
-              <button
-                type="button"
-                onClick={() => setHomepageExpanded((prev) => !prev)}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg py-3 text-left font-medium transition-all',
-                  sidebarExpanded ? 'px-4 justify-between' : 'px-0 justify-center',
-                  activeTab === 'homepage'
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-slate-100'
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  {getMenuIcon(tab.id)}
-                  {sidebarExpanded && <span className="text-sm">{tab.label}</span>}
-                </div>
-                {sidebarExpanded && (
-                  <svg
-                    className={cn('h-4 w-4 transition-transform duration-200', dropdownExpanded ? 'rotate-90' : '')}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M9 18l6-6-6-6" />
-                  </svg>
-                )}
-              </button>
-              {dropdownExpanded && sidebarExpanded && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="mt-1 ml-3 flex flex-col gap-1 border-l-2 border-slate-200 pl-3"
-                >
-                  {homepageTabs.map((child) => {
-                    const selected = homepageSection === child.id && activeTab === 'homepage';
-                    return (
-                      <button
-                        type="button"
-                        key={child.id}
-                        onClick={() => {
-                          setActiveTab('homepage');
-                          setHomepageSection(child.id);
-                        }}
-                        className={cn(
-                          'relative rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-all',
-                          selected
-                            ? 'bg-red-50 text-red-600'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                        )}
-                      >
-                        {selected && (
-                          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r bg-red-600" />
-                        )}
-                        <span className={cn(selected && 'ml-2')}>{child.label}</span>
-                      </button>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </div>
-          );
-        }
-
-        return (
-          <button
-            type="button"
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              'flex items-center gap-3 rounded-lg py-3 text-left text-sm font-medium transition-all',
-              sidebarExpanded ? 'px-4' : 'px-0 justify-center',
-              activeTab === tab.id
-                ? 'bg-primary text-white shadow-sm'
-                : 'text-slate-700 hover:bg-slate-100'
-            )}
-          >
-            {getMenuIcon(tab.id)}
-            {sidebarExpanded && <span>{tab.label}</span>}
-          </button>
-        );
-      })}
-    </div>
-  );
-
   const parentLabelMap = useMemo(() => {
     const map = new Map<string, string>();
     categories.forEach((category) => {
@@ -941,16 +870,41 @@ export const AdminDashboardPage: React.FC = () => {
   }, [featuredItems]);
 
   const topNavItems = useMemo(
-    () => [...adminTabs.map((tab) => ({ id: tab.id, label: tab.label })), { id: 'settings', label: 'Settings' }],
-    []
+    () =>
+      adminTabs.map((tab) => {
+        if (tab.id === 'homepage') {
+          return {
+            id: tab.id,
+            label: tab.label,
+            icon: getMenuIcon(tab.id),
+            dropdown: {
+              items: homepageTabs.map((child) => ({ id: child.id, label: child.label })),
+              activeId: homepageSection,
+              groupLabel: 'Homepage',
+            },
+          };
+        }
+        return {
+          id: tab.id,
+          label: tab.label,
+          icon: getMenuIcon(tab.id),
+        };
+      }),
+    [homepageSection]
   );
 
-  const handleTopNavSelect = (id: string) => {
-    if (id === 'settings') {
-      navigate('/admin/settings');
+  const handleTopNavSelect = (id: string, dropdownId?: string) => {
+    if (id === 'homepage') {
+      if (dropdownId === 'hero' || dropdownId === 'featured') {
+        setHomepageSection(dropdownId);
+      }
+      setActiveTab('homepage');
       return;
     }
-    setActiveTab(id as (typeof adminTabs)[number]['id']);
+
+    if (adminTabs.some((tab) => tab.id === id)) {
+      setActiveTab(id as (typeof adminTabs)[number]['id']);
+    }
   };
 
   if (!user || !canEditOrders(user.role)) {
@@ -965,7 +919,6 @@ export const AdminDashboardPage: React.FC = () => {
 
   return (
     <AdminLayout
-      sidebar={sidebar}
       topNav={<AdminTopNav items={topNavItems} activeId={activeTab} onSelect={handleTopNavSelect} />}
       contentKey={activeTab}
     >
