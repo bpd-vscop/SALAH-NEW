@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import type { FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -207,11 +207,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
         <div className="pt-12 px-12 bg-transparent flex flex-col gap-4 min-h-auto">
           {/* Logo */}
           <div className="flex items-center flex-col gap-1 mb-2">
-            <img
-              src="/logo.png"
-              alt="ULKS Logo"
-              className="h-20 w-auto mx-auto"
-            />
+            <Link to="/">
+              <img
+                src="/logo.png"
+                alt="ULKS Logo"
+                className="h-20 w-auto mx-auto cursor-pointer hover:opacity-90 transition-opacity"
+              />
+            </Link>
           </div>
 
           {/* Tabs */}

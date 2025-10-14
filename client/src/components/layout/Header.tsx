@@ -2,24 +2,30 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  BatteryFull,
   Car,
   ChevronDown,
+  Cpu,
+  Key,
   MapPin,
   Menu,
   Package,
   Search,
+  Shield,
   ShoppingBag,
   ShoppingCart,
   Sparkles,
+  Truck,
   User,
   Wrench,
-  Building2,
   Phone,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { cn } from '../../utils/cn';
+import { menuApi } from '../../api/menu';
 
 const phoneNumbers = ['+1-407-449-6740', '+1-407-452-7149', '+1-407-978-6077'];
 
@@ -53,17 +59,41 @@ const socialLinks = [
   { label: 'Instagram', href: '#', Icon: InstagramIcon },
 ];
 
-type MenuKey = 'key-remotes' | 'manufacturers' | 'devices' | 'accessories';
-
-type MenuItem = {
+type PreparedMenuItem = {
+  id: string;
   label: string;
   href: string;
-  imageUrl: string;
+  imageUrl?: string | null;
 };
 
-type MegaMenuConfig = Record<MenuKey, MenuItem[]>;
+type PreparedMenuSection = {
+  id: string;
+  name: string;
+  icon: string;
+  items: PreparedMenuItem[];
+};
 
-const megaMenuContent: MegaMenuConfig = {
+type PreparedMenuLink = {
+  id: string;
+  label: string;
+  href: string;
+};
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  car: Car,
+  truck: Truck,
+  package: Package,
+  wrench: Wrench,
+  key: Key,
+  shield: Shield,
+  cpu: Cpu,
+  battery: BatteryFull,
+  'shopping-bag': ShoppingBag,
+  'shopping-cart': ShoppingCart,
+  sparkles: Sparkles,
+};
+
+const legacyMenuContent = {
   'key-remotes': [
     {
       label: 'Car Remotes',
@@ -192,11 +222,58 @@ const megaMenuContent: MegaMenuConfig = {
       imageUrl: 'https://placehold.co/96x96/64748b/ffffff?text=Lock',
     },
   ],
-};
+} as const;
 
-const secondaryLinks = [
-  { to: '/on-sale', label: 'On Sale', icon: ShoppingBag },
-  { to: '/new-arrival', label: 'New Arrival', icon: Sparkles },
+const DEFAULT_MENU_SECTIONS: PreparedMenuSection[] = [
+  {
+    id: 'key-remotes',
+    name: 'Key & Remotes',
+    icon: 'car',
+    items: legacyMenuContent['key-remotes'].map((item, index) => ({
+      id: `key-remotes-${index}`,
+      label: item.label,
+      href: item.href,
+      imageUrl: item.imageUrl,
+    })),
+  },
+  {
+    id: 'manufacturers',
+    name: 'Manufacturers',
+    icon: 'truck',
+    items: legacyMenuContent.manufacturers.map((item, index) => ({
+      id: `manufacturers-${index}`,
+      label: item.label,
+      href: item.href,
+      imageUrl: item.imageUrl,
+    })),
+  },
+  {
+    id: 'devices',
+    name: 'Devices & Programmers',
+    icon: 'cpu',
+    items: legacyMenuContent.devices.map((item, index) => ({
+      id: `devices-${index}`,
+      label: item.label,
+      href: item.href,
+      imageUrl: item.imageUrl,
+    })),
+  },
+  {
+    id: 'accessories',
+    name: 'Accessories & Tools',
+    icon: 'package',
+    items: legacyMenuContent.accessories.map((item, index) => ({
+      id: `accessories-${index}`,
+      label: item.label,
+      href: item.href,
+      imageUrl: item.imageUrl,
+    })),
+  },
+];
+
+const DEFAULT_MENU_LINKS: PreparedMenuLink[] = [
+  { id: 'link-on-sale', label: 'On Sale', href: '/on-sale' },
+  { id: 'link-new-arrival', label: 'New Arrival', href: '/new-arrival' },
 ];
 
 const vehicleYears = ['2024', '2023', '2022', '2021', '2020', '2019'];
@@ -267,26 +344,32 @@ const PromoBanner: React.FC = () => {
   );
 };
 
-const MenuCard: React.FC<MenuItem> = ({ href, imageUrl, label }) => (
-  <Link
-    to={href}
-    className="group flex flex-col items-center rounded-xl border border-slate-200 bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-red-500 hover:shadow-md"
-  >
-    <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-lg border border-slate-100 bg-white">
-      <img
-        src={imageUrl}
-        alt={label}
-        className="h-full w-full object-contain p-1"
-        onError={(event) => {
-          event.currentTarget.src = 'https://placehold.co/96x96/eee/ccc?text=Item';
-        }}
-      />
-    </div>
-    <span className="mt-2 text-xs font-medium text-slate-700 transition group-hover:text-red-700">
-      {label}
-    </span>
-  </Link>
-);
+const MenuCard: React.FC<{ item: PreparedMenuItem }> = ({ item }) => {
+  const imageSrc = item.imageUrl || 'https://placehold.co/80x80/eee/ccc?text=Item';
+  return (
+    <Link
+      to={item.href}
+      className="group flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-red-500 hover:shadow-md"
+    >
+      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-100 bg-white">
+        <img
+          src={imageSrc}
+          alt={item.label}
+          className="h-full w-full object-cover"
+          onError={(event) => {
+            event.currentTarget.src = 'https://placehold.co/80x80/eee/ccc?text=Item';
+          }}
+        />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-sm font-semibold text-slate-800 transition group-hover:text-red-700">
+          {item.label}
+        </span>
+        <span className="text-xs text-slate-500">Shop now</span>
+      </div>
+    </Link>
+  );
+};
 
 
 
@@ -405,12 +488,85 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
 export const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const { items } = useCart();
-  const cartCount = items.reduce((sum, line) => sum + line.quantity, 0);
+  const cartCount = useMemo(() => items.reduce((sum, line) => sum + line.quantity, 0), [items]);
 
-  const [openMegaMenu, setOpenMegaMenu] = useState<MenuKey | null>(null);
+  const [menuSections, setMenuSections] = useState<PreparedMenuSection[]>(DEFAULT_MENU_SECTIONS);
+  const [menuLinks, setMenuLinks] = useState<PreparedMenuLink[]>(DEFAULT_MENU_LINKS);
+  const [menuLoading, setMenuLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+      const loadMenu = async () => {
+        setMenuLoading(true);
+        try {
+          const response = await menuApi.get();
+          if (!active) return;
+          const remoteSections = response.menu?.sections ?? [];
+          if (remoteSections.length) {
+            const prepared = remoteSections.map((section, sectionIndex) => ({
+              id: section.id ?? `section-${sectionIndex}`,
+              name: section.name,
+              icon: section.icon,
+              items: (section.items ?? []).map((item, itemIndex) => {
+                const resolvedId =
+                  item.id ?? `${section.id ?? `section-${sectionIndex}`}-item-${itemIndex}`;
+                const label = item.category?.name ?? 'Category';
+                const href = item.categoryId
+                  ? `/products?categoryId=${item.categoryId}`
+                  : item.productId
+                  ? `/products/${item.productId}`
+                  : '/products';
+                const imageUrl = item.product?.images?.[0] ?? null;
+                return {
+                  id: resolvedId,
+                  label,
+                  href,
+                  imageUrl,
+              };
+            }),
+          }));
+          setMenuSections(prepared);
+        } else {
+          setMenuSections(DEFAULT_MENU_SECTIONS);
+        }
+
+        const remoteLinks = response.menu?.links ?? [];
+        if (remoteLinks.length) {
+          setMenuLinks(
+            remoteLinks
+              .slice()
+              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+              .map((link, index) => ({
+                id: link.id ?? `link-${index}`,
+                label: link.label,
+                href: link.href,
+              }))
+          );
+        } else {
+          setMenuLinks(DEFAULT_MENU_LINKS);
+        }
+      } catch (error) {
+        console.warn('Failed to load navigation menu', error);
+        if (active) {
+          setMenuSections(DEFAULT_MENU_SECTIONS);
+          setMenuLinks(DEFAULT_MENU_LINKS);
+        }
+      } finally {
+        if (active) {
+          setMenuLoading(false);
+        }
+      }
+    };
+    void loadMenu();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const [openMegaMenu, setOpenMegaMenu] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuClosing, setMobileMenuClosing] = useState(false);
-  const [openMobileCategory, setOpenMobileCategory] = useState<MenuKey | null>(null);
+  const [openMobileCategory, setOpenMobileCategory] = useState<string | null>(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [vehicleSearchOpen, setVehicleSearchOpen] = useState(false);
@@ -418,6 +574,11 @@ export const Header: React.FC = () => {
   const [vehicleYear, setVehicleYear] = useState('');
   const [vehicleMake, setVehicleMake] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
+
+  const currentSection = useMemo(
+    () => (openMegaMenu ? menuSections.find((section) => section.id === openMegaMenu) ?? null : null),
+    [menuSections, openMegaMenu]
+  );
 
   const headerRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -478,8 +639,8 @@ export const Header: React.FC = () => {
     return undefined;
   }, [openMegaMenu, mobileMenuOpen, mobileSearchOpen, accountMenuOpen, vehicleSearchOpen]);
 
-  const toggleMegaMenu = (key: MenuKey) => {
-    setOpenMegaMenu((current) => (current === key ? null : key));
+  const toggleMegaMenu = (id: string) => {
+    setOpenMegaMenu((current) => (current === id ? null : id));
   };
 
   return (
@@ -505,63 +666,37 @@ export const Header: React.FC = () => {
             </Link>
           </div>
 
-          <div className="hidden flex-1 items-center justify-center gap-1 xl:flex min-w-0">
-            <div className="flex items-center gap-1 text-sm font-medium whitespace-nowrap">
-              <button
-                type="button"
-                onClick={() => toggleMegaMenu('key-remotes')}
-                className="flex items-center gap-1 rounded-full px-3 py-2 transition hover:bg-white/10 whitespace-nowrap"
-                aria-expanded={openMegaMenu === 'key-remotes'}
-              >
-                <Car className="h-4 w-4" />
-                Key &amp; Remotes
-                <ChevronDown
-                  className={cn('h-4 w-4 transition-transform', openMegaMenu === 'key-remotes' && 'rotate-180')}
-                />
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleMegaMenu('manufacturers')}
-                className="flex items-center gap-1 rounded-full px-3 py-2 transition hover:bg-white/10 whitespace-nowrap"
-                aria-expanded={openMegaMenu === 'manufacturers'}
-              >
-                <Building2 className="h-4 w-4" />
-                Manufacturers
-                <ChevronDown
-                  className={cn('h-4 w-4 transition-transform', openMegaMenu === 'manufacturers' && 'rotate-180')}
-                />
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleMegaMenu('devices')}
-                className="flex items-center gap-1 rounded-full px-3 py-2 transition hover:bg-white/10 whitespace-nowrap"
-                aria-expanded={openMegaMenu === 'devices'}
-              >
-                <Wrench className="h-4 w-4" />
-                Devices &amp; Programmers
-                <ChevronDown
-                  className={cn('h-4 w-4 transition-transform', openMegaMenu === 'devices' && 'rotate-180')}
-                />
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleMegaMenu('accessories')}
-                className="flex items-center gap-1 rounded-full px-3 py-2 transition hover:bg-white/10 whitespace-nowrap"
-                aria-expanded={openMegaMenu === 'accessories'}
-              >
-                <Package className="h-4 w-4" />
-                Accessories &amp; Tools
-                <ChevronDown
-                  className={cn('h-4 w-4 transition-transform', openMegaMenu === 'accessories' && 'rotate-180')}
-                />
-              </button>
-              {secondaryLinks.map(({ to, label }) => (
+          <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 xl:flex">
+            <div className="flex items-center gap-1 whitespace-nowrap text-sm font-medium">
+              {menuSections.map((section) => {
+                const Icon = ICON_MAP[section.icon] ?? Sparkles;
+                const isActive = openMegaMenu === section.id;
+                return (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => toggleMegaMenu(section.id)}
+                    className={cn(
+                      'flex items-center gap-1 rounded-full px-3 py-2 transition hover:bg-white/10',
+                      menuLoading && 'pointer-events-none opacity-60'
+                    )}
+                    aria-expanded={isActive}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {section.name}
+                    <ChevronDown
+                      className={cn('h-4 w-4 transition-transform', isActive && 'rotate-180')}
+                    />
+                  </button>
+                );
+              })}
+              {menuLinks.map((link) => (
                 <Link
-                  key={to}
-                  to={to}
-                  className="rounded-full px-3 py-2 text-sm font-medium transition hover:bg-white/10 whitespace-nowrap"
+                  key={link.id}
+                  to={link.href}
+                  className="rounded-full px-3 py-2 text-sm font-medium transition hover:bg-white/10"
                 >
-                  {label}
+                  {link.label}
                 </Link>
               ))}
             </div>
@@ -697,16 +832,21 @@ export const Header: React.FC = () => {
             </Link>
           </div>
         </div>
-        {openMegaMenu && (
-          <div className="absolute left-0 right-0 top-full z-40 hidden translate-y-2 pb-6 xl:block"
+        {openMegaMenu && currentSection && (
+          <div
+            className="absolute left-0 right-0 top-full z-40 hidden translate-y-2 pb-6 xl:block"
             onMouseLeave={() => setOpenMegaMenu(null)}
           >
             <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-2xl">
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                {megaMenuContent[openMegaMenu].map((item) => (
-                  <MenuCard key={item.label} {...item} />
-                ))}
-              </div>
+              {currentSection.items.length ? (
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+                  {currentSection.items.map((item) => (
+                    <MenuCard key={item.id} item={item} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No items configured for this section yet.</p>
+              )}
             </div>
           </div>
         )}
@@ -774,67 +914,69 @@ export const Header: React.FC = () => {
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-4">
               <div className="space-y-4">
-                {([
-                  { key: 'key-remotes' as MenuKey, label: 'Key & Remotes', icon: Car },
-                  { key: 'manufacturers' as MenuKey, label: 'Manufacturers', icon: Building2 },
-                  { key: 'devices' as MenuKey, label: 'Devices & Programmers', icon: Wrench },
-                  { key: 'accessories' as MenuKey, label: 'Accessories & Tools', icon: Package },
-                ]).map(({ key, label, icon: Icon }) => (
-                  <div key={key} className="rounded-xl border border-slate-200 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setOpenMobileCategory(openMobileCategory === key ? null : key)}
-                      className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-slate-700"
-                    >
-                      <span className="flex items-center gap-3">
-                        <Icon className="h-5 w-5 text-red-600" />
-                        {label}
-                      </span>
-                      <motion.div
-                        animate={{ rotate: openMobileCategory === key ? 180 : 0 }}
-                        transition={{ duration: 0.2 }}
+                {menuSections.map((section) => {
+                  const Icon = ICON_MAP[section.icon] ?? Sparkles;
+                  const isOpen = openMobileCategory === section.id;
+                  return (
+                    <div key={section.id} className="overflow-hidden rounded-xl border border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setOpenMobileCategory(isOpen ? null : section.id)}
+                        className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-slate-700"
                       >
-                        <ChevronDown className="h-4 w-4" />
-                      </motion.div>
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {openMobileCategory === key && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.3, ease: 'easeInOut' }}
-                          className="overflow-hidden"
-                        >
-                          <div className="grid grid-cols-2 gap-3 px-3 pb-3 pt-2">
-                            {megaMenuContent[key].map((item) => (
-                              <Link
-                                key={item.label}
-                                to={item.href}
-                                onClick={closeMobileMenu}
-                                className="text-xs font-medium text-slate-600 transition hover:text-red-600"
-                              >
-                                {item.label}
-                              </Link>
-                            ))}
-                          </div>
+                        <span className="flex items-center gap-3">
+                          <Icon className="h-5 w-5 text-red-600" />
+                          {section.name}
+                        </span>
+                        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                          <ChevronDown className="h-4 w-4" />
                         </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                ))}
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                            className="overflow-hidden"
+                          >
+                            <div className="grid grid-cols-2 gap-2 px-3 pb-3 pt-2">
+                              {section.items.length ? (
+                                section.items.map((item) => (
+                                  <Link
+                                    key={item.id}
+                                    to={item.href}
+                                    onClick={closeMobileMenu}
+                                    className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:border-red-500 hover:text-red-600"
+                                  >
+                                    {item.label}
+                                  </Link>
+                                ))
+                              ) : (
+                                <span className="col-span-2 text-xs text-slate-500">
+                                  No items configured yet.
+                                </span>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
               </div>
               <hr className="my-6 border-slate-200" />
               <div className="space-y-3">
-                {secondaryLinks.map(({ to, label, icon: Icon }) => (
+                {menuLinks.map((link) => (
                   <Link
-                    key={to}
-                    to={to}
-                    className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-red-500 hover:text-red-600 underline"
+                    key={link.id}
+                    to={link.href}
+                    className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-red-500 hover:text-red-600"
                     onClick={closeMobileMenu}
                   >
-                    <Icon className="h-5 w-5 text-red-600" />
-                    {label}
+                    <Sparkles className="h-5 w-5 text-red-600" />
+                    {link.label}
                   </Link>
                 ))}
               </div>

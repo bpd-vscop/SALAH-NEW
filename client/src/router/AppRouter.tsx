@@ -1,7 +1,7 @@
 ﻿import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from '../components/routing/ProtectedRoute';
 import { AccountDashboardPage } from '../pages/AccountDashboardPage';
-import { AdminDashboardPage } from '../pages/AdminDashboardPage';
+import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage';
 import { CartPage } from '../pages/CartPage';
 import { CheckoutPage } from '../pages/CheckoutPage';
 import { HomePage } from '../pages/HomePage';
