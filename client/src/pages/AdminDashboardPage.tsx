@@ -873,15 +873,17 @@ export const AdminDashboardPage: React.FC = () => {
     () =>
       adminTabs.map((tab) => {
         if (tab.id === 'homepage') {
+          const activeHomepageLabel = homepageSection === 'featured' ? 'Featured highlights' : 'Hero slider';
           return {
             id: tab.id,
             label: tab.label,
             icon: getMenuIcon(tab.id),
             dropdown: {
               items: homepageTabs.map((child) => ({ id: child.id, label: child.label })),
-              activeId: homepageSection,
+              activeId: activeTab === 'homepage' ? homepageSection : undefined,
               groupLabel: 'Homepage',
             },
+            activeLabel: activeTab === 'homepage' ? activeHomepageLabel : undefined,
           };
         }
         return {
@@ -890,7 +892,7 @@ export const AdminDashboardPage: React.FC = () => {
           icon: getMenuIcon(tab.id),
         };
       }),
-    [homepageSection]
+    [homepageSection, activeTab]
   );
 
   const handleTopNavSelect = (id: string, dropdownId?: string) => {

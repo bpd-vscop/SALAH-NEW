@@ -15,9 +15,9 @@ export interface AdminTopNavItem {
   dropdown?: {
     items: AdminTopNavDropdownItem[];
     activeId?: string;
-    groupLabel?: string;
   };
   hideLabel?: boolean;
+  activeLabel?: string;
 }
 
 interface AdminTopNavProps {
@@ -42,22 +42,25 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
   }, []);
 
   useEffect(() => {
-    setOpenDropdown(null);
+    requestAnimationFrame(() => setOpenDropdown(null));
   }, [activeId]);
 
   return (
     <nav
       ref={navRef}
       aria-label="Admin sections"
-      className="relative flex items-center gap-1 rounded-full bg-white/70 px-2 py-1 shadow-sm backdrop-blur"
+      className="relative flex w-full items-center justify-between gap-2 whitespace-nowrap rounded-full bg-white/70 px-4 py-1.5 shadow-sm backdrop-blur"
     >
       {items.map((item) => {
         const isActive = activeId === item.id;
-        const showDropdown = Boolean(item.dropdown);
+        const showDropdown = Boolean(item.dropdown && item.dropdown.items?.length);
         const dropdownSelection = item.dropdown?.items.find(
           (option) => option.id === item.dropdown?.activeId
         );
-        const displayLabel = dropdownSelection?.label ?? item.label;
+        const shouldHighlight = isActive || openDropdown === item.id;
+        const showExpandedLabel = showDropdown && shouldHighlight && dropdownSelection;
+        const currentActiveLabel = item.activeLabel ?? dropdownSelection?.label;
+        const primaryLabel = currentActiveLabel ?? item.label;
 
         const handleTrigger = () => {
           if (showDropdown) {
@@ -78,16 +81,14 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
               type="button"
               onClick={handleTrigger}
               className={cn(
-                'relative flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-                isActive || openDropdown === item.id
-                  ? 'text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+                'relative flex min-w-max items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                shouldHighlight ? 'text-white' : 'text-slate-600 hover:text-slate-900'
               )}
               aria-pressed={isActive}
               aria-haspopup={showDropdown || undefined}
               aria-expanded={showDropdown ? openDropdown === item.id : undefined}
             >
-              {(isActive || openDropdown === item.id) && (
+              {shouldHighlight && (
                 <motion.span
                   layoutId="admin-top-nav-highlight"
                   className="absolute inset-0 rounded-full bg-gradient-to-r from-primary to-primary-dark shadow-md"
@@ -100,39 +101,23 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
                   <span
                     className={cn(
                       'flex h-5 w-5 items-center justify-center',
-                      isActive || openDropdown === item.id ? 'text-white' : 'text-slate-500'
+                      shouldHighlight ? 'text-white' : 'text-slate-500'
                     )}
                   >
                     {item.icon}
                   </span>
                 )}
 
-                {item.hideLabel ? (
-                  <span className="sr-only">{displayLabel}</span>
-                ) : item.dropdown ? (
-                  <span className="flex flex-col text-left leading-tight">
-                    {item.dropdown.groupLabel && (
-                      <span
-                        className={cn(
-                          'text-[10px] uppercase tracking-wide',
-                          isActive || openDropdown === item.id ? 'text-white/80' : 'text-primary/70'
-                        )}
-                      >
-                        {item.dropdown.groupLabel}
-                      </span>
-                    )}
-                    <span className="text-sm font-semibold">{displayLabel}</span>
-                  </span>
-                ) : (
-                  <span className="text-sm font-semibold">{displayLabel}</span>
-                )}
+                <span className="text-sm font-semibold whitespace-nowrap">
+                  {shouldHighlight && currentActiveLabel ? currentActiveLabel : item.label}
+                </span>
 
                 {showDropdown && (
                   <ChevronDown
                     className={cn(
                       'h-4 w-4 transition-transform',
                       openDropdown === item.id ? 'rotate-180' : '',
-                      isActive || openDropdown === item.id ? 'text-white' : 'text-slate-500'
+                      shouldHighlight ? 'text-white' : 'text-slate-500'
                     )}
                   />
                 )}
@@ -158,9 +143,7 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
                             onClick={() => handleOptionClick(option.id)}
                             className={cn(
                               'flex w-full items-center justify-between px-4 py-2 transition',
-                              selected
-                                ? 'text-primary'
-                                : 'hover:bg-primary/5 hover:text-primary'
+                              selected ? 'text-primary' : 'hover:bg-primary/5 hover:text-primary'
                             )}
                           >
                             <span>{option.label}</span>

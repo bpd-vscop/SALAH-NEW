@@ -18,25 +18,27 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100">
-      <header className="fixed top-4 left-1/2 z-50 w-full max-w-6xl -translate-x-1/2 px-4">
-        <div className="flex items-center gap-4 rounded-full border border-white/60 bg-white/90 px-5 py-2.5 shadow-xl backdrop-blur supports-[backdrop-filter]:bg-white/70">
+      <header className="fixed top-4 left-0 right-0 z-50 px-3 md:px-6">
+        <div className="mx-auto flex w-full items-center gap-4 rounded-full border border-white/60 bg-white/90 px-5 py-2.5 shadow-xl backdrop-blur supports-[backdrop-filter]:bg-white/70">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="ULKs Logo" className="h-8 w-auto" />
             <a
               href="/"
-              className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+              className="inline-flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              Back to Store
+              Store
             </a>
           </div>
 
           <div className="h-8 w-px bg-slate-200/70" />
 
           <div className="flex flex-1 items-center justify-center">
-            {topNav}
+            <div className="w-full">
+              {topNav}
+            </div>
           </div>
 
           <div className="h-8 w-px bg-slate-200/70" />
