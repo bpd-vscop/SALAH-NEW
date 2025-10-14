@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { bannersApi } from '../../api/banners';
-import { categoriesApi } from '../../api/categories';
-import { featuredShowcaseApi, type FeaturedShowcaseItem, type FeaturedVariant } from '../../api/featuredShowcase';
-import { heroSlidesApi, type HeroSlide } from '../../api/heroSlides';
-import { ordersApi } from '../../api/orders';
-import { productsApi } from '../../api/products';
-import { usersApi } from '../../api/users';
-import { menuApi, type MenuSectionInput, type MenuLinkInput } from '../../api/menu';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { SiteLayout } from '../../components/layout/SiteLayout';
-import { useAuth } from '../../context/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { bannersApi } from '../api/banners';
+import { categoriesApi } from '../api/categories';
+import { featuredShowcaseApi, type FeaturedShowcaseItem, type FeaturedVariant } from '../api/featuredShowcase';
+import { heroSlidesApi, type HeroSlide } from '../api/heroSlides';
+import { ordersApi } from '../api/orders';
+import { productsApi } from '../api/products';
+import { usersApi } from '../api/users';
+import { menuApi, type MenuSectionInput, type MenuLinkInput } from '../api/menu';
+import { AdminLayout } from '../components/layout/AdminLayout';
+import { SiteLayout } from '../components/layout/SiteLayout';
+import { useAuth } from '../context/AuthContext';
 import type {
   Banner,
   BannerType,
@@ -21,15 +22,15 @@ import type {
   ProductTag,
   User,
   UserRole,
-} from '../../types/api';
-import { cn } from '../../utils/cn';
-import { UsersAdminSection } from './UsersAdminSection';
-import { CategoriesAdminSection } from './CategoriesAdminSection';
-import { ProductsAdminSection } from './ProductsAdminSection';
-import { BannersAdminSection } from './BannersAdminSection';
-import { HomepageAdminSection } from './HomepageAdminSection';
-import { OrdersAdminSection } from './OrdersAdminSection';
-import { NavigationAdminSection } from './NavigationAdminSection';
+} from '../types/api';
+import { cn } from '../utils/cn';
+import { UsersAdminSection } from '../components/dashboard/UsersAdminSection';
+import { CategoriesAdminSection } from '../components/dashboard/CategoriesAdminSection';
+import { ProductsAdminSection } from '../components/dashboard/ProductsAdminSection';
+import { BannersAdminSection } from '../components/dashboard/BannersAdminSection';
+import { HomepageAdminSection } from '../components/dashboard/HomepageAdminSection';
+import { OrdersAdminSection } from '../components/dashboard/OrdersAdminSection';
+import { NavigationAdminSection } from '../components/dashboard/NavigationAdminSection';
 import type {
   BannerFormState,
   CategoryFormState,
@@ -40,7 +41,7 @@ import type {
   ProductFormState,
   StatusSetter,
   UserFormState,
-} from './types';
+} from '../components/dashboard/types';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -751,40 +752,99 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
-  const dashboardTitle = role === 'admin' ? 'Admin Dashboard' : 'Staff Dashboard';
+  const getMenuIcon = (tabId: string) => {
+    switch (tabId) {
+      case 'users':
+        return (
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        );
+      case 'categories':
+        return (
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+        );
+      case 'products':
+        return (
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+        );
+      case 'banners':
+        return (
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        );
+      case 'navigation':
+        return (
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        );
+      case 'homepage':
+        return (
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+        );
+      case 'orders':
+        return (
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+        );
+      default:
+        return null;
+    }
+  };
 
-  const sidebar = (
-    <nav className="flex flex-col gap-2 text-sm">
+  const sidebar = (sidebarExpanded: boolean) => (
+    <div className="flex flex-col gap-2">
       {adminTabs.map((tab) => {
         if (tab.id === 'homepage') {
-          const expanded = homepageExpanded || activeTab === 'homepage';
+          const dropdownExpanded = homepageExpanded || activeTab === 'homepage';
           return (
-            <div key={tab.id} className="flex flex-col gap-1">
+            <div key={tab.id} className="flex flex-col">
               <button
                 type="button"
                 onClick={() => setHomepageExpanded((prev) => !prev)}
                 className={cn(
-                  'flex items-center justify-between rounded-xl px-4 py-2 text-left font-medium transition',
+                  'flex items-center gap-3 rounded-lg py-3 text-left font-medium transition-all',
+                  sidebarExpanded ? 'px-4 justify-between' : 'px-0 justify-center',
                   activeTab === 'homepage'
                     ? 'bg-primary text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-primary/10 hover:text-primary'
+                    : 'text-slate-700 hover:bg-slate-100'
                 )}
               >
-                <span>{tab.label}</span>
-                <svg
-                  className={cn('h-4 w-4 transition-transform', expanded ? 'rotate-90' : '')}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
+                <div className="flex items-center gap-3">
+                  {getMenuIcon(tab.id)}
+                  {sidebarExpanded && <span className="text-sm">{tab.label}</span>}
+                </div>
+                {sidebarExpanded && (
+                  <svg
+                    className={cn('h-4 w-4 transition-transform duration-200', dropdownExpanded ? 'rotate-90' : '')}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                )}
               </button>
-              {expanded && (
-                <div className="ml-4 flex flex-col gap-1">
+              {dropdownExpanded && sidebarExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="mt-1 ml-3 flex flex-col gap-1 border-l-2 border-slate-200 pl-3"
+                >
                   {homepageTabs.map((child) => {
                     const selected = homepageSection === child.id && activeTab === 'homepage';
                     return (
@@ -796,17 +856,20 @@ export const AdminDashboardPage: React.FC = () => {
                           setHomepageSection(child.id);
                         }}
                         className={cn(
-                          'rounded-xl px-4 py-2 text-left font-medium transition',
+                          'relative rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-all',
                           selected
-                            ? 'bg-primary text-white shadow-sm'
-                            : 'text-slate-600 hover:bg-primary/10 hover:text-primary'
+                            ? 'bg-red-50 text-red-600'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                         )}
                       >
-                        {child.label}
+                        {selected && (
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r bg-red-600" />
+                        )}
+                        <span className={cn(selected && 'ml-2')}>{child.label}</span>
                       </button>
                     );
                   })}
-                </div>
+                </motion.div>
               )}
             </div>
           );
@@ -818,17 +881,19 @@ export const AdminDashboardPage: React.FC = () => {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              'rounded-xl px-4 py-2 text-left font-medium transition',
+              'flex items-center gap-3 rounded-lg py-3 text-left text-sm font-medium transition-all',
+              sidebarExpanded ? 'px-4' : 'px-0 justify-center',
               activeTab === tab.id
                 ? 'bg-primary text-white shadow-sm'
-                : 'text-slate-600 hover:bg-primary/10 hover:text-primary'
+                : 'text-slate-700 hover:bg-slate-100'
             )}
           >
-            {tab.label}
+            {getMenuIcon(tab.id)}
+            {sidebarExpanded && <span>{tab.label}</span>}
           </button>
         );
       })}
-    </nav>
+    </div>
   );
 
   const parentLabelMap = useMemo(() => {
@@ -897,12 +962,8 @@ export const AdminDashboardPage: React.FC = () => {
   }
 
   return (
-    <SiteLayout>
-      <DashboardLayout
-        title={dashboardTitle}
-        subtitle="Manage storefront data and monitor operations"
-        sidebar={sidebar}
-      >
+    <AdminLayout sidebar={sidebar}>
+      <div className="space-y-6">
         {statusMessage && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
             {statusMessage}
@@ -912,117 +973,175 @@ export const AdminDashboardPage: React.FC = () => {
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
         )}
 
-        {activeTab === 'users' && (
-          <UsersAdminSection
-            users={users}
-            loading={loading}
-            form={userForm}
-            setForm={setUserForm}
-            selectedUserId={selectedUserId}
-            onSelectUser={setSelectedUserId}
-            onSubmit={handleUserSubmit}
-            onDelete={deleteUser}
-            canEditUsers={canEditUsers(role)}
-            canManageUsers={canManageUsers(role)}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          {activeTab === 'users' && (
+            <motion.div
+              key="users"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <UsersAdminSection
+                users={users}
+                loading={loading}
+                form={userForm}
+                setForm={setUserForm}
+                selectedUserId={selectedUserId}
+                onSelectUser={setSelectedUserId}
+                onSubmit={handleUserSubmit}
+                onDelete={deleteUser}
+                canEditUsers={canEditUsers(role)}
+                canManageUsers={canManageUsers(role)}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'categories' && (
-          <CategoriesAdminSection
-            categories={categories}
-            parentLabelMap={parentLabelMap}
-            selectedCategoryId={selectedCategoryId}
-            onSelectCategory={setSelectedCategoryId}
-            form={categoryForm}
-            setForm={setCategoryForm}
-            onSubmit={handleCategorySubmit}
-            onDelete={deleteCategory}
-          />
-        )}
+          {activeTab === 'categories' && (
+            <motion.div
+              key="categories"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <CategoriesAdminSection
+                categories={categories}
+                parentLabelMap={parentLabelMap}
+                selectedCategoryId={selectedCategoryId}
+                onSelectCategory={setSelectedCategoryId}
+                form={categoryForm}
+                setForm={setCategoryForm}
+                onSubmit={handleCategorySubmit}
+                onDelete={deleteCategory}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'products' && (
-          <ProductsAdminSection
-            products={products}
-            categories={categories}
-            categoryNameById={categoryNameById}
-            selectedProductId={selectedProductId}
-            onSelectProduct={setSelectedProductId}
-            form={productForm}
-            setForm={setProductForm}
-            onSubmit={handleProductSubmit}
-            onDelete={deleteProduct}
-            productTags={productTags}
-          />
-        )}
+          {activeTab === 'products' && (
+            <motion.div
+              key="products"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <ProductsAdminSection
+                products={products}
+                categories={categories}
+                categoryNameById={categoryNameById}
+                selectedProductId={selectedProductId}
+                onSelectProduct={setSelectedProductId}
+                form={productForm}
+                setForm={setProductForm}
+                onSubmit={handleProductSubmit}
+                onDelete={deleteProduct}
+                productTags={productTags}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'banners' && (
-          <BannersAdminSection
-            banners={banners}
-            selectedBannerId={selectedBannerId}
-            onSelectBanner={setSelectedBannerId}
-            form={bannerForm}
-            setForm={setBannerForm}
-            onSubmit={handleBannerSubmit}
-            onDelete={deleteBanner}
-            bannerTypes={bannerTypes}
-          />
-        )}
+          {activeTab === 'banners' && (
+            <motion.div
+              key="banners"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <BannersAdminSection
+                banners={banners}
+                selectedBannerId={selectedBannerId}
+                onSelectBanner={setSelectedBannerId}
+                form={bannerForm}
+                setForm={setBannerForm}
+                onSubmit={handleBannerSubmit}
+                onDelete={deleteBanner}
+                bannerTypes={bannerTypes}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'navigation' && (
-          <NavigationAdminSection
-            sections={menuSectionsDraft}
-            links={menuLinksDraft}
-            setSections={setMenuSectionsDraft}
-            setLinks={setMenuLinksDraft}
-            categories={categories}
-            products={products}
-            onSave={handleMenuSave}
-            saving={savingMenu}
-            canEdit={canEditHomepage(role)}
-          />
-        )}
+          {activeTab === 'navigation' && (
+            <motion.div
+              key="navigation"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <NavigationAdminSection
+                sections={menuSectionsDraft}
+                links={menuLinksDraft}
+                setSections={setMenuSectionsDraft}
+                setLinks={setMenuLinksDraft}
+                categories={categories}
+                products={products}
+                onSave={handleMenuSave}
+                saving={savingMenu}
+                canEdit={canEditHomepage(role)}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'homepage' && (
-          <HomepageAdminSection
-            section={homepageSection}
-            onSectionChange={setHomepageSection}
-            sortedHeroSlides={sortedHeroSlides}
-            selectedHeroSlideId={selectedHeroSlideId}
-            onSelectHeroSlide={setSelectedHeroSlideId}
-            heroForm={heroSlideForm}
-            setHeroForm={setHeroSlideForm}
-            onHeroSubmit={handleHeroSubmit}
-            requestDeleteHero={(id) => setDeleteConfirmation({ type: 'hero', id })}
-            canEditHomepage={canEditHomepage(role)}
-            canDeleteHomepage={canDeleteHomepage(role)}
-            featuredByVariant={featuredByVariant}
-            activeFeatureTab={activeFeatureTab}
-            onFeatureTabChange={(tab) => {
-              setActiveFeatureTab(tab);
-              setSelectedFeatureId('');
-            }}
-            selectedFeatureId={selectedFeatureId}
-            onSelectFeature={setSelectedFeatureId}
-            featureForm={featureForm}
-            setFeatureForm={setFeatureForm}
-            onFeatureSubmit={handleFeatureSubmit}
-            requestDeleteFeatured={(id) => setDeleteConfirmation({ type: 'featured', id })}
-            orderConflict={orderConflict}
-            setOrderConflict={setOrderConflict}
-            setStatus={setStatus}
-            maxImageBytes={MAX_IMAGE_BYTES}
-          />
-        )}
+          {activeTab === 'homepage' && (
+            <motion.div
+              key="homepage"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <HomepageAdminSection
+                section={homepageSection}
+                onSectionChange={setHomepageSection}
+                sortedHeroSlides={sortedHeroSlides}
+                selectedHeroSlideId={selectedHeroSlideId}
+                onSelectHeroSlide={setSelectedHeroSlideId}
+                heroForm={heroSlideForm}
+                setHeroForm={setHeroSlideForm}
+                onHeroSubmit={handleHeroSubmit}
+                requestDeleteHero={(id) => setDeleteConfirmation({ type: 'hero', id })}
+                canEditHomepage={canEditHomepage(role)}
+                canDeleteHomepage={canDeleteHomepage(role)}
+                featuredByVariant={featuredByVariant}
+                activeFeatureTab={activeFeatureTab}
+                onFeatureTabChange={(tab) => {
+                  setActiveFeatureTab(tab);
+                  setSelectedFeatureId('');
+                }}
+                selectedFeatureId={selectedFeatureId}
+                onSelectFeature={setSelectedFeatureId}
+                featureForm={featureForm}
+                setFeatureForm={setFeatureForm}
+                onFeatureSubmit={handleFeatureSubmit}
+                requestDeleteFeatured={(id) => setDeleteConfirmation({ type: 'featured', id })}
+                orderConflict={orderConflict}
+                setOrderConflict={setOrderConflict}
+                setStatus={setStatus}
+                maxImageBytes={MAX_IMAGE_BYTES}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'orders' && (
-          <OrdersAdminSection
-            orders={orders}
-            canEditOrders={canEditOrders(role)}
-            orderStatuses={orderStatuses}
-            onUpdateStatus={updateOrderStatus}
-          />
-        )}
-      </DashboardLayout>
+          {activeTab === 'orders' && (
+            <motion.div
+              key="orders"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <OrdersAdminSection
+                orders={orders}
+                canEditOrders={canEditOrders(role)}
+                orderStatuses={orderStatuses}
+                onUpdateStatus={updateOrderStatus}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {deleteConfirmation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -1066,6 +1185,6 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         </div>
       )}
-    </SiteLayout>
+    </AdminLayout>
   );
 };

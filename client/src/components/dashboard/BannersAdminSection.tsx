@@ -1,5 +1,5 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import { StatusPill } from '../../components/common/StatusPill';
+import { StatusPill } from '../common/StatusPill';
 import { cn } from '../../utils/cn';
 import type { Banner, BannerType } from '../../types/api';
 import type { BannerFormState } from './types';

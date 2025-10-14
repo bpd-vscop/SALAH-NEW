@@ -1,7 +1,7 @@
 ﻿import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from '../components/routing/ProtectedRoute';
 import { AccountDashboardPage } from '../pages/AccountDashboardPage';
-import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage';
+import { AdminDashboardPage } from '../pages/AdminDashboardPage';
 import { CartPage } from '../pages/CartPage';
 import { CheckoutPage } from '../pages/CheckoutPage';
 import { HomePage } from '../pages/HomePage';
@@ -9,6 +9,7 @@ import { LoginPage } from '../pages/LoginPage';
 import { ProductCatalogPage } from '../pages/ProductCatalogPage';
 import { ProductDetailPage } from '../pages/ProductDetailPage';
 import { RegisterPage } from '../pages/RegisterPage';
+import { UserSettingsPage } from '../pages/UserSettingsPage';
 
 export const AppRouter: React.FC = () => (
   <BrowserRouter>
@@ -30,6 +31,10 @@ export const AppRouter: React.FC = () => (
 
       <Route element={<ProtectedRoute allowRoles={['admin', 'manager', 'staff']} /> }>
         <Route path="/admin" element={<AdminDashboardPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute allowRoles={['client', 'admin', 'manager', 'staff']} /> }>
+        <Route path="/admin/settings" element={<UserSettingsPage />} />
       </Route>
 
       <Route path="*" element={<HomePage />} />

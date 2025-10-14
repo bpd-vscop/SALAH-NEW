@@ -1,5 +1,5 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import { StatusPill } from '../../components/common/StatusPill';
+import { StatusPill } from '../common/StatusPill';
 import type { User } from '../../types/api';
 import type { UserFormState } from './types';
 

@@ -1,5 +1,5 @@
 import { formatCurrency, formatTimestamp } from '../../utils/format';
-import { StatusPill } from '../../components/common/StatusPill';
+import { StatusPill } from '../common/StatusPill';
 import type { Order, OrderStatus } from '../../types/api';
 
 interface OrdersAdminSectionProps {

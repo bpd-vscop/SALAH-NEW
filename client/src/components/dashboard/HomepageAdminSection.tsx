@@ -1,4 +1,5 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import type { FeaturedShowcaseItem, FeaturedVariant } from '../../api/featuredShowcase';
 import type { HeroSlide } from '../../api/heroSlides';
@@ -53,7 +54,6 @@ interface HomepageAdminSectionProps {
 
 export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
   section,
-  onSectionChange,
   sortedHeroSlides,
   selectedHeroSlideId,
   onSelectHeroSlide,
@@ -77,36 +77,17 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
   setStatus,
   maxImageBytes,
 }) => (
-  <div className="space-y-6">
-    <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onClick={() => onSectionChange('hero')}
-        className={cn(
-          'rounded-xl border px-4 py-2 text-xs font-semibold transition',
-          section === 'hero'
-            ? 'border-primary bg-primary text-white shadow-sm'
-            : 'border-border text-slate-600 hover:bg-primary/10 hover:text-primary'
-        )}
-      >
-        Hero slider
-      </button>
-      <button
-        type="button"
-        onClick={() => onSectionChange('featured')}
-        className={cn(
-          'rounded-xl border px-4 py-2 text-xs font-semibold transition',
-          section === 'featured'
-            ? 'border-primary bg-primary text-white shadow-sm'
-            : 'border-border text-slate-600 hover:bg-primary/10 hover:text-primary'
-        )}
-      >
-        Featured highlights
-      </button>
-    </div>
-
-    {section === 'hero' ? (
-      <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+  <div>
+    <AnimatePresence mode="wait">
+      {section === 'hero' ? (
+        <motion.section
+          key="hero"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm"
+        >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold uppercase tracking-wide text-slate-900">Hero Slider</h2>
           <span className="rounded-xl border border-primary bg-primary px-4 py-2 text-xs font-semibold text-white shadow-sm">
@@ -124,30 +105,77 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
               <article
                 key={slide.id}
                 className={cn(
-                  'rounded-2xl border border-border bg-background p-4 shadow-sm transition hover:border-primary hover:shadow-md',
-                  selectedHeroSlideId === slide.id && 'border-primary bg-white shadow-md'
+                  'relative flex gap-4 rounded-2xl border border-border bg-white p-4 shadow-sm transition hover:border-primary hover:shadow-md',
+                  selectedHeroSlideId === slide.id && 'border-primary shadow-md ring-2 ring-primary/10'
                 )}
               >
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-base font-semibold text-slate-900">{slide.title}</h3>
-                    {slide.subtitle && <p className="text-sm text-muted">{slide.subtitle}</p>}
-                    <p className="text-xs text-muted">Order {slide.order ?? 0}</p>
+                <div className="relative grid w-80 flex-shrink-0 grid-cols-2 gap-2 overflow-hidden rounded-xl bg-slate-100">
+                  <div className="relative h-full w-full overflow-hidden">
+                    <img src={slide.desktopImage} alt={`${slide.altText || slide.title} (Desktop)`} className="absolute inset-0 h-full w-full object-cover" />
+                    <span className="absolute right-2 top-2 inline-flex items-center rounded-md bg-red-500 px-2 py-0.5 text-[0.6rem] font-semibold uppercase text-white">
+                      Desktop
+                    </span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="relative h-full w-full overflow-hidden">
+                    <img src={slide.mobileImage} alt={`${slide.altText || slide.title} (Mobile)`} className="absolute inset-0 h-full w-full object-cover" />
+                    <span className="absolute right-2 top-2 inline-flex items-center rounded-md bg-red-500 px-2 py-0.5 text-[0.6rem] font-semibold uppercase text-white">
+                      Mobile
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-1 flex-col gap-3">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-slate-900">{slide.title}</h3>
+                        {slide.subtitle && <p className="mt-1 text-sm text-slate-600">{slide.subtitle}</p>}
+                      </div>
+                      <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        Order #{slide.order ?? 0}
+                      </span>
+                    </div>
+                    {slide.caption && (
+                      <p className="text-sm text-muted line-clamp-2">{slide.caption}</p>
+                    )}
+                    <div className="flex flex-wrap gap-2 text-xs text-muted">
+                      {slide.ctaText && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1">
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                          </svg>
+                          CTA: {slide.ctaText}
+                        </span>
+                      )}
+                      {slide.linkUrl && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1">
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                          Link
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-auto flex flex-wrap justify-end gap-2">
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                      className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
                       onClick={() => onSelectHeroSlide(slide.id)}
                     >
+                      <svg className="mr-1.5 h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
                       Edit
                     </button>
                     {canDeleteHomepage && (
                       <button
                         type="button"
-                        className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                        className="inline-flex items-center justify-center rounded-xl border border-red-200 px-4 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
                         onClick={() => requestDeleteHero(slide.id)}
                       >
+                        <svg className="mr-1.5 h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                         Delete
                       </button>
                     )}
@@ -323,12 +351,24 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
             </div>
           </form>
         </div>
-      </section>
-    ) : (
-      <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Feature cards: {featuredByVariant.feature.length} / 3 · Tiles: {featuredByVariant.tiles.length} / 4
-        </p>
+        </motion.section>
+      ) : (
+        <motion.section
+          key="featured"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm"
+        >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold uppercase tracking-wide text-slate-900">Featured Highlights</h2>
+          <span className="rounded-xl border border-primary bg-primary px-4 py-2 text-xs font-semibold text-white shadow-sm">
+            <span className="flex items-center gap-2">
+              Feature {featuredByVariant.feature.length}/3 · Tiles {featuredByVariant.tiles.length}/4
+            </span>
+          </span>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {(['feature', 'tile'] as FeaturedVariant[]).map((tab) => {
             const selected = activeFeatureTab === tab;
@@ -350,56 +390,115 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
           })}
         </div>
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="space-y-4">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeFeatureTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2, ease: 'easeInOut' }}
+              className="space-y-4"
+            >
             {(activeFeatureTab === 'feature' ? featuredByVariant.feature : featuredByVariant.tiles).map((item) => (
               <article
                 key={item.id}
                 className={cn(
-                  'relative flex flex-col gap-4 rounded-3xl border border-border bg-white/80 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] transition hover:border-primary/60 hover:shadow-[0_24px_70px_rgba(15,23,42,0.12)]',
-                  selectedFeatureId === item.id && 'border-primary bg-white shadow-[0_28px_80px_rgba(177,33,33,0.24)]'
+                  'relative flex gap-4 rounded-2xl border border-border bg-white p-4 shadow-sm transition hover:border-primary hover:shadow-md',
+                  selectedFeatureId === item.id && 'border-primary shadow-md ring-2 ring-primary/10'
                 )}
               >
-                <div className="relative h-40 w-full overflow-hidden rounded-2xl bg-slate-900/10">
+                <div className="relative h-40 w-64 flex-shrink-0 overflow-hidden rounded-xl bg-slate-100">
                   <img src={item.image} alt={item.altText || item.title} className="absolute inset-0 h-full w-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
                   {activeFeatureTab === 'feature' ? (
-                    <span className="absolute right-4 top-4 inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
-                      Desktop &amp; mobile
+                    <span className="absolute right-2 top-2 inline-flex items-center rounded-lg bg-blue-500 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-white shadow-sm">
+                      Feature Card
                     </span>
                   ) : (
-                    item.badgeText && (
-                      <span className="absolute left-4 top-4 inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
-                        {item.badgeText}
-                      </span>
-                    )
+                    <span className="absolute right-2 top-2 inline-flex items-center rounded-lg bg-purple-500 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-white shadow-sm">
+                      Tile Card
+                    </span>
                   )}
                 </div>
-                <div className="flex flex-col gap-1">
-                  <h4 className="text-base font-semibold text-slate-900">{item.title}</h4>
-                  <p className="text-xs text-muted">Order {item.order ?? 0}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                    onClick={() => onSelectFeature(item.id)}
-                  >
-                    Edit
-                  </button>
-                  {canDeleteHomepage && (
+                <div className="flex flex-1 flex-col gap-3">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <h4 className="text-lg font-semibold text-slate-900">{item.title}</h4>
+                        {item.subtitle && <p className="mt-1 text-sm text-slate-600">{item.subtitle}</p>}
+                      </div>
+                      <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        Order #{item.order ?? 0}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {item.category && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-blue-700">
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                          </svg>
+                          {item.category}
+                        </span>
+                      )}
+                      {item.offer && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-emerald-700">
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {item.offer}
+                        </span>
+                      )}
+                      {item.price && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-amber-700 font-semibold">
+                          {item.price}
+                        </span>
+                      )}
+                      {item.badgeText && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-1 text-purple-700">
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                          </svg>
+                          {item.badgeText}
+                        </span>
+                      )}
+                    </div>
+                    {item.ctaText && (
+                      <span className="inline-flex items-center gap-1 text-xs text-muted">
+                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                        </svg>
+                        CTA: {item.ctaText}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-auto flex flex-wrap justify-end gap-2">
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                      onClick={() => requestDeleteFeatured(item.id)}
+                      className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                      onClick={() => onSelectFeature(item.id)}
                     >
-                      Delete
+                      <svg className="mr-1.5 h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Edit
                     </button>
-                  )}
+                    {canDeleteHomepage && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-xl border border-red-200 px-4 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                        onClick={() => requestDeleteFeatured(item.id)}
+                      >
+                        <svg className="mr-1.5 h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
               </article>
             ))}
             {(activeFeatureTab === 'feature' ? featuredByVariant.feature : featuredByVariant.tiles).length === 0 && (
-              <p className="rounded-3xl border border-dashed border-border bg-white/70 px-4 py-6 text-center text-sm text-muted">
+              <p className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
                 No {activeFeatureTab === 'feature' ? 'feature cards' : 'tile cards'} yet.
               </p>
             )}
@@ -436,7 +535,8 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
                 </div>
               </div>
             )}
-          </div>
+            </motion.div>
+          </AnimatePresence>
           <form
             className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm"
             onSubmit={onFeatureSubmit}
@@ -601,7 +701,8 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
             </div>
           </form>
         </div>
-      </section>
-    )}
+        </motion.section>
+      )}
+    </AnimatePresence>
   </div>
 );
