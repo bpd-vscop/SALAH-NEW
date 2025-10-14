@@ -5,15 +5,19 @@ const {
 } = require('../validators/featuredShowcase');
 const { notFound } = require('../utils/appError');
 
-const MAX_ITEMS_PER_VARIANT = 3;
+const MAX_ITEMS_PER_VARIANT = {
+  feature: 3,
+  tile: 4,
+};
 
 const enforceVariantLimit = async (variant) => {
   const items = await FeaturedShowcase.find({ variant }).sort({ updatedAt: -1, createdAt: -1 });
-  if (items.length <= MAX_ITEMS_PER_VARIANT) {
+  const limit = MAX_ITEMS_PER_VARIANT[variant] ?? 3;
+  if (items.length <= limit) {
     return;
   }
 
-  const excess = items.slice(MAX_ITEMS_PER_VARIANT);
+  const excess = items.slice(limit);
   const idsToRemove = excess.map((item) => item._id);
   if (idsToRemove.length) {
     await FeaturedShowcase.deleteMany({ _id: { $in: idsToRemove } });

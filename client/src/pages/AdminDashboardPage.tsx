@@ -51,6 +51,31 @@ const adminTabs = [
   { id: 'orders', label: 'Orders' },
 ] as const;
 
+const homepageTabs = [
+  { id: 'hero' as const, label: 'Hero slider' },
+  { id: 'featured' as const, label: 'Featured highlights' },
+];
+
+const featureManagementTabs = [
+  { id: 'feature' as const, label: 'Feature cards' },
+  { id: 'tile' as const, label: 'Tile cards' },
+];
+
+const emptyFeatureForm = (variant: FeaturedVariant) => ({
+  variant,
+  title: '',
+  subtitle: '',
+  category: '',
+  offer: '',
+  badgeText: '',
+  ctaText: 'Shop Now',
+  linkUrl: '',
+  price: '',
+  order: 1,
+  image: '',
+  altText: '',
+});
+
 const productTags: ProductTag[] = ['in stock', 'out of stock', 'on sale', 'available to order'];
 const bannerTypes: BannerType[] = ['slide', 'row', 'advertising'];
 const orderStatuses: OrderStatus[] = ['pending', 'processing', 'completed', 'cancelled'];
@@ -116,27 +141,20 @@ export const AdminDashboardPage: React.FC = () => {
     caption: '',
     ctaText: 'Shop Now',
     linkUrl: '',
-    order: 0,
+    order: 1,
     desktopImage: '',
     mobileImage: '',
     altText: '',
   });
 
   const [selectedFeatureId, setSelectedFeatureId] = useState<string>('');
-  const [featureForm, setFeatureForm] = useState({
-    variant: 'feature' as FeaturedVariant,
-    title: '',
-    subtitle: '',
-    category: '',
-    offer: '',
-    badgeText: '',
-    ctaText: 'Shop Now',
-    linkUrl: '',
-    price: '',
-    order: 0,
-    image: '',
-    altText: '',
-  });
+const [featureForm, setFeatureForm] = useState(() => emptyFeatureForm('feature'));
+
+  const [homepageSection, setHomepageSection] = useState<'hero' | 'featured'>('hero');
+  const [homepageExpanded, setHomepageExpanded] = useState(false);
+  const [activeFeatureTab, setActiveFeatureTab] = useState<'feature' | 'tile'>('feature');
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ type: 'hero' | 'featured'; id: string } | null>(null);
+  const [orderConflict, setOrderConflict] = useState<{ type: 'hero' | 'featured'; order: number; existingTitle: string; onConfirm: () => void } | null>(null);
 
   const refreshUsers = async () => {
     const { users: data } = await usersApi.list();
@@ -196,6 +214,12 @@ export const AdminDashboardPage: React.FC = () => {
 
     void loadAll();
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'homepage') {
+      setHomepageSection('hero');
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (!selectedUserId) {
@@ -306,25 +330,15 @@ export const AdminDashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (!selectedFeatureId) {
-      setFeatureForm({
-        variant: 'feature',
-        title: '',
-        subtitle: '',
-        category: '',
-        offer: '',
-        badgeText: '',
-        ctaText: 'Shop Now',
-        linkUrl: '',
-        price: '',
-        order: featuredItems.length,
-        image: '',
-        altText: '',
-      });
+      setFeatureForm(emptyFeatureForm(activeFeatureTab));
       return;
     }
 
     const existing = featuredItems.find((item) => item.id === selectedFeatureId);
     if (existing) {
+      if (activeFeatureTab !== existing.variant) {
+        setActiveFeatureTab(existing.variant);
+      }
       setFeatureForm({
         variant: existing.variant,
         title: existing.title,
@@ -340,7 +354,21 @@ export const AdminDashboardPage: React.FC = () => {
         altText: existing.altText ?? '',
       });
     }
-  }, [selectedFeatureId, featuredItems]);
+  }, [selectedFeatureId, featuredItems, activeFeatureTab]);
+
+  useEffect(() => {
+    if (!selectedFeatureId) {
+      const count = featuredItems.filter((item) => item.variant === activeFeatureTab).length;
+      setFeatureForm({ ...emptyFeatureForm(activeFeatureTab), order: count });
+    }
+  }, [activeFeatureTab, selectedFeatureId, featuredItems]);
+
+  useEffect(() => {
+    if (homepageSection !== 'featured') {
+      setActiveFeatureTab('feature');
+      setSelectedFeatureId('');
+    }
+  }, [homepageSection]);
 
   const setStatus = (message: string | null, errorMessage: string | null = null) => {
     setStatusMessage(message);
@@ -528,13 +556,41 @@ export const AdminDashboardPage: React.FC = () => {
         return;
       }
 
+      // Check for duplicate order
+      const orderToCheck = Number(heroSlideForm.order) || 1;
+      const duplicateOrder = heroSlides.find(
+        (slide) => slide.order === orderToCheck && slide.id !== selectedHeroSlideId
+      );
+
+      if (duplicateOrder) {
+        setOrderConflict({
+          type: 'hero',
+          order: orderToCheck,
+          existingTitle: duplicateOrder.title,
+          onConfirm: async () => {
+            setOrderConflict(null);
+            await submitHeroSlide(orderToCheck);
+          },
+        });
+        return;
+      }
+
+      await submitHeroSlide(orderToCheck);
+    } catch (err) {
+      console.error(err);
+      setStatus(null, err instanceof Error ? err.message : 'Hero slide operation failed');
+    }
+  };
+
+  const submitHeroSlide = async (orderToCheck: number) => {
+    try {
       const payload = {
         title: heroSlideForm.title,
         subtitle: heroSlideForm.subtitle,
         caption: heroSlideForm.caption,
         ctaText: heroSlideForm.ctaText,
         linkUrl: heroSlideForm.linkUrl,
-        order: Number(heroSlideForm.order) || 0,
+        order: orderToCheck,
         desktopImage: heroSlideForm.desktopImage,
         mobileImage: heroSlideForm.mobileImage,
         altText: heroSlideForm.altText,
@@ -561,9 +617,11 @@ export const AdminDashboardPage: React.FC = () => {
       await heroSlidesApi.delete(id);
       await refreshHeroSlider();
       setStatus('Hero slide deleted');
+      setDeleteConfirmation(null);
     } catch (err) {
       console.error(err);
       setStatus(null, err instanceof Error ? err.message : 'Unable to delete hero slide');
+      setDeleteConfirmation(null);
     }
   };
 
@@ -575,8 +633,37 @@ export const AdminDashboardPage: React.FC = () => {
         return;
       }
 
+      // Check for duplicate order within the same variant
+      const orderToCheck = Number(featureForm.order) || 1;
+      const itemsInVariant = featuredItems.filter((item) => item.variant === activeFeatureTab);
+      const duplicateOrder = itemsInVariant.find(
+        (item) => item.order === orderToCheck && item.id !== selectedFeatureId
+      );
+
+      if (duplicateOrder) {
+        setOrderConflict({
+          type: 'featured',
+          order: orderToCheck,
+          existingTitle: duplicateOrder.title,
+          onConfirm: async () => {
+            setOrderConflict(null);
+            await submitFeaturedItem(orderToCheck);
+          },
+        });
+        return;
+      }
+
+      await submitFeaturedItem(orderToCheck);
+    } catch (err) {
+      console.error(err);
+      setStatus(null, err instanceof Error ? err.message : 'Featured showcase operation failed');
+    }
+  };
+
+  const submitFeaturedItem = async (orderToCheck: number) => {
+    try {
       const payload = {
-        variant: featureForm.variant,
+        variant: activeFeatureTab,
         title: featureForm.title,
         subtitle: featureForm.subtitle,
         category: featureForm.category,
@@ -585,7 +672,7 @@ export const AdminDashboardPage: React.FC = () => {
         ctaText: featureForm.ctaText,
         linkUrl: featureForm.linkUrl,
         price: featureForm.price,
-        order: Number(featureForm.order) || 0,
+        order: orderToCheck,
         image: featureForm.image,
         altText: featureForm.altText,
       };
@@ -611,9 +698,11 @@ export const AdminDashboardPage: React.FC = () => {
       await featuredShowcaseApi.delete(id);
       await refreshFeaturedShowcase();
       setStatus('Featured item deleted');
+      setDeleteConfirmation(null);
     } catch (err) {
       console.error(err);
       setStatus(null, err instanceof Error ? err.message : 'Unable to delete featured item');
+      setDeleteConfirmation(null);
     }
   };
 
@@ -632,21 +721,84 @@ export const AdminDashboardPage: React.FC = () => {
 
   const sidebar = (
     <nav className="flex flex-col gap-2 text-sm">
-      {adminTabs.map((tab) => (
-        <button
-          type="button"
-          key={tab.id}
-          onClick={() => setActiveTab(tab.id)}
-          className={cn(
-            'rounded-xl px-4 py-2 text-left font-medium transition',
-            activeTab === tab.id
-              ? 'bg-primary text-white shadow-sm'
-              : 'text-slate-600 hover:bg-primary/10 hover:text-primary'
-          )}
-        >
-          {tab.label}
-        </button>
-      ))}
+      {adminTabs.map((tab) => {
+        if (tab.id === 'homepage') {
+          const expanded = homepageExpanded || activeTab === 'homepage';
+          return (
+            <div key={tab.id} className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => setHomepageExpanded((prev) => !prev)}
+                className={cn(
+                  'flex items-center justify-between rounded-xl px-4 py-2 text-left font-medium transition',
+                  activeTab === 'homepage'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-primary/10 hover:text-primary'
+                )}
+              >
+                <span>{tab.label}</span>
+                <svg
+                  className={cn('h-4 w-4 transition-transform', expanded ? 'rotate-90' : '')}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+              {expanded && (
+                <div className="ml-4 flex flex-col gap-1">
+                  {homepageTabs.map((child) => {
+                    const selected = homepageSection === child.id && activeTab === 'homepage';
+                    return (
+                      <button
+                        type="button"
+                        key={child.id}
+                        onClick={() => {
+                          setHomepageExpanded(true);
+                          setActiveTab('homepage');
+                          setHomepageSection(child.id);
+                          setSelectedFeatureId('');
+                          if (child.id === 'featured') {
+                            setActiveFeatureTab('feature');
+                          }
+                        }}
+                        className={cn(
+                          'rounded-lg px-3 py-2 text-left text-xs font-medium transition',
+                          selected
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-slate-500 hover:bg-primary/5 hover:text-primary'
+                        )}
+                      >
+                        {child.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        return (
+          <button
+            type="button"
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              'rounded-xl px-4 py-2 text-left font-medium transition',
+              activeTab === tab.id
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-slate-600 hover:bg-primary/10 hover:text-primary'
+            )}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
     </nav>
   );
 
@@ -677,561 +829,711 @@ export const AdminDashboardPage: React.FC = () => {
     return 'default';
   };
 
-  const sortedHeroSlides = useMemo(
-    () => [...heroSlides].sort((a, b) => a.order - b.order || a.title.localeCompare(b.title)),
-    [heroSlides]
-  );
+  const sortedHeroSlides = useMemo(() => {
+    return [...heroSlides].sort((a, b) => {
+      const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
+      const orderB = b.order ?? Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return (a.title ?? '').localeCompare(b.title ?? '');
+    });
+  }, [heroSlides]);
 
   const featuredByVariant = useMemo(() => {
     const feature = featuredItems
       .filter((item) => item.variant === 'feature')
-      .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
+      .sort((a, b) => {
+        const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
+        const orderB = b.order ?? Number.MAX_SAFE_INTEGER;
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+        return (a.title ?? '').localeCompare(b.title ?? '');
+      });
     const tiles = featuredItems
       .filter((item) => item.variant === 'tile')
-      .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
+      .sort((a, b) => {
+        const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
+        const orderB = b.order ?? Number.MAX_SAFE_INTEGER;
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+        return (a.title ?? '').localeCompare(b.title ?? '');
+      });
     return { feature, tiles };
   }, [featuredItems]);
 
   const renderHomepage = () => (
     <div className="space-y-6">
-      <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Hero slider</h2>
-            <p className="text-sm text-muted">Upload desktop and mobile artwork for up to three slides.</p>
+      {homepageSection === 'hero' ? (
+        <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold uppercase tracking-wide text-slate-900">Hero Slider</h2>
+            <div className="flex items-center gap-2">
+              <span className="rounded-xl border border-primary bg-primary px-4 py-2 text-xs font-semibold text-white shadow-sm">
+                <span className="flex items-center gap-2">
+                  Slides
+                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[0.65rem] font-bold text-white">
+                    {sortedHeroSlides.length}/5
+                  </span>
+                </span>
+              </span>
+            </div>
           </div>
-          <p className="text-xs text-muted">Current slides: {sortedHeroSlides.length} / 3</p>
-        </div>
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="space-y-4">
-            {sortedHeroSlides.map((slide) => (
-              <article
-                key={slide.id}
-                className={cn(
-                  'rounded-2xl border border-border bg-background p-4 shadow-sm transition hover:border-primary hover:shadow-md',
-                  selectedHeroSlideId === slide.id && 'border-primary bg-white shadow-md'
-                )}
-              >
-                <div className="flex flex-col gap-4 md:flex-row">
-                  <img
-                    src={slide.desktopImage}
-                    alt={slide.altText || slide.title}
-                    className="h-32 w-full rounded-xl object-cover md:w-48"
-                  />
-                  <div className="flex flex-1 flex-col gap-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="text-base font-semibold text-slate-900">{slide.title}</h3>
-                        <p className="text-xs text-muted">Order {slide.order}</p>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="space-y-4">
+              {sortedHeroSlides.map((slide) => (
+                <article
+                  key={slide.id}
+                  className={cn(
+                    'rounded-2xl border border-border bg-background p-4 shadow-sm transition hover:border-primary hover:shadow-md',
+                    selectedHeroSlideId === slide.id && 'border-primary bg-white shadow-md'
+                  )}
+                >
+                  <div className="flex flex-col gap-4 md:flex-row">
+                    <img
+                      src={slide.desktopImage}
+                      alt={slide.altText || slide.title}
+                      className="h-32 w-full rounded-xl object-cover md:w-48"
+                    />
+                    <div className="flex flex-1 flex-col gap-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="text-base font-semibold text-slate-900">{slide.title}</h3>
+                          <p className="text-xs text-muted">Order {slide.order}</p>
+                        </div>
+                        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                          Desktop &amp; mobile
+                        </span>
                       </div>
-                      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                        Desktop &amp; mobile
-                      </span>
-                    </div>
-                    {slide.subtitle && <p className="text-sm text-slate-700">{slide.subtitle}</p>}
-                    <div className="mt-auto flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                        onClick={() => setSelectedHeroSlideId(slide.id)}
-                      >
-                        Edit
-                      </button>
-                      {canDeleteHomepage(user?.role ?? 'client') && (
+                      {slide.subtitle && <p className="text-sm text-slate-700">{slide.subtitle}</p>}
+                      <div className="mt-auto flex flex-wrap gap-2">
                         <button
                           type="button"
-                          className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                          onClick={() => deleteHeroSlide(slide.id)}
+                          className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                          onClick={() => setSelectedHeroSlideId(slide.id)}
                         >
-                          Delete
+                          Edit
                         </button>
-                      )}
+                        {canDeleteHomepage(user?.role ?? 'client') && (
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                            onClick={() => setDeleteConfirmation({ type: 'hero', id: slide.id })}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </article>
-            ))}
-            {!sortedHeroSlides.length && (
-              <p className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
-                No hero slides yet. Upload artwork to get started.
-              </p>
-            )}
-          </div>
-          <form
-            className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm"
-            onSubmit={handleHeroSlideSubmit}
-          >
-            <div className="space-y-1">
-              <h3 className="text-base font-semibold text-slate-900">
-                {selectedHeroSlideId ? 'Update hero slide' : 'Create hero slide'}
-              </h3>
-              <p className="text-xs text-muted">Images are stored as base64 and limited to the three most recent uploads.</p>
-            </div>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Title
-              <input
-                type="text"
-                value={heroSlideForm.title}
-                onChange={(event) => setHeroSlideForm((state) => ({ ...state, title: event.target.value }))}
-                required
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Subtitle
-              <input
-                type="text"
-                value={heroSlideForm.subtitle}
-                onChange={(event) => setHeroSlideForm((state) => ({ ...state, subtitle: event.target.value }))}
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Caption
-              <textarea
-                value={heroSlideForm.caption}
-                onChange={(event) => setHeroSlideForm((state) => ({ ...state, caption: event.target.value }))}
-                rows={3}
-                className="rounded-xl border border-border bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                CTA label
-                <input
-                  type="text"
-                  value={heroSlideForm.ctaText}
-                  onChange={(event) => setHeroSlideForm((state) => ({ ...state, ctaText: event.target.value }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Alt text
-                <input
-                  type="text"
-                  value={heroSlideForm.altText}
-                  onChange={(event) => setHeroSlideForm((state) => ({ ...state, altText: event.target.value }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-            </div>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Link URL
-              <input
-                type="text"
-                value={heroSlideForm.linkUrl}
-                onChange={(event) => setHeroSlideForm((state) => ({ ...state, linkUrl: event.target.value }))}
-                required
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Display order
-              <input
-                type="number"
-                min={0}
-                value={heroSlideForm.order}
-                onChange={(event) =>
-                  setHeroSlideForm((state) => ({ ...state, order: Number(event.target.value) || 0 }))
-                }
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-900">Content</h4>
-              <span className="text-xs text-muted">Max file size 5 MB</span>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                <span className="text-xs text-muted">Desktop - ar 21:9</span>
-                <span
-                  className={`inline-flex cursor-pointer items-center justify-center rounded-xl border px-4 py-2 text-xs font-semibold transition ${
-                    heroSlideForm.desktopImage
-                      ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
-                      : 'border-red-200 bg-red-100 text-red-700'
-                  }`}
-                >
-                  <span>{heroSlideForm.desktopImage ? 'Replace image' : 'Upload image'}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (event) => {
-                      const file = event.target.files?.[0];
-                      if (file) {
-                        if (file.size > MAX_IMAGE_BYTES) {
-                          setStatus(null, 'Desktop image must be 5 MB or smaller.');
-                          event.target.value = '';
-                          return;
-                        }
-                        const dataUrl = await fileToDataUrl(file);
-                        setHeroSlideForm((state) => ({ ...state, desktopImage: dataUrl }));
-                      }
-                    }}
-                    className="sr-only"
-                  />
-                </span>
-                {heroSlideForm.desktopImage && (
-                  <img
-                    src={heroSlideForm.desktopImage}
-                    alt="Desktop preview"
-                    className="h-32 w-full rounded-xl object-cover"
-                  />
-                )}
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                <span className="text-xs text-muted">Mobile - ar 4:3</span>
-                <span
-                  className={`inline-flex cursor-pointer items-center justify-center rounded-xl border px-4 py-2 text-xs font-semibold transition ${
-                    heroSlideForm.mobileImage
-                      ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
-                      : 'border-red-200 bg-red-100 text-red-700'
-                  }`}
-                >
-                  <span>{heroSlideForm.mobileImage ? 'Replace image' : 'Upload image'}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (event) => {
-                      const file = event.target.files?.[0];
-                      if (file) {
-                        if (file.size > MAX_IMAGE_BYTES) {
-                          setStatus(null, 'Mobile image must be 5 MB or smaller.');
-                          event.target.value = '';
-                          return;
-                        }
-                        const dataUrl = await fileToDataUrl(file);
-                        setHeroSlideForm((state) => ({ ...state, mobileImage: dataUrl }));
-                      }
-                    }}
-                    className="sr-only"
-                  />
-                </span>
-                {heroSlideForm.mobileImage && (
-                  <img
-                    src={heroSlideForm.mobileImage}
-                    alt="Mobile preview"
-                    className="h-32 w-full rounded-xl object-cover"
-                  />
-                )}
-              </label>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="submit"
-                className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
-                disabled={!canEditHomepage(user?.role ?? 'client')}
-              >
-                {selectedHeroSlideId ? 'Save changes' : 'Create slide'}
-              </button>
-              {selectedHeroSlideId && (
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted transition hover:border-primary hover:text-primary"
-                  onClick={() => setSelectedHeroSlideId('')}
-                >
-                  Cancel
-                </button>
+                </article>
+              ))}
+              {!sortedHeroSlides.length && (
+                <p className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
+                  No hero slides yet. Upload artwork to get started.
+                </p>
               )}
             </div>
-          </form>
-        </div>
-      </section>
-
-      <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Featured showcase</h2>
-            <p className="text-sm text-muted">Manage large feature panels and supporting tiles (max three each).</p>
-          </div>
-          <p className="text-xs text-muted">
-            Feature cards: {featuredByVariant.feature.length} / 3 · Tiles: {featuredByVariant.tiles.length} / 3
-          </p>
-        </div>
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="space-y-5">
-            <div>
-              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Primary features</h3>
-              <div className="grid gap-3 md:grid-cols-2">
-                {featuredByVariant.feature.map((item) => (
-                  <article
-                    key={item.id}
-                    className={cn(
-                      'rounded-2xl border border-border bg-background p-4 shadow-sm transition hover:border-primary hover:shadow-md',
-                      selectedFeatureId === item.id && 'border-primary bg-white shadow-md'
-                    )}
-                  >
-                    <img
-                      src={item.image}
-                      alt={item.altText || item.title}
-                      className="h-32 w-full rounded-xl object-cover"
-                    />
-                    <div className="mt-3 space-y-1">
-                      <h4 className="text-sm font-semibold text-slate-900">{item.title}</h4>
-                      {item.offer && <p className="text-xs font-semibold text-primary">{item.offer}</p>}
-                      <p className="text-xs text-muted">Order {item.order}</p>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                        onClick={() => setSelectedFeatureId(item.id)}
-                      >
-                        Edit
-                      </button>
-                      {canDeleteHomepage(user?.role ?? 'client') && (
-                        <button
-                          type="button"
-                          className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                          onClick={() => deleteFeaturedItem(item.id)}
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                ))}
-                {!featuredByVariant.feature.length && (
-                  <p className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted md:col-span-2">
-                    No feature cards yet.
-                  </p>
-                )}
+            <form
+              className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm"
+              onSubmit={handleHeroSlideSubmit}
+            >
+              <div className="space-y-1">
+                <h3 className="text-base font-semibold text-slate-900">
+                  {selectedHeroSlideId ? 'Update hero slide' : 'Create hero slide'}
+                </h3>
+                <p className="text-xs text-muted">Images are stored as base64 and limited to the five most recent uploads.</p>
               </div>
-            </div>
-            <div>
-              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Tiles</h3>
-              <div className="grid gap-3 md:grid-cols-3">
-                {featuredByVariant.tiles.map((item) => (
-                  <article
-                    key={item.id}
-                    className={cn(
-                      'rounded-2xl border border-border bg-background p-3 shadow-sm transition hover:border-primary hover:shadow-md',
-                      selectedFeatureId === item.id && 'border-primary bg-white shadow-md'
-                    )}
-                  >
-                    <img
-                      src={item.image}
-                      alt={item.altText || item.title}
-                      className="h-24 w-full rounded-xl object-cover"
-                    />
-                    <div className="mt-2 space-y-1">
-                      <h4 className="text-sm font-semibold text-slate-900">{item.title}</h4>
-                      {item.badgeText && (
-                        <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                          {item.badgeText}
-                        </span>
-                      )}
-                      <p className="text-xs text-muted">Order {item.order}</p>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                        onClick={() => setSelectedFeatureId(item.id)}
-                      >
-                        Edit
-                      </button>
-                      {canDeleteHomepage(user?.role ?? 'client') && (
-                        <button
-                          type="button"
-                          className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                          onClick={() => deleteFeaturedItem(item.id)}
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                ))}
-                {!featuredByVariant.tiles.length && (
-                  <p className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted md:col-span-3">
-                    No tiles yet.
-                  </p>
-                )}
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Title
+                <input
+                  type="text"
+                  value={heroSlideForm.title}
+                  onChange={(event) => setHeroSlideForm((state) => ({ ...state, title: event.target.value }))}
+                  required
+                  placeholder="Enter slide title"
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Subtitle
+                <input
+                  type="text"
+                  value={heroSlideForm.subtitle}
+                  onChange={(event) => setHeroSlideForm((state) => ({ ...state, subtitle: event.target.value }))}
+                  placeholder="Enter subtitle (optional)"
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Caption
+                <textarea
+                  value={heroSlideForm.caption}
+                  onChange={(event) => setHeroSlideForm((state) => ({ ...state, caption: event.target.value }))}
+                  rows={3}
+                  placeholder="Enter caption text (optional)"
+                  className="rounded-xl border border-border bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  CTA label
+                  <input
+                    type="text"
+                    value={heroSlideForm.ctaText}
+                    onChange={(event) => setHeroSlideForm((state) => ({ ...state, ctaText: event.target.value }))}
+                    placeholder="Shop Now"
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  Alt text
+                  <input
+                    type="text"
+                    value={heroSlideForm.altText}
+                    onChange={(event) => setHeroSlideForm((state) => ({ ...state, altText: event.target.value }))}
+                    placeholder="Image description"
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
               </div>
-            </div>
-          </div>
-
-          <form
-            className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm"
-            onSubmit={handleFeatureSubmit}
-          >
-            <div className="space-y-1">
-              <h3 className="text-base font-semibold text-slate-900">
-                {selectedFeatureId ? 'Update featured item' : 'Create featured item'}
-              </h3>
-              <p className="text-xs text-muted">Uploads are stored as base64. The last three per variant are kept.</p>
-            </div>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Variant
-              <select
-                value={featureForm.variant}
-                onChange={(event) => setFeatureForm((state) => ({ ...state, variant: event.target.value as FeaturedVariant }))}
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="feature">Feature</option>
-                <option value="tile">Tile</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Title
-              <input
-                type="text"
-                value={featureForm.title}
-                onChange={(event) => setFeatureForm((state) => ({ ...state, title: event.target.value }))}
-                required
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Subtitle
-              <input
-                type="text"
-                value={featureForm.subtitle}
-                onChange={(event) => setFeatureForm((state) => ({ ...state, subtitle: event.target.value }))}
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Category label
-                <input
-                  type="text"
-                  value={featureForm.category}
-                  onChange={(event) => setFeatureForm((state) => ({ ...state, category: event.target.value }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Offer text
-                <input
-                  type="text"
-                  value={featureForm.offer}
-                  onChange={(event) => setFeatureForm((state) => ({ ...state, offer: event.target.value }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Badge text
-                <input
-                  type="text"
-                  value={featureForm.badgeText}
-                  onChange={(event) => setFeatureForm((state) => ({ ...state, badgeText: event.target.value }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                CTA label
-                <input
-                  type="text"
-                  value={featureForm.ctaText}
-                  onChange={(event) => setFeatureForm((state) => ({ ...state, ctaText: event.target.value }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
                 Link URL
                 <input
                   type="text"
-                  value={featureForm.linkUrl}
-                  onChange={(event) => setFeatureForm((state) => ({ ...state, linkUrl: event.target.value }))}
+                  value={heroSlideForm.linkUrl}
+                  onChange={(event) => setHeroSlideForm((state) => ({ ...state, linkUrl: event.target.value }))}
                   required
+                  placeholder="/products or https://example.com"
                   className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Price text
+                Display order
                 <input
-                  type="text"
-                  value={featureForm.price}
-                  onChange={(event) => setFeatureForm((state) => ({ ...state, price: event.target.value }))}
+                  type="number"
+                  min={1}
+                  value={heroSlideForm.order}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    setHeroSlideForm((state) => ({ ...state, order: value > 0 ? value : 1 }));
+                  }}
+                  placeholder="1"
                   className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
-            </div>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Alt text
-              <input
-                type="text"
-                value={featureForm.altText}
-                onChange={(event) => setFeatureForm((state) => ({ ...state, altText: event.target.value }))}
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Display order
-              <input
-                type="number"
-                min={0}
-                value={featureForm.order}
-                onChange={(event) =>
-                  setFeatureForm((state) => ({ ...state, order: Number(event.target.value) || 0 }))
-                }
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <div className="flex items-center justify-between text-sm text-slate-900">
-              <span className="font-semibold uppercase tracking-wide">Content</span>
-              <span className="text-xs text-muted">Max file size 5 MB</span>
-            </div>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              <span
-                className={`inline-flex cursor-pointer items-center justify-center rounded-xl border px-4 py-2 text-xs font-semibold transition ${
-                  featureForm.image
-                    ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
-                    : 'border-red-200 bg-red-100 text-red-700'
-                }`}
-              >
-                <span>{featureForm.image ? 'Replace image' : 'Upload image'}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={async (event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      if (file.size > MAX_IMAGE_BYTES) {
-                        setStatus(null, 'Image must be 5 MB or smaller.');
-                        event.target.value = '';
-                        return;
-                      }
-                    const dataUrl = await fileToDataUrl(file);
-                    setFeatureForm((state) => ({ ...state, image: dataUrl }));
-                  }
-                }}
-                  className="sr-only"
-                />
-              </span>
-              {featureForm.image && (
-                <img src={featureForm.image} alt="Feature preview" className="h-32 w-full rounded-xl object-cover" />
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-900">Content</h4>
+                <span className="text-xs text-muted">Max file size 5 MB</span>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-2 text-sm text-slate-600">
+                  <span className="text-xs text-muted">desktop - ar 21:9</span>
+                  <label
+                    className={`inline-flex cursor-pointer items-center justify-center rounded-xl border px-4 py-2 text-xs font-semibold transition ${
+                      heroSlideForm.desktopImage
+                        ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
+                        : 'border-red-200 bg-red-100 text-red-700'
+                    }`}
+                  >
+                    <span>{heroSlideForm.desktopImage ? 'Replace image' : 'Upload image'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          if (file.size > MAX_IMAGE_BYTES) {
+                            setStatus(null, 'Desktop image must be 5 MB or smaller.');
+                            event.target.value = '';
+                            return;
+                          }
+                          const dataUrl = await fileToDataUrl(file);
+                          setHeroSlideForm((state) => ({ ...state, desktopImage: dataUrl }));
+                        }
+                      }}
+                      className="sr-only"
+                    />
+                  </label>
+                  {heroSlideForm.desktopImage && (
+                    <img
+                      src={heroSlideForm.desktopImage}
+                      alt="Desktop preview"
+                      className="h-32 w-full rounded-xl object-cover"
+                    />
+                  )}
+                </div>
+                <div className="flex flex-col gap-2 text-sm text-slate-600">
+                  <span className="text-xs text-muted">mobile - ar 4:3</span>
+                  <label
+                    className={`inline-flex cursor-pointer items-center justify-center rounded-xl border px-4 py-2 text-xs font-semibold transition ${
+                      heroSlideForm.mobileImage
+                        ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
+                        : 'border-red-200 bg-red-100 text-red-700'
+                    }`}
+                  >
+                    <span>{heroSlideForm.mobileImage ? 'Replace image' : 'Upload image'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          if (file.size > MAX_IMAGE_BYTES) {
+                            setStatus(null, 'Mobile image must be 5 MB or smaller.');
+                            event.target.value = '';
+                            return;
+                          }
+                          const dataUrl = await fileToDataUrl(file);
+                          setHeroSlideForm((state) => ({ ...state, mobileImage: dataUrl }));
+                        }
+                      }}
+                      className="sr-only"
+                    />
+                  </label>
+                  {heroSlideForm.mobileImage && (
+                    <img
+                      src={heroSlideForm.mobileImage}
+                      alt="Mobile preview"
+                      className="h-32 w-full rounded-xl object-cover"
+                    />
+                  )}
+                </div>
+              </div>
+              {/* Order Conflict Warning */}
+              {orderConflict && orderConflict.type === 'hero' && (
+                <div className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 shadow-md">
+                  <div className="mb-3 flex items-start gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100">
+                      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-amber-900">Order Conflict</h4>
+                      <p className="mt-1 text-sm text-amber-800">
+                        Order {orderConflict.order} is already used by "{orderConflict.existingTitle}". Do you want to continue? This may affect the display order.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setOrderConflict(null)}
+                      className="inline-flex items-center justify-center rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 transition hover:bg-amber-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => orderConflict.onConfirm()}
+                      className="inline-flex items-center justify-center rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700"
+                    >
+                      Continue Anyway
+                    </button>
+                  </div>
+                </div>
               )}
-            </label>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="submit"
-                className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
-                disabled={!canEditHomepage(user?.role ?? 'client')}
-              >
-                {selectedFeatureId ? 'Save changes' : 'Create item'}
-              </button>
-              {selectedFeatureId && (
+              <div className="flex flex-wrap gap-2">
                 <button
-                  type="button"
-                  className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted transition hover:border-primary hover:text-primary"
-                  onClick={() => setSelectedFeatureId('')}
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={!canEditHomepage(user?.role ?? 'client')}
                 >
-                  Cancel
+                  {selectedHeroSlideId ? 'Save changes' : 'Create slide'}
                 </button>
+                {selectedHeroSlideId && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted transition hover:border-primary hover:text-primary"
+                    onClick={() => setSelectedHeroSlideId('')}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </section>
+      ) : (
+        <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold uppercase tracking-wide text-slate-900">Featured Showcase</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              {featureManagementTabs.map((tab) => {
+                const selected = activeFeatureTab === tab.id;
+                const count = tab.id === 'feature' ? featuredByVariant.feature.length : featuredByVariant.tiles.length;
+                const max = tab.id === 'feature' ? 3 : 4;
+                return (
+                  <button
+                    type="button"
+                    key={tab.id}
+                    onClick={() => {
+                      setSelectedFeatureId('');
+                      setActiveFeatureTab(tab.id);
+                    }}
+                    className={cn(
+                      'group relative rounded-xl border px-4 py-2 text-xs font-semibold transition-all duration-300',
+                      selected
+                        ? 'border-primary bg-primary text-white shadow-sm'
+                        : 'border-border text-slate-600 hover:bg-primary/10 hover:text-primary'
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      {tab.label}
+                      <span className={cn(
+                        'rounded-full px-2 py-0.5 text-[0.65rem] font-bold transition-all duration-300',
+                        selected
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-100 text-slate-600 group-hover:bg-primary/20 group-hover:text-primary'
+                      )}>
+                        {count}/{max}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="space-y-4">
+              {activeFeatureTab === 'feature' ? (
+                <>
+                  {featuredByVariant.feature.map((item) => (
+                    <article
+                      key={item.id}
+                      className={cn(
+                        'rounded-2xl border border-border bg-background p-4 shadow-sm transition hover:border-primary hover:shadow-md',
+                        selectedFeatureId === item.id && 'border-primary bg-white shadow-md'
+                      )}
+                    >
+                      <div className="flex flex-col gap-4 md:flex-row">
+                        <img
+                          src={item.image}
+                          alt={item.altText || item.title}
+                          className="h-32 w-full rounded-xl object-cover md:w-48"
+                        />
+                        <div className="flex flex-1 flex-col gap-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h3 className="text-base font-semibold text-slate-900">{item.title}</h3>
+                              <p className="text-xs text-muted">Order {item.order}</p>
+                            </div>
+                            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                              Feature card
+                            </span>
+                          </div>
+                          {item.subtitle && <p className="text-sm text-slate-700">{item.subtitle}</p>}
+                          {item.offer && <p className="text-xs font-semibold text-primary">Offer: {item.offer}</p>}
+                          <div className="mt-auto flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                              onClick={() => setSelectedFeatureId(item.id)}
+                            >
+                              Edit
+                            </button>
+                            {canDeleteHomepage(user?.role ?? 'client') && (
+                              <button
+                                type="button"
+                                className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                                onClick={() => setDeleteConfirmation({ type: 'featured', id: item.id })}
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                  {!featuredByVariant.feature.length && (
+                    <p className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
+                      No feature cards yet.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  {featuredByVariant.tiles.map((item) => (
+                    <article
+                      key={item.id}
+                      className={cn(
+                        'rounded-2xl border border-border bg-background p-4 shadow-sm transition hover:border-primary hover:shadow-md',
+                        selectedFeatureId === item.id && 'border-primary bg-white shadow-md'
+                      )}
+                    >
+                      <div className="flex flex-col gap-4 md:flex-row">
+                        <img
+                          src={item.image}
+                          alt={item.altText || item.title}
+                          className="h-32 w-full rounded-xl object-cover md:w-48"
+                        />
+                        <div className="flex flex-1 flex-col gap-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h3 className="text-base font-semibold text-slate-900">{item.title}</h3>
+                              <p className="text-xs text-muted">Order {item.order}</p>
+                            </div>
+                            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                              Tile card
+                            </span>
+                          </div>
+                          {item.category && <p className="text-xs text-muted">Category: {item.category}</p>}
+                          {item.offer && <p className="text-xs font-semibold text-primary">Offer: {item.offer}</p>}
+                          {item.badgeText && <p className="text-xs text-muted">Badge: {item.badgeText}</p>}
+                          <div className="mt-auto flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                              onClick={() => setSelectedFeatureId(item.id)}
+                            >
+                              Edit
+                            </button>
+                            {canDeleteHomepage(user?.role ?? 'client') && (
+                              <button
+                                type="button"
+                                className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                                onClick={() => setDeleteConfirmation({ type: 'featured', id: item.id })}
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                  {!featuredByVariant.tiles.length && (
+                    <p className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
+                      No tile cards yet.
+                    </p>
+                  )}
+                </>
               )}
             </div>
-          </form>
-        </div>
-      </section>
+
+            <form
+              className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm"
+              onSubmit={handleFeatureSubmit}
+            >
+              <div className="space-y-1">
+                <h3 className="text-base font-semibold text-slate-900">
+                  {selectedFeatureId ? 'Update featured item' : 'Create featured item'}
+                </h3>
+                <p className="text-xs text-muted">Uploads are stored as base64. The last three per variant are kept.</p>
+              </div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Managing: {activeFeatureTab === 'feature' ? 'Feature cards' : 'Tile cards'}
+              </div>
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Title
+                <input
+                  type="text"
+                  value={featureForm.title}
+                  onChange={(event) => setFeatureForm((state) => ({ ...state, title: event.target.value }))}
+                  required
+                  placeholder="Enter product title"
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Subtitle
+                <input
+                  type="text"
+                  value={featureForm.subtitle}
+                  onChange={(event) => setFeatureForm((state) => ({ ...state, subtitle: event.target.value }))}
+                  placeholder="Enter subtitle (optional)"
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  Category label
+                  <input
+                    type="text"
+                    value={featureForm.category}
+                    onChange={(event) => setFeatureForm((state) => ({ ...state, category: event.target.value }))}
+                    placeholder="e.g., New Arrival"
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  Offer text
+                  <input
+                    type="text"
+                    value={featureForm.offer}
+                    onChange={(event) => setFeatureForm((state) => ({ ...state, offer: event.target.value }))}
+                    placeholder="e.g., 50% OFF"
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  Badge text
+                  <input
+                    type="text"
+                    value={featureForm.badgeText}
+                    onChange={(event) => setFeatureForm((state) => ({ ...state, badgeText: event.target.value }))}
+                    placeholder="e.g., NEW"
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  CTA label
+                  <input
+                    type="text"
+                    value={featureForm.ctaText}
+                    onChange={(event) => setFeatureForm((state) => ({ ...state, ctaText: event.target.value }))}
+                    placeholder="Shop Now"
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  Link URL
+                  <input
+                    type="text"
+                    value={featureForm.linkUrl}
+                    onChange={(event) => setFeatureForm((state) => ({ ...state, linkUrl: event.target.value }))}
+                    required
+                    placeholder="/products or https://example.com"
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  Price text
+                  <input
+                    type="text"
+                    value={featureForm.price}
+                    onChange={(event) => setFeatureForm((state) => ({ ...state, price: event.target.value }))}
+                    placeholder="e.g., $49.99"
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+              </div>
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Alt text
+                <input
+                  type="text"
+                  value={featureForm.altText}
+                  onChange={(event) => setFeatureForm((state) => ({ ...state, altText: event.target.value }))}
+                  placeholder="Image description"
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Display order
+                <input
+                  type="number"
+                  min={1}
+                  value={featureForm.order}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    setFeatureForm((state) => ({ ...state, order: value > 0 ? value : 1 }));
+                  }}
+                  placeholder="1"
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+              <div className="flex items-center justify-between text-sm text-slate-900">
+                <span className="font-semibold uppercase tracking-wide">Content</span>
+                <span className="text-xs text-muted">Max file size 5 MB</span>
+              </div>
+              <div className="flex flex-col gap-2 text-sm text-slate-600">
+                <label
+                  className={`inline-flex cursor-pointer items-center justify-center rounded-xl border px-4 py-2 text-xs font-semibold transition ${
+                    featureForm.image
+                      ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
+                      : 'border-red-200 bg-red-100 text-red-700'
+                  }`}
+                >
+                  <span>{featureForm.image ? 'Replace image' : 'Upload image'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (event) => {
+                      const file = event.target.files?.[0];
+                      if (file) {
+                        if (file.size > MAX_IMAGE_BYTES) {
+                          setStatus(null, 'Image must be 5 MB or smaller.');
+                          event.target.value = '';
+                          return;
+                        }
+                        const dataUrl = await fileToDataUrl(file);
+                        setFeatureForm((state) => ({ ...state, image: dataUrl }));
+                      }
+                    }}
+                    className="sr-only"
+                  />
+                </label>
+                {featureForm.image && (
+                  <img src={featureForm.image} alt="Feature preview" className="h-32 w-full rounded-xl object-cover" />
+                )}
+              </div>
+              {/* Order Conflict Warning */}
+              {orderConflict && orderConflict.type === 'featured' && (
+                <div className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 shadow-md">
+                  <div className="mb-3 flex items-start gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100">
+                      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-amber-900">Order Conflict</h4>
+                      <p className="mt-1 text-sm text-amber-800">
+                        Order {orderConflict.order} is already used by "{orderConflict.existingTitle}". Do you want to continue? This may affect the display order.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setOrderConflict(null)}
+                      className="inline-flex items-center justify-center rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 transition hover:bg-amber-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => orderConflict.onConfirm()}
+                      className="inline-flex items-center justify-center rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700"
+                    >
+                      Continue Anyway
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={!canEditHomepage(user?.role ?? 'client')}
+                >
+                  {selectedFeatureId ? 'Save changes' : 'Create item'}
+                </button>
+                {selectedFeatureId && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted transition hover:border-primary hover:text-primary"
+                    onClick={() => setSelectedFeatureId('')}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </section>
+      )}
     </div>
   );
-
   const renderUsers = () => (
     <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1943,6 +2245,52 @@ export const AdminDashboardPage: React.FC = () => {
         {activeTab === 'homepage' && renderHomepage()}
         {activeTab === 'orders' && renderOrders()}
       </DashboardLayout>
+
+      {/* Deletion Confirmation Modal */}
+      {deleteConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-slate-900">Confirm Deletion</h3>
+                <p className="mt-2 text-sm text-slate-600">
+                  Are you sure you want to delete this {deleteConfirmation.type === 'hero' ? 'hero slide' : 'featured item'}?
+                </p>
+                <p className="mt-2 text-sm font-semibold text-red-600">
+                  ⚠️ This is a hard delete and cannot be recovered.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmation(null)}
+                className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (deleteConfirmation.type === 'hero') {
+                    void deleteHeroSlide(deleteConfirmation.id);
+                  } else {
+                    void deleteFeaturedItem(deleteConfirmation.id);
+                  }
+                }}
+                className="inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-600/20"
+              >
+                Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </SiteLayout>
   );
 };

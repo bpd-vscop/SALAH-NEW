@@ -121,6 +121,8 @@ FeaturedShowcase {
   createdAt: string | null,
   updatedAt: string | null
 }
+
+- Variant capacity: up to 3 `feature` entries and 4 `tile` entries are retained (newest wins when exceeding the limit).
 ```
 
 ## Orders

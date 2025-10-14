@@ -354,13 +354,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
               </form>
 
               <div className="text-center flex flex-col items-center justify-center gap-2 text-sm text-gray-600 m-8">
-                <span>
-                  Don&apos;t have an account?{' '}
-                  <button type="button" className="text-orange-600 hover:text-red-700 font-medium cursor-pointer" onClick={showSignup}>
-                    Create one
-                  </button>
-                </span>
-                <span className="text-xs text-slate-400">© {new Date().getFullYear()} ULK Supply LLC. All Rights Reserved.</span>
+                                <span className="text-xs text-slate-400">© {new Date().getFullYear()} ULK Supply LLC. All Rights Reserved <br></br> Powered by <a href="https://www.bpd.ma" target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:text-red-700 font-medium">BP. Digital</a></span>
               </div>
             </div>
 
@@ -892,7 +886,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                     Sign in
                   </button>
                 </span>
-                <span className="text-xs text-slate-400">© {new Date().getFullYear()} ULK Supply LLC. All Rights Reserved.</span>
+                <span className="text-xs text-slate-400">© {new Date().getFullYear()} ULK Supply LLC. All Rights Reserved <br></br> Powered by <a href="https://www.bpd.ma" target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:text-red-700 font-medium">BP. Digital</a></span>
               </div>
             </div>
           </div>

@@ -5,7 +5,7 @@ const {
 } = require('../validators/heroSlide');
 const { notFound } = require('../utils/appError');
 
-const MAX_SLIDES = 3;
+const MAX_SLIDES = 5;
 
 const enforceSlideLimit = async () => {
   const slides = await HeroSlide.find().sort({ updatedAt: -1, createdAt: -1 });

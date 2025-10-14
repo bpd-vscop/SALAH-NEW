@@ -250,7 +250,7 @@ export const Footer: FC = () => {
               loading="lazy"
             />
           </div>
-          <p>© {currentYear} ULK Supply. All Rights Reserved.</p>
+          <p>© {currentYear} ULK Supply. All Rights Reserved | Powered by <a href="https://www.bpd.ma" target="_blank" rel="noopener noreferrer" className="transition hover:text-white">BP. Digital</a></p>
         </div>
       </div>
 

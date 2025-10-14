@@ -6,11 +6,9 @@ import {
 } from '../../api/featuredShowcase';
 
 const StyledShopNow = ({ text }: { text: string }) => (
-  <div className="inline-block mt-1.5 border-b border-red-600 group-hover:border-red-600 transition-colors duration-200 md:mt-2 md:border-b-2">
-    <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-white transition-colors duration-200 group-hover:text-red-600 md:text-xs">
-      {text}
-    </span>
-  </div>
+  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white/15 px-3.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-white backdrop-blur-sm transition-colors duration-300 group-hover:bg-white/25 md:px-4 md:py-1.5 md:text-xs">
+    {text}
+  </span>
 );
 
 const PriceTag = ({ price }: { price: string | null }) => {
@@ -96,7 +94,8 @@ const CarouselIndicators = ({
   );
 };
 
-const MAX_FEATURE_SLIDES = 3;
+const MAX_FEATURE_ITEMS = 3;
+const MAX_TILE_ITEMS = 4;
 
 const sortByOrder = (items: FeaturedShowcaseItem[]) =>
   [...items].sort((a, b) => {
@@ -143,13 +142,15 @@ export const FeaturedProducts: React.FC = () => {
     };
   }, []);
 
-  const featureSlides = useMemo(() => {
-    return sortByOrder(items.filter((item) => item.variant === 'feature')).slice(0, MAX_FEATURE_SLIDES);
-  }, [items]);
+  const featureSlides = useMemo(
+    () => sortByOrder(items.filter((item) => item.variant === 'feature')).slice(0, MAX_FEATURE_ITEMS),
+    [items]
+  );
 
-  const tileItems = useMemo(() => {
-    return sortByOrder(items.filter((item) => item.variant === 'tile')).slice(0, MAX_FEATURE_SLIDES);
-  }, [items]);
+  const tileItems = useMemo(
+    () => sortByOrder(items.filter((item) => item.variant === 'tile')).slice(0, MAX_TILE_ITEMS),
+    [items]
+  );
 
   useEffect(() => {
     if (currentSlide >= featureSlides.length) {
@@ -171,15 +172,132 @@ export const FeaturedProducts: React.FC = () => {
     setCurrentSlide(index);
   };
 
+  const renderFeatureColumn = () => (
+    <div className="w-full">
+      <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-slate-900 shadow-md">
+        {featureSlides.length ? (
+          <>
+            <div
+              className="flex h-full w-full transition-transform duration-500 ease-in-out"
+              style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+            >
+              {featureSlides.map((card) => (
+                <Link
+                  key={card.id}
+                  to={card.linkUrl}
+                  className="group relative block h-full min-w-full overflow-hidden"
+                >
+                  <img
+                    src={card.image}
+                    alt={card.altText || card.title}
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full object-cover transition-all duration-300 ease-in-out group-hover:scale-105 group-hover:brightness-75 group-hover:contrast-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-start gap-1 p-4 text-white md:p-6 lg:p-8">
+                    {card.offer && (
+                      <p className="text-2xl font-bold text-red-500 md:text-4xl lg:text-5xl">{card.offer}</p>
+                    )}
+                    <h3 className="text-lg font-semibold md:text-2xl lg:text-3xl">{card.title}</h3>
+                    {card.subtitle && <p className="text-xs text-slate-200 md:text-sm">{card.subtitle}</p>}
+                    <StyledShopNow text={card.ctaText ?? 'Shop Now'} />
+                  </div>
+                  <PriceTag price={card.price ?? null} />
+                </Link>
+              ))}
+            </div>
+
+            {featureSlides.length > 1 && (
+              <>
+                <NavArrow direction="left" onClick={prevSlide} />
+                <NavArrow direction="right" onClick={nextSlide} />
+              </>
+            )}
+            <CarouselIndicators total={featureSlides.length} current={currentSlide} onSelect={goToSlide} />
+          </>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-slate-800/60 text-[0.7rem] font-semibold uppercase tracking-[0.4em] text-white/70 animate-pulse">
+            Feature slot
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderTileColumn = () => (
+    <div className="grid w-full grid-cols-2 gap-4">
+      {Array.from({ length: MAX_TILE_ITEMS }).map((_, index) => {
+        const card = tileItems[index];
+        if (!card) {
+          return (
+            <div
+              key={`tile-placeholder-${index}`}
+              className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-800/50 text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-white/70 animate-pulse md:text-xs"
+            >
+              Tile slot
+            </div>
+          );
+        }
+
+        return (
+          <Link
+            key={card.id}
+            to={card.linkUrl}
+            className="group relative block aspect-square w-full overflow-hidden rounded-2xl border border-transparent shadow-md transition hover:border-red-600"
+          >
+            <img
+              src={card.image}
+              alt={card.altText || card.title}
+              loading="lazy"
+              className="absolute inset-0 h-full w-full object-cover transition-all duration-300 ease-in-out group-hover:scale-105 group-hover:brightness-75 group-hover:contrast-110"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+            {card.badgeText && (
+              <div className="absolute right-2 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-center shadow md:right-3 md:top-3 md:h-14 md:w-14 lg:right-4 lg:top-4 lg:h-16 lg:w-16">
+                <span className="text-[0.55rem] font-bold uppercase leading-tight text-white md:text-xs">
+                  {card.badgeText}
+                </span>
+              </div>
+            )}
+            <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-start gap-1 p-3 text-white md:p-4">
+              {card.category && (
+                <p className="text-[0.6rem] font-semibold uppercase tracking-wider text-red-200/90 md:text-xs">
+                  {card.category}
+                </p>
+              )}
+              {card.offer && !card.title && (
+                <h3 className="text-sm font-semibold md:text-lg">{card.offer}</h3>
+              )}
+              {card.offer && card.title && (
+                <h3 className="text-sm font-semibold md:text-lg">
+                  <span className="text-red-400">{card.offer}</span> {card.title}
+                </h3>
+              )}
+              {!card.offer && card.title && (
+                <h3 className="text-sm font-semibold md:text-lg">{card.title}</h3>
+              )}
+              <StyledShopNow text={card.ctaText ?? 'Shop Now'} />
+            </div>
+            <PriceTag price={card.price ?? null} />
+          </Link>
+        );
+      })}
+    </div>
+  );
+
   if (loading) {
     return (
-      <section aria-label="Featured products loading state" className="w-[88%] mx-auto">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6">
-          <div className="aspect-square rounded-2xl bg-slate-200 animate-pulse" />
-          <div className="grid grid-cols-2 gap-3 md:gap-6">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="aspect-square rounded-2xl bg-slate-200 animate-pulse" />
-            ))}
+      <section aria-label="Featured products" className="mx-auto mb-12 w-[88%]">
+        <div className="relative w-full">
+          <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6">
+            <div className="w-full">
+              <div className="aspect-square w-full animate-pulse rounded-2xl bg-slate-200" />
+            </div>
+            <div className="grid w-full grid-cols-2 gap-4">
+              {Array.from({ length: MAX_TILE_ITEMS }).map((_, index) => (
+                <div key={index} className="aspect-square w-full animate-pulse rounded-2xl bg-slate-200" />
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -188,7 +306,7 @@ export const FeaturedProducts: React.FC = () => {
 
   if (hasError) {
     return (
-      <section aria-label="Featured products unavailable" className="w-[88%] mx-auto">
+      <section aria-label="Featured products unavailable" className="mx-auto mb-12 w-[88%]">
         <div className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
           Featured products are temporarily unavailable. Please try again later.
         </div>
@@ -198,131 +316,29 @@ export const FeaturedProducts: React.FC = () => {
 
   if (!featureSlides.length && !tileItems.length) {
     return (
-      <section aria-label="Featured products" className="mx-auto mb-12 w-[88%] space-y-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-900">Featured Highlights</h2>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6">
-          <div className="aspect-square rounded-2xl bg-slate-200 animate-pulse" />
-          <div className="grid grid-cols-2 gap-3 md:gap-6">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="aspect-square rounded-2xl bg-slate-200 animate-pulse" />
-            ))}
+      <section aria-label="Featured products" className="mx-auto mb-12 w-[88%]">
+        <div className="relative w-full">
+          <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6">
+            <div className="w-full">
+              <div className="aspect-square w-full animate-pulse rounded-2xl bg-slate-200" />
+            </div>
+            <div className="grid w-full grid-cols-2 gap-4">
+              {Array.from({ length: MAX_TILE_ITEMS }).map((_, index) => (
+                <div key={index} className="aspect-square w-full animate-pulse rounded-2xl bg-slate-200" />
+              ))}
+            </div>
           </div>
         </div>
       </section>
     );
   }
 
-  const gridColumnsClass = featureSlides.length ? 'md:grid-cols-2' : 'md:grid-cols-1';
-
   return (
-    <section aria-label="Featured products" className="mx-auto mb-12 w-[88%] space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold text-slate-900">Featured Highlights</h2>
-          <p className="text-sm text-muted">Showcase curated promos and spotlighted gear.</p>
-        </div>
-      </div>
-
-      <div className={`grid grid-cols-1 gap-3 md:gap-6 ${gridColumnsClass}`}>
-        {featureSlides.length > 0 && (
-          <div className="relative overflow-hidden rounded-2xl shadow-md">
-            <div className="relative h-full w-full overflow-hidden bg-slate-800">
-            <div
-              className="flex h-full transition-transform duration-500 ease-in-out"
-              style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-            >
-              {featureSlides.map((card) => (
-                <Link
-                  key={card.id}
-                  to={card.linkUrl}
-                  className="group relative block h-full min-w-full"
-                >
-                  <img
-                    src={card.image}
-                    alt={card.altText || card.title}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-all duration-300 ease-in-out group-hover:scale-105 group-hover:brightness-75 group-hover:contrast-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-start gap-1 p-4 text-white md:p-6 lg:p-8">
-                    {card.offer && (
-                      <p className="text-2xl font-bold text-red-500 md:text-4xl lg:text-5xl">
-                        {card.offer}
-                      </p>
-                    )}
-                    <h3 className="text-lg font-semibold md:text-2xl lg:text-3xl">{card.title}</h3>
-                    {card.subtitle && (
-                      <p className="text-xs text-slate-200 md:text-sm">{card.subtitle}</p>
-                    )}
-                    <StyledShopNow text={card.ctaText ?? 'Shop Now'} />
-                  </div>
-                  <PriceTag price={card.price ? card.price : null} />
-                </Link>
-              ))}
-            </div>
-
-            <NavArrow direction="left" onClick={prevSlide} disabled={featureSlides.length <= 1} />
-            <NavArrow direction="right" onClick={nextSlide} disabled={featureSlides.length <= 1} />
-
-            <CarouselIndicators total={featureSlides.length} current={currentSlide} onSelect={goToSlide} />
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-3 md:gap-6">
-          {tileItems.map((card) => (
-            <Link
-              key={card.id}
-              to={card.linkUrl}
-              className="group relative block overflow-hidden rounded-2xl border border-transparent shadow-md transition-all duration-300 hover:border-red-600 md:border-2"
-            >
-              <div className="relative h-full w-full overflow-hidden bg-slate-700">
-                <img
-                  src={card.image}
-                  alt={card.altText || card.title}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition-all duration-300 ease-in-out group-hover:scale-105 group-hover:brightness-75 group-hover:contrast-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                {card.badgeText && (
-                  <div className="absolute right-2 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-center shadow md:right-3 md:top-3 md:h-14 md:w-14 lg:right-4 lg:top-4 lg:h-16 lg:w-16">
-                    <span className="text-[0.55rem] font-bold uppercase text-white leading-tight md:text-xs">
-                      {card.badgeText}
-                    </span>
-                  </div>
-                )}
-                <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-start gap-1 p-3 text-white md:p-4">
-                  {card.category && (
-                    <p className="text-[0.6rem] font-semibold uppercase tracking-wider text-slate-200 md:text-xs">
-                      {card.category}
-                    </p>
-                  )}
-                  {card.offer && !card.title && (
-                    <h3 className="text-sm font-bold text-red-500 md:text-lg">{card.offer}</h3>
-                  )}
-                  {card.offer && card.title && (
-                    <h3 className="text-sm font-bold text-white md:text-lg">
-                      <span className="text-red-500">{card.offer}</span> {card.title}
-                    </h3>
-                  )}
-                  {!card.offer && card.title && (
-                    <h3 className="text-sm font-bold text-white md:text-lg">{card.title}</h3>
-                  )}
-                  <StyledShopNow text={card.ctaText ?? 'Shop Now'} />
-                </div>
-                <PriceTag price={card.price ? card.price : null} />
-              </div>
-            </Link>
-          ))}
-          {!tileItems.length && featureSlides.length > 0 && (
-            <div className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
-              Add featured tiles from the admin dashboard to populate this grid.
-            </div>
-          )}
+    <section aria-label="Featured products" className="mx-auto mb-12 w-[88%]">
+      <div className="relative w-full">
+        <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6">
+          {renderFeatureColumn()}
+          {renderTileColumn()}
         </div>
       </div>
     </section>
