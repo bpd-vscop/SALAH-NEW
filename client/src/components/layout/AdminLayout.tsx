@@ -7,9 +7,11 @@ import { useNavigate } from 'react-router-dom';
 interface AdminLayoutProps {
   sidebar: (expanded: boolean) => React.ReactNode;
   children: React.ReactNode;
+  topNav?: React.ReactNode;
+  contentKey?: string;
 }
 
-export const AdminLayout: React.FC<AdminLayoutProps> = ({ sidebar, children }) => {
+export const AdminLayout: React.FC<AdminLayoutProps> = ({ sidebar, children, topNav, contentKey }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
@@ -24,9 +26,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ sidebar, children }) =
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100">
       {/* Horizontal Top Header */}
       <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
-        <div className="flex h-full items-center justify-between px-6">
+        <div className="flex h-full items-center gap-6 px-6">
           {/* Left: Logo + Back to Store */}
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-[200px] items-center gap-4">
             <img src="/logo.png" alt="ULKs Logo" className="h-8 w-auto" />
             <a
               href="/"
@@ -39,8 +41,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ sidebar, children }) =
             </a>
           </div>
 
+          {/* Center: Top navigation */}
+          <div className="flex flex-1 items-center justify-center">
+            {topNav}
+          </div>
+
           {/* Right: Settings, Help, and Profile */}
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-[200px] items-center justify-end gap-3">
             {/* Help & Settings Container (swapped order) */}
             <div className="relative flex items-center rounded-full bg-slate-100 p-1">
               {/* Animated sliding background with deformation */}
@@ -266,7 +273,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ sidebar, children }) =
       >
         <div className="p-8">
           <div className="mx-auto max-w-7xl">
-            {children}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={contentKey ?? 'admin-content'}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+              >
+                {children}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </main>

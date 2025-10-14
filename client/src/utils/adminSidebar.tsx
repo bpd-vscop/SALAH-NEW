@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { cn } from './cn';
 
-const adminTabs = [
+export const adminTabs = [
   { id: 'users', label: 'Users' },
   { id: 'categories', label: 'Categories' },
   { id: 'products', label: 'Products' },
@@ -11,7 +11,7 @@ const adminTabs = [
   { id: 'orders', label: 'Orders' },
 ] as const;
 
-const homepageTabs = [
+export const homepageTabs = [
   { id: 'hero' as const, label: 'Hero slider' },
   { id: 'featured' as const, label: 'Featured highlights' },
 ];

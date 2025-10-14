@@ -26,12 +26,7 @@ export const BannersAdminSection: React.FC<BannersAdminSectionProps> = ({
   bannerTypes,
 }) => (
   <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">Banners</h2>
-        <p className="text-sm text-muted">Manage promotional assets across the storefront.</p>
-      </div>
-    </div>
+    <div className="h-1" />
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-4">
         {banners.map((banner) => (
@@ -86,16 +81,7 @@ export const BannersAdminSection: React.FC<BannersAdminSectionProps> = ({
           </div>
         )}
       </div>
-      <form
-        className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm"
-        onSubmit={onSubmit}
-      >
-        <div className="space-y-1">
-          <h3 className="text-base font-semibold text-slate-900">
-            {selectedBannerId ? 'Update banner' : 'Create banner'}
-          </h3>
-          <p className="text-xs text-muted">Provide imagery, copy, and placement.</p>
-        </div>
+      <form className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm" onSubmit={onSubmit}>
         <label className="flex flex-col gap-2 text-sm text-slate-600">
           Type
           <select

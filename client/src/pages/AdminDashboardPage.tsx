@@ -24,6 +24,7 @@ import type {
   UserRole,
 } from '../types/api';
 import { cn } from '../utils/cn';
+import { adminTabs, homepageTabs } from '../utils/adminSidebar';
 import { UsersAdminSection } from '../components/dashboard/UsersAdminSection';
 import { CategoriesAdminSection } from '../components/dashboard/CategoriesAdminSection';
 import { ProductsAdminSection } from '../components/dashboard/ProductsAdminSection';
@@ -42,23 +43,10 @@ import type {
   StatusSetter,
   UserFormState,
 } from '../components/dashboard/types';
+import { AdminTopNav } from '../components/dashboard/AdminTopNav';
+import { useNavigate } from 'react-router-dom';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-
-const adminTabs = [
-  { id: 'users', label: 'Users' },
-  { id: 'categories', label: 'Categories' },
-  { id: 'products', label: 'Products' },
-  { id: 'banners', label: 'Banners' },
-  { id: 'navigation', label: 'Navigation' },
-  { id: 'homepage', label: 'Homepage' },
-  { id: 'orders', label: 'Orders' },
-] as const;
-
-const homepageTabs = [
-  { id: 'hero' as const, label: 'Hero slider' },
-  { id: 'featured' as const, label: 'Featured highlights' },
-];
 
 const emptyFeatureForm = (variant: FeaturedVariant): FeatureFormState => ({
   variant,
@@ -88,6 +76,7 @@ const canDeleteHomepage = (role: UserRole) => role === 'admin' || role === 'mana
 export const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const role = user?.role ?? 'client';
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<(typeof adminTabs)[number]['id']>('users');
 
   const [users, setUsers] = useState<User[]>([]);
@@ -951,6 +940,19 @@ export const AdminDashboardPage: React.FC = () => {
     return { feature, tiles };
   }, [featuredItems]);
 
+  const topNavItems = useMemo(
+    () => [...adminTabs.map((tab) => ({ id: tab.id, label: tab.label })), { id: 'settings', label: 'Settings' }],
+    []
+  );
+
+  const handleTopNavSelect = (id: string) => {
+    if (id === 'settings') {
+      navigate('/admin/settings');
+      return;
+    }
+    setActiveTab(id as (typeof adminTabs)[number]['id']);
+  };
+
   if (!user || !canEditOrders(user.role)) {
     return (
       <SiteLayout>
@@ -962,7 +964,11 @@ export const AdminDashboardPage: React.FC = () => {
   }
 
   return (
-    <AdminLayout sidebar={sidebar}>
+    <AdminLayout
+      sidebar={sidebar}
+      topNav={<AdminTopNav items={topNavItems} activeId={activeTab} onSelect={handleTopNavSelect} />}
+      contentKey={activeTab}
+    >
       <div className="space-y-6">
         {statusMessage && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">

@@ -30,12 +30,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   productTags,
 }) => (
   <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">Products</h2>
-        <p className="text-sm text-muted">Add and maintain catalog items.</p>
-      </div>
-    </div>
+    <div className="h-1" />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <div className="space-y-4">
         {products.map((product) => (
@@ -100,16 +95,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
           </p>
         )}
       </div>
-      <form
-        className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm"
-        onSubmit={onSubmit}
-      >
-        <div className="space-y-1">
-          <h3 className="text-base font-semibold text-slate-900">
-            {selectedProductId ? 'Update product' : 'Create product'}
-          </h3>
-          <p className="text-xs text-muted">Provide rich detail to help users decide.</p>
-        </div>
+      <form className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm" onSubmit={onSubmit}>
         <label className="flex flex-col gap-2 text-sm text-slate-600">
           Name
           <input

@@ -16,12 +16,7 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
   onUpdateStatus,
 }) => (
   <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">Orders</h2>
-        <p className="text-sm text-muted">Monitor fulfillment and update statuses.</p>
-      </div>
-    </div>
+    <div className="h-1" />
     <div className="overflow-hidden rounded-xl border border-border">
       <table className="min-w-full divide-y divide-border text-left text-sm">
         <thead className="bg-background/80 text-xs uppercase tracking-wide text-muted">

@@ -141,12 +141,7 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
   return (
     <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">Navigation Menu</h2>
-          <p className="text-sm text-muted">
-            Configure mega-menu sections, category assignments, and quick access links.
-          </p>
-        </div>
+        <div className="h-1" />
         <button
           type="button"
           className={cn(

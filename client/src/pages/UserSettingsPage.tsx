@@ -1,9 +1,10 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../api/users';
 import { useNavigate } from 'react-router-dom';
-import { createAdminSidebar } from '../utils/adminSidebar';
+import { createAdminSidebar, adminTabs } from '../utils/adminSidebar';
+import { AdminTopNav } from '../components/dashboard/AdminTopNav';
 
 export const UserSettingsPage: React.FC = () => {
   const { user } = useAuth();
@@ -90,6 +91,18 @@ export const UserSettingsPage: React.FC = () => {
     }
   };
 
+  const topNavItems = useMemo(
+    () => [...adminTabs.map((tab) => ({ id: tab.id, label: tab.label })), { id: 'settings', label: 'Settings' }],
+    []
+  );
+
+  const handleTopNavSelect = (id: string) => {
+    if (id === 'settings') {
+      return;
+    }
+    navigate('/admin');
+  };
+
   const sidebar = createAdminSidebar({
     activeTab: 'settings',
     setActiveTab: (tab) => {
@@ -102,12 +115,13 @@ export const UserSettingsPage: React.FC = () => {
   });
 
   return (
-    <AdminLayout sidebar={sidebar}>
+    <AdminLayout
+      sidebar={sidebar}
+      topNav={<AdminTopNav items={topNavItems} activeId="settings" onSelect={handleTopNavSelect} />}
+      contentKey="settings"
+    >
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-          <p className="mt-1 text-sm text-slate-500">Manage your account settings and preferences</p>
-        </div>
+        <div className="h-1" />
 
         {statusMessage && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
@@ -120,11 +134,6 @@ export const UserSettingsPage: React.FC = () => {
 
         {/* Profile Information */}
         <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-slate-900">Profile Information</h2>
-            <p className="mt-1 text-sm text-slate-500">Update your personal information</p>
-          </div>
-
           <form onSubmit={handleProfileUpdate} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -164,11 +173,6 @@ export const UserSettingsPage: React.FC = () => {
 
         {/* Change Password */}
         <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-slate-900">Change Password</h2>
-            <p className="mt-1 text-sm text-slate-500">Update your password to keep your account secure</p>
-          </div>
-
           <form onSubmit={handlePasswordUpdate} className="space-y-4">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
               Current Password
@@ -218,11 +222,6 @@ export const UserSettingsPage: React.FC = () => {
 
         {/* Account Information */}
         <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">Account Information</h2>
-            <p className="mt-1 text-sm text-slate-500">View your account details</p>
-          </div>
-
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
               <span className="text-sm font-medium text-slate-600">User ID</span>

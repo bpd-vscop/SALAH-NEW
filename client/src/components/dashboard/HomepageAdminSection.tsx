@@ -88,8 +88,7 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
           transition={{ duration: 0.3, ease: 'easeInOut' }}
           className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm"
         >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-semibold uppercase tracking-wide text-slate-900">Hero Slider</h2>
+        <div className="flex justify-end">
           <span className="rounded-xl border border-primary bg-primary px-4 py-2 text-xs font-semibold text-white shadow-sm">
             <span className="flex items-center gap-2">
               Slides
@@ -189,16 +188,7 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
               </p>
             )}
           </div>
-          <form
-            className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm"
-            onSubmit={onHeroSubmit}
-          >
-            <div className="space-y-1">
-              <h3 className="text-base font-semibold text-slate-900">
-                {selectedHeroSlideId ? 'Update hero slide' : 'Create hero slide'}
-              </h3>
-              <p className="text-xs text-muted">Upload desktop and mobile artwork for up to three slides.</p>
-            </div>
+          <form className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm" onSubmit={onHeroSubmit}>
             <label className="flex flex-col gap-2 text-sm text-slate-600">
               Title
               <input
@@ -361,8 +351,7 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
           transition={{ duration: 0.3, ease: 'easeInOut' }}
           className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm"
         >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-semibold uppercase tracking-wide text-slate-900">Featured Highlights</h2>
+        <div className="flex justify-end">
           <span className="rounded-xl border border-primary bg-primary px-4 py-2 text-xs font-semibold text-white shadow-sm">
             <span className="flex items-center gap-2">
               Feature {featuredByVariant.feature.length}/3 · Tiles {featuredByVariant.tiles.length}/4
@@ -537,16 +526,7 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
             )}
             </motion.div>
           </AnimatePresence>
-          <form
-            className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm"
-            onSubmit={onFeatureSubmit}
-          >
-            <div className="space-y-1">
-              <h3 className="text-base font-semibold text-slate-900">
-                {selectedFeatureId ? 'Update featured item' : 'Create featured item'}
-              </h3>
-              <p className="text-xs text-muted">Uploads are stored as base64. The last three per variant are kept.</p>
-            </div>
+          <form className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm" onSubmit={onFeatureSubmit}>
             <div className="text-xs font-semibold uppercase tracking-wide text-muted">
               Managing: {activeFeatureTab === 'feature' ? 'Feature cards' : 'Tile cards'}
             </div>
