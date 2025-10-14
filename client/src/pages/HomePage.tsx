@@ -43,7 +43,6 @@ export const HomePage: React.FC = () => {
 
   const slideBanner = banners.filter((banner) => banner.type === 'slide');
   const rowBanners = banners.filter((banner) => banner.type === 'row');
-  const advertisingBanner = banners.find((banner) => banner.type === 'advertising');
 
   return (
     <SiteLayout>
