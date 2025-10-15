@@ -6,6 +6,7 @@ import { cn } from '../../utils/cn';
 interface AdminTopNavDropdownItem {
   id: string;
   label: string;
+  separatorAfter?: boolean;
 }
 
 export interface AdminTopNavItem {
@@ -153,7 +154,7 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
                   className="absolute left-1/2 top-full z-40 mt-3 w-52 -translate-x-1/2 rounded-xl border border-slate-200 bg-white shadow-lg"
                 >
                   <ul className="py-2 text-sm text-slate-600">
-                    {item.dropdown.items.map((option) => {
+                    {item.dropdown.items.map((option, index) => {
                       const selected = option.id === item.dropdown?.activeId;
                       return (
                         <li key={option.id}>
@@ -172,6 +173,9 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
                               </span>
                             )}
                           </button>
+                          {option.separatorAfter && item.dropdown && index < item.dropdown.items.length - 1 && (
+                            <div className="my-2 border-t border-slate-200" />
+                          )}
                         </li>
                       );
                     })}

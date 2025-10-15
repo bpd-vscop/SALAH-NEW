@@ -41,6 +41,10 @@ const menuSectionSchema = new mongoose.Schema(
       type: [menuItemSchema],
       default: [],
     },
+    visible: {
+      type: Boolean,
+      default: true,
+    },
   },
   { _id: true }
 );
@@ -62,8 +66,28 @@ const menuLinkSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    visible: {
+      type: Boolean,
+      default: true,
+    },
   },
   { _id: true }
+);
+
+const promoSchema = new mongoose.Schema(
+  {
+    text: {
+      type: String,
+      default: '🚚 Free Shipping Over $200',
+      trim: true,
+      maxlength: 100,
+    },
+    visible: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  { _id: false }
 );
 
 const menuConfigSchema = new mongoose.Schema(
@@ -75,6 +99,10 @@ const menuConfigSchema = new mongoose.Schema(
     links: {
       type: [menuLinkSchema],
       default: [],
+    },
+    promo: {
+      type: promoSchema,
+      default: () => ({ text: '🚚 Free Shipping Over $200', visible: true }),
     },
   },
   {
@@ -98,6 +126,7 @@ const menuConfigSchema = new mongoose.Schema(
                     order: item.order,
                   }))
                 : [],
+              visible: typeof section.visible === 'boolean' ? section.visible : true,
             }))
           : [];
         ret.links = Array.isArray(ret.links)
@@ -106,8 +135,15 @@ const menuConfigSchema = new mongoose.Schema(
               label: link.label,
               href: link.href,
               order: link.order,
+              visible: typeof link.visible === 'boolean' ? link.visible : true,
             }))
           : [];
+        ret.promo = ret.promo
+          ? {
+              text: ret.promo.text || '🚚 Free Shipping Over $200',
+              visible: typeof ret.promo.visible === 'boolean' ? ret.promo.visible : true,
+            }
+          : { text: '🚚 Free Shipping Over $200', visible: true };
         delete ret._id;
         delete ret.__v;
         return ret;

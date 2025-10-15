@@ -5,6 +5,7 @@ export interface MenuLinkInput {
   label: string;
   href: string;
   order?: number;
+  visible?: boolean;
 }
 
 export interface MenuItemInput {
@@ -20,6 +21,7 @@ export interface MenuSectionInput {
   icon: string;
   order?: number;
   items?: MenuItemInput[];
+  visible?: boolean;
 }
 
 export interface MenuSection extends MenuSectionInput {
@@ -31,16 +33,22 @@ export interface MenuSection extends MenuSectionInput {
   >;
 }
 
+export interface PromoSettings {
+  text: string;
+  visible: boolean;
+}
+
 export interface MenuResponse {
   menu: {
     sections: MenuSection[];
     links: (MenuLinkInput & { id: string })[];
+    promo?: PromoSettings;
   };
 }
 
 export const menuApi = {
   get: () => http.get<MenuResponse>('/menu'),
-  update: (payload: { sections: MenuSectionInput[]; links: MenuLinkInput[] }) =>
+  update: (payload: { sections: MenuSectionInput[]; links: MenuLinkInput[]; promo?: PromoSettings }) =>
     http.put<MenuResponse>('/menu', payload),
 };
 
