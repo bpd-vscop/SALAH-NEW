@@ -1,4 +1,6 @@
-﻿const DEFAULT_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api';
+// Default to relative '/api' so production uses same-origin behind IIS rewrite.
+// In development, set VITE_API_BASE_URL to 'http://localhost:5000/api'.
+const DEFAULT_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 const buildHeaders = (body?: unknown, baseHeaders?: HeadersInit) => {
   if (body instanceof FormData) {
