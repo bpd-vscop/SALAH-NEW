@@ -71,12 +71,14 @@ type PreparedMenuSection = {
   name: string;
   icon: string;
   items: PreparedMenuItem[];
+  visible: boolean;
 };
 
 type PreparedMenuLink = {
   id: string;
   label: string;
   href: string;
+  visible: boolean;
 };
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -100,6 +102,7 @@ const DEFAULT_MENU_SECTIONS: PreparedMenuSection[] = [
     name: 'Browse products',
     icon: 'shopping-bag',
     items: [],
+    visible: true,
   },
 ];
 
@@ -107,7 +110,8 @@ const vehicleYears = ['2024', '2023', '2022', '2021', '2020', '2019'];
 const vehicleMakes = ['Toyota', 'Honda', 'Ford', 'BMW', 'Mercedes-Benz', 'Kia'];
 const vehicleModels = ['Camry', 'Accord', 'F-150', 'RAV4', 'C-Class', 'Telluride'];
 
-const PromoBanner: React.FC = () => {
+const PromoBanner: React.FC<{ text: string; visible: boolean }> = ({ text, visible }) => {
+  if (!visible) return null;
   useEffect(() => {
     if (typeof document === 'undefined') {
       return;
@@ -145,7 +149,7 @@ const PromoBanner: React.FC = () => {
           <span
             className="absolute animate-[promo-banner-shipping_14s_linear_infinite] whitespace-nowrap px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-white"
           >
-            <span className="tracking-[0.22em] animate-pulse">🚚 Free Shipping Over $200</span>
+            <span className="tracking-[0.22em] animate-pulse">{text}</span>
           </span>
           <span
             className={`${chipClass} absolute animate-[promo-banner-limited_14s_linear_infinite]`}
@@ -157,8 +161,7 @@ const PromoBanner: React.FC = () => {
           <span className="tracking-[0.28em]">Limited Time Offer</span>
         </span>
         <span className="hidden items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] sm:flex sm:text-sm">
-          <span aria-hidden>🚚</span>
-          <span className="animate-pulse whitespace-nowrap">Free Shipping Over $200</span>
+          <span className="animate-pulse whitespace-nowrap">{text}</span>
         </span>
         <a
           href={`tel:${telHref}`}
@@ -319,6 +322,8 @@ export const Header: React.FC = () => {
 
   const [menuSections, setMenuSections] = useState<PreparedMenuSection[]>([]);
   const [menuLinks, setMenuLinks] = useState<PreparedMenuLink[]>([]);
+  const [promoText, setPromoText] = useState('🚚 Free Shipping Over $200');
+  const [promoVisible, setPromoVisible] = useState(true);
   const [menuLoading, setMenuLoading] = useState(false);
 
   useEffect(() => {
@@ -350,9 +355,12 @@ export const Header: React.FC = () => {
                 imageUrl,
               };
             }),
+            visible: section.visible !== false,
           }));
+          const visibleSections = prepared.filter((section) => section.visible);
+          const sectionsToUse = visibleSections.length > 0 ? visibleSections : prepared;
           // Use prepared sections if any, otherwise use default "Browse products"
-          setMenuSections(prepared.length > 0 ? prepared : DEFAULT_MENU_SECTIONS);
+          setMenuSections(sectionsToUse.length > 0 ? sectionsToUse : DEFAULT_MENU_SECTIONS);
 
           const remoteLinks = response.menu?.links ?? [];
           const preparedLinks = remoteLinks
@@ -362,9 +370,17 @@ export const Header: React.FC = () => {
               id: link.id ?? `link-${index}`,
               label: link.label,
               href: link.href,
+              visible: link.visible !== false,
             }));
+          const visibleLinks = preparedLinks.filter((link) => link.visible);
+          const linksToUse = visibleLinks.length > 0 ? visibleLinks : preparedLinks;
           // Use prepared links if any, otherwise empty array (no default links)
-          setMenuLinks(preparedLinks);
+          setMenuLinks(linksToUse);
+
+          // Load promo settings
+          const promo = response.menu?.promo ?? { text: '🚚 Free Shipping Over $200', visible: true };
+          setPromoText(promo.text);
+          setPromoVisible(promo.visible);
       } catch (error) {
         console.warn('Failed to load navigation menu', error);
         if (active) {
@@ -466,7 +482,7 @@ export const Header: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-50">
-      <PromoBanner />
+      <PromoBanner text={promoText} visible={promoVisible} />
       <div className="relative border-b border-[#d76c28] bg-gradient-to-r from-[#f6b210] via-[#dc4f0c] to-[#a00b0b] text-white shadow-md" ref={headerRef}>
         <div className="flex w-full items-center justify-between gap-4 px-4 py-2 sm:px-6">
           <div className="flex items-center gap-3 flex-shrink-0">

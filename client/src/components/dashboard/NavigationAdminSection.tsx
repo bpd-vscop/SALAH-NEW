@@ -20,13 +20,15 @@ import {
 } from 'lucide-react';
 
 interface NavigationAdminSectionProps {
-  section: 'sections' | 'quicklinks' | 'visible';
+  section: 'topnav' | 'sections' | 'quicklinks' | 'visible';
   sections: MenuSectionInput[];
   links: MenuLinkInput[];
-  visibleItemIds: string[];
+  promoText: string;
+  promoVisible: boolean;
   setSections: Dispatch<SetStateAction<MenuSectionInput[]>>;
   setLinks: Dispatch<SetStateAction<MenuLinkInput[]>>;
-  setVisibleItemIds: Dispatch<SetStateAction<string[]>>;
+  setPromoText: Dispatch<SetStateAction<string>>;
+  setPromoVisible: Dispatch<SetStateAction<boolean>>;
   categories: Category[];
   products: Product[];
   onSave: () => Promise<void>;
@@ -58,6 +60,7 @@ const emptySection = (order: number): MenuSectionInput => ({
   icon: ICON_OPTIONS[0]?.value ?? 'sparkles',
   order,
   items: [],
+  visible: true,
 });
 
 const emptyLink = (order: number): MenuLinkInput => ({
@@ -65,16 +68,19 @@ const emptyLink = (order: number): MenuLinkInput => ({
   label: '',
   href: '',
   order,
+  visible: true,
 });
 
 export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
   section,
   sections,
   links,
-  visibleItemIds,
+  promoText,
+  promoVisible,
   setSections,
   setLinks,
-  setVisibleItemIds,
+  setPromoText,
+  setPromoVisible,
   categories,
   products,
   onSave,
@@ -84,22 +90,27 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
 
+  const getVisibleCount = () =>
+    sections.filter((s) => s.visible !== false).length + links.filter((link) => link.visible !== false).length;
+
   const updateSection = (index: number, updater: (section: MenuSectionInput) => MenuSectionInput) => {
     setSections((current) => current.map((s, idx) => (idx === index ? updater(s) : s)));
   };
 
   const addSection = () => {
     if (sections.length >= MAX_SECTIONS) return;
-    const newSection = emptySection(sections.length);
+    const newSection = {
+      ...emptySection(sections.length),
+      visible: getVisibleCount() < MAX_VISIBLE_ITEMS,
+    };
     setSections((current) => [...current, newSection]);
     setEditingSectionId(newSection.id!);
   };
 
   const removeSection = (index: number) => {
     const sectionId = sections[index]?.id;
-    if (sectionId) {
-      setVisibleItemIds((current) => current.filter((id) => id !== sectionId));
-      if (editingSectionId === sectionId) setEditingSectionId(null);
+    if (sectionId && editingSectionId === sectionId) {
+      setEditingSectionId(null);
     }
     setSections((current) => current.filter((_, idx) => idx !== index));
   };
@@ -148,7 +159,10 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
 
   const addLink = () => {
     if (links.length >= MAX_QUICK_LINKS) return;
-    const newLink = emptyLink(links.length);
+    const newLink = {
+      ...emptyLink(links.length),
+      visible: getVisibleCount() < MAX_VISIBLE_ITEMS,
+    };
     setLinks((current) => [...current, newLink]);
     setEditingLinkId(newLink.id!);
   };
@@ -159,23 +173,34 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
 
   const removeLink = (index: number) => {
     const linkId = links[index]?.id;
-    if (linkId) {
-      setVisibleItemIds((current) => current.filter((id) => id !== linkId));
-      if (editingLinkId === linkId) setEditingLinkId(null);
+    if (linkId && editingLinkId === linkId) {
+      setEditingLinkId(null);
     }
     setLinks((current) => current.filter((_, idx) => idx !== index));
   };
 
-  const toggleVisibleItem = (id: string) => {
-    setVisibleItemIds((current) => {
-      if (current.includes(id)) {
-        return current.filter((itemId) => itemId !== id);
-      }
-      if (current.length >= MAX_VISIBLE_ITEMS) {
-        return current;
-      }
-      return [...current, id];
-    });
+  const visibleCount = getVisibleCount();
+
+  const toggleVisibleItem = (item: {
+    type: 'section' | 'link';
+    index: number;
+    visible: boolean;
+  }) => {
+    if (!item.visible && visibleCount >= MAX_VISIBLE_ITEMS) {
+      return;
+    }
+
+    if (item.type === 'section') {
+      updateSection(item.index, (section) => ({
+        ...section,
+        visible: !(section.visible !== false),
+      }));
+    } else {
+      updateLink(item.index, (link) => ({
+        ...link,
+        visible: !(link.visible !== false),
+      }));
+    }
   };
 
   const handleSaveSection = async () => {
@@ -189,24 +214,93 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
   };
 
   const allItems = [
-    ...sections.map((s) => ({
-      id: s.id!,
+    ...sections.map((s, index) => ({
+      id: s.id ?? `section-${index}`,
       type: 'section' as const,
       label: s.name || 'Untitled section',
       icon: ICON_OPTIONS.find((opt) => opt.value === s.icon)?.icon ?? Sparkles,
+      index,
+      visible: s.visible !== false,
     })),
-    ...links.map((link) => ({
-      id: link.id!,
+    ...links.map((link, index) => ({
+      id: link.id ?? `link-${index}`,
       type: 'link' as const,
       label: link.label || 'Untitled link',
       href: link.href,
+      index,
+      visible: link.visible !== false,
     })),
   ];
 
   return (
     <div>
       <AnimatePresence mode="wait">
-        {section === 'sections' ? (
+        {section === 'topnav' ? (
+          <motion.section
+            key="topnav"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm"
+          >
+            <div className="flex items-center justify-between">
+              <span className="rounded-xl border border-primary bg-primary px-4 py-2 text-xs font-semibold text-white shadow-sm">
+                Top nav promo banner
+              </span>
+
+              <button
+                type="button"
+                onClick={onSave}
+                disabled={saving || !canEdit}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-xl border border-primary bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70',
+                  !canEdit && 'pointer-events-none opacity-50'
+                )}
+              >
+                <Save className="h-4 w-4" />
+                {saving ? 'Saving...' : 'Save promo banner'}
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-sm text-slate-600">
+                Control the promotional banner that appears at the top of the site header.
+              </p>
+
+              <div className="rounded-xl border border-border bg-white p-6">
+                <div className="space-y-4">
+                  <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+                    Promo Text
+                    <input
+                      type="text"
+                      value={promoText}
+                      onChange={(e) => setPromoText(e.target.value)}
+                      placeholder="🚚 Free Shipping Over $200"
+                      maxLength={100}
+                      className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      disabled={!canEdit}
+                    />
+                    <span className="text-xs text-slate-500">
+                      The text that will be displayed in the promotional banner
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={promoVisible}
+                      onChange={(e) => setPromoVisible(e.target.checked)}
+                      className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary/20"
+                      disabled={!canEdit}
+                    />
+                    <span className="text-sm font-medium text-slate-700">Show promo banner</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </motion.section>
+        ) : section === 'sections' ? (
           <motion.section
             key="sections"
             initial={{ opacity: 0, y: 20 }}
@@ -666,7 +760,7 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                   <span className="flex items-center gap-2">
                     Visible titles
                     <span className="rounded-full bg-white/20 px-2 py-0.5 text-[0.65rem] font-bold text-white">
-                      {visibleItemIds.length}/{MAX_VISIBLE_ITEMS}
+                      {visibleCount}/{MAX_VISIBLE_ITEMS}
                     </span>
                   </span>
                 </span>
@@ -698,8 +792,8 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
 
             <div className="space-y-2">
               {allItems.map((item) => {
-                const isChecked = visibleItemIds.includes(item.id);
-                const isDisabled = !isChecked && visibleItemIds.length >= MAX_VISIBLE_ITEMS;
+                const isChecked = item.visible;
+                const isDisabled = !isChecked && visibleCount >= MAX_VISIBLE_ITEMS;
 
                 return (
                   <label
@@ -713,7 +807,7 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                     <input
                       type="checkbox"
                       checked={isChecked}
-                      onChange={() => toggleVisibleItem(item.id)}
+                      onChange={() => toggleVisibleItem(item)}
                       disabled={!canEdit || isDisabled}
                       className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed"
                     />

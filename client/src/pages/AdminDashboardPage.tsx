@@ -72,6 +72,8 @@ const canEditOrders = (role: UserRole) => role === 'admin' || role === 'manager'
 const canEditHomepage = (role: UserRole) => role === 'admin' || role === 'manager' || role === 'staff';
 const canDeleteHomepage = (role: UserRole) => role === 'admin' || role === 'manager';
 
+const isObjectId = (value?: string) => Boolean(value && /^[0-9a-fA-F]{24}$/.test(value));
+
 export const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const role = user?.role ?? 'client';
@@ -88,7 +90,8 @@ export const AdminDashboardPage: React.FC = () => {
   const [featuredItems, setFeaturedItems] = useState<FeaturedShowcaseItem[]>([]);
   const [menuSectionsDraft, setMenuSectionsDraft] = useState<MenuSectionInput[]>([]);
   const [menuLinksDraft, setMenuLinksDraft] = useState<MenuLinkInput[]>([]);
-  const [visibleItemIds, setVisibleItemIds] = useState<string[]>([]);
+  const [promoText, setPromoText] = useState('🚚 Free Shipping Over $200');
+  const [promoVisible, setPromoVisible] = useState(true);
   const [savingMenu, setSavingMenu] = useState(false);
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -144,7 +147,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [featureForm, setFeatureForm] = useState<FeatureFormState>(() => emptyFeatureForm('feature'));
 
   const [homepageSection, setHomepageSection] = useState<'hero' | 'featured'>('hero');
-  const [navigationSection, setNavigationSection] = useState<'sections' | 'quicklinks' | 'visible'>('sections');
+  const [navigationSection, setNavigationSection] = useState<'topnav' | 'sections' | 'quicklinks' | 'visible'>('topnav');
   const [activeFeatureTab, setActiveFeatureTab] = useState<'feature' | 'tile'>('feature');
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>(null);
   const [orderConflict, setOrderConflict] = useState<OrderConflictState>(null);
@@ -212,6 +215,7 @@ export const AdminDashboardPage: React.FC = () => {
     const { menu } = await menuApi.get();
     const sections = menu.sections ?? [];
     const links = menu.links ?? [];
+    const promo = menu.promo ?? { text: '🚚 Free Shipping Over $200', visible: true };
 
     setMenuSectionsDraft(
       sections.map((section, sectionIndex) => ({
@@ -225,6 +229,7 @@ export const AdminDashboardPage: React.FC = () => {
           productId: item.productId ?? undefined,
           order: item.order ?? itemIndex,
         })),
+        visible: section.visible !== false,
       }))
     );
 
@@ -234,8 +239,12 @@ export const AdminDashboardPage: React.FC = () => {
         label: link.label,
         href: link.href,
         order: link.order ?? linkIndex,
+        visible: link.visible !== false,
       }))
     );
+
+    setPromoText(promo.text);
+    setPromoVisible(promo.visible);
   };
 
   useEffect(() => {
@@ -731,16 +740,17 @@ export const AdminDashboardPage: React.FC = () => {
       const sanitizedSections = menuSectionsDraft
         .filter((section) => section.name.trim())
         .map((section, sectionIndex) => ({
-          id: section.id,
+          id: isObjectId(section.id) ? section.id : undefined,
           name: section.name.trim(),
           icon: section.icon,
           order: typeof section.order === 'number' ? section.order : sectionIndex,
+          visible: section.visible !== false,
           items: (section.items ?? [])
             .filter((item) => item.categoryId)
             .map((item, itemIndex) => ({
-              id: item.id,
+              id: isObjectId(item.id) ? item.id : undefined,
               categoryId: item.categoryId,
-              productId: item.productId || null,
+              productId: isObjectId(item.productId) ? item.productId : null,
               order: typeof item.order === 'number' ? item.order : itemIndex,
             })),
         }));
@@ -749,13 +759,18 @@ export const AdminDashboardPage: React.FC = () => {
         .filter((link) => link.label.trim() && link.href.trim())
         .slice(0, 3)
         .map((link, linkIndex) => ({
-          id: link.id,
+          id: isObjectId(link.id) ? link.id : undefined,
           label: link.label.trim(),
           href: link.href.trim(),
           order: typeof link.order === 'number' ? link.order : linkIndex,
+          visible: link.visible !== false,
         }));
 
-      await menuApi.update({ sections: sanitizedSections, links: sanitizedLinks });
+      await menuApi.update({
+        sections: sanitizedSections,
+        links: sanitizedLinks,
+        promo: { text: promoText.trim(), visible: promoVisible },
+      });
       setStatus('Navigation menu updated');
       await refreshMenu();
     } catch (err) {
@@ -889,6 +904,7 @@ export const AdminDashboardPage: React.FC = () => {
         }
         if (tab.id === 'navigation') {
           const activeNavigationLabel =
+            navigationSection === 'topnav' ? 'Top nav' :
             navigationSection === 'quicklinks' ? 'Quick links' :
             navigationSection === 'visible' ? 'Visible titles' : 'Sections';
           return {
@@ -896,9 +912,13 @@ export const AdminDashboardPage: React.FC = () => {
             label: tab.label,
             icon: getMenuIcon(tab.id),
             dropdown: {
-              items: navigationTabs.map((child) => ({ id: child.id, label: child.label })),
+              items: navigationTabs.map((child, index) => ({
+                id: child.id,
+                label: child.label,
+                separatorAfter: index === 0, // Add separator after first item (Top nav)
+              })),
               activeId: activeTab === 'navigation' ? navigationSection : undefined,
-              groupLabel: 'Navigation',
+              groupLabel: 'Header Menu',
             },
             activeLabel: activeTab === 'navigation' ? activeNavigationLabel : undefined,
           };
@@ -922,7 +942,7 @@ export const AdminDashboardPage: React.FC = () => {
     }
 
     if (id === 'navigation') {
-      if (dropdownId === 'sections' || dropdownId === 'quicklinks' || dropdownId === 'visible') {
+      if (dropdownId === 'topnav' || dropdownId === 'sections' || dropdownId === 'quicklinks' || dropdownId === 'visible') {
         setNavigationSection(dropdownId);
       }
       setActiveTab('navigation');
@@ -1060,10 +1080,12 @@ export const AdminDashboardPage: React.FC = () => {
                 section={navigationSection}
                 sections={menuSectionsDraft}
                 links={menuLinksDraft}
-                visibleItemIds={visibleItemIds}
+                promoText={promoText}
+                promoVisible={promoVisible}
                 setSections={setMenuSectionsDraft}
                 setLinks={setMenuLinksDraft}
-                setVisibleItemIds={setVisibleItemIds}
+                setPromoText={setPromoText}
+                setPromoVisible={setPromoVisible}
                 categories={categories}
                 products={products}
                 onSave={handleMenuSave}

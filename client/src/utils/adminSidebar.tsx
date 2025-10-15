@@ -6,7 +6,7 @@ export const adminTabs = [
   { id: 'categories', label: 'Categories' },
   { id: 'products', label: 'Products' },
   { id: 'banners', label: 'Banners' },
-  { id: 'navigation', label: 'Navigation' },
+  { id: 'navigation', label: 'Header Menu' },
   { id: 'homepage', label: 'Homepage' },
   { id: 'orders', label: 'Orders' },
 ] as const;
@@ -17,6 +17,7 @@ export const homepageTabs = [
 ];
 
 export const navigationTabs = [
+  { id: 'topnav' as const, label: 'Top nav' },
   { id: 'sections' as const, label: 'Sections' },
   { id: 'quicklinks' as const, label: 'Quick links' },
   { id: 'visible' as const, label: 'Visible titles' },
