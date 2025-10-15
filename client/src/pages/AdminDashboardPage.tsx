@@ -72,7 +72,7 @@ const canEditOrders = (role: UserRole) => role === 'super_admin' || role === 'ad
 const canEditHomepage = (role: UserRole) => role === 'super_admin' || role === 'admin' || role === 'staff';
 const canDeleteHomepage = (role: UserRole) => role === 'super_admin' || role === 'admin';
 
-const isObjectId = (value?: string) => Boolean(value && /^[0-9a-fA-F]{24}$/.test(value));
+const isObjectId = (value?: string | null) => Boolean(value && /^[0-9a-fA-F]{24}$/.test(value));
 
 export const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
