@@ -16,6 +16,12 @@ export const homepageTabs = [
   { id: 'featured' as const, label: 'Featured highlights' },
 ];
 
+export const navigationTabs = [
+  { id: 'sections' as const, label: 'Sections' },
+  { id: 'quicklinks' as const, label: 'Quick links' },
+  { id: 'visible' as const, label: 'Visible titles' },
+];
+
 export const getMenuIcon = (tabId: string) => {
   switch (tabId) {
     case 'users':

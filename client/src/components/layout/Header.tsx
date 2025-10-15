@@ -93,187 +93,14 @@ const ICON_MAP: Record<string, LucideIcon> = {
   sparkles: Sparkles,
 };
 
-const legacyMenuContent = {
-  'key-remotes': [
-    {
-      label: 'Car Remotes',
-      href: '/products',
-      imageUrl: 'https://www.key4.com/thumbnail/crop/40/40/categories-icons/car-remote-mini.png',
-    },
-    {
-      label: 'Remote Shells',
-      href: '/products',
-      imageUrl: 'https://www.key4.com/thumbnail/crop/40/40/categories-icons/logo-key-shel-small.png',
-    },
-    {
-      label: 'Transponder Keys',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/dc2626/ffffff?text=Chip',
-    },
-    {
-      label: 'Emergency Keys',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/059669/ffffff?text=EK',
-    },
-    {
-      label: 'Key Blades',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/7c3aed/ffffff?text=Blade',
-    },
-    {
-      label: 'Remote Covers',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/be185d/ffffff?text=Cover',
-    },
-  ],
-  manufacturers: [
-    {
-      label: 'Xhorse',
-      href: '/products',
-      imageUrl: 'https://www.key4.com/assets/images/brands/xhorse.png?v=2',
-    },
-    {
-      label: 'Autel',
-      href: '/products',
-      imageUrl: 'https://www.key4.com/assets/images/brands/autel.png?v=2',
-    },
-    {
-      label: 'Keyline',
-      href: '/products',
-      imageUrl: 'https://www.key4.com/assets/images/brands/keyline.png?v=2',
-    },
-    {
-      label: 'Ilco',
-      href: '/products',
-      imageUrl: 'https://www.key4.com/assets/images/brands/ilco.png?v=2',
-    },
-    {
-      label: 'JMA',
-      href: '/products',
-      imageUrl: 'https://www.key4.com/assets/images/brands/jma.png?v=2',
-    },
-    {
-      label: 'Lishi',
-      href: '/products',
-      imageUrl: 'https://www.key4.com/assets/images/brands/lishi.png?v=2',
-    },
-  ],
-  devices: [
-    {
-      label: 'Key Cutting Machines',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/ea580c/ffffff?text=Cut',
-    },
-    {
-      label: 'Key Programmers',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/2563eb/ffffff?text=Prog',
-    },
-    {
-      label: 'Diagnostic Tools',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/0ea5e9/ffffff?text=Diag',
-    },
-    {
-      label: 'TPMS Sensors',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/f97316/ffffff?text=TPMS',
-    },
-    {
-      label: 'Tuning Tools',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/7c3aed/ffffff?text=Tune',
-    },
-    {
-      label: 'Software & Tokens',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/10b981/ffffff?text=Code',
-    },
-  ],
-  accessories: [
-    {
-      label: 'Lishi Tools',
-      href: '/products',
-      imageUrl: 'https://www.key4.com/assets/images/brands/lishi.png?v=2',
-    },
-    {
-      label: 'Adapters & Cables',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/312e81/ffffff?text=Cable',
-    },
-    {
-      label: 'Cutters & Burrs',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/0ea5e9/ffffff?text=Cut',
-    },
-    {
-      label: 'Batteries',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/ef4444/ffffff?text=Batt',
-    },
-    {
-      label: 'Soldering Tools',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/f59e0b/ffffff?text=Solder',
-    },
-    {
-      label: 'Lock Parts',
-      href: '/products',
-      imageUrl: 'https://placehold.co/96x96/64748b/ffffff?text=Lock',
-    },
-  ],
-} as const;
-
+// Default "Browse products" section when no sections are configured
 const DEFAULT_MENU_SECTIONS: PreparedMenuSection[] = [
   {
-    id: 'key-remotes',
-    name: 'Key & Remotes',
-    icon: 'car',
-    items: legacyMenuContent['key-remotes'].map((item, index) => ({
-      id: `key-remotes-${index}`,
-      label: item.label,
-      href: item.href,
-      imageUrl: item.imageUrl,
-    })),
+    id: 'browse-products',
+    name: 'Browse products',
+    icon: 'shopping-bag',
+    items: [],
   },
-  {
-    id: 'manufacturers',
-    name: 'Manufacturers',
-    icon: 'truck',
-    items: legacyMenuContent.manufacturers.map((item, index) => ({
-      id: `manufacturers-${index}`,
-      label: item.label,
-      href: item.href,
-      imageUrl: item.imageUrl,
-    })),
-  },
-  {
-    id: 'devices',
-    name: 'Devices & Programmers',
-    icon: 'cpu',
-    items: legacyMenuContent.devices.map((item, index) => ({
-      id: `devices-${index}`,
-      label: item.label,
-      href: item.href,
-      imageUrl: item.imageUrl,
-    })),
-  },
-  {
-    id: 'accessories',
-    name: 'Accessories & Tools',
-    icon: 'package',
-    items: legacyMenuContent.accessories.map((item, index) => ({
-      id: `accessories-${index}`,
-      label: item.label,
-      href: item.href,
-      imageUrl: item.imageUrl,
-    })),
-  },
-];
-
-const DEFAULT_MENU_LINKS: PreparedMenuLink[] = [
-  { id: 'link-on-sale', label: 'On Sale', href: '/on-sale' },
-  { id: 'link-new-arrival', label: 'New Arrival', href: '/new-arrival' },
 ];
 
 const vehicleYears = ['2024', '2023', '2022', '2021', '2020', '2019'];
@@ -490,8 +317,8 @@ export const Header: React.FC = () => {
   const { items } = useCart();
   const cartCount = useMemo(() => items.reduce((sum, line) => sum + line.quantity, 0), [items]);
 
-  const [menuSections, setMenuSections] = useState<PreparedMenuSection[]>(DEFAULT_MENU_SECTIONS);
-  const [menuLinks, setMenuLinks] = useState<PreparedMenuLink[]>(DEFAULT_MENU_LINKS);
+  const [menuSections, setMenuSections] = useState<PreparedMenuSection[]>([]);
+  const [menuLinks, setMenuLinks] = useState<PreparedMenuLink[]>([]);
   const [menuLoading, setMenuLoading] = useState(false);
 
   useEffect(() => {
@@ -502,54 +329,48 @@ export const Header: React.FC = () => {
           const response = await menuApi.get();
           if (!active) return;
           const remoteSections = response.menu?.sections ?? [];
-          if (remoteSections.length) {
-            const prepared = remoteSections.map((section, sectionIndex) => ({
-              id: section.id ?? `section-${sectionIndex}`,
-              name: section.name,
-              icon: section.icon,
-              items: (section.items ?? []).map((item, itemIndex) => {
-                const resolvedId =
-                  item.id ?? `${section.id ?? `section-${sectionIndex}`}-item-${itemIndex}`;
-                const label = item.category?.name ?? 'Category';
-                const href = item.categoryId
-                  ? `/products?categoryId=${item.categoryId}`
-                  : item.productId
-                  ? `/products/${item.productId}`
-                  : '/products';
-                const imageUrl = item.product?.images?.[0] ?? null;
-                return {
-                  id: resolvedId,
-                  label,
-                  href,
-                  imageUrl,
+          const prepared = remoteSections.map((section, sectionIndex) => ({
+            id: section.id ?? `section-${sectionIndex}`,
+            name: section.name,
+            icon: section.icon,
+            items: (section.items ?? []).map((item, itemIndex) => {
+              const resolvedId =
+                item.id ?? `${section.id ?? `section-${sectionIndex}`}-item-${itemIndex}`;
+              const label = item.category?.name ?? 'Category';
+              const href = item.categoryId
+                ? `/products?categoryId=${item.categoryId}`
+                : item.productId
+                ? `/products/${item.productId}`
+                : '/products';
+              const imageUrl = item.product?.images?.[0] ?? null;
+              return {
+                id: resolvedId,
+                label,
+                href,
+                imageUrl,
               };
             }),
           }));
-          setMenuSections(prepared);
-        } else {
-          setMenuSections(DEFAULT_MENU_SECTIONS);
-        }
+          // Use prepared sections if any, otherwise use default "Browse products"
+          setMenuSections(prepared.length > 0 ? prepared : DEFAULT_MENU_SECTIONS);
 
-        const remoteLinks = response.menu?.links ?? [];
-        if (remoteLinks.length) {
-          setMenuLinks(
-            remoteLinks
-              .slice()
-              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-              .map((link, index) => ({
-                id: link.id ?? `link-${index}`,
-                label: link.label,
-                href: link.href,
-              }))
-          );
-        } else {
-          setMenuLinks(DEFAULT_MENU_LINKS);
-        }
+          const remoteLinks = response.menu?.links ?? [];
+          const preparedLinks = remoteLinks
+            .slice()
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+            .map((link, index) => ({
+              id: link.id ?? `link-${index}`,
+              label: link.label,
+              href: link.href,
+            }));
+          // Use prepared links if any, otherwise empty array (no default links)
+          setMenuLinks(preparedLinks);
       } catch (error) {
         console.warn('Failed to load navigation menu', error);
         if (active) {
+          // On error, use default "Browse products" section
           setMenuSections(DEFAULT_MENU_SECTIONS);
-          setMenuLinks(DEFAULT_MENU_LINKS);
+          setMenuLinks([]);
         }
       } finally {
         if (active) {
@@ -671,6 +492,26 @@ export const Header: React.FC = () => {
               {menuSections.map((section) => {
                 const Icon = ICON_MAP[section.icon] ?? Sparkles;
                 const isActive = openMegaMenu === section.id;
+                const hasItems = section.items.length > 0;
+
+                // If section has no items, render as a link to /products
+                if (!hasItems) {
+                  return (
+                    <Link
+                      key={section.id}
+                      to="/products"
+                      className={cn(
+                        'flex items-center gap-1 rounded-full px-3 py-2 transition hover:bg-white/10',
+                        menuLoading && 'pointer-events-none opacity-60'
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {section.name}
+                    </Link>
+                  );
+                }
+
+                // If section has items, render as a dropdown button
                 return (
                   <button
                     key={section.id}
@@ -917,6 +758,24 @@ export const Header: React.FC = () => {
                 {menuSections.map((section) => {
                   const Icon = ICON_MAP[section.icon] ?? Sparkles;
                   const isOpen = openMobileCategory === section.id;
+                  const hasItems = section.items.length > 0;
+
+                  // If section has no items, render as a direct link
+                  if (!hasItems) {
+                    return (
+                      <Link
+                        key={section.id}
+                        to="/products"
+                        onClick={closeMobileMenu}
+                        className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-500 hover:text-red-600"
+                      >
+                        <Icon className="h-5 w-5 text-red-600" />
+                        {section.name}
+                      </Link>
+                    );
+                  }
+
+                  // If section has items, render as expandable dropdown
                   return (
                     <div key={section.id} className="overflow-hidden rounded-xl border border-slate-200">
                       <button
@@ -942,22 +801,16 @@ export const Header: React.FC = () => {
                             className="overflow-hidden"
                           >
                             <div className="grid grid-cols-2 gap-2 px-3 pb-3 pt-2">
-                              {section.items.length ? (
-                                section.items.map((item) => (
-                                  <Link
-                                    key={item.id}
-                                    to={item.href}
-                                    onClick={closeMobileMenu}
-                                    className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:border-red-500 hover:text-red-600"
-                                  >
-                                    {item.label}
-                                  </Link>
-                                ))
-                              ) : (
-                                <span className="col-span-2 text-xs text-slate-500">
-                                  No items configured yet.
-                                </span>
-                              )}
+                              {section.items.map((item) => (
+                                <Link
+                                  key={item.id}
+                                  to={item.href}
+                                  onClick={closeMobileMenu}
+                                  className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:border-red-500 hover:text-red-600"
+                                >
+                                  {item.label}
+                                </Link>
+                              ))}
                             </div>
                           </motion.div>
                         )}

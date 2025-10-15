@@ -23,7 +23,7 @@ import type {
   User,
   UserRole,
 } from '../types/api';
-import { adminTabs, homepageTabs } from '../utils/adminSidebar';
+import { adminTabs, homepageTabs, navigationTabs } from '../utils/adminSidebar';
 import { UsersAdminSection } from '../components/dashboard/UsersAdminSection';
 import { CategoriesAdminSection } from '../components/dashboard/CategoriesAdminSection';
 import { ProductsAdminSection } from '../components/dashboard/ProductsAdminSection';
@@ -88,6 +88,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [featuredItems, setFeaturedItems] = useState<FeaturedShowcaseItem[]>([]);
   const [menuSectionsDraft, setMenuSectionsDraft] = useState<MenuSectionInput[]>([]);
   const [menuLinksDraft, setMenuLinksDraft] = useState<MenuLinkInput[]>([]);
+  const [visibleItemIds, setVisibleItemIds] = useState<string[]>([]);
   const [savingMenu, setSavingMenu] = useState(false);
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -143,6 +144,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [featureForm, setFeatureForm] = useState<FeatureFormState>(() => emptyFeatureForm('feature'));
 
   const [homepageSection, setHomepageSection] = useState<'hero' | 'featured'>('hero');
+  const [navigationSection, setNavigationSection] = useState<'sections' | 'quicklinks' | 'visible'>('sections');
   const [activeFeatureTab, setActiveFeatureTab] = useState<'feature' | 'tile'>('feature');
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>(null);
   const [orderConflict, setOrderConflict] = useState<OrderConflictState>(null);
@@ -885,13 +887,29 @@ export const AdminDashboardPage: React.FC = () => {
             activeLabel: activeTab === 'homepage' ? activeHomepageLabel : undefined,
           };
         }
+        if (tab.id === 'navigation') {
+          const activeNavigationLabel =
+            navigationSection === 'quicklinks' ? 'Quick links' :
+            navigationSection === 'visible' ? 'Visible titles' : 'Sections';
+          return {
+            id: tab.id,
+            label: tab.label,
+            icon: getMenuIcon(tab.id),
+            dropdown: {
+              items: navigationTabs.map((child) => ({ id: child.id, label: child.label })),
+              activeId: activeTab === 'navigation' ? navigationSection : undefined,
+              groupLabel: 'Navigation',
+            },
+            activeLabel: activeTab === 'navigation' ? activeNavigationLabel : undefined,
+          };
+        }
         return {
           id: tab.id,
           label: tab.label,
           icon: getMenuIcon(tab.id),
         };
       }),
-    [homepageSection, activeTab]
+    [homepageSection, navigationSection, activeTab]
   );
 
   const handleTopNavSelect = (id: string, dropdownId?: string) => {
@@ -900,6 +918,14 @@ export const AdminDashboardPage: React.FC = () => {
         setHomepageSection(dropdownId);
       }
       setActiveTab('homepage');
+      return;
+    }
+
+    if (id === 'navigation') {
+      if (dropdownId === 'sections' || dropdownId === 'quicklinks' || dropdownId === 'visible') {
+        setNavigationSection(dropdownId);
+      }
+      setActiveTab('navigation');
       return;
     }
 
@@ -1031,10 +1057,13 @@ export const AdminDashboardPage: React.FC = () => {
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
               <NavigationAdminSection
+                section={navigationSection}
                 sections={menuSectionsDraft}
                 links={menuLinksDraft}
+                visibleItemIds={visibleItemIds}
                 setSections={setMenuSectionsDraft}
                 setLinks={setMenuLinksDraft}
+                setVisibleItemIds={setVisibleItemIds}
                 categories={categories}
                 products={products}
                 onSave={handleMenuSave}
