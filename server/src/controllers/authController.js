@@ -35,7 +35,10 @@ const register = async (req, res, next) => {
       role: 'client',
     });
 
-    await mergeGuestCartIntoUser(user, guestCart);
+    // Only clients maintain shopping carts; ignore guest cart for staff/admin roles
+    if (user.role === 'client') {
+      await mergeGuestCartIntoUser(user, guestCart);
+    }
     await user.save();
 
     const token = signAuthToken(user);

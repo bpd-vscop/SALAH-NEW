@@ -1,7 +1,11 @@
-﻿const { normalizeCartItems } = require('../services/cartService');
+const { normalizeCartItems } = require('../services/cartService');
 const { badRequest } = require('../utils/appError');
 
 const getCart = (req, res) => {
+  // Only return cart for client accounts; admins/staff don’t use cart
+  if (req.user?.role !== 'client') {
+    return res.json({ cart: [] });
+  }
   res.json({ cart: req.user.toJSON().cart });
 };
 

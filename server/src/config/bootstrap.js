@@ -29,6 +29,10 @@ const ensureDefaultAdmin = async () => {
 };
 
 const migrateRolesIfNeeded = async () => {
+  const enabled = String(process.env.ENABLE_ROLE_MIGRATION).toLowerCase() === 'true';
+  if (!enabled) {
+    return;
+  }
   const resManager = await User.updateMany({ role: 'manager' }, { $set: { role: 'admin' } });
   const resAdmin = await User.updateMany({ role: 'admin' }, { $set: { role: 'super_admin' } });
   if ((resManager.modifiedCount || 0) > 0) {
@@ -42,7 +46,10 @@ const migrateRolesIfNeeded = async () => {
 const bootstrap = async () => {
   try {
     await migrateRolesIfNeeded();
-    await ensureDefaultAdmin();
+    const seedDefault = String(process.env.SEED_DEFAULT_ADMIN).toLowerCase() === 'true';
+    if (seedDefault) {
+      await ensureDefaultAdmin();
+    }
   } catch (error) {
     console.error('Bootstrap error', error);
   }

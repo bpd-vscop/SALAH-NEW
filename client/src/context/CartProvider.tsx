@@ -55,7 +55,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (user) {
-      setItemsState(user.cart ?? []);
+      // Only clients maintain a cart; clear for staff/admin
+      setItemsState(user.role === 'client' ? (user.cart ?? []) : []);
     }
   }, [user, initializing]);
 
@@ -65,7 +66,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const syncIfNeeded = useCallback(
     async (nextItems: CartItem[]) => {
-      if (!user) {
+      if (!user || user.role !== 'client') {
         return;
       }
       setSyncing(true);
@@ -148,7 +149,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const loadFromServer = useCallback(async () => {
-    if (!user) {
+    if (!user || user.role !== 'client') {
       return;
     }
     setSyncing(true);
