@@ -58,9 +58,7 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
           (option) => option.id === item.dropdown?.activeId
         );
         const shouldHighlight = isActive || openDropdown === item.id;
-        const showExpandedLabel = showDropdown && shouldHighlight && dropdownSelection;
         const currentActiveLabel = item.activeLabel ?? dropdownSelection?.label;
-        const primaryLabel = currentActiveLabel ?? item.label;
 
         const handleTrigger = () => {
           if (showDropdown) {

@@ -23,8 +23,7 @@ import type {
   User,
   UserRole,
 } from '../types/api';
-import { cn } from '../utils/cn';
-import { adminTabs, getMenuIcon, homepageTabs } from '../utils/adminSidebar';
+import { adminTabs, homepageTabs } from '../utils/adminSidebar';
 import { UsersAdminSection } from '../components/dashboard/UsersAdminSection';
 import { CategoriesAdminSection } from '../components/dashboard/CategoriesAdminSection';
 import { ProductsAdminSection } from '../components/dashboard/ProductsAdminSection';
