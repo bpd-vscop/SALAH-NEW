@@ -78,10 +78,7 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
             <button
               type="button"
               onClick={handleTrigger}
-              className={cn(
-                'relative flex min-w-max items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-                shouldHighlight ? 'text-white' : 'text-slate-600 hover:text-slate-900'
-              )}
+              className="relative flex min-w-max items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 isolate"
               aria-pressed={isActive}
               aria-haspopup={showDropdown || undefined}
               aria-expanded={showDropdown ? openDropdown === item.id : undefined}
@@ -94,14 +91,10 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
                 />
               )}
 
-              <span className="relative z-10 flex items-center gap-2">
+              {/* Dark gray text layer (visible when no background) */}
+              <span className="relative z-10 flex items-center gap-2 text-slate-700">
                 {item.icon && (
-                  <span
-                    className={cn(
-                      'flex h-5 w-5 items-center justify-center',
-                      shouldHighlight ? 'text-white' : 'text-slate-500'
-                    )}
-                  >
+                  <span className="flex h-5 w-5 items-center justify-center">
                     {item.icon}
                   </span>
                 )}
@@ -114,12 +107,40 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
                   <ChevronDown
                     className={cn(
                       'h-4 w-4 transition-transform',
-                      openDropdown === item.id ? 'rotate-180' : '',
-                      shouldHighlight ? 'text-white' : 'text-slate-500'
+                      openDropdown === item.id ? 'rotate-180' : ''
                     )}
                   />
                 )}
               </span>
+
+              {/* White text layer (clipped by background, visible only over colored background) */}
+              {shouldHighlight && (
+                <motion.span
+                  layoutId="admin-top-nav-highlight-text"
+                  className="absolute inset-0 z-20 flex items-center gap-2 px-4 py-2 text-white"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  style={{ clipPath: 'inset(0 round 9999px)' }}
+                >
+                  {item.icon && (
+                    <span className="flex h-5 w-5 items-center justify-center">
+                      {item.icon}
+                    </span>
+                  )}
+
+                  <span className="text-sm font-semibold whitespace-nowrap">
+                    {shouldHighlight && currentActiveLabel ? currentActiveLabel : item.label}
+                  </span>
+
+                  {showDropdown && (
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 transition-transform',
+                        openDropdown === item.id ? 'rotate-180' : ''
+                      )}
+                    />
+                  )}
+                </motion.span>
+              )}
             </button>
 
             <AnimatePresence>
