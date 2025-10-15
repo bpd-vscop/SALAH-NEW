@@ -49,7 +49,7 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
               <tr key={record.id} className="hover:bg-primary/5">
                 <td className="px-4 py-3 font-medium text-slate-900">{record.name}</td>
                 <td className="px-4 py-3 text-sm text-slate-600">{record.username}</td>
-                <td className="px-4 py-3 text-sm text-slate-600 capitalize">{record.role}</td>
+                <td className="px-4 py-3 text-sm text-slate-600">{record.role === 'super_admin' ? 'Super Admin' : record.role.charAt(0).toUpperCase() + record.role.slice(1)}</td>
                 <td className="px-4 py-3">
                   <StatusPill
                     label={record.status}
@@ -118,8 +118,8 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
           >
             <option value="client">Client</option>
             <option value="staff">Staff</option>
-            <option value="manager">Manager</option>
             <option value="admin">Admin</option>
+            {canManageUsers && <option value="super_admin">Super Admin</option>}
           </select>
         </label>
         <label className="flex flex-col gap-2 text-sm text-slate-600">

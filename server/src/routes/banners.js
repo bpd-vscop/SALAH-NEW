@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const {
   listBanners,
   createBanner,
@@ -10,8 +10,8 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/', listBanners);
-router.post('/', requireAuth, requireRole(['admin', 'manager', 'staff']), createBanner);
-router.put('/:id', requireAuth, requireRole(['admin', 'manager', 'staff']), updateBanner);
-router.delete('/:id', requireAuth, requireRole(['admin', 'manager']), deleteBanner);
+router.post('/', requireAuth, requireRole(['super_admin', 'admin', 'staff']), createBanner);
+router.put('/:id', requireAuth, requireRole(['super_admin', 'admin', 'staff']), updateBanner);
+router.delete('/:id', requireAuth, requireRole(['super_admin', 'admin']), deleteBanner);
 
 module.exports = router;

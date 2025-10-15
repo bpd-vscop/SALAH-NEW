@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const {
   listCategories,
   createCategory,
@@ -10,8 +10,8 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/', listCategories);
-router.post('/', requireAuth, requireRole(['admin', 'manager', 'staff']), createCategory);
-router.put('/:id', requireAuth, requireRole(['admin', 'manager', 'staff']), updateCategory);
-router.delete('/:id', requireAuth, requireRole(['admin', 'manager']), deleteCategory);
+router.post('/', requireAuth, requireRole(['super_admin', 'admin', 'staff']), createCategory);
+router.put('/:id', requireAuth, requireRole(['super_admin', 'admin', 'staff']), updateCategory);
+router.delete('/:id', requireAuth, requireRole(['super_admin', 'admin']), deleteCategory);
 
 module.exports = router;

@@ -5,7 +5,7 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/', getMenu);
-router.put('/', requireAuth, requireRole(['admin', 'manager']), updateMenu);
+router.put('/', requireAuth, requireRole(['super_admin', 'admin']), updateMenu);
 
 module.exports = router;
 

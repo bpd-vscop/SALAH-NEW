@@ -1,4 +1,4 @@
-﻿import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from '../components/routing/ProtectedRoute';
 import { AccountDashboardPage } from '../pages/AccountDashboardPage';
 import { AdminDashboardPage } from '../pages/AdminDashboardPage';
@@ -21,19 +21,19 @@ export const AppRouter: React.FC = () => (
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
-      <Route element={<ProtectedRoute allowRoles={['client', 'admin', 'manager', 'staff']} /> }>
+      <Route element={<ProtectedRoute allowRoles={['client', 'super_admin', 'admin', 'staff']} /> }>
         <Route path="/checkout" element={<CheckoutPage />} />
       </Route>
 
-      <Route element={<ProtectedRoute allowRoles={['client', 'admin', 'manager', 'staff']} /> }>
+      <Route element={<ProtectedRoute allowRoles={['client', 'super_admin', 'admin', 'staff']} /> }>
         <Route path="/account" element={<AccountDashboardPage />} />
       </Route>
 
-      <Route element={<ProtectedRoute allowRoles={['admin', 'manager', 'staff']} /> }>
+      <Route element={<ProtectedRoute allowRoles={['super_admin', 'admin', 'staff']} /> }>
         <Route path="/admin" element={<AdminDashboardPage />} />
       </Route>
 
-      <Route element={<ProtectedRoute allowRoles={['client', 'admin', 'manager', 'staff']} /> }>
+      <Route element={<ProtectedRoute allowRoles={['client', 'super_admin', 'admin', 'staff']} /> }>
         <Route path="/admin/settings" element={<UserSettingsPage />} />
       </Route>
 
