@@ -1,4 +1,4 @@
-﻿export type UserRole = 'admin' | 'manager' | 'staff' | 'client';
+export type UserRole = 'super_admin' | 'admin' | 'staff' | 'client';
 export type UserStatus = 'active' | 'inactive';
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
 export type ProductTag = 'in stock' | 'out of stock' | 'on sale' | 'available to order';

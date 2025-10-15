@@ -98,8 +98,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
         guestCart: items.map((item: CartLine) => ({ productId: item.productId, quantity: item.quantity })),
       });
       await loadFromServer();
-      // Redirect based on role (admin/manager/staff -> /admin, client -> /account)
-      if (user.role === 'admin' || user.role === 'manager' || user.role === 'staff') {
+      // Redirect based on role (super_admin/admin/staff -> /admin, client -> /account)
+      if (user.role === 'super_admin' || user.role === 'admin' || user.role === 'staff') {
         navigate('/admin', { replace: true });
       } else {
         // If user came from a protected route, prefer that

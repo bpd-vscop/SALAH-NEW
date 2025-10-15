@@ -66,11 +66,11 @@ const productTags: ProductTag[] = ['in stock', 'out of stock', 'on sale', 'avail
 const bannerTypes: BannerType[] = ['slide', 'row', 'advertising'];
 const orderStatuses: OrderStatus[] = ['pending', 'processing', 'completed', 'cancelled'];
 
-const canManageUsers = (role: UserRole) => role === 'admin';
-const canEditUsers = (role: UserRole) => role === 'admin' || role === 'manager';
-const canEditOrders = (role: UserRole) => role === 'admin' || role === 'manager' || role === 'staff';
-const canEditHomepage = (role: UserRole) => role === 'admin' || role === 'manager' || role === 'staff';
-const canDeleteHomepage = (role: UserRole) => role === 'admin' || role === 'manager';
+const canManageUsers = (role: UserRole) => role === 'super_admin';
+const canEditUsers = (role: UserRole) => role === 'super_admin' || role === 'admin';
+const canEditOrders = (role: UserRole) => role === 'super_admin' || role === 'admin' || role === 'staff';
+const canEditHomepage = (role: UserRole) => role === 'super_admin' || role === 'admin' || role === 'staff';
+const canDeleteHomepage = (role: UserRole) => role === 'super_admin' || role === 'admin';
 
 const isObjectId = (value?: string) => Boolean(value && /^[0-9a-fA-F]{24}$/.test(value));
 

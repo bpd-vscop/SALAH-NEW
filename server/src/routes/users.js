@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const {
   listUsers,
   createUser,
@@ -11,9 +11,9 @@ const router = express.Router();
 
 router.use(requireAuth);
 
-router.get('/', requireRole(['admin', 'manager']), listUsers);
-router.post('/', requireRole(['admin']), createUser);
-router.put('/:id', requireRole(['admin', 'manager']), updateUser);
-router.delete('/:id', requireRole(['admin']), deleteUser);
+router.get('/', requireRole(['super_admin', 'admin']), listUsers);
+router.post('/', requireRole(['super_admin', 'admin']), createUser);
+router.put('/:id', requireRole(['super_admin', 'admin']), updateUser);
+router.delete('/:id', requireRole(['super_admin']), deleteUser);
 
 module.exports = router;

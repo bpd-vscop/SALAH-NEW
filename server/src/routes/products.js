@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const {
   listProducts,
   getProduct,
@@ -12,8 +12,8 @@ const router = express.Router();
 
 router.get('/', listProducts);
 router.get('/:id', getProduct);
-router.post('/', requireAuth, requireRole(['admin', 'manager', 'staff']), createProduct);
-router.put('/:id', requireAuth, requireRole(['admin', 'manager', 'staff']), updateProduct);
-router.delete('/:id', requireAuth, requireRole(['admin', 'manager']), deleteProduct);
+router.post('/', requireAuth, requireRole(['super_admin', 'admin', 'staff']), createProduct);
+router.put('/:id', requireAuth, requireRole(['super_admin', 'admin', 'staff']), updateProduct);
+router.delete('/:id', requireAuth, requireRole(['super_admin', 'admin']), deleteProduct);
 
 module.exports = router;

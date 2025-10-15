@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const {
   listOrders,
   getOrder,
@@ -14,6 +14,6 @@ router.use(requireAuth);
 router.get('/', listOrders);
 router.get('/:id', getOrder);
 router.post('/', requireRole(['client']), createOrder);
-router.patch('/:id', requireRole(['admin', 'manager', 'staff']), updateOrder);
+router.patch('/:id', requireRole(['super_admin', 'admin', 'staff']), updateOrder);
 
 module.exports = router;

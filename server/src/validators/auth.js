@@ -1,4 +1,4 @@
-﻿const { z } = require('zod');
+const { z } = require('zod');
 const { parseWithSchema } = require('./index');
 
 const usernameRegex = /^[a-z0-9._-]{3,30}$/;
@@ -8,7 +8,7 @@ const registerSchema = z
     name: z.string().min(2).max(120),
     username: z.string().regex(usernameRegex, 'Username can contain lowercase letters, numbers, dot, underscore, or dash'),
     password: z.string().min(8).max(128),
-    role: z.enum(['admin', 'manager', 'staff', 'client']).optional(),
+    role: z.enum(['super_admin', 'admin', 'staff', 'client']).optional(),
   })
   .strict();
 

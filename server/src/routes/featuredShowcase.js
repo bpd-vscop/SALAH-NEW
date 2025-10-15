@@ -10,9 +10,9 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/', listFeaturedShowcase);
-router.post('/', requireAuth, requireRole(['admin', 'manager', 'staff']), createFeaturedShowcase);
-router.put('/:id', requireAuth, requireRole(['admin', 'manager', 'staff']), updateFeaturedShowcase);
-router.delete('/:id', requireAuth, requireRole(['admin', 'manager']), deleteFeaturedShowcase);
+router.post('/', requireAuth, requireRole(['super_admin', 'admin', 'staff']), createFeaturedShowcase);
+router.put('/:id', requireAuth, requireRole(['super_admin', 'admin', 'staff']), updateFeaturedShowcase);
+router.delete('/:id', requireAuth, requireRole(['super_admin', 'admin']), deleteFeaturedShowcase);
 
 module.exports = router;
 

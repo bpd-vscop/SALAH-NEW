@@ -1,4 +1,4 @@
-﻿const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 
 const cartItemSchema = new mongoose.Schema(
   {
@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['admin', 'manager', 'staff', 'client'],
+      enum: ['super_admin', 'admin', 'staff', 'client'],
       default: 'client',
     },
     status: {
