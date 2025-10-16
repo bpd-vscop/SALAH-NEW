@@ -784,10 +784,7 @@ export const Header: React.FC = () => {
           >
             <div className="flex items-center justify-start border-b border-slate-200 px-4 py-3">
               <div className="flex items-center gap-2">
-                <picture>
-                  <source srcSet="/logo.webp" type="image/webp" />
-                  <img src="/logo.png" alt="ULK Supply logo" className="h-14 w-auto" />
-                </picture>
+                <img src="/logo.webp" alt="ULK Supply logo" className="h-14 w-auto" />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-4">
