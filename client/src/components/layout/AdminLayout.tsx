@@ -21,7 +21,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
       <header className="fixed top-4 left-0 right-0 z-50 px-3 md:px-6">
         <div className="mx-auto flex w-full items-center gap-4 rounded-full border border-white/60 bg-white/90 px-5 py-2.5 shadow-xl backdrop-blur supports-[backdrop-filter]:bg-white/70">
           <div className="flex items-center gap-3">
-            <img src="/logo.webp" alt="ULKs Logo" className="h-8 w-auto" />
+            <picture>
+              <source srcSet="/logo.webp" type="image/webp" />
+              <img src="/logo.png" alt="ULKs Logo" className="h-8 w-auto" />
+            </picture>
             <a
               href="/"
               className="inline-flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"

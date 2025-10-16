@@ -208,11 +208,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
           {/* Logo */}
           <div className="flex items-center flex-col gap-1 mb-2">
             <Link to="/">
-              <img
-                src="/logo.webp"
-                alt="ULKS Logo"
-                className="h-20 w-auto mx-auto cursor-pointer hover:opacity-90 transition-opacity"
-              />
+              <picture>
+                <source srcSet="/logo.webp" type="image/webp" />
+                <img
+                  src="/logo.png"
+                  alt="ULKS Logo"
+                  className="h-20 w-auto mx-auto cursor-pointer hover:opacity-90 transition-opacity"
+                />
+              </picture>
             </Link>
           </div>
 
