@@ -499,7 +499,7 @@ export const Header: React.FC = () => {
             </button>
             <Link to="/" className="flex items-center gap-2 font-semibold tracking-[0.4em]">
               <img
-                src="/logo.png"
+                src="/logo.webp"
                 alt="ULK Supply logo"
                 className="h-10 xl:h-12"
               />
@@ -784,7 +784,7 @@ export const Header: React.FC = () => {
           >
             <div className="flex items-center justify-start border-b border-slate-200 px-4 py-3">
               <div className="flex items-center gap-2">
-                <img src="/logo.png" alt="ULK Supply logo" className="h-14 w-auto" />
+                <img src="/logo.webp" alt="ULK Supply logo" className="h-14 w-auto" />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-4">
