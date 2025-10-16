@@ -12,7 +12,7 @@ import { HeroSlider } from '../components/home/HeroSlider';
 import { FeaturedProducts } from '../components/home/FeaturedProducts';
 import { CategoryGrid } from '../components/home/CategoryGrid';
 
-const HOMEPAGE_CATEGORY_LIMIT = 12;
+const HOMEPAGE_CATEGORY_LIMIT = 18;
 
 export const HomePage: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
