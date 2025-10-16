@@ -1,6 +1,6 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useState, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Trash2, Save, Edit3, X } from 'lucide-react';
+import { Plus, Trash2, Save, Edit3, X, ChevronDown, Search } from 'lucide-react';
 import type { MenuLinkInput, MenuSectionInput } from '../../api/menu';
 import type { Category, Product } from '../../types/api';
 import { cn } from '../../utils/cn';
@@ -16,6 +16,35 @@ import {
   Sparkles,
   Truck,
   Wrench,
+  Gauge,
+  Zap,
+  Settings,
+  CircuitBoard,
+  Hammer,
+  Cog,
+  FileText,
+  Radio,
+  Lightbulb,
+  Fuel,
+  Wind,
+  Thermometer,
+  Camera,
+  Speaker,
+  Wifi,
+  Bluetooth,
+  Navigation,
+  MapPin,
+  Cloudy,
+  Fan,
+  BatteryCharging,
+  Power,
+  Flame,
+  Droplets,
+  CircleDot,
+  Radius,
+  Timer,
+  Activity,
+  AlertTriangle,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -39,12 +68,41 @@ interface NavigationAdminSectionProps {
 const ICON_OPTIONS: Array<{ value: string; label: string; icon: LucideIcon }> = [
   { value: 'car', label: 'Car & Remotes', icon: Car },
   { value: 'truck', label: 'Delivery & Fleet', icon: Truck },
-  { value: 'package', label: 'Accessories', icon: Package },
+  { value: 'key', label: 'Keys & Remotes', icon: Key },
   { value: 'wrench', label: 'Tools & Repair', icon: Wrench },
-  { value: 'key', label: 'Keys', icon: Key },
-  { value: 'shield', label: 'Security', icon: Shield },
-  { value: 'cpu', label: 'Electronics', icon: Cpu },
   { value: 'battery', label: 'Power & Battery', icon: BatteryFull },
+  { value: 'battery-charging', label: 'Battery Charging', icon: BatteryCharging },
+  { value: 'gauge', label: 'Gauges & Meters', icon: Gauge },
+  { value: 'cpu', label: 'Electronics', icon: Cpu },
+  { value: 'circuit-board', label: 'Circuit Boards', icon: CircuitBoard },
+  { value: 'shield', label: 'Security', icon: Shield },
+  { value: 'zap', label: 'Electrical', icon: Zap },
+  { value: 'power', label: 'Power Systems', icon: Power },
+  { value: 'settings', label: 'Parts & Components', icon: Settings },
+  { value: 'cog', label: 'Mechanical', icon: Cog },
+  { value: 'hammer', label: 'Workshop Tools', icon: Hammer },
+  { value: 'radio', label: 'Audio & Radio', icon: Radio },
+  { value: 'speaker', label: 'Speakers', icon: Speaker },
+  { value: 'wifi', label: 'WiFi & Connectivity', icon: Wifi },
+  { value: 'bluetooth', label: 'Bluetooth', icon: Bluetooth },
+  { value: 'navigation', label: 'Navigation', icon: Navigation },
+  { value: 'map-pin', label: 'GPS & Location', icon: MapPin },
+  { value: 'camera', label: 'Cameras', icon: Camera },
+  { value: 'lightbulb', label: 'Lighting', icon: Lightbulb },
+  { value: 'fuel', label: 'Fuel System', icon: Fuel },
+  { value: 'wind', label: 'Air & Climate', icon: Wind },
+  { value: 'fan', label: 'Cooling & Fans', icon: Fan },
+  { value: 'thermometer', label: 'Temperature', icon: Thermometer },
+  { value: 'cloudy', label: 'Climate Control', icon: Cloudy },
+  { value: 'flame', label: 'Heating', icon: Flame },
+  { value: 'droplets', label: 'Fluids & Oils', icon: Droplets },
+  { value: 'circle-dot', label: 'Sensors', icon: CircleDot },
+  { value: 'radius', label: 'Detection Systems', icon: Radius },
+  { value: 'timer', label: 'Timing Systems', icon: Timer },
+  { value: 'activity', label: 'Performance', icon: Activity },
+  { value: 'alert-triangle', label: 'Safety & Warning', icon: AlertTriangle },
+  { value: 'package', label: 'Accessories', icon: Package },
+  { value: 'file-text', label: 'Manuals & Docs', icon: FileText },
   { value: 'shopping-bag', label: 'Bags & Merch', icon: ShoppingBag },
   { value: 'shopping-cart', label: 'Cart', icon: ShoppingCart },
   { value: 'sparkles', label: 'Promotions', icon: Sparkles },
@@ -53,6 +111,7 @@ const ICON_OPTIONS: Array<{ value: string; label: string; icon: LucideIcon }> = 
 const MAX_SECTIONS = 8;
 const MAX_QUICK_LINKS = 6;
 const MAX_VISIBLE_ITEMS = 7;
+const MAX_CATEGORY_ITEMS = 18;
 
 const emptySection = (order: number): MenuSectionInput => ({
   id: `new-section-${Date.now()}-${Math.random()}`,
@@ -82,13 +141,33 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
   setPromoText,
   setPromoVisible,
   categories,
-  products,
   onSave,
   saving,
   canEdit,
 }) => {
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+  const [categorySortOrder, setCategorySortOrder] = useState<Record<string, 'recent' | 'alphabetical'>>({});
+  const [categorySearchQuery, setCategorySearchQuery] = useState<Record<string, string>>({});
+  const [iconDropdownOpen, setIconDropdownOpen] = useState<string | null>(null);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState<string | null>(null);
+  const iconDropdownRef = useRef<HTMLDivElement>(null);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (iconDropdownRef.current && !iconDropdownRef.current.contains(event.target as Node)) {
+        setIconDropdownOpen(null);
+      }
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setCategoryDropdownOpen(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const getVisibleCount = () =>
     sections.filter((s) => s.visible !== false).length + links.filter((link) => link.visible !== false).length;
@@ -118,6 +197,9 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
   const addItem = (sectionIndex: number) => {
     updateSection(sectionIndex, (s) => {
       const items = s.items ?? [];
+      if (items.length >= MAX_CATEGORY_ITEMS) {
+        return s;
+      }
       return {
         ...s,
         items: [
@@ -341,7 +423,7 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
               </p>
             )}
 
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-visible">
               {sections.map((s, sectionIndex) => {
                 const IconPreview = ICON_OPTIONS.find((opt) => opt.value === s.icon)?.icon ?? Sparkles;
                 const isEditing = editingSectionId === s.id;
@@ -351,7 +433,7 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                     key={s.id ?? `section-${sectionIndex}`}
                     className={cn(
                       'relative rounded-2xl border border-border bg-white p-4 shadow-sm transition',
-                      isEditing ? 'border-primary shadow-md ring-2 ring-primary/10' : 'hover:border-primary hover:shadow-md'
+                      isEditing ? 'border-primary shadow-md ring-2 ring-primary/10 overflow-visible' : 'hover:border-primary hover:shadow-md overflow-visible'
                     )}
                   >
                     <div className="flex gap-4">
@@ -422,10 +504,10 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                     </div>
 
                     {isEditing && (
-                      <div className="mt-4 space-y-4 border-t border-border pt-4">
-                        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_140px]">
+                      <div className="mt-4 space-y-4 border-t border-border pt-4 overflow-visible">
+                        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_70px]">
                           <label className="flex flex-col gap-2 text-sm text-slate-600">
-                            Name
+                            <span className="font-medium">Name</span>
                             <input
                               type="text"
                               value={s.name}
@@ -433,30 +515,68 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                               onChange={(event) =>
                                 updateSection(sectionIndex, (prev) => ({ ...prev, name: event.target.value }))
                               }
-                              className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                               disabled={!canEdit}
                               required
                             />
                           </label>
+                          <div className="flex flex-col gap-2 text-sm text-slate-600">
+                            <span className="font-medium">Icon</span>
+                            <div className="relative w-full" ref={iconDropdownOpen === s.id ? iconDropdownRef : null}>
+                              <button
+                                type="button"
+                                onClick={() => setIconDropdownOpen(iconDropdownOpen === s.id ? null : s.id!)}
+                                disabled={!canEdit}
+                                className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-2.5 text-sm hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {(() => {
+                                    const SelectedIcon = ICON_OPTIONS.find(opt => opt.value === s.icon)?.icon ?? Sparkles;
+                                    return <SelectedIcon className="h-3.5 w-3.5 text-slate-600 flex-shrink-0" />;
+                                  })()}
+                                  <span className="text-xs font-medium text-slate-900 truncate">
+                                    {ICON_OPTIONS.find(opt => opt.value === s.icon)?.label ?? 'Select icon'}
+                                  </span>
+                                </div>
+                                <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform flex-shrink-0", iconDropdownOpen === s.id && "rotate-180")} />
+                              </button>
+                              <AnimatePresence>
+                                {iconDropdownOpen === s.id && (
+                                  <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={{ duration: 0.1 }}
+                                    className="absolute left-0 right-0 top-full z-[100] mt-1 max-h-72 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 shadow-xl"
+                                  >
+                                    <div className="grid grid-cols-4 gap-1.5">
+                                      {ICON_OPTIONS.map(({ value, label, icon: Icon }) => (
+                                        <button
+                                          key={value}
+                                          type="button"
+                                          onClick={() => {
+                                            updateSection(sectionIndex, (prev) => ({ ...prev, icon: value }));
+                                            setIconDropdownOpen(null);
+                                          }}
+                                          className={cn(
+                                            "flex flex-col items-center gap-1 rounded-md border p-1.5 text-center transition hover:border-primary hover:bg-primary/5",
+                                            s.icon === value ? "border-primary bg-primary/10" : "border-slate-200"
+                                          )}
+                                        >
+                                          <Icon className={cn("h-4 w-4", s.icon === value ? "text-primary" : "text-slate-600")} />
+                                          <span className={cn("text-[0.6rem] font-medium leading-tight line-clamp-2", s.icon === value ? "text-primary" : "text-slate-600")}>
+                                            {label}
+                                          </span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </div>
                           <label className="flex flex-col gap-2 text-sm text-slate-600">
-                            Icon
-                            <select
-                              value={s.icon}
-                              onChange={(event) =>
-                                updateSection(sectionIndex, (prev) => ({ ...prev, icon: event.target.value }))
-                              }
-                              className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              disabled={!canEdit}
-                            >
-                              {ICON_OPTIONS.map(({ value, label }) => (
-                                <option key={value} value={value}>
-                                  {label}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="flex flex-col gap-2 text-sm text-slate-600">
-                            Display order
+                            <span className="font-medium">Order</span>
                             <input
                               type="number"
                               value={s.order ?? sectionIndex}
@@ -466,107 +586,221 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                                   order: Number(event.target.value),
                                 }))
                               }
-                              className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-center text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                               disabled={!canEdit}
                             />
                           </label>
                         </div>
 
                         <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <h5 className="text-sm font-semibold text-slate-900">Assigned categories</h5>
-                            <button
-                              type="button"
-                              onClick={() => addItem(sectionIndex)}
-                              className="inline-flex items-center gap-2 rounded-lg border border-dashed border-primary px-2.5 py-1.5 text-xs font-semibold text-primary transition hover:border-primary/60 hover:text-primary-dark disabled:opacity-60"
-                              disabled={!canEdit}
-                            >
-                              <Plus className="h-4 w-4" />
-                              Add category
-                            </button>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <h5 className="text-sm font-semibold text-slate-900">
+                              Categories
+                              <span className="ml-2 text-xs font-normal text-slate-500">
+                                ({(s.items ?? []).length}/{MAX_CATEGORY_ITEMS})
+                              </span>
+                            </h5>
+                            <div className="flex items-center gap-2">
+                              {(s.items ?? []).length > 0 && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCategorySortOrder(prev => ({ ...prev, [`section-${sectionIndex}`]: 'recent' }))}
+                                    className={cn(
+                                      "rounded-lg px-2 py-1 text-[0.65rem] font-medium transition",
+                                      (categorySortOrder[`section-${sectionIndex}`] || 'recent') === 'recent'
+                                        ? "bg-primary text-white"
+                                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                    )}
+                                  >
+                                    Recent
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCategorySortOrder(prev => ({ ...prev, [`section-${sectionIndex}`]: 'alphabetical' }))}
+                                    className={cn(
+                                      "rounded-lg px-2 py-1 text-[0.65rem] font-medium transition",
+                                      categorySortOrder[`section-${sectionIndex}`] === 'alphabetical'
+                                        ? "bg-primary text-white"
+                                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                    )}
+                                  >
+                                    A-Z
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => addItem(sectionIndex)}
+                                className={cn(
+                                  "inline-flex items-center gap-1 rounded-lg border border-dashed border-primary px-2 py-1 text-xs font-semibold text-primary transition hover:border-primary/60 hover:text-primary-dark",
+                                  ((s.items ?? []).length >= MAX_CATEGORY_ITEMS || !canEdit) && "opacity-50 cursor-not-allowed"
+                                )}
+                                disabled={!canEdit || (s.items ?? []).length >= MAX_CATEGORY_ITEMS}
+                              >
+                                <Plus className="h-3 w-3" />
+                                Add
+                              </button>
+                            </div>
                           </div>
 
-                          <div className="space-y-2">
-                            {(s.items ?? []).map((item, itemIndex) => (
-                              <div
-                                key={item.id ?? `section-${sectionIndex}-item-${itemIndex}`}
-                                className="grid gap-3 rounded-xl border border-slate-200 bg-background p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px_32px]"
-                              >
-                                <label className="flex flex-col gap-2 text-xs font-medium text-slate-600">
-                                  Category
-                                  <select
-                                    value={item.categoryId ?? ''}
-                                    onChange={(event) =>
-                                      updateItem(sectionIndex, itemIndex, (prev) => ({
-                                        ...prev,
-                                        categoryId: event.target.value,
-                                      }))
-                                    }
-                                    className="h-10 rounded-lg border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    disabled={!canEdit}
-                                    required
+                          {(s.items ?? []).length > 0 ? (
+                            <div className="space-y-2">
+                              {(() => {
+                                const sortOrder = categorySortOrder[`section-${sectionIndex}`] || 'recent';
+                                let sortedItems = (s.items ?? []).map((item, idx) => ({ item, originalIndex: idx }));
+
+                                if (sortOrder === 'alphabetical') {
+                                  sortedItems = sortedItems.sort((a, b) => {
+                                    const catA = categories.find((cat) => cat.id === a.item.categoryId);
+                                    const catB = categories.find((cat) => cat.id === b.item.categoryId);
+                                    return (catA?.name || '').localeCompare(catB?.name || '');
+                                  });
+                                } else {
+                                  // Recent: reverse order (newest first)
+                                  sortedItems = sortedItems.reverse();
+                                }
+
+                                return sortedItems.map(({ item, originalIndex: itemIndex }) => {
+                                // Get all assigned category IDs across all sections except current item
+                                const allAssignedCategoryIds = sections.flatMap((sec) =>
+                                  (sec.items ?? [])
+                                    .filter((i) => i.id !== item.id)
+                                    .map((i) => i.categoryId)
+                                    .filter(Boolean)
+                                );
+
+                                // Filter available categories
+                                const availableCategories = categories.filter(
+                                  (cat) => !allAssignedCategoryIds.includes(cat.id) || cat.id === item.categoryId
+                                );
+
+                                const selectedCategory = categories.find((cat) => cat.id === item.categoryId);
+                                const dropdownId = `${s.id}-${item.id}`;
+
+                                return (
+                                  <div
+                                    key={item.id ?? `section-${sectionIndex}-item-${itemIndex}`}
+                                    className="grid gap-2 sm:grid-cols-[1fr_70px_auto]"
                                   >
-                                    <option value="">Select category</option>
-                                    {categories.map((category) => (
-                                      <option key={category.id} value={category.id}>
-                                        {category.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                                <label className="flex flex-col gap-2 text-xs font-medium text-slate-600">
-                                  Featured product (optional)
-                                  <select
-                                    value={item.productId ?? ''}
-                                    onChange={(event) =>
-                                      updateItem(sectionIndex, itemIndex, (prev) => ({
-                                        ...prev,
-                                        productId: event.target.value || undefined,
-                                      }))
-                                    }
-                                    className="h-10 rounded-lg border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    disabled={!canEdit}
-                                  >
-                                    <option value="">None</option>
-                                    {products.slice(0, 200).map((product) => (
-                                      <option key={product.id} value={product.id}>
-                                        {product.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                                <label className="flex flex-col gap-2 text-xs font-medium text-slate-600">
-                                  Order
-                                  <input
-                                    type="number"
-                                    value={item.order ?? itemIndex}
-                                    onChange={(event) =>
-                                      updateItem(sectionIndex, itemIndex, (prev) => ({
-                                        ...prev,
-                                        order: Number(event.target.value),
-                                      }))
-                                    }
-                                    className="h-10 rounded-lg border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    disabled={!canEdit}
-                                  />
-                                </label>
-                                <button
-                                  type="button"
-                                  onClick={() => removeItem(sectionIndex, itemIndex)}
-                                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50 disabled:opacity-60"
-                                  aria-label="Remove category"
-                                  disabled={!canEdit}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ))}
-                            {!(s.items ?? []).length && (
-                              <p className="rounded-lg border border-dashed border-border bg-white px-3 py-2 text-xs text-muted">
-                                No categories assigned yet.
-                              </p>
-                            )}
-                          </div>
+                                    <div className="relative" ref={categoryDropdownOpen === dropdownId ? categoryDropdownRef : null}>
+                                      <button
+                                        type="button"
+                                        onClick={() => setCategoryDropdownOpen(categoryDropdownOpen === dropdownId ? null : dropdownId)}
+                                        disabled={!canEdit}
+                                        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-2 text-sm hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                                      >
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                          {selectedCategory?.imageUrl && (
+                                            <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-300">
+                                              <img
+                                                src={selectedCategory.imageUrl}
+                                                alt={selectedCategory.name}
+                                                className="h-full w-full object-cover"
+                                              />
+                                            </div>
+                                          )}
+                                          <span className="truncate text-xs font-medium text-slate-900">
+                                            {selectedCategory?.name ?? 'Select category'}
+                                          </span>
+                                        </div>
+                                        <ChevronDown className={cn("h-3 w-3 flex-shrink-0 text-slate-400 transition-transform", categoryDropdownOpen === dropdownId && "rotate-180")} />
+                                      </button>
+                                      <AnimatePresence>
+                                        {categoryDropdownOpen === dropdownId && (
+                                          <motion.div
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            transition={{ duration: 0.1 }}
+                                            className="absolute left-0 right-0 top-full z-[100] mt-1 max-h-96 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 shadow-xl"
+                                          >
+                                            <div className="sticky top-0 z-10 bg-white pb-2">
+                                              <div className="relative">
+                                                <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                                                <input
+                                                  type="text"
+                                                  placeholder="Search categories..."
+                                                  value={categorySearchQuery[dropdownId] || ''}
+                                                  onChange={(e) => setCategorySearchQuery(prev => ({ ...prev, [dropdownId]: e.target.value }))}
+                                                  className="h-8 w-full rounded-md border border-slate-300 bg-white pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                />
+                                              </div>
+                                            </div>
+                                            <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-6">
+                                              {availableCategories
+                                                .filter((category) => {
+                                                  const query = categorySearchQuery[dropdownId]?.toLowerCase() || '';
+                                                  return category.name.toLowerCase().includes(query);
+                                                })
+                                                .map((category) => (
+                                                <button
+                                                  key={category.id}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    updateItem(sectionIndex, itemIndex, (prev) => ({
+                                                      ...prev,
+                                                      categoryId: category.id,
+                                                    }));
+                                                    setCategoryDropdownOpen(null);
+                                                  }}
+                                                  className={cn(
+                                                    "flex flex-col items-center gap-1 rounded-md border p-1.5 text-center transition hover:border-primary hover:bg-primary/5",
+                                                    item.categoryId === category.id ? "border-primary bg-primary/10" : "border-slate-200"
+                                                  )}
+                                                >
+                                                  {category.imageUrl && (
+                                                    <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-slate-200">
+                                                      <img
+                                                        src={category.imageUrl}
+                                                        alt={category.name}
+                                                        className="h-full w-full object-cover"
+                                                      />
+                                                    </div>
+                                                  )}
+                                                  <span className={cn("text-[0.6rem] font-medium leading-tight line-clamp-2", item.categoryId === category.id ? "text-primary" : "text-slate-600")}>
+                                                    {category.name}
+                                                  </span>
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      value={item.order ?? itemIndex}
+                                      onChange={(event) =>
+                                        updateItem(sectionIndex, itemIndex, (prev) => ({
+                                          ...prev,
+                                          order: Number(event.target.value),
+                                        }))
+                                      }
+                                      placeholder="#"
+                                      className="h-9 w-[70px] rounded-lg border border-slate-300 bg-white px-2 text-center text-sm font-medium text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                      disabled={!canEdit}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeItem(sectionIndex, itemIndex)}
+                                      className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                                      disabled={!canEdit}
+                                      aria-label="Remove category"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                );
+                              });
+                              })()}
+                            </div>
+                          ) : (
+                            <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
+                              <p className="text-sm font-medium text-slate-600">No categories assigned yet</p>
+                              <p className="mt-1 text-xs text-slate-500">Click "Add category" to start</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

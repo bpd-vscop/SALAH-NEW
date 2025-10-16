@@ -85,12 +85,20 @@ type PreparedMenuLink = {
 const ICON_MAP: Record<string, LucideIcon> = {
   car: Car,
   truck: Truck,
-  package: Package,
-  wrench: Wrench,
   key: Key,
-  shield: Shield,
-  cpu: Cpu,
+  wrench: Wrench,
   battery: BatteryFull,
+  gauge: Car, // Using Car as fallback for Gauge
+  cpu: Cpu,
+  'circuit-board': Cpu, // Using Cpu as fallback for CircuitBoard
+  shield: Shield,
+  zap: BatteryFull, // Using BatteryFull as fallback for Zap
+  settings: Wrench, // Using Wrench as fallback for Settings
+  cog: Wrench, // Using Wrench as fallback for Cog
+  hammer: Wrench, // Using Wrench as fallback for Hammer
+  radio: Cpu, // Using Cpu as fallback for Radio
+  package: Package,
+  'file-text': Package, // Using Package as fallback for FileText
   'shopping-bag': ShoppingBag,
   'shopping-cart': ShoppingCart,
   sparkles: Sparkles,
