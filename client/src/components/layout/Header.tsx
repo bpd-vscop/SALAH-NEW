@@ -64,6 +64,7 @@ type PreparedMenuItem = {
   label: string;
   href: string;
   imageUrl?: string | null;
+  productCount?: number;
 };
 
 type PreparedMenuSection = {
@@ -176,6 +177,7 @@ const PromoBanner: React.FC<{ text: string; visible: boolean }> = ({ text, visib
 
 const MenuCard: React.FC<{ item: PreparedMenuItem }> = ({ item }) => {
   const imageSrc = item.imageUrl || 'https://placehold.co/80x80/eee/ccc?text=Item';
+  const productCount = item.productCount ?? 0;
   return (
     <Link
       to={item.href}
@@ -195,7 +197,7 @@ const MenuCard: React.FC<{ item: PreparedMenuItem }> = ({ item }) => {
         <span className="text-sm font-semibold text-slate-800 transition group-hover:text-red-700">
           {item.label}
         </span>
-        <span className="text-xs text-slate-500">Shop now</span>
+        <span className="text-xs text-slate-500">{productCount} {productCount === 1 ? 'product' : 'products'}</span>
       </div>
     </Link>
   );
@@ -702,10 +704,10 @@ export const Header: React.FC = () => {
               className="absolute left-0 right-0 top-full z-40 hidden pb-6 xl:block"
               onMouseLeave={() => setOpenMegaMenu(null)}
             >
-              <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+              <div className="mx-auto max-w-7xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
                 {currentSection.items.length ? (
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                    {currentSection.items.map((item) => (
+                  <div className="grid grid-cols-6 gap-3">
+                    {currentSection.items.slice(0, 18).map((item) => (
                       <MenuCard key={item.id} item={item} />
                     ))}
                   </div>

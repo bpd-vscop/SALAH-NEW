@@ -48,7 +48,7 @@ import { AdminTopNav } from '../components/dashboard/AdminTopNav';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const MAX_HOMEPAGE_CATEGORIES = 12;
+const MAX_HOMEPAGE_CATEGORIES = 18;
 
 const emptyFeatureForm = (variant: FeaturedVariant): FeatureFormState => ({
   variant,
