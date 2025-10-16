@@ -639,7 +639,7 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                                 disabled={!canEdit || (s.items ?? []).length >= MAX_CATEGORY_ITEMS}
                               >
                                 <Plus className="h-3 w-3" />
-                                Add
+                                Add category
                               </button>
                             </div>
                           </div>
