@@ -5,8 +5,7 @@ export const adminTabs = [
   { id: 'users', label: 'Users' },
   { id: 'categories', label: 'Categories' },
   { id: 'products', label: 'Products' },
-  { id: 'banners', label: 'Banners' },
-  { id: 'navigation', label: 'Header Menu' },
+  { id: 'navigation', label: 'Menu' },
   { id: 'homepage', label: 'Homepage' },
   { id: 'orders', label: 'Orders' },
 ] as const;
@@ -14,18 +13,15 @@ export const adminTabs = [
 export const homepageTabs = [
   { id: 'hero' as const, label: 'Hero slider' },
   { id: 'featured' as const, label: 'Featured highlights' },
+  { id: 'categorydisplay' as const, label: 'Categories display' },
+  { id: 'manufacturers' as const, label: 'Manufacturers' },
 ];
 
 export const navigationTabs = [
   { id: 'topnav' as const, label: 'Top nav' },
-  { id: 'sections' as const, label: 'Sections' },
+  { id: 'sections' as const, label: 'Titles' },
   { id: 'quicklinks' as const, label: 'Quick links' },
   { id: 'visible' as const, label: 'Visible titles' },
-];
-
-export const categoryTabs = [
-  { id: 'manage' as const, label: 'Manage categories' },
-  { id: 'display' as const, label: 'Homepage display' },
 ];
 
 export const getMenuIcon = (tabId: string) => {
@@ -80,8 +76,8 @@ export const getMenuIcon = (tabId: string) => {
 interface AdminSidebarOptions {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  homepageSection?: 'hero' | 'featured';
-  setHomepageSection?: (section: 'hero' | 'featured') => void;
+  homepageSection?: 'hero' | 'featured' | 'categorydisplay' | 'manufacturers';
+  setHomepageSection?: (section: 'hero' | 'featured' | 'categorydisplay' | 'manufacturers') => void;
   homepageExpanded?: boolean;
   setHomepageExpanded?: (expanded: boolean | ((prev: boolean) => boolean)) => void;
 }

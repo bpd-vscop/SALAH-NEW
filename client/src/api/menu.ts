@@ -27,7 +27,7 @@ export interface MenuSectionInput {
 export interface MenuSection extends MenuSectionInput {
   items: Array<
     MenuItemInput & {
-      category?: { _id: string; name: string; slug?: string | null } | null;
+      category?: { _id: string; name: string; slug?: string | null; imageUrl?: string | null } | null;
       product?: { _id: string; name: string; images?: string[] } | null;
     }
   >;

@@ -24,7 +24,7 @@ import type {
   User,
   UserRole,
 } from '../types/api';
-import { adminTabs, homepageTabs, navigationTabs, categoryTabs } from '../utils/adminSidebar';
+import { adminTabs, homepageTabs, navigationTabs } from '../utils/adminSidebar';
 import { UsersAdminSection } from '../components/dashboard/UsersAdminSection';
 import { CategoriesAdminSection } from '../components/dashboard/CategoriesAdminSection';
 import { ProductsAdminSection } from '../components/dashboard/ProductsAdminSection';
@@ -96,7 +96,6 @@ export const AdminDashboardPage: React.FC = () => {
   const [promoText, setPromoText] = useState('🚚 Free Shipping Over $200');
   const [promoVisible, setPromoVisible] = useState(true);
   const [savingMenu, setSavingMenu] = useState(false);
-  const [categoryAdminView, setCategoryAdminView] = useState<'manage' | 'display'>('manage');
   const [categoryDisplayForm, setCategoryDisplayForm] = useState<CategoryDisplayFormState>({
     homepageAssignments: {},
     allCategoriesHeroImage: '',
@@ -160,7 +159,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [selectedFeatureId, setSelectedFeatureId] = useState<string>('');
   const [featureForm, setFeatureForm] = useState<FeatureFormState>(() => emptyFeatureForm('feature'));
 
-  const [homepageSection, setHomepageSection] = useState<'hero' | 'featured'>('hero');
+  const [homepageSection, setHomepageSection] = useState<'hero' | 'featured' | 'categorydisplay' | 'manufacturers'>('hero');
   const [navigationSection, setNavigationSection] = useState<'topnav' | 'sections' | 'quicklinks' | 'visible'>('topnav');
   const [activeFeatureTab, setActiveFeatureTab] = useState<'feature' | 'tile'>('feature');
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>(null);
@@ -960,13 +959,20 @@ export const AdminDashboardPage: React.FC = () => {
     () =>
       adminTabs.map((tab) => {
         if (tab.id === 'homepage') {
-          const activeHomepageLabel = homepageSection === 'featured' ? 'Featured highlights' : 'Hero slider';
+          const activeHomepageLabel =
+            homepageSection === 'featured' ? 'Featured highlights' :
+            homepageSection === 'categorydisplay' ? 'Categories display' :
+            homepageSection === 'manufacturers' ? 'Manufacturers' : 'Hero slider';
           return {
             id: tab.id,
             label: tab.label,
             icon: getMenuIcon(tab.id),
             dropdown: {
-              items: homepageTabs.map((child) => ({ id: child.id, label: child.label })),
+              items: homepageTabs.map((child, index) => ({
+                id: child.id,
+                label: child.label,
+                separatorAfter: index < homepageTabs.length - 1, // Add separator after each item except the last
+              })),
               activeId: activeTab === 'homepage' ? homepageSection : undefined,
               groupLabel: 'Homepage',
             },
@@ -977,7 +983,7 @@ export const AdminDashboardPage: React.FC = () => {
           const activeNavigationLabel =
             navigationSection === 'topnav' ? 'Top nav' :
             navigationSection === 'quicklinks' ? 'Quick links' :
-            navigationSection === 'visible' ? 'Visible titles' : 'Sections';
+            navigationSection === 'visible' ? 'Visible titles' : 'Titles';
           return {
             id: tab.id,
             label: tab.label,
@@ -989,23 +995,9 @@ export const AdminDashboardPage: React.FC = () => {
                 separatorAfter: index === 0, // Add separator after first item (Top nav)
               })),
               activeId: activeTab === 'navigation' ? navigationSection : undefined,
-              groupLabel: 'Header Menu',
+              groupLabel: 'Menu',
             },
             activeLabel: activeTab === 'navigation' ? activeNavigationLabel : undefined,
-          };
-        }
-        if (tab.id === 'categories') {
-          const activeCategoryLabel = categoryAdminView === 'display' ? 'Homepage display' : 'Manage categories';
-          return {
-            id: tab.id,
-            label: tab.label,
-            icon: getMenuIcon(tab.id),
-            dropdown: {
-              items: categoryTabs.map((child) => ({ id: child.id, label: child.label })),
-              activeId: activeTab === 'categories' ? categoryAdminView : undefined,
-              groupLabel: 'Categories',
-            },
-            activeLabel: activeTab === 'categories' ? activeCategoryLabel : undefined,
           };
         }
         return {
@@ -1014,12 +1006,12 @@ export const AdminDashboardPage: React.FC = () => {
           icon: getMenuIcon(tab.id),
         };
       }),
-    [homepageSection, navigationSection, categoryAdminView, activeTab]
+    [homepageSection, navigationSection, activeTab]
   );
 
   const handleTopNavSelect = (id: string, dropdownId?: string) => {
     if (id === 'homepage') {
-      if (dropdownId === 'hero' || dropdownId === 'featured') {
+      if (dropdownId === 'hero' || dropdownId === 'featured' || dropdownId === 'categorydisplay' || dropdownId === 'manufacturers') {
         setHomepageSection(dropdownId);
       }
       setActiveTab('homepage');
@@ -1031,14 +1023,6 @@ export const AdminDashboardPage: React.FC = () => {
         setNavigationSection(dropdownId);
       }
       setActiveTab('navigation');
-      return;
-    }
-
-    if (id === 'categories') {
-      if (dropdownId === 'manage' || dropdownId === 'display') {
-        setCategoryAdminView(dropdownId);
-      }
-      setActiveTab('categories');
       return;
     }
 
@@ -1113,7 +1097,7 @@ export const AdminDashboardPage: React.FC = () => {
                 setManageForm={setCategoryForm}
                 onManageSubmit={handleCategorySubmit}
                 onDelete={deleteCategory}
-                view={categoryAdminView}
+                view="manage"
                 displayForm={categoryDisplayForm}
                 setDisplayForm={setCategoryDisplayForm}
                 onDisplaySave={handleCategoryDisplaySave}
@@ -1142,27 +1126,6 @@ export const AdminDashboardPage: React.FC = () => {
                 onSubmit={handleProductSubmit}
                 onDelete={deleteProduct}
                 productTags={productTags}
-              />
-            </motion.div>
-          )}
-
-          {activeTab === 'banners' && (
-            <motion.div
-              key="banners"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, ease: 'easeInOut' }}
-            >
-              <BannersAdminSection
-                banners={banners}
-                selectedBannerId={selectedBannerId}
-                onSelectBanner={setSelectedBannerId}
-                form={bannerForm}
-                setForm={setBannerForm}
-                onSubmit={handleBannerSubmit}
-                onDelete={deleteBanner}
-                bannerTypes={bannerTypes}
               />
             </motion.div>
           )}
@@ -1202,35 +1165,67 @@ export const AdminDashboardPage: React.FC = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
-              <HomepageAdminSection
-                section={homepageSection}
-                onSectionChange={setHomepageSection}
-                sortedHeroSlides={sortedHeroSlides}
-                selectedHeroSlideId={selectedHeroSlideId}
-                onSelectHeroSlide={setSelectedHeroSlideId}
-                heroForm={heroSlideForm}
-                setHeroForm={setHeroSlideForm}
-                onHeroSubmit={handleHeroSubmit}
-                requestDeleteHero={(id) => setDeleteConfirmation({ type: 'hero', id })}
-                canEditHomepage={canEditHomepage(role)}
-                canDeleteHomepage={canDeleteHomepage(role)}
-                featuredByVariant={featuredByVariant}
-                activeFeatureTab={activeFeatureTab}
-                onFeatureTabChange={(tab) => {
-                  setActiveFeatureTab(tab);
-                  setSelectedFeatureId('');
-                }}
-                selectedFeatureId={selectedFeatureId}
-                onSelectFeature={setSelectedFeatureId}
-                featureForm={featureForm}
-                setFeatureForm={setFeatureForm}
-                onFeatureSubmit={handleFeatureSubmit}
-                requestDeleteFeatured={(id) => setDeleteConfirmation({ type: 'featured', id })}
-                orderConflict={orderConflict}
-                setOrderConflict={setOrderConflict}
-                setStatus={setStatus}
-                maxImageBytes={MAX_IMAGE_BYTES}
-              />
+              {(homepageSection === 'hero' || homepageSection === 'featured') && (
+                <HomepageAdminSection
+                  section={homepageSection}
+                  onSectionChange={setHomepageSection}
+                  sortedHeroSlides={sortedHeroSlides}
+                  selectedHeroSlideId={selectedHeroSlideId}
+                  onSelectHeroSlide={setSelectedHeroSlideId}
+                  heroForm={heroSlideForm}
+                  setHeroForm={setHeroSlideForm}
+                  onHeroSubmit={handleHeroSubmit}
+                  requestDeleteHero={(id) => setDeleteConfirmation({ type: 'hero', id })}
+                  canEditHomepage={canEditHomepage(role)}
+                  canDeleteHomepage={canDeleteHomepage(role)}
+                  featuredByVariant={featuredByVariant}
+                  activeFeatureTab={activeFeatureTab}
+                  onFeatureTabChange={(tab) => {
+                    setActiveFeatureTab(tab);
+                    setSelectedFeatureId('');
+                  }}
+                  selectedFeatureId={selectedFeatureId}
+                  onSelectFeature={setSelectedFeatureId}
+                  featureForm={featureForm}
+                  setFeatureForm={setFeatureForm}
+                  onFeatureSubmit={handleFeatureSubmit}
+                  requestDeleteFeatured={(id) => setDeleteConfirmation({ type: 'featured', id })}
+                  orderConflict={orderConflict}
+                  setOrderConflict={setOrderConflict}
+                  setStatus={setStatus}
+                  maxImageBytes={MAX_IMAGE_BYTES}
+                />
+              )}
+              {homepageSection === 'categorydisplay' && (
+                <CategoriesAdminSection
+                  categories={categories}
+                  parentLabelMap={parentLabelMap}
+                  selectedCategoryId={selectedCategoryId}
+                  onSelectCategory={setSelectedCategoryId}
+                  manageForm={categoryForm}
+                  setManageForm={setCategoryForm}
+                  onManageSubmit={handleCategorySubmit}
+                  onDelete={deleteCategory}
+                  view="display"
+                  displayForm={categoryDisplayForm}
+                  setDisplayForm={setCategoryDisplayForm}
+                  onDisplaySave={handleCategoryDisplaySave}
+                  displaySaving={savingCategoryDisplay}
+                  maxHomepageCategories={MAX_HOMEPAGE_CATEGORIES}
+                />
+              )}
+              {homepageSection === 'manufacturers' && (
+                <BannersAdminSection
+                  banners={banners}
+                  selectedBannerId={selectedBannerId}
+                  onSelectBanner={setSelectedBannerId}
+                  form={bannerForm}
+                  setForm={setBannerForm}
+                  onSubmit={handleBannerSubmit}
+                  onDelete={deleteBanner}
+                  bannerTypes={bannerTypes}
+                />
+              )}
             </motion.div>
           )}
 

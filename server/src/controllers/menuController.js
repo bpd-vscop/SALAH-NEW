@@ -32,7 +32,7 @@ const getMenu = async (_req, res, next) => {
 
     const categories = await Category.find(
       { _id: { $in: Array.from(sectionCategoryIds) } },
-      'name _id slug'
+      'name _id slug imageUrl'
     ).lean();
     const products = await Product.find(
       { _id: { $in: Array.from(sectionProductIds) } },

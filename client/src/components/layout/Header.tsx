@@ -350,7 +350,7 @@ export const Header: React.FC = () => {
                 : item.productId
                 ? `/products/${item.productId}`
                 : '/products';
-              const imageUrl = item.product?.images?.[0] ?? null;
+              const imageUrl = item.category?.imageUrl ?? item.product?.images?.[0] ?? null;
               return {
                 id: resolvedId,
                 label,
@@ -507,7 +507,7 @@ export const Header: React.FC = () => {
           </div>
 
           <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 xl:flex">
-            <div className="flex items-center gap-1 whitespace-nowrap text-sm font-medium">
+            <div className="flex items-center gap-1 whitespace-nowrap text-base font-medium">
               {menuSections.map((section) => {
                 const Icon = ICON_MAP[section.icon] ?? Sparkles;
                 const isActive = openMegaMenu === section.id;
@@ -524,7 +524,7 @@ export const Header: React.FC = () => {
                         menuLoading && 'pointer-events-none opacity-60'
                       )}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="h-5 w-5" />
                       {section.name}
                     </Link>
                   );
@@ -542,10 +542,10 @@ export const Header: React.FC = () => {
                     )}
                     aria-expanded={isActive}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-5 w-5" />
                     {section.name}
                     <ChevronDown
-                      className={cn('h-4 w-4 transition-transform', isActive && 'rotate-180')}
+                      className={cn('h-5 w-5 transition-transform', isActive && 'rotate-180')}
                     />
                   </button>
                 );
@@ -692,24 +692,30 @@ export const Header: React.FC = () => {
             </Link>
           </div>
         </div>
-        {openMegaMenu && currentSection && (
-          <div
-            className="absolute left-0 right-0 top-full z-40 hidden translate-y-2 pb-6 xl:block"
-            onMouseLeave={() => setOpenMegaMenu(null)}
-          >
-            <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-2xl">
-              {currentSection.items.length ? (
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                  {currentSection.items.map((item) => (
-                    <MenuCard key={item.id} item={item} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">No items configured for this section yet.</p>
-              )}
-            </div>
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {openMegaMenu && currentSection && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              className="absolute left-0 right-0 top-full z-40 hidden pb-6 xl:block"
+              onMouseLeave={() => setOpenMegaMenu(null)}
+            >
+              <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+                {currentSection.items.length ? (
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+                    {currentSection.items.map((item) => (
+                      <MenuCard key={item.id} item={item} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">No items configured for this section yet.</p>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <AnimatePresence initial={false}>
           {mobileSearchOpen && (
             <motion.div
@@ -745,20 +751,29 @@ export const Header: React.FC = () => {
           )}
         </AnimatePresence>
       </div>
-      <div className="relative" ref={vehicleSearchRef}>
-        <div className="absolute left-0 right-0 top-0 z-50">
-          <VehicleSearchBar
-            isOpen={vehicleSearchOpen}
-            onToggle={() => setVehicleSearchOpen((state) => !state)}
-            year={vehicleYear}
-            setYear={setVehicleYear}
-            make={vehicleMake}
-            setMake={setVehicleMake}
-            model={vehicleModel}
-            setModel={setVehicleModel}
-          />
-        </div>
-      </div>
+      <AnimatePresence initial={false}>
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className="relative"
+          ref={vehicleSearchRef}
+        >
+          <div className="absolute left-0 right-0 top-0 z-60">
+            <VehicleSearchBar
+              isOpen={vehicleSearchOpen}
+              onToggle={() => setVehicleSearchOpen((state) => !state)}
+              year={vehicleYear}
+              setYear={setVehicleYear}
+              make={vehicleMake}
+              setMake={setVehicleMake}
+              model={vehicleModel}
+              setModel={setVehicleModel}
+            />
+          </div>
+        </motion.div>
+      </AnimatePresence>
 
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm xl:hidden" style={{ animation: mobileMenuClosing ? 'fadeOut 300ms ease-out' : 'fadeIn 300ms ease-out' }}>
@@ -819,17 +834,30 @@ export const Header: React.FC = () => {
                             transition={{ duration: 0.3, ease: 'easeInOut' }}
                             className="overflow-hidden"
                           >
-                            <div className="grid grid-cols-2 gap-2 px-3 pb-3 pt-2">
-                              {section.items.map((item) => (
-                                <Link
-                                  key={item.id}
-                                  to={item.href}
-                                  onClick={closeMobileMenu}
-                                  className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:border-red-500 hover:text-red-600"
-                                >
-                                  {item.label}
-                                </Link>
-                              ))}
+                            <div className="grid grid-cols-1 gap-2 px-3 pb-3 pt-2">
+                              {section.items.map((item) => {
+                                const imageSrc = item.imageUrl || 'https://placehold.co/40x40/eee/ccc?text=Item';
+                                return (
+                                  <Link
+                                    key={item.id}
+                                    to={item.href}
+                                    onClick={closeMobileMenu}
+                                    className="flex items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:border-red-500 hover:text-red-600"
+                                  >
+                                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded border border-slate-100 bg-white">
+                                      <img
+                                        src={imageSrc}
+                                        alt={item.label}
+                                        className="h-full w-full object-cover"
+                                        onError={(event) => {
+                                          event.currentTarget.src = 'https://placehold.co/40x40/eee/ccc?text=Item';
+                                        }}
+                                      />
+                                    </div>
+                                    <span>{item.label}</span>
+                                  </Link>
+                                );
+                              })}
                             </div>
                           </motion.div>
                         )}
