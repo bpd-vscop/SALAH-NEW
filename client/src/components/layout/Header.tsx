@@ -5,6 +5,7 @@ import {
   BatteryFull,
   Car,
   ChevronDown,
+  Link as LinkIcon,
   Cpu,
   Key,
   MapPin,
@@ -846,7 +847,7 @@ export const Header: React.FC = () => {
                                     onClick={closeMobileMenu}
                                     className="flex items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:border-red-500 hover:text-red-600"
                                   >
-                                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded border border-slate-100 bg-white">
+                                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-slate-100 bg-white">
                                       <img
                                         src={imageSrc}
                                         alt={item.label}
@@ -877,7 +878,7 @@ export const Header: React.FC = () => {
                     className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-red-500 hover:text-red-600"
                     onClick={closeMobileMenu}
                   >
-                    <Sparkles className="h-5 w-5 text-red-600" />
+                    <LinkIcon className="h-5 w-5 text-red-600" />
                     {link.label}
                   </Link>
                 ))}
