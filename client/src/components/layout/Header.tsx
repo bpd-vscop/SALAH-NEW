@@ -342,8 +342,11 @@ export const Header: React.FC = () => {
               const resolvedId =
                 item.id ?? `${section.id ?? `section-${sectionIndex}`}-item-${itemIndex}`;
               const label = item.category?.name ?? 'Category';
+              const slug = item.category?.slug ?? null;
               const href = item.categoryId
-                ? `/products?categoryId=${item.categoryId}`
+                ? slug
+                  ? `/categories/${slug}`
+                  : `/categories/${item.categoryId}`
                 : item.productId
                 ? `/products/${item.productId}`
                 : '/products';

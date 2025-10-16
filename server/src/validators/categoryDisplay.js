@@ -1,10 +1,6 @@
-﻿const { z } = require('zod');
+const { z } = require('zod');
 const mongoose = require('mongoose');
 const { parseWithSchema } = require('./index');
-
-const objectId = z
-  .string()
-  .refine((val) => mongoose.Types.ObjectId.isValid(val), 'Invalid identifier');
 
 const base64Regex = /^data:image\/(png|jpg|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 const urlRegex = /^https?:\/\//i;
@@ -21,7 +17,7 @@ const bytesFromDataUrl = (dataUrl) => {
 
 const imageSchema = z
   .string()
-  .max(MAX_IMAGE_BYTES * 2) // rough guard before detailed check when base64
+  .max(MAX_IMAGE_BYTES * 2)
   .superRefine((value, ctx) => {
     if (base64Regex.test(value)) {
       if (bytesFromDataUrl(value) > MAX_IMAGE_BYTES) {
@@ -36,30 +32,22 @@ const imageSchema = z
     if (!urlRegex.test(value)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Image must be an http(s) URL or a base64 data URL',
+        message: 'Image must be an http(s) URL or base64 data URL',
       });
     }
   });
 
-const createCategorySchema = z
-  .object({
-    name: z.string().min(2).max(80),
-    parentId: objectId.optional().nullable(),
-    imageUrl: imageSchema.optional().nullable(),
-    heroImageUrl: imageSchema.optional().nullable(),
-  })
-  .strict();
+const objectId = z
+  .string()
+  .refine((val) => mongoose.Types.ObjectId.isValid(val), 'Invalid identifier');
 
-const updateCategorySchema = z
+const updateSchema = z
   .object({
-    name: z.string().min(2).max(80).optional(),
-    parentId: objectId.optional().nullable(),
-    imageUrl: imageSchema.optional().nullable(),
-    heroImageUrl: imageSchema.optional().nullable(),
+    homepageCategories: z.array(objectId).max(12).default([]),
+    allCategoriesHeroImage: imageSchema.optional().nullable(),
   })
   .strict();
 
 module.exports = {
-  validateCreateCategory: (payload) => parseWithSchema(createCategorySchema, payload),
-  validateUpdateCategory: (payload) => parseWithSchema(updateCategorySchema, payload),
+  validateUpdateCategoryDisplay: (payload) => parseWithSchema(updateSchema, payload),
 };

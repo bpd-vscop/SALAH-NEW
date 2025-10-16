@@ -10,6 +10,8 @@ import { ProductCatalogPage } from '../pages/ProductCatalogPage';
 import { ProductDetailPage } from '../pages/ProductDetailPage';
 import { RegisterPage } from '../pages/RegisterPage';
 import { UserSettingsPage } from '../pages/UserSettingsPage';
+import { CategoryPage } from '../pages/CategoryPage';
+import { CategoriesPage } from '../pages/CategoriesPage';
 
 export const AppRouter: React.FC = () => (
   <BrowserRouter>
@@ -17,6 +19,8 @@ export const AppRouter: React.FC = () => (
       <Route path="/" element={<HomePage />} />
       <Route path="/products" element={<ProductCatalogPage />} />
       <Route path="/products/:id" element={<ProductDetailPage />} />
+      <Route path="/categories" element={<CategoriesPage />} />
+      <Route path="/categories/:categoryId" element={<CategoryPage />} />
       <Route path="/cart" element={<CartPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />

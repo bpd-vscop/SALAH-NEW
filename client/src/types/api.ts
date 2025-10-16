@@ -38,6 +38,9 @@ export interface Category {
   id: string;
   name: string;
   parentId: string | null;
+  slug?: string | null;
+  imageUrl?: string | null;
+  heroImageUrl?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 }

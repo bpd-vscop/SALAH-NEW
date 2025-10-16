@@ -1,6 +1,7 @@
-﻿const Category = require('../models/Category');
+﻿const mongoose = require('mongoose');
+const Category = require('../models/Category');
 const Product = require('../models/Product');
-const { validateCategory } = require('../validators/category');
+const { validateCreateCategory, validateUpdateCategory } = require('../validators/category');
 const { slugify } = require('../utils/slugify');
 const { notFound, badRequest } = require('../utils/appError');
 
@@ -15,7 +16,7 @@ const listCategories = async (_req, res, next) => {
 
 const createCategory = async (req, res, next) => {
   try {
-    const data = validateCategory(req.body || {});
+    const data = validateCreateCategory(req.body || {});
     const slug = slugify(data.name);
 
     const exists = await Category.findOne({ slug });
@@ -34,6 +35,8 @@ const createCategory = async (req, res, next) => {
       name: data.name,
       parentId: data.parentId || null,
       slug,
+      imageUrl: data.imageUrl || null,
+      heroImageUrl: data.heroImageUrl || null,
     });
 
     res.status(201).json({ category: category.toJSON() });
@@ -45,7 +48,7 @@ const createCategory = async (req, res, next) => {
 const updateCategory = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const data = validateCategory(req.body || {});
+    const data = validateUpdateCategory(req.body || {});
 
     if (data.parentId && String(data.parentId) === String(id)) {
       throw badRequest('Category cannot reference itself');
@@ -78,7 +81,38 @@ const updateCategory = async (req, res, next) => {
       }
     }
 
+    if (typeof data.imageUrl !== 'undefined') {
+      category.imageUrl = data.imageUrl || null;
+    }
+
+    if (typeof data.heroImageUrl !== 'undefined') {
+      category.heroImageUrl = data.heroImageUrl || null;
+    }
+
     await category.save();
+
+    res.json({ category: category.toJSON() });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getCategory = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    let category = null;
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      category = await Category.findById(id);
+    }
+
+    if (!category) {
+      category = await Category.findOne({ slug: id.toLowerCase() });
+    }
+
+    if (!category) {
+      throw notFound('Category not found');
+    }
 
     res.json({ category: category.toJSON() });
   } catch (error) {
@@ -110,5 +144,6 @@ module.exports = {
   listCategories,
   createCategory,
   updateCategory,
+  getCategory,
   deleteCategory,
 };

@@ -19,6 +19,16 @@ const categorySchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    imageUrl: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    heroImageUrl: {
+      type: String,
+      default: null,
+      trim: true,
+    },
   },
   {
     timestamps: true,
@@ -27,6 +37,9 @@ const categorySchema = new mongoose.Schema(
       transform: (_doc, ret) => {
         ret.id = ret._id.toString();
         ret.parentId = ret.parentId ? ret.parentId.toString() : null;
+        ret.slug = ret.slug || null;
+        ret.imageUrl = ret.imageUrl || null;
+        ret.heroImageUrl = ret.heroImageUrl || null;
         ret.createdAt = ret.createdAt ? new Date(ret.createdAt).toISOString() : null;
         ret.updatedAt = ret.updatedAt ? new Date(ret.updatedAt).toISOString() : null;
         delete ret._id;

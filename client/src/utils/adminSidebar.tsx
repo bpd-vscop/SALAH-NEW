@@ -23,6 +23,11 @@ export const navigationTabs = [
   { id: 'visible' as const, label: 'Visible titles' },
 ];
 
+export const categoryTabs = [
+  { id: 'manage' as const, label: 'Manage categories' },
+  { id: 'display' as const, label: 'Homepage display' },
+];
+
 export const getMenuIcon = (tabId: string) => {
   switch (tabId) {
     case 'users':

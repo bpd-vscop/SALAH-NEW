@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { bannersApi } from '../api/banners';
 import { categoriesApi } from '../api/categories';
+import { categoryDisplayApi } from '../api/categoryDisplay';
 import { featuredShowcaseApi, type FeaturedShowcaseItem, type FeaturedVariant } from '../api/featuredShowcase';
 import { heroSlidesApi, type HeroSlide } from '../api/heroSlides';
 import { ordersApi } from '../api/orders';
@@ -23,7 +24,7 @@ import type {
   User,
   UserRole,
 } from '../types/api';
-import { adminTabs, homepageTabs, navigationTabs } from '../utils/adminSidebar';
+import { adminTabs, homepageTabs, navigationTabs, categoryTabs } from '../utils/adminSidebar';
 import { UsersAdminSection } from '../components/dashboard/UsersAdminSection';
 import { CategoriesAdminSection } from '../components/dashboard/CategoriesAdminSection';
 import { ProductsAdminSection } from '../components/dashboard/ProductsAdminSection';
@@ -34,6 +35,7 @@ import { NavigationAdminSection } from '../components/dashboard/NavigationAdminS
 import type {
   BannerFormState,
   CategoryFormState,
+  CategoryDisplayFormState,
   DeleteConfirmationState,
   FeatureFormState,
   HeroSlideFormState,
@@ -46,6 +48,7 @@ import { AdminTopNav } from '../components/dashboard/AdminTopNav';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_HOMEPAGE_CATEGORIES = 12;
 
 const emptyFeatureForm = (variant: FeaturedVariant): FeatureFormState => ({
   variant,
@@ -93,6 +96,12 @@ export const AdminDashboardPage: React.FC = () => {
   const [promoText, setPromoText] = useState('🚚 Free Shipping Over $200');
   const [promoVisible, setPromoVisible] = useState(true);
   const [savingMenu, setSavingMenu] = useState(false);
+  const [categoryAdminView, setCategoryAdminView] = useState<'manage' | 'display'>('manage');
+  const [categoryDisplayForm, setCategoryDisplayForm] = useState<CategoryDisplayFormState>({
+    homepageAssignments: {},
+    allCategoriesHeroImage: '',
+  });
+  const [savingCategoryDisplay, setSavingCategoryDisplay] = useState(false);
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +117,12 @@ export const AdminDashboardPage: React.FC = () => {
   });
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
-  const [categoryForm, setCategoryForm] = useState<CategoryFormState>({ name: '', parentId: '' });
+  const [categoryForm, setCategoryForm] = useState<CategoryFormState>({
+    name: '',
+    parentId: '',
+    imageUrl: '',
+    heroImageUrl: '',
+  });
 
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [productForm, setProductForm] = useState<ProductFormState>({
@@ -247,6 +261,20 @@ export const AdminDashboardPage: React.FC = () => {
     setPromoVisible(promo.visible);
   };
 
+  const refreshCategoryDisplay = async () => {
+    const { settings } = await categoryDisplayApi.get();
+    const assignments: Record<number, string> = {};
+    settings.homepageCategories.slice(0, MAX_HOMEPAGE_CATEGORIES).forEach((id, index) => {
+      if (id) {
+        assignments[index + 1] = id;
+      }
+    });
+    setCategoryDisplayForm({
+      homepageAssignments: assignments,
+      allCategoriesHeroImage: settings.allCategoriesHeroImage ?? '',
+    });
+  };
+
   useEffect(() => {
     const loadAll = async () => {
       try {
@@ -260,6 +288,7 @@ export const AdminDashboardPage: React.FC = () => {
           refreshFeaturedShowcase(),
           refreshOrders(),
           refreshMenu(),
+          refreshCategoryDisplay(),
         ]);
       } catch (err) {
         console.error(err);
@@ -298,15 +327,32 @@ export const AdminDashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (!selectedCategoryId) {
-      setCategoryForm({ name: '', parentId: '' });
+      setCategoryForm({ name: '', parentId: '', imageUrl: '', heroImageUrl: '' });
       return;
     }
 
     const existing = categories.find((category) => category.id === selectedCategoryId);
     if (existing) {
-      setCategoryForm({ name: existing.name, parentId: existing.parentId ?? '' });
+      setCategoryForm({
+        name: existing.name,
+        parentId: existing.parentId ?? '',
+        imageUrl: existing.imageUrl ?? '',
+        heroImageUrl: existing.heroImageUrl ?? '',
+      });
     }
   }, [selectedCategoryId, categories]);
+
+  useEffect(() => {
+    setCategoryDisplayForm((state) => ({
+      ...state,
+      homepageAssignments: Object.fromEntries(
+        Object.entries(state.homepageAssignments)
+          .filter(([, id]) => categories.some((category) => category.id === id))
+          .sort((a, b) => Number(a[0]) - Number(b[0]))
+          .slice(0, MAX_HOMEPAGE_CATEGORIES)
+      ) as Record<number, string>,
+    }));
+  }, [categories]);
 
   useEffect(() => {
     if (!selectedProductId) {
@@ -474,8 +520,10 @@ export const AdminDashboardPage: React.FC = () => {
     event.preventDefault();
     try {
       const payload = {
-        name: categoryForm.name,
+        name: categoryForm.name.trim(),
         parentId: categoryForm.parentId || null,
+        imageUrl: categoryForm.imageUrl.trim() || null,
+        heroImageUrl: categoryForm.heroImageUrl.trim() || null,
       };
 
       if (selectedCategoryId) {
@@ -490,6 +538,29 @@ export const AdminDashboardPage: React.FC = () => {
     } catch (err) {
       console.error(err);
       setStatus(null, err instanceof Error ? err.message : 'Category operation failed');
+    }
+  };
+
+  const handleCategoryDisplaySave = async () => {
+    setSavingCategoryDisplay(true);
+    try {
+      const orderedCategories = Object.entries(categoryDisplayForm.homepageAssignments)
+        .filter(([, id]) => Boolean(id))
+        .sort((a, b) => Number(a[0]) - Number(b[0]))
+        .map(([, id]) => id)
+        .slice(0, MAX_HOMEPAGE_CATEGORIES);
+
+      await categoryDisplayApi.update({
+        homepageCategories: orderedCategories,
+        allCategoriesHeroImage: categoryDisplayForm.allCategoriesHeroImage || null,
+      });
+      setStatus('Category display updated');
+      await refreshCategoryDisplay();
+    } catch (err) {
+      console.error(err);
+      setStatus(null, err instanceof Error ? err.message : 'Unable to update category display');
+    } finally {
+      setSavingCategoryDisplay(false);
     }
   };
 
@@ -923,13 +994,27 @@ export const AdminDashboardPage: React.FC = () => {
             activeLabel: activeTab === 'navigation' ? activeNavigationLabel : undefined,
           };
         }
+        if (tab.id === 'categories') {
+          const activeCategoryLabel = categoryAdminView === 'display' ? 'Homepage display' : 'Manage categories';
+          return {
+            id: tab.id,
+            label: tab.label,
+            icon: getMenuIcon(tab.id),
+            dropdown: {
+              items: categoryTabs.map((child) => ({ id: child.id, label: child.label })),
+              activeId: activeTab === 'categories' ? categoryAdminView : undefined,
+              groupLabel: 'Categories',
+            },
+            activeLabel: activeTab === 'categories' ? activeCategoryLabel : undefined,
+          };
+        }
         return {
           id: tab.id,
           label: tab.label,
           icon: getMenuIcon(tab.id),
         };
       }),
-    [homepageSection, navigationSection, activeTab]
+    [homepageSection, navigationSection, categoryAdminView, activeTab]
   );
 
   const handleTopNavSelect = (id: string, dropdownId?: string) => {
@@ -946,6 +1031,14 @@ export const AdminDashboardPage: React.FC = () => {
         setNavigationSection(dropdownId);
       }
       setActiveTab('navigation');
+      return;
+    }
+
+    if (id === 'categories') {
+      if (dropdownId === 'manage' || dropdownId === 'display') {
+        setCategoryAdminView(dropdownId);
+      }
+      setActiveTab('categories');
       return;
     }
 
@@ -1016,10 +1109,16 @@ export const AdminDashboardPage: React.FC = () => {
                 parentLabelMap={parentLabelMap}
                 selectedCategoryId={selectedCategoryId}
                 onSelectCategory={setSelectedCategoryId}
-                form={categoryForm}
-                setForm={setCategoryForm}
-                onSubmit={handleCategorySubmit}
+                manageForm={categoryForm}
+                setManageForm={setCategoryForm}
+                onManageSubmit={handleCategorySubmit}
                 onDelete={deleteCategory}
+                view={categoryAdminView}
+                displayForm={categoryDisplayForm}
+                setDisplayForm={setCategoryDisplayForm}
+                onDisplaySave={handleCategoryDisplaySave}
+                displaySaving={savingCategoryDisplay}
+                maxHomepageCategories={MAX_HOMEPAGE_CATEGORIES}
               />
             </motion.div>
           )}

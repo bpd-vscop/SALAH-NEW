@@ -12,6 +12,13 @@ export interface UserFormState {
 export interface CategoryFormState {
   name: string;
   parentId: string;
+  imageUrl: string;
+  heroImageUrl: string;
+}
+
+export interface CategoryDisplayFormState {
+  homepageAssignments: Record<number, string>;
+  allCategoriesHeroImage: string;
 }
 
 export interface ProductFormState {

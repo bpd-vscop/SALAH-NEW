@@ -11,6 +11,7 @@ const uploadRoutes = require('./uploads');
 const heroSlideRoutes = require('./heroSlides');
 const featuredShowcaseRoutes = require('./featuredShowcase');
 const menuRoutes = require('./menu');
+const categoryDisplayRoutes = require('./categoryDisplay');
 
 module.exports = () => {
   const router = express.Router();
@@ -26,6 +27,7 @@ module.exports = () => {
   router.use('/hero-slides', heroSlideRoutes);
   router.use('/featured-showcase', featuredShowcaseRoutes);
   router.use('/menu', menuRoutes);
+  router.use('/category-display', categoryDisplayRoutes);
 
   return router;
 };

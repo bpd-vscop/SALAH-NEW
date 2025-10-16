@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { bannersApi } from '../api/banners';
 import { categoriesApi } from '../api/categories';
+import { categoryDisplayApi } from '../api/categoryDisplay';
 import { productsApi } from '../api/products';
 import type { Banner, Category, Product } from '../types/api';
 import { SiteLayout } from '../components/layout/SiteLayout';
@@ -8,6 +10,9 @@ import { formatCurrency } from '../utils/format';
 import { useCart } from '../context/CartContext';
 import { HeroSlider } from '../components/home/HeroSlider';
 import { FeaturedProducts } from '../components/home/FeaturedProducts';
+import { CategoryGrid } from '../components/home/CategoryGrid';
+
+const HOMEPAGE_CATEGORY_LIMIT = 12;
 
 export const HomePage: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -22,13 +27,29 @@ export const HomePage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const [bannerRes, categoryRes, productRes] = await Promise.all([
+        const [bannerRes, categoryRes, productRes, displayRes] = await Promise.all([
           bannersApi.list(),
           categoriesApi.list(),
           productsApi.list({ tags: ['on sale'] }),
+          categoryDisplayApi.get(),
         ]);
+
         setBanners(bannerRes.banners);
-        setCategories(categoryRes.categories.slice(0, 6));
+
+        const categoriesById = new Map(categoryRes.categories.map((category) => [category.id, category]));
+        const selectedFromSettings = displayRes.settings.homepageCategories
+          .map((id) => categoriesById.get(id))
+          .filter((category): category is Category => Boolean(category))
+          .slice(0, HOMEPAGE_CATEGORY_LIMIT);
+
+        const topLevel = categoryRes.categories.filter((category) => !category.parentId);
+        const fallbackSource = topLevel.length ? topLevel : categoryRes.categories;
+        const fallbackCategories = fallbackSource.slice(0, HOMEPAGE_CATEGORY_LIMIT);
+        const effectiveCategories = selectedFromSettings.length
+          ? selectedFromSettings.slice(0, HOMEPAGE_CATEGORY_LIMIT)
+          : fallbackCategories;
+
+        setCategories(effectiveCategories);
         setFeatured(productRes.products.slice(0, 8));
       } catch (err) {
         console.error(err);
@@ -44,6 +65,8 @@ export const HomePage: React.FC = () => {
   const slideBanner = banners.filter((banner) => banner.type === 'slide');
   const rowBanners = banners.filter((banner) => banner.type === 'row');
 
+  const categoriesLoading = loading && categories.length === 0;
+
   return (
     <SiteLayout>
       <HeroSlider />
@@ -51,29 +74,20 @@ export const HomePage: React.FC = () => {
 
       <section className="mb-12 space-y-6 w-[88%] mx-auto py-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-900">Popular Categories</h2>
-            <p className="text-sm text-muted">Browse our most in-demand product groups.</p>
-          </div>
+          <h2 className="text-2xl font-semibold text-slate-900">Popular Categories</h2>
+          <Link
+            to="/categories"
+            className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+          >
+            See all categories
+          </Link>
         </div>
-        {categories.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {categories.map((category) => (
-              <div
-                key={category.id}
-                className="rounded-2xl border border-border bg-surface p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
-              >
-                <h3 className="text-lg font-semibold text-slate-900">{category.name}</h3>
-                <p className="mt-2 text-sm text-muted">
-                  {category.parentId ? 'Subcategory' : 'Top category'}
-                </p>
-              </div>
-            ))}
+        {error && !categories.length && !categoriesLoading ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-6 text-sm text-red-700">
+            {error}
           </div>
         ) : (
-          <p className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
-            No categories yet.
-          </p>
+          <CategoryGrid categories={categories} loading={categoriesLoading} />
         )}
       </section>
 
