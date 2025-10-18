@@ -66,11 +66,17 @@ export interface FeatureFormState {
   altText: string;
 }
 
-export type DeleteConfirmationState = { type: 'hero' | 'featured'; id: string } | null;
+export type DeleteConfirmationState =
+  | { type: 'hero' | 'featured'; id: string }
+  | { type: 'user'; id: string }
+  | { type: 'category'; id: string }
+  | { type: 'menu-section'; id: string } // id is index (as string)
+  | { type: 'menu-link'; id: string }    // id is index (as string)
+  | null;
 
 export type OrderConflictState =
   | {
-      type: 'hero' | 'featured';
+      type: 'hero' | 'featured' | 'categorydisplay';
       order: number;
       existingTitle: string;
       onConfirm: () => void;

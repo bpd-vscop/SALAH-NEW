@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { heroSlidesApi, type HeroSlide } from '../../api/heroSlides';
+
+// FIXED MARGIN CONFIGURATION
+// Adjust this value to control the top margin of the hero slider
+// This should account for: Promo Banner + Main Header + Search Bar (closed)
+const HERO_SLIDER_TOP_MARGIN = 28; // pixels - adjust this value as needed
 
 export function HeroSlider() {
   const [slides, setSlides] = useState<HeroSlide[]>([]);
@@ -12,6 +17,7 @@ export function HeroSlider() {
   const [direction, setDirection] = useState(1);
   const [loading, setLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const sliderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -113,37 +119,45 @@ export function HeroSlider() {
 
   if (loading) {
     return (
-      <div className="mx-2 mt-10 mb-6 lg:mx-8">
-        <div className="w-full animate-pulse rounded-2xl bg-slate-200 aspect-[4/3] md:aspect-[21/9]" />
-      </div>
+      <div
+        ref={sliderRef}
+        className="w-full animate-pulse bg-slate-200 aspect-[4/3] md:aspect-[21/8] mb-6"
+        style={{ marginTop: `${HERO_SLIDER_TOP_MARGIN}px` }}
+      />
     );
   }
 
   if (hasError) {
     return (
-      <div className="mx-2 mt-10 mb-6 lg:mx-8">
-        <div className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
-          Unable to load hero slider content. Please try again later.
-        </div>
+      <div
+        ref={sliderRef}
+        className="border border-dashed border-border bg-background px-4 py-6 text-sm text-muted aspect-[4/3] md:aspect-[21/8] flex items-center justify-center mb-6"
+        style={{ marginTop: `${HERO_SLIDER_TOP_MARGIN}px` }}
+      >
+        Unable to load hero slider content. Please try again later.
       </div>
     );
   }
 
   if (!effectiveSlides.length) {
     return (
-      <div className="mx-2 mt-10 mb-6 lg:mx-8">
-        <div className="w-full animate-pulse rounded-2xl bg-slate-200 aspect-[4/3] md:aspect-[21/9]" />
-      </div>
+      <div
+        ref={sliderRef}
+        className="w-full animate-pulse bg-slate-200 aspect-[4/3] md:aspect-[21/8] mb-6"
+        style={{ marginTop: `${HERO_SLIDER_TOP_MARGIN}px` }}
+      />
     );
   }
 
   return (
     <div
-      className="relative mx-2 mt-10 mb-6 cursor-pointer lg:mx-8"
+      ref={sliderRef}
+      className="relative w-full cursor-pointer mb-6"
+      style={{ marginTop: `${HERO_SLIDER_TOP_MARGIN}px` }}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      <div className="relative overflow-hidden rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] isolate">
+      <div className="relative overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)] isolate">
         <div
           className="flex transition-transform duration-700 ease-in-out"
           style={{ transform: `translateX(-${currentSlide * 100}%)` }}
@@ -153,9 +167,9 @@ export function HeroSlider() {
               key={slide.id}
               to={slide.linkUrl || '#'}
               aria-label={slide.altText || slide.title}
-              className="group relative block min-w-full flex-shrink-0 overflow-hidden rounded-2xl"
+              className="group relative block min-w-full flex-shrink-0 overflow-hidden"
             >
-              <div className="relative w-full overflow-hidden rounded-2xl aspect-[4/3] md:aspect-[21/9]">
+              <div className="relative w-full overflow-hidden aspect-[4/3] md:aspect-[21/8]">
                 <img
                   src={slide.mobileImage || slide.desktopImage}
                   alt={slide.altText || slide.title}
@@ -177,7 +191,7 @@ export function HeroSlider() {
               </div>
 
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-2 p-6 text-white md:p-10">
+              <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-2 px-6 pb-6 text-white md:px-10 md:pb-10">
                 {slide.subtitle && (
                   <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-300 md:text-sm">
                     {slide.subtitle}

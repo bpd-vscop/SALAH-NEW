@@ -63,6 +63,9 @@ interface NavigationAdminSectionProps {
   onSave: () => Promise<void>;
   saving: boolean;
   canEdit: boolean;
+  onRequestDeleteSection?: (index: number) => void;
+  onRequestDeleteLink?: (index: number) => void;
+  onOrderConflict?: (order: number, existingTitle: string, onConfirm: () => void) => void;
 }
 
 const ICON_OPTIONS: Array<{ value: string; label: string; icon: LucideIcon }> = [
@@ -144,6 +147,9 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
   onSave,
   saving,
   canEdit,
+  onRequestDeleteSection,
+  onRequestDeleteLink,
+  onOrderConflict,
 }) => {
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
@@ -187,6 +193,10 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
   };
 
   const removeSection = (index: number) => {
+    if (onRequestDeleteSection) {
+      onRequestDeleteSection(index);
+      return;
+    }
     const sectionId = sections[index]?.id;
     if (sectionId && editingSectionId === sectionId) {
       setEditingSectionId(null);
@@ -254,6 +264,10 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
   };
 
   const removeLink = (index: number) => {
+    if (onRequestDeleteLink) {
+      onRequestDeleteLink(index);
+      return;
+    }
     const linkId = links[index]?.id;
     if (linkId && editingLinkId === linkId) {
       setEditingLinkId(null);
@@ -515,6 +529,7 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                               onChange={(event) =>
                                 updateSection(sectionIndex, (prev) => ({ ...prev, name: event.target.value }))
                               }
+                              placeholder="e.g. Key & Remotes"
                               className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                               disabled={!canEdit}
                               required
@@ -580,12 +595,16 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                             <input
                               type="number"
                               value={s.order ?? sectionIndex}
-                              onChange={(event) =>
-                                updateSection(sectionIndex, (prev) => ({
-                                  ...prev,
-                                  order: Number(event.target.value),
-                                }))
-                              }
+                              onChange={(event) => {
+                                const nextOrder = Number(event.target.value);
+                                updateSection(sectionIndex, (prev) => ({ ...prev, order: nextOrder }));
+                                if (onOrderConflict) {
+                                  const other = sections.find((sec, idx) => idx !== sectionIndex && (sec.order ?? idx) === nextOrder);
+                                  if (other) {
+                                    onOrderConflict(nextOrder, other.name || 'another section', () => void 0);
+                                  }
+                                }
+                              }}
                               className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-center text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                               disabled={!canEdit}
                             />
@@ -771,12 +790,39 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                                     <input
                                       type="number"
                                       value={item.order ?? itemIndex}
-                                      onChange={(event) =>
-                                        updateItem(sectionIndex, itemIndex, (prev) => ({
-                                          ...prev,
-                                          order: Number(event.target.value),
-                                        }))
-                                      }
+                                      onChange={(event) => {
+                                        const desired = Number(event.target.value);
+                                        if (Number.isNaN(desired)) return;
+                                        // Check for conflict within the same section items (excluding current)
+                                        const items = s.items ?? [];
+                                        const otherIndex = items.findIndex((it, idx) => idx !== itemIndex && (it.order ?? idx) === desired);
+                                        if (otherIndex >= 0 && onOrderConflict) {
+                                          const otherItem = items[otherIndex];
+                                          const otherCatName = categories.find((c) => c.id === otherItem.categoryId)?.name || 'another category';
+                                          const confirm = () => {
+                                            // Shift displaced item to next available order within this section
+                                            setSections((current) => current.map((sec, secIdx) => {
+                                              if (secIdx !== sectionIndex) return sec;
+                                              const nextItems = (sec.items ?? []).map((x) => ({ ...x }));
+                                              // Assign desired order to current item
+                                              nextItems[itemIndex] = { ...nextItems[itemIndex], order: desired };
+                                              // Compute next free order for displaced
+                                              const used = new Set<number>();
+                                              nextItems.forEach((it, idx) => {
+                                                if (idx !== otherIndex) used.add((it.order ?? idx));
+                                              });
+                                              used.add(desired);
+                                              let candidate = 0;
+                                              while (used.has(candidate)) candidate++;
+                                              nextItems[otherIndex] = { ...nextItems[otherIndex], order: candidate };
+                                              return { ...sec, items: nextItems };
+                                            }));
+                                          };
+                                          onOrderConflict(desired, otherCatName, confirm);
+                                        } else {
+                                          updateItem(sectionIndex, itemIndex, (prev) => ({ ...prev, order: desired }));
+                                        }
+                                      }}
                                       placeholder="#"
                                       className="h-9 w-[70px] rounded-lg border border-slate-300 bg-white px-2 text-center text-sm font-medium text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                                       disabled={!canEdit}
@@ -941,6 +987,7 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                               onChange={(event) =>
                                 updateLink(index, (prev) => ({ ...prev, label: event.target.value }))
                               }
+                              placeholder="e.g. On Sale"
                               className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                               disabled={!canEdit}
                               required
@@ -954,6 +1001,7 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                               onChange={(event) =>
                                 updateLink(index, (prev) => ({ ...prev, href: event.target.value }))
                               }
+                              placeholder="https://example.com/on-sale"
                               className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                               disabled={!canEdit}
                               required
@@ -964,9 +1012,16 @@ export const NavigationAdminSection: React.FC<NavigationAdminSectionProps> = ({
                             <input
                               type="number"
                               value={link.order ?? index}
-                              onChange={(event) =>
-                                updateLink(index, (prev) => ({ ...prev, order: Number(event.target.value) }))
-                              }
+                              onChange={(event) => {
+                                const nextOrder = Number(event.target.value);
+                                updateLink(index, (prev) => ({ ...prev, order: nextOrder }));
+                                if (onOrderConflict) {
+                                  const other = links.find((l, idx) => idx !== index && (l.order ?? idx) === nextOrder);
+                                  if (other) {
+                                    onOrderConflict(nextOrder, other.label || 'another link', () => void 0);
+                                  }
+                                }
+                              }}
                               className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                               disabled={!canEdit}
                             />

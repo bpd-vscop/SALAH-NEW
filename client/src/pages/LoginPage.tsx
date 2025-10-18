@@ -196,15 +196,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   );
 
   return (
-    <div className="min-h-screen flex items-start justify-center pt-16 pb-8 px-4 relative overflow-hidden bg-gradient-to-br from-white via-gray-50 to-gray-100">
+    <div className="min-h-screen flex items-center justify-center py-16 px-4 relative overflow-hidden bg-gradient-to-br from-white via-gray-50 to-gray-100">
       {/* Main Card */}
-      <div className="relative w-full max-w-md z-10 bg-white/60 backdrop-blur-md border border-white shadow-2xl rounded-2xl overflow-hidden">
+      <div className="relative w-full max-w-md z-10 bg-white/60 backdrop-blur-md border border-white shadow-2xl rounded-2xl overflow-hidden mx-auto">
         {/* Gradient Blobs */}
         <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-60 h-40 rounded-full bg-yellow-500 opacity-15 blur-[100px]" />
         <div className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 w-60 h-40 rounded-full bg-red-700 opacity-15 blur-[100px]" />
 
         {/* Card Content */}
-        <div className="pt-12 px-12 bg-transparent flex flex-col gap-4 min-h-auto">
+        <div className="pt-12 px-6 sm:px-12 bg-transparent flex flex-col gap-4 min-h-auto">
           {/* Logo */}
           <div className="flex items-center flex-col gap-1 mb-2">
             <Link to="/">

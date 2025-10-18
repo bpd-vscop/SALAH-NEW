@@ -95,6 +95,7 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
             value={form.name}
             onChange={(event) => setForm((state) => ({ ...state, name: event.target.value }))}
             required
+            placeholder="e.g. Jane Doe"
             className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </label>
@@ -105,6 +106,7 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
             value={form.username}
             onChange={(event) => setForm((state) => ({ ...state, username: event.target.value }))}
             required
+            placeholder="e.g. jane.doe or jane@example.com"
             className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </label>
@@ -141,6 +143,7 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
             onChange={(event) => setForm((state) => ({ ...state, password: event.target.value }))}
             minLength={selectedUserId ? 0 : 8}
             required={!selectedUserId}
+            placeholder={selectedUserId ? 'Optional' : 'At least 8 characters'}
             className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </label>

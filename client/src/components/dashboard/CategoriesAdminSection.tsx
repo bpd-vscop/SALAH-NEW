@@ -69,6 +69,7 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
   onDisplaySave,
   displaySaving,
   maxHomepageCategories,
+  onOrderConflict,
 }) => {
   const [selectedCategoryForOrder, setSelectedCategoryForOrder] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,43 +112,67 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
 
   const handleOrderChange = (categoryId: string, rawOrder: string) => {
     setDisplayForm((state) => {
-      const nextAssignments: Record<number, string> = { ...state.homepageAssignments };
+      const current: Record<number, string> = { ...state.homepageAssignments };
 
       // remove existing assignment for this category
-      Object.keys(nextAssignments).forEach((order) => {
-        if (nextAssignments[Number(order)] === categoryId) {
-          delete nextAssignments[Number(order)];
+      Object.keys(current).forEach((order) => {
+        if (current[Number(order)] === categoryId) {
+          delete current[Number(order)];
         }
       });
 
       const trimmed = rawOrder.trim();
       if (!trimmed) {
-        return { ...state, homepageAssignments: nextAssignments };
+        return { ...state, homepageAssignments: current };
       }
 
       const nextOrder = Number(trimmed);
-      if (!Number.isFinite(nextOrder)) {
+      if (!Number.isFinite(nextOrder) || nextOrder <= 0 || nextOrder > maxHomepageCategories) {
         window.alert(`Enter a number between 1 and ${maxHomepageCategories}.`);
         return state;
       }
 
-      if (nextOrder <= 0) {
-        return { ...state, homepageAssignments: nextAssignments };
-      }
-
-      if (nextOrder > maxHomepageCategories) {
-        window.alert(`Enter a number between 1 and ${maxHomepageCategories}.`);
-        return state;
-      }
-
-      const existingId = nextAssignments[nextOrder];
+      const existingId = current[nextOrder];
       if (existingId && existingId !== categoryId) {
         const existingName = categoriesMap.get(existingId)?.name ?? 'another category';
-        window.alert(`Order ${nextOrder} is currently assigned to ${existingName}. It will be replaced.`);
-        delete nextAssignments[nextOrder];
+        // Defer change to confirmation modal
+        const onConfirm = () => {
+          setDisplayForm((prev) => {
+            const next: Record<number, string> = { ...prev.homepageAssignments };
+            // remove current category elsewhere
+            Object.keys(next).forEach((order) => {
+              if (next[Number(order)] === categoryId) delete next[Number(order)];
+            });
+            // compute next available slot for displaced existingId
+            const used = new Set<number>(Object.keys(next).map((k) => Number(k)));
+            used.add(nextOrder);
+            let candidate = 1;
+            while (candidate <= maxHomepageCategories && used.has(candidate)) candidate++;
+            if (candidate <= maxHomepageCategories) {
+              next[candidate] = existingId;
+            }
+            // place current category in requested order
+            next[nextOrder] = categoryId;
+            return { ...prev, homepageAssignments: next };
+          });
+          setSelectedCategoryForOrder(null);
+        };
+        // use optional onOrderConflict via admin page modal
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore - prop may be injected only in display mode
+        if (typeof onOrderConflict === 'function') {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          onOrderConflict(nextOrder, existingName, onConfirm);
+        } else {
+          // fallback: direct replace without modal
+          onConfirm();
+        }
+        return state;
       }
 
-      nextAssignments[nextOrder] = categoryId;
+      // no conflict
+      const nextAssignments = { ...current, [nextOrder]: categoryId };
       return { ...state, homepageAssignments: nextAssignments };
     });
   };
@@ -278,6 +303,7 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                 value={manageForm.name}
                 onChange={(event) => setManageForm((state) => ({ ...state, name: event.target.value }))}
                 required
+                placeholder="e.g. Key & Remotes"
                 className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>

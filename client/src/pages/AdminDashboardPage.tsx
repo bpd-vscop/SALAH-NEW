@@ -300,6 +300,12 @@ export const AdminDashboardPage: React.FC = () => {
     void loadAll();
   }, []);
 
+  // Kick off an extra early refresh for homepage content to avoid perceived delays.
+  useEffect(() => {
+    void refreshHeroSlider();
+    void refreshFeaturedShowcase();
+  }, []);
+
   useEffect(() => {
     if (activeTab !== 'homepage') {
       setHomepageSection('hero');
@@ -672,13 +678,58 @@ export const AdminDashboardPage: React.FC = () => {
         return;
       }
 
+      const existingMaxOrder = heroSlides.reduce((max, s) => Math.max(max, s.order ?? 0), 0);
+      const computedOrder = heroSlideForm.order && heroSlideForm.order > 0 ? heroSlideForm.order : existingMaxOrder + 1;
+
+      // If order explicitly collides with another slide (other than the one being edited), prompt user
+      const duplicateHero = heroSlides.find(
+        (s) => (s.order ?? 0) === computedOrder && (!selectedHeroSlideId || s.id !== selectedHeroSlideId)
+      );
+      if (duplicateHero) {
+        setOrderConflict({
+          type: 'hero',
+          order: computedOrder,
+          existingTitle: duplicateHero.title,
+          onConfirm: async () => {
+            setOrderConflict(null);
+            const payload = {
+              title: heroSlideForm.title,
+              subtitle: heroSlideForm.subtitle,
+              caption: heroSlideForm.caption,
+              ctaText: heroSlideForm.ctaText,
+              linkUrl: heroSlideForm.linkUrl,
+              order: computedOrder,
+              desktopImage: heroSlideForm.desktopImage,
+              mobileImage: heroSlideForm.mobileImage,
+              altText: heroSlideForm.altText,
+            };
+            if (selectedHeroSlideId) {
+              await heroSlidesApi.update(selectedHeroSlideId, payload);
+              setStatus('Hero slide updated');
+            } else {
+              await heroSlidesApi.create(payload);
+              setStatus('Hero slide created');
+            }
+            // Move displaced hero to next available order
+            const used = new Set<number>(heroSlides.map((s) => (s.order ?? 0) > 0 ? (s.order as number) : 0));
+            used.add(computedOrder);
+            let next = 1;
+            while (used.has(next)) next++;
+            await heroSlidesApi.update(duplicateHero.id, { order: next });
+            await refreshHeroSlider();
+            setSelectedHeroSlideId('');
+          },
+        });
+        return;
+      }
+
       const payload = {
         title: heroSlideForm.title,
         subtitle: heroSlideForm.subtitle,
         caption: heroSlideForm.caption,
         ctaText: heroSlideForm.ctaText,
         linkUrl: heroSlideForm.linkUrl,
-        order: heroSlideForm.order,
+        order: computedOrder,
         desktopImage: heroSlideForm.desktopImage,
         mobileImage: heroSlideForm.mobileImage,
         altText: heroSlideForm.altText,
@@ -715,6 +766,10 @@ export const AdminDashboardPage: React.FC = () => {
 
   const submitFeaturedItem = async (orderToCheck: number) => {
     try {
+      const itemsInVariant = featuredItems.filter((item) => item.variant === activeFeatureTab);
+      const maxOrderInVariant = itemsInVariant.reduce((max, it) => Math.max(max, it.order ?? 0), 0);
+      const finalOrder = orderToCheck && orderToCheck > 0 ? orderToCheck : maxOrderInVariant + 1;
+
       const payload = {
         variant: activeFeatureTab,
         title: featureForm.title,
@@ -725,7 +780,7 @@ export const AdminDashboardPage: React.FC = () => {
         ctaText: featureForm.ctaText,
         linkUrl: featureForm.linkUrl,
         price: featureForm.price,
-        order: orderToCheck,
+        order: finalOrder,
         image: featureForm.image,
         altText: featureForm.altText,
       };
@@ -768,6 +823,16 @@ export const AdminDashboardPage: React.FC = () => {
           onConfirm: async () => {
             setOrderConflict(null);
             await submitFeaturedItem(orderToCheck);
+            // Move displaced item to next available order within the same variant
+            const itemsInVariant2 = featuredItems.filter((item) => item.variant === activeFeatureTab);
+            const used = new Set<number>(
+              itemsInVariant2.map((it) => (it.order ?? 0) > 0 ? (it.order as number) : 0)
+            );
+            used.add(orderToCheck);
+            let next = 1;
+            while (used.has(next)) next++;
+            await featuredShowcaseApi.update(duplicateOrder.id, { order: next });
+            await refreshFeaturedShowcase();
           },
         });
         return;
@@ -1073,7 +1138,10 @@ export const AdminDashboardPage: React.FC = () => {
                 selectedUserId={selectedUserId}
                 onSelectUser={setSelectedUserId}
                 onSubmit={handleUserSubmit}
-                onDelete={deleteUser}
+                onDelete={(id) => {
+                  setDeleteConfirmation({ type: 'user', id });
+                  return Promise.resolve();
+                }}
                 canEditUsers={canEditUsers(role)}
                 canManageUsers={canManageUsers(role)}
               />
@@ -1096,7 +1164,10 @@ export const AdminDashboardPage: React.FC = () => {
                 manageForm={categoryForm}
                 setManageForm={setCategoryForm}
                 onManageSubmit={handleCategorySubmit}
-                onDelete={deleteCategory}
+                onDelete={(id) => {
+                  setDeleteConfirmation({ type: 'category', id });
+                  return Promise.resolve();
+                }}
                 view="manage"
                 displayForm={categoryDisplayForm}
                 setDisplayForm={setCategoryDisplayForm}
@@ -1153,6 +1224,9 @@ export const AdminDashboardPage: React.FC = () => {
                 onSave={handleMenuSave}
                 saving={savingMenu}
                 canEdit={canEditHomepage(role)}
+                onRequestDeleteSection={(index) => setDeleteConfirmation({ type: 'menu-section', id: String(index) })}
+                onRequestDeleteLink={(index) => setDeleteConfirmation({ type: 'menu-link', id: String(index) })}
+                onOrderConflict={(order, existingTitle, onConfirm) => setOrderConflict({ type: 'featured', order, existingTitle, onConfirm })}
               />
             </motion.div>
           )}
@@ -1212,6 +1286,9 @@ export const AdminDashboardPage: React.FC = () => {
                   onDisplaySave={handleCategoryDisplaySave}
                   displaySaving={savingCategoryDisplay}
                   maxHomepageCategories={MAX_HOMEPAGE_CATEGORIES}
+                  onOrderConflict={(order, existingTitle, onConfirm) =>
+                    setOrderConflict({ type: 'categorydisplay', order, existingTitle, onConfirm })
+                  }
                 />
               )}
               {homepageSection === 'manufacturers' && (
@@ -1248,6 +1325,47 @@ export const AdminDashboardPage: React.FC = () => {
         </AnimatePresence>
       </div>
 
+      {orderConflict && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-amber-300 bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+                <svg className="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-slate-900">Order Conflict</h3>
+                <p className="mt-2 text-sm text-slate-600">
+                  Order <strong>{orderConflict.order}</strong> is already used by <strong>"{orderConflict.existingTitle}"</strong>.
+                  Continuing will replace it and may affect display order.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setOrderConflict(null)}
+                className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const fn = orderConflict.onConfirm;
+                  setOrderConflict(null);
+                  fn();
+                }}
+                className="inline-flex items-center justify-center rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700 focus:outline-none focus:ring-4 focus:ring-amber-600/20"
+              >
+                Continue Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {deleteConfirmation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-border bg-white p-6 shadow-2xl">
@@ -1260,7 +1378,11 @@ export const AdminDashboardPage: React.FC = () => {
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-slate-900">Confirm Deletion</h3>
                 <p className="mt-2 text-sm text-slate-600">
-                  Are you sure you want to delete this {deleteConfirmation.type === 'hero' ? 'hero slide' : 'featured item'}?
+                  {deleteConfirmation.type === 'hero' && 'Are you sure you want to delete this hero slide?'}
+                  {deleteConfirmation.type === 'featured' && 'Are you sure you want to delete this featured item?'}
+                  {deleteConfirmation.type === 'user' && 'Are you sure you want to delete this user?'}
+                  {deleteConfirmation.type === 'category' && 'Are you sure you want to delete this category?'}
+                  {(deleteConfirmation.type === 'menu-section' || deleteConfirmation.type === 'menu-link') && 'Remove this item from navigation?'}
                 </p>
                 <p className="mt-2 text-sm font-semibold text-red-600">⚠️ This is a hard delete and cannot be recovered.</p>
               </div>
@@ -1276,15 +1398,27 @@ export const AdminDashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  if (deleteConfirmation.type === 'hero') {
+                  const t = deleteConfirmation.type;
+                  if (t === 'hero') {
                     void deleteHeroSlide(deleteConfirmation.id);
-                  } else {
+                  } else if (t === 'featured') {
                     void deleteFeaturedItem(deleteConfirmation.id);
+                  } else if (t === 'user') {
+                    void deleteUser(deleteConfirmation.id);
+                  } else if (t === 'category') {
+                    void deleteCategory(deleteConfirmation.id);
+                  } else if (t === 'menu-section') {
+                    const index = Number(deleteConfirmation.id);
+                    setMenuSectionsDraft((current) => current.filter((_, i) => i !== index));
+                  } else if (t === 'menu-link') {
+                    const index = Number(deleteConfirmation.id);
+                    setMenuLinksDraft((current) => current.filter((_, i) => i !== index));
                   }
+                  setDeleteConfirmation(null);
                 }}
                 className="inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-600/20"
               >
-                Delete Permanently
+                Confirm
               </button>
             </div>
           </div>
