@@ -78,6 +78,8 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
   maxImageBytes,
 }) => (
   <div>
+    {void orderConflict}
+    {void setOrderConflict}
     <AnimatePresence mode="wait">
       {section === 'hero' ? (
         <motion.section

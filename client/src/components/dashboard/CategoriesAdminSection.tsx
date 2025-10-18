@@ -32,6 +32,7 @@ interface CategoriesAdminSectionProps {
   onDisplaySave: () => Promise<void>;
   displaySaving: boolean;
   maxHomepageCategories: number;
+  onOrderConflict?: (order: number, existingTitle: string, onConfirm: () => void) => void;
 }
 
 const handleUpload = async (

@@ -1286,7 +1286,7 @@ export const AdminDashboardPage: React.FC = () => {
                   onDisplaySave={handleCategoryDisplaySave}
                   displaySaving={savingCategoryDisplay}
                   maxHomepageCategories={MAX_HOMEPAGE_CATEGORIES}
-                  onOrderConflict={(order, existingTitle, onConfirm) =>
+                  onOrderConflict={(order: number, existingTitle: string, onConfirm: () => void) =>
                     setOrderConflict({ type: 'categorydisplay', order, existingTitle, onConfirm })
                   }
                 />
