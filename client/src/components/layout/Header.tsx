@@ -504,7 +504,7 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40">
+    <header className="sticky top-0 z-40 overflow-x-clip">
       <PromoBanner text={promoText} visible={promoVisible} />
       <div className="relative border-b border-[#d76c28] bg-gradient-to-r from-[#f6b210] via-[#dc4f0c] to-[#a00b0b] text-white shadow-md" ref={headerRef}>
         <div className="flex w-full items-center justify-between gap-4 px-4 py-2 sm:px-6">

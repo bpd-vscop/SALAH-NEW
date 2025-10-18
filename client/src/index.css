@@ -3,6 +3,12 @@
 @tailwind utilities;
 
 @layer base {
+  html, body, #root {
+    /* Prevent horizontal overflow causing right-side gaps on mobile */
+    @apply overflow-x-hidden;
+    max-width: 100vw;
+  }
+
   :root {
     color-scheme: light;
   }
