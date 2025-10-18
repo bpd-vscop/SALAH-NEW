@@ -16,7 +16,7 @@ interface ManufacturersAdminSectionProps {
   setStatus: (msg: string | null, err?: string | null) => void;
 }
 
-export const ManufacturersAdminSection: React.FC<ManufacturersAdminSectionProps> = ({ onOrderConflict, setStatus }) => {
+export const ManufacturersAdminSection: React.FC<ManufacturersAdminSectionProps> = ({ onOrderConflict: _unusedOrderConflict, setStatus }) => {
   const [list, setList] = useState<Manufacturer[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
   const [form, setForm] = useState<FormState>({ name: '', logoImage: '', heroImage: '' });

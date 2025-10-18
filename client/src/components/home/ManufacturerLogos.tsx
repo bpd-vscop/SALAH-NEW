@@ -239,7 +239,7 @@ export function ManufacturerLogos() {
             return (
               <Link
                 key={`${m.slug}-${idx}`}
-                ref={(el) => (itemRefs.current[idx] = el)}
+                ref={(el) => { itemRefs.current[idx] = el; }}
                 to={`/manufacturers/${m.slug}`}
                 className="group mx-1 sm:mx-2 flex h-16 w-44 flex-shrink-0 items-center justify-center"
                 aria-label={`View ${m.name}`}
