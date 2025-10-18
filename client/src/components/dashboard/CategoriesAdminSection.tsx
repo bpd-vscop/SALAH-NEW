@@ -71,6 +71,8 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
   maxHomepageCategories,
 }) => {
   const [selectedCategoryForOrder, setSelectedCategoryForOrder] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'recent' | 'alphabetical'>('recent');
 
   const categoriesMap = useMemo(
     () => new Map(categories.map((category) => [category.id, category])),
@@ -86,6 +88,26 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
     });
     return map;
   }, [displayForm.homepageAssignments]);
+
+  const filteredSortedCategories = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    let list = categories;
+    if (q) {
+      list = list.filter((c) => c.name.toLowerCase().includes(q));
+    }
+    const copy = list.slice();
+    if (sortOrder === 'alphabetical') {
+      copy.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else {
+      // recent: sort by createdAt desc if available
+      copy.sort((a, b) => {
+        const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+        const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+        return tb - ta;
+      });
+    }
+    return copy;
+  }, [categories, searchQuery, sortOrder]);
 
   const handleOrderChange = (categoryId: string, rawOrder: string) => {
     setDisplayForm((state) => {
@@ -146,71 +168,106 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
 
       {view === 'manage' ? (
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="overflow-hidden rounded-xl border border-border bg-background">
-            <table className="min-w-full divide-y divide-border text-left text-sm">
-              <thead className="bg-background/80 text-xs uppercase tracking-wide text-muted">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Name</th>
-                  <th className="px-4 py-3 font-semibold">Parent</th>
-                  <th className="px-4 py-3 font-semibold">Image</th>
-                  <th className="px-4 py-3 font-semibold">Hero</th>
-                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border bg-surface">
-                {categories.map((category) => (
-                  <tr key={category.id} className="hover:bg-primary/5">
-                    <td className="px-4 py-3 font-medium text-slate-900">{category.name}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{parentLabelMap.get(category.id)}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      {category.imageUrl ? (
-                        <img
-                          src={category.imageUrl}
-                          alt={category.name}
-                          className="h-12 w-12 rounded-full border border-border object-cover"
-                        />
-                      ) : (
-                        <span className="text-xs text-muted">No image</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      {category.heroImageUrl ? (
-                        <img
-                          src={category.heroImageUrl}
-                          alt={`${category.name} hero`}
-                          className="h-12 w-20 rounded-md border border-border object-cover"
-                        />
-                      ) : (
-                        <span className="text-xs text-muted">No hero image</span>
-                      )}
-                    </td>
-                    <td className="flex items-center justify-end gap-2 px-4 py-3">
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                        onClick={() => onSelectCategory(category.id)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                        onClick={() => void onDelete(category.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {!categories.length && (
+          <div className="rounded-xl border border-border bg-background p-4">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSortOrder('recent')}
+                  className={cn(
+                    'rounded-lg px-2 py-1 text-[0.65rem] font-medium transition',
+                    sortOrder === 'recent' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  )}
+                >
+                  Recent
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortOrder('alphabetical')}
+                  className={cn(
+                    'rounded-lg px-2 py-1 text-[0.65rem] font-medium transition',
+                    sortOrder === 'alphabetical' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  )}
+                >
+                  A-Z
+                </button>
+              </div>
+              <label className="flex w-full sm:w-auto items-center gap-2">
+                <input
+                  type="search"
+                  placeholder="Search categories"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-10 w-full sm:w-64 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            </div>
+            <div className="h-[520px] overflow-y-auto rounded-lg border border-border bg-surface">
+              <table className="min-w-full divide-y divide-border text-left text-sm">
+                <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur text-xs uppercase tracking-wide text-muted">
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted">
-                      No categories yet.
-                    </td>
+                    <th className="px-4 py-3 font-semibold">Name</th>
+                    <th className="px-4 py-3 font-semibold">Parent</th>
+                    <th className="px-4 py-3 font-semibold">Image</th>
+                    <th className="px-4 py-3 font-semibold">Hero</th>
+                    <th className="px-4 py-3 font-semibold text-right">Actions</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border bg-surface">
+                  {filteredSortedCategories.map((category) => (
+                    <tr key={category.id} className="hover:bg-primary/5">
+                      <td className="px-4 py-3 font-medium text-slate-900">{category.name}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{parentLabelMap.get(category.id)}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        {category.imageUrl ? (
+                          <img
+                            src={category.imageUrl}
+                            alt={category.name}
+                            className="h-12 w-12 rounded-full border border-border object-cover"
+                          />
+                        ) : (
+                          <span className="text-xs text-muted">No image</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        {category.heroImageUrl ? (
+                          <img
+                            src={category.heroImageUrl}
+                            alt={`${category.name} hero`}
+                            className="h-12 w-20 rounded-md border border-border object-cover"
+                          />
+                        ) : (
+                          <span className="text-xs text-muted">No hero image</span>
+                        )}
+                      </td>
+                      <td className="flex items-center justify-end gap-2 px-4 py-3">
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                          onClick={() => onSelectCategory(category.id)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                          onClick={() => void onDelete(category.id)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!filteredSortedCategories.length && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted">
+                        No categories found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <form className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm" onSubmit={onManageSubmit}>
