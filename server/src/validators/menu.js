@@ -35,7 +35,7 @@ const menuSectionSchema = z
     name: z.string().min(2).max(40),
     icon: z.enum(ICON_WHITELIST),
     order: z.number().int().min(0).optional(),
-    items: z.array(menuItemSchema).max(12).optional(),
+    items: z.array(menuItemSchema).max(18).optional(),
     visible: z.boolean().optional(),
   })
   .strict();
