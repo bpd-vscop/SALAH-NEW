@@ -10,6 +10,8 @@ import { ProductCatalogPage } from '../pages/ProductCatalogPage';
 import { ProductDetailPage } from '../pages/ProductDetailPage';
 import { RegisterPage } from '../pages/RegisterPage';
 import { UserSettingsPage } from '../pages/UserSettingsPage';
+import { ManufacturersPage } from '../pages/ManufacturersPage';
+import { ManufacturerDetailPage } from '../pages/ManufacturerDetailPage';
 import { CategoryPage } from '../pages/CategoryPage';
 import { CategoriesPage } from '../pages/CategoriesPage';
 
@@ -19,6 +21,8 @@ export const AppRouter: React.FC = () => (
       <Route path="/" element={<HomePage />} />
       <Route path="/products" element={<ProductCatalogPage />} />
       <Route path="/products/:id" element={<ProductDetailPage />} />
+      <Route path="/manufacturers" element={<ManufacturersPage />} />
+      <Route path="/manufacturers/:slug" element={<ManufacturerDetailPage />} />
       <Route path="/categories" element={<CategoriesPage />} />
       <Route path="/categories/:categoryId" element={<CategoryPage />} />
       <Route path="/cart" element={<CartPage />} />

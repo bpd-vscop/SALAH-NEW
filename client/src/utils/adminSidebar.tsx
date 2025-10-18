@@ -3,10 +3,10 @@ import { cn } from './cn';
 
 export const adminTabs = [
   { id: 'users', label: 'Users' },
-  { id: 'categories', label: 'Categories' },
-  { id: 'products', label: 'Products' },
   { id: 'navigation', label: 'Menu' },
   { id: 'homepage', label: 'Homepage' },
+  { id: 'categories', label: 'Catalog' },
+  { id: 'products', label: 'Products' },
   { id: 'orders', label: 'Orders' },
 ] as const;
 
@@ -14,7 +14,7 @@ export const homepageTabs = [
   { id: 'hero' as const, label: 'Hero slider' },
   { id: 'featured' as const, label: 'Featured highlights' },
   { id: 'categorydisplay' as const, label: 'Categories display' },
-  { id: 'manufacturers' as const, label: 'Manufacturers' },
+  { id: 'manufacturers' as const, label: 'Manufacturers display' },
 ];
 
 export const navigationTabs = [

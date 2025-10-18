@@ -28,5 +28,15 @@
   button {
     @apply cursor-pointer;
   }
+
+  /* Hide scrollbar for manufacturer logos slider */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
 }
 

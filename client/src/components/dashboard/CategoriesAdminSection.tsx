@@ -328,7 +328,7 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
 
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
               <div className="flex flex-col gap-2 text-sm text-slate-600">
-                <span className="font-medium">Category image (max {MAX_IMAGE_MB} MB)</span>
+                <span className="font-medium">Category image</span>
                 <label
                   className={cn(
                     'inline-flex w-fit cursor-pointer items-center justify-center rounded-xl border px-4 py-2 text-xs font-semibold transition',
@@ -337,7 +337,7 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                       : 'border-red-200 bg-red-100 text-red-700'
                   )}
                 >
-                  <span>{manageForm.imageUrl ? 'Replace image' : 'Upload image'}</span>
+                  <span>{manageForm.imageUrl ? 'Replace image' : `Upload image (max ${MAX_IMAGE_MB} MB)`}</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -349,7 +349,7 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                     }}
                   />
                 </label>
-                {manageForm.imageUrl ? (
+                {manageForm.imageUrl && (
                   <div className="flex flex-col gap-2">
                     <img
                       src={manageForm.imageUrl}
@@ -364,13 +364,11 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                       Remove image
                     </button>
                   </div>
-                ) : (
-                  <p className="text-xs text-muted">No category image uploaded yet.</p>
                 )}
               </div>
 
               <div className="flex flex-col gap-2 text-sm text-slate-600">
-                <span className="font-medium">Hero image (max {MAX_IMAGE_MB} MB)</span>
+                <span className="font-medium">Hero image</span>
                 <label
                   className={cn(
                     'inline-flex w-fit cursor-pointer items-center justify-center rounded-xl border px-4 py-2 text-xs font-semibold transition',
@@ -379,7 +377,7 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                       : 'border-slate-200 bg-slate-100 text-slate-600'
                   )}
                 >
-                  <span>{manageForm.heroImageUrl ? 'Replace hero image' : 'Upload hero image'}</span>
+                  <span>{manageForm.heroImageUrl ? 'Replace hero image' : `Upload hero image (max ${MAX_IMAGE_MB} MB)`}</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -391,7 +389,7 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                     }}
                   />
                 </label>
-                {manageForm.heroImageUrl ? (
+                {manageForm.heroImageUrl && (
                   <div className="flex flex-col gap-2">
                     <img
                       src={manageForm.heroImageUrl}
@@ -406,8 +404,6 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                       Remove hero image
                     </button>
                   </div>
-                ) : (
-                  <p className="text-xs text-muted">No hero image uploaded.</p>
                 )}
               </div>
             </div>
@@ -432,10 +428,7 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
       ) : (
         <div className="space-y-6">
           <div className="rounded-2xl border border-border bg-background p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-slate-900">All categories hero image</h3>
-              <span className="text-xs text-muted">max {MAX_IMAGE_MB} MB</span>
-            </div>
+            <h3 className="text-lg font-semibold text-slate-900">All categories hero image</h3>
             <div className="mt-4 flex flex-col gap-2 text-sm text-slate-600">
               <label
                 className={cn(
@@ -445,7 +438,7 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                     : 'border-slate-200 bg-slate-100 text-slate-600'
                 )}
               >
-                <span>{displayForm.allCategoriesHeroImage ? 'Replace hero image' : 'Upload hero image'}</span>
+                <span>{displayForm.allCategoriesHeroImage ? 'Replace hero image' : `Upload hero image (max ${MAX_IMAGE_MB} MB)`}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -459,7 +452,7 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                   }}
                 />
               </label>
-              {displayForm.allCategoriesHeroImage ? (
+              {displayForm.allCategoriesHeroImage && (
                 <div className="flex flex-col gap-2">
                   <img
                     src={displayForm.allCategoriesHeroImage}
@@ -476,8 +469,6 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                     Remove hero image
                   </button>
                 </div>
-              ) : (
-                <p className="text-xs text-muted">No hero image uploaded.</p>
               )}
             </div>
           </div>

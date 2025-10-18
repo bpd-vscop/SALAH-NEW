@@ -1,21 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { bannersApi } from '../api/banners';
+// banners removed
 import { categoriesApi } from '../api/categories';
 import { categoryDisplayApi } from '../api/categoryDisplay';
 import { productsApi } from '../api/products';
-import type { Banner, Category, Product } from '../types/api';
+import type { Category, Product } from '../types/api';
 import { SiteLayout } from '../components/layout/SiteLayout';
 import { formatCurrency } from '../utils/format';
 import { useCart } from '../context/CartContext';
 import { HeroSlider } from '../components/home/HeroSlider';
 import { FeaturedProducts } from '../components/home/FeaturedProducts';
+import { ManufacturerLogos } from '../components/home/ManufacturerLogos';
 import { CategoryGrid } from '../components/home/CategoryGrid';
 
 const HOMEPAGE_CATEGORY_LIMIT = 18;
 
 export const HomePage: React.FC = () => {
-  const [banners, setBanners] = useState<Banner[]>([]);
+  // const [banners, setBanners] = useState<Banner[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [featured, setFeatured] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,14 +28,11 @@ export const HomePage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const [bannerRes, categoryRes, productRes, displayRes] = await Promise.all([
-          bannersApi.list(),
+        const [categoryRes, productRes, displayRes] = await Promise.all([
           categoriesApi.list(),
           productsApi.list({ tags: ['on sale'] }),
           categoryDisplayApi.get(),
         ]);
-
-        setBanners(bannerRes.banners);
 
         const categoriesById = new Map(categoryRes.categories.map((category) => [category.id, category]));
         const selectedFromSettings = displayRes.settings.homepageCategories
@@ -62,8 +60,7 @@ export const HomePage: React.FC = () => {
     void load();
   }, []);
 
-  const slideBanner = banners.filter((banner) => banner.type === 'slide');
-  const rowBanners = banners.filter((banner) => banner.type === 'row');
+  // banners removed
 
   const categoriesLoading = loading && categories.length === 0;
 
@@ -72,12 +69,12 @@ export const HomePage: React.FC = () => {
       <HeroSlider />
       <FeaturedProducts />
 
-      <section className="mb-12 space-y-6 w-[88%] mx-auto py-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <section className="mb-12 w-[88%] mx-auto py-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
           <h2 className="text-2xl font-semibold text-slate-900">Popular Categories</h2>
           <Link
             to="/categories"
-            className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+            className="hidden sm:inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
           >
             See all categories
           </Link>
@@ -89,6 +86,14 @@ export const HomePage: React.FC = () => {
         ) : (
           <CategoryGrid categories={categories} loading={categoriesLoading} />
         )}
+        <div className="mt-6 flex justify-center sm:hidden">
+          <Link
+            to="/categories"
+            className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+          >
+            See all categories
+          </Link>
+        </div>
       </section>
 
       <section className="mb-12 space-y-6 w-[88%] mx-auto py-8">
@@ -154,48 +159,10 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {!!rowBanners.length && (
-        <section className="mb-12 w-[88%] mx-auto py-8">
-          <div className="grid gap-4 md:grid-cols-2">
-            {rowBanners.map((banner) => (
-              <img
-                key={banner.id}
-                src={banner.imageUrl}
-                alt={banner.text ?? 'Row banner'}
-                className="h-full w-full rounded-2xl object-cover"
-              />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Manufacturers logos should appear last before footer */}
+      <ManufacturerLogos />
 
-      {!!slideBanner.length && (
-        <section className="mb-12 space-y-6 w-[88%] mx-auto py-8">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold text-slate-900">Announcements</h2>
-              <p className="text-sm text-muted">Updates, events, and notices from the SALAH team.</p>
-            </div>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-3">
-            {slideBanner.map((banner) => (
-              <article
-                key={banner.id}
-                className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm"
-              >
-                <img
-                  src={banner.imageUrl}
-                  alt={banner.text ?? 'Announcement'}
-                  className="h-40 w-full object-cover"
-                />
-                {banner.text && (
-                  <p className="px-5 py-4 text-sm text-slate-700">{banner.text}</p>
-                )}
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Banners removed */}
     </SiteLayout>
   );
 };
