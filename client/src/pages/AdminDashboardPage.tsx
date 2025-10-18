@@ -413,13 +413,14 @@ export const AdminDashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (!selectedHeroSlideId) {
+      const nextOrder = heroSlides.reduce((max, s) => Math.max(max, s.order ?? 0), 0) + 1;
       setHeroSlideForm({
         title: '',
         subtitle: '',
         caption: '',
         ctaText: 'Shop Now',
         linkUrl: '',
-        order: 1,
+        order: nextOrder,
         desktopImage: '',
         mobileImage: '',
         altText: '',
@@ -445,8 +446,10 @@ export const AdminDashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (!selectedFeatureId) {
-      const count = featuredItems.filter((item) => item.variant === activeFeatureTab).length;
-      setFeatureForm({ ...emptyFeatureForm(activeFeatureTab), order: count });
+      const maxOrder = featuredItems
+        .filter((item) => item.variant === activeFeatureTab)
+        .reduce((max, it) => Math.max(max, it.order ?? 0), 0);
+      setFeatureForm({ ...emptyFeatureForm(activeFeatureTab), order: maxOrder + 1 });
       return;
     }
 
@@ -478,6 +481,16 @@ export const AdminDashboardPage: React.FC = () => {
       setSelectedFeatureId('');
     }
   }, [homepageSection]);
+
+  // When switching feature variant while creating (no selection), set next order in that variant
+  useEffect(() => {
+    if (!selectedFeatureId && homepageSection === 'featured') {
+      const maxOrder = featuredItems
+        .filter((item) => item.variant === activeFeatureTab)
+        .reduce((max, it) => Math.max(max, it.order ?? 0), 0);
+      setFeatureForm((prev) => ({ ...prev, variant: activeFeatureTab, order: maxOrder + 1 }));
+    }
+  }, [activeFeatureTab, selectedFeatureId, homepageSection, featuredItems]);
 
   const setStatus: StatusSetter = (message, errorMessage = null) => {
     setStatusMessage(message);

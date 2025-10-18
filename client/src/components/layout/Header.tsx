@@ -333,8 +333,8 @@ export const Header: React.FC = () => {
 
   const [menuSections, setMenuSections] = useState<PreparedMenuSection[]>([]);
   const [menuLinks, setMenuLinks] = useState<PreparedMenuLink[]>([]);
-  const [promoText, setPromoText] = useState('🚚 Free Shipping Over $200');
-  const [promoVisible, setPromoVisible] = useState(true);
+  const [promoText, setPromoText] = useState('');
+  const [promoVisible, setPromoVisible] = useState(false);
   const [menuLoading, setMenuLoading] = useState(false);
 
   useEffect(() => {
@@ -391,16 +391,19 @@ export const Header: React.FC = () => {
           // Use prepared links if any, otherwise empty array (no default links)
           setMenuLinks(linksToUse);
 
-          // Load promo settings
-          const promo = response.menu?.promo ?? { text: '🚚 Free Shipping Over $200', visible: true };
-          setPromoText(promo.text);
-          setPromoVisible(promo.visible);
+          // Load promo settings from API only; no placeholders
+          const promo = response.menu?.promo;
+          const nextText = (promo?.text || '').trim();
+          setPromoText(nextText);
+          setPromoVisible(Boolean(promo?.visible && nextText));
       } catch (error) {
         console.warn('Failed to load navigation menu', error);
         if (active) {
-          // On error, use default "Browse products" section
+          // On error, use default "Browse products" section; hide promo
           setMenuSections(DEFAULT_MENU_SECTIONS);
           setMenuLinks([]);
+          setPromoText('');
+          setPromoVisible(false);
         }
       } finally {
         if (active) {
@@ -420,6 +423,7 @@ export const Header: React.FC = () => {
   const [openMobileCategory, setOpenMobileCategory] = useState<string | null>(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [mobileAccountMenuOpen, setMobileAccountMenuOpen] = useState(false);
   const [vehicleSearchOpen, setVehicleSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [vehicleYear, setVehicleYear] = useState('');
@@ -433,6 +437,7 @@ export const Header: React.FC = () => {
 
   const headerRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileAccountMenuRef = useRef<HTMLDivElement>(null);
   const vehicleSearchRef = useRef<HTMLDivElement>(null);
   const desktopSearchRef = useRef<HTMLDivElement>(null);
   const mobileSearchRef = useRef<HTMLDivElement>(null);
@@ -456,6 +461,9 @@ export const Header: React.FC = () => {
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
         closeMobileMenu();
       }
+      if (mobileAccountMenuRef.current && !mobileAccountMenuRef.current.contains(target)) {
+        setMobileAccountMenuOpen(false);
+      }
       if (vehicleSearchRef.current && !vehicleSearchRef.current.contains(target)) {
         setVehicleSearchOpen(false);
       }
@@ -476,10 +484,11 @@ export const Header: React.FC = () => {
         closeMobileMenu();
         setMobileSearchOpen(false);
         setAccountMenuOpen(false);
+        setMobileAccountMenuOpen(false);
         setVehicleSearchOpen(false);
       }
     };
-    if (openMegaMenu || mobileMenuOpen || mobileSearchOpen || accountMenuOpen || vehicleSearchOpen) {
+    if (openMegaMenu || mobileMenuOpen || mobileSearchOpen || accountMenuOpen || mobileAccountMenuOpen || vehicleSearchOpen) {
       document.addEventListener('mousedown', handleClick);
       document.addEventListener('keydown', handleKey);
       return () => {
@@ -488,14 +497,14 @@ export const Header: React.FC = () => {
       };
     }
     return undefined;
-  }, [openMegaMenu, mobileMenuOpen, mobileSearchOpen, accountMenuOpen, vehicleSearchOpen]);
+  }, [openMegaMenu, mobileMenuOpen, mobileSearchOpen, accountMenuOpen, mobileAccountMenuOpen, vehicleSearchOpen]);
 
   const toggleMegaMenu = (id: string) => {
     setOpenMegaMenu((current) => (current === id ? null : id));
   };
 
   return (
-    <header className="sticky top-0 z-50">
+    <header className="sticky top-0 z-40">
       <PromoBanner text={promoText} visible={promoVisible} />
       <div className="relative border-b border-[#d76c28] bg-gradient-to-r from-[#f6b210] via-[#dc4f0c] to-[#a00b0b] text-white shadow-md" ref={headerRef}>
         <div className="flex w-full items-center justify-between gap-4 px-4 py-2 sm:px-6">
@@ -787,15 +796,105 @@ export const Header: React.FC = () => {
       </AnimatePresence>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm xl:hidden" style={{ animation: mobileMenuClosing ? 'fadeOut 300ms ease-out' : 'fadeIn 300ms ease-out' }}>
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-md xl:hidden" style={{ animation: mobileMenuClosing ? 'fadeOut 300ms ease-out' : 'fadeIn 300ms ease-out' }}>
           <aside
             ref={mobileMenuRef}
             className="flex h-full w-full max-w-xs flex-col bg-white shadow-2xl"
             style={{ animation: mobileMenuClosing ? 'slideOutToLeft 300ms ease-out' : 'slideInFromLeft 300ms ease-out' }}
           >
-            <div className="flex items-center justify-start border-b border-slate-200 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
               <div className="flex items-center gap-2">
                 <img src="/logo.webp" alt="ULK Supply logo" className="h-14 w-auto" />
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative" ref={mobileAccountMenuRef}>
+                  <button
+                    type="button"
+                    className="rounded-full p-2 text-slate-700 transition hover:bg-slate-100"
+                    onClick={() => setMobileAccountMenuOpen((state) => !state)}
+                    aria-label="Account"
+                  >
+                    <User className="h-5 w-5" />
+                  </button>
+                  <div
+                    className={cn(
+                      'absolute right-0 top-full mt-2 w-48 rounded-xl border border-slate-100 bg-white p-3 text-sm text-slate-700 shadow-lg z-50',
+                      mobileAccountMenuOpen ? 'block' : 'hidden'
+                    )}
+                  >
+                    {user ? (
+                      <>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Signed in</p>
+                        <p className="mb-3 text-sm font-medium text-slate-800">{user.name}</p>
+                        <div className="space-y-2">
+                          <Link
+                            to={user.role === 'client' ? '/account' : '/admin'}
+                            className="block rounded-lg px-3 py-2 transition hover:bg-slate-100"
+                            onClick={() => {
+                              setMobileAccountMenuOpen(false);
+                              closeMobileMenu();
+                            }}
+                          >
+                            {user.role === 'client' ? 'Account dashboard' : 'Admin area'}
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMobileAccountMenuOpen(false);
+                              closeMobileMenu();
+                              void logout();
+                            }}
+                            className="w-full rounded-lg px-3 py-2 text-left transition hover:bg-slate-100"
+                          >
+                            Sign out
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="space-y-2">
+                        <Link
+                          to="/login"
+                          className="block rounded-lg px-3 py-2 transition hover:bg-slate-100"
+                          onClick={() => {
+                            setMobileAccountMenuOpen(false);
+                            closeMobileMenu();
+                          }}
+                        >
+                          Sign in
+                        </Link>
+                        <Link
+                          to="/register"
+                          className="block rounded-lg px-3 py-2 transition hover:bg-slate-100"
+                          onClick={() => {
+                            setMobileAccountMenuOpen(false);
+                            closeMobileMenu();
+                          }}
+                        >
+                          Create account
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Link
+                  to="/cart"
+                  className="relative rounded-full p-2 text-slate-700 transition hover:bg-slate-100"
+                  onClick={closeMobileMenu}
+                  aria-label="View cart"
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                    {cartCount}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={closeMobileMenu}
+                  className="rounded-full p-2 text-slate-700 transition hover:bg-slate-100"
+                  aria-label="Close menu"
+                >
+                  <X className="h-6 w-6" />
+                </button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -893,43 +992,55 @@ export const Header: React.FC = () => {
               </div>
             </div>
             <div className="border-t border-slate-200 px-4 py-4">
-              {/* Social Media Icons */}
-              <div className="mb-4 flex justify-center gap-4">
-                {socialLinks.map(({ label, href, Icon }) => (
+              <div className="grid grid-cols-2 gap-3">
+                {/* Left Column: Social, Phone, Location - 1/2 */}
+                <div className="col-span-1 flex flex-col gap-2">
+                  {/* Social Media Icons */}
+                  <div className="flex gap-2">
+                    {socialLinks.map(({ label, href, Icon }) => (
+                      <a
+                        key={label}
+                        href={href}
+                        aria-label={label}
+                        className="text-slate-600 transition-transform hover:scale-110 hover:text-red-600"
+                      >
+                        <Icon className="h-4 w-4" />
+                      </a>
+                    ))}
+                  </div>
+
+                  {/* Phone */}
                   <a
-                    key={label}
-                    href={href}
-                    aria-label={label}
-                    className="text-slate-600 transition-transform hover:scale-110 hover:text-red-600"
+                    href="tel:+14074496740"
+                    className="flex items-start gap-1.5 text-xs text-slate-600 transition hover:text-red-600"
                   >
-                    <Icon className="h-5 w-5" />
+                    <Phone className="h-3.5 w-3.5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <span>+1 (407) 449-6740</span>
                   </a>
-                ))}
-              </div>
 
-              {/* Phone and Location */}
-              <div className="mb-4 space-y-2 text-center text-xs text-slate-600">
-                <div className="flex items-center justify-center gap-2">
-                  <Phone className="h-4 w-4 text-red-600" />
-                  <span>+1 (407) 449-6740</span>
+                  {/* Location */}
+                  <a
+                    href="https://www.google.com/maps/place/ULK+Supply+LLC/@28.303457,-81.418344,14z"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-1.5 text-xs text-slate-600 transition hover:text-red-600"
+                  >
+                    <MapPin className="h-3.5 w-3.5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <span>1508 W Vine St, Kissimmee, FL</span>
+                  </a>
                 </div>
-                <div className="flex items-center justify-center gap-2">
-                  <MapPin className="h-4 w-4 text-red-600" />
-                  <span>1508 W Vine St, Kissimmee, FL</span>
-                </div>
-              </div>
 
-              {/* Location Map Card */}
-              <div className="relative h-48 w-full overflow-hidden rounded-xl border border-slate-200 bg-black/10">
-                <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d14051.322168483486!2d-81.418344!3d28.303457!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x88dd851677b224a3%3A0x1d2529c0a54763e4!2sULK%20Supply%20LLC!5e0!3m2!1sen!2sus!4v1748259865220!5m2!1sen!2sus&disableDefaultUI=true&gestureHandling=cooperative&zoomControl=false&mapTypeControl=false&streetViewControl=false&fullscreenControl=false"
-                  title="ULK Supply Location"
-                  loading="lazy"
-                  allowFullScreen
-                  referrerPolicy="no-referrer-when-downgrade"
-                  className="h-full w-full opacity-90"
-                />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                {/* Right Column: Map - 1/2 */}
+                <div className="col-span-1 relative h-24 w-full overflow-hidden rounded-lg border border-slate-200 bg-black/10">
+                  <iframe
+                    src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d14051.322168483486!2d-81.418344!3d28.303457!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x88dd851677b224a3%3A0x1d2529c0a54763e4!2sULK%20Supply%20LLC!5e0!3m2!1sen!2sus!4v1748259865220!5m2!1sen!2sus&disableDefaultUI=true&gestureHandling=cooperative&zoomControl=false&mapTypeControl=false&streetViewControl=false&fullscreenControl=false&iwloc=near"
+                    title="ULK Supply Location"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    className="h-full w-full opacity-90 pointer-events-none"
+                  />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                </div>
               </div>
             </div>
           </aside>
