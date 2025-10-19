@@ -101,7 +101,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
           </button>
 
           {/* Logo - clickable on both mobile and desktop */}
-          <a href="/" className="flex items-center">
+          <a href="/" className="flex items-center flex-shrink-0">
             <img src="/logo.webp" alt="ULKs Logo" className="h-8 w-auto" />
           </a>
 
@@ -126,6 +126,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
             </svg>
             Store
           </a>
+
+          {/* Tablet: Page Title */}
+          <div className="admin-tablet-only flex-1 items-center justify-center">
+            <span className="text-sm font-semibold text-slate-900">
+              {navItems.find(item => item.id === activeNavId)?.label || ''}
+            </span>
+          </div>
 
           {/* Desktop: Divider */}
           <div className="admin-desktop-block h-8 w-px bg-slate-200/70" />
@@ -481,7 +488,18 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
                   <button
                     key={item.id}
                     onClick={() => {
-                      handleNavSelect(item.id);
+                      if (hasDropdown) {
+                        // Open sidebar and auto-expand this dropdown
+                        setSidebarOpen(true);
+                        setTimeout(() => {
+                          const button = document.querySelector(`[data-dropdown-id="${item.id}"]`) as HTMLButtonElement;
+                          if (button) {
+                            button.click();
+                          }
+                        }, 400);
+                      } else {
+                        handleNavSelect(item.id);
+                      }
                     }}
                     className={cn(
                       'relative flex h-12 w-12 items-center justify-center rounded-xl transition',
