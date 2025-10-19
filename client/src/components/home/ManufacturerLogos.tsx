@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { manufacturersApi, type Manufacturer } from '../../api/manufacturers';
 
-const ITEM_TOTAL_WIDTH = 185; // px, approximate (image width + smaller gap)
-
 export function ManufacturerLogos() {
   const [items, setItems] = useState<Manufacturer[]>([]);
   const [paused, setPaused] = useState(false);
@@ -12,10 +10,9 @@ export function ManufacturerLogos() {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
-  const [itemOpacities, setItemOpacities] = useState<number[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
-  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const [hasOverflow, setHasOverflow] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -63,12 +60,14 @@ export function ManufacturerLogos() {
   useEffect(() => {
     const recalc = () => {
       const container = containerRef.current;
-      if (!container) return;
-      const containerWidth = container.clientWidth;
-      const width = items.length * ITEM_TOTAL_WIDTH;
-      const enable = width > containerWidth + 40; // small buffer
+      const track = trackRef.current;
+      if (!container || !track) return;
+      const enable = track.scrollWidth > container.clientWidth + 40; // small buffer
       setShouldSlide(enable);
-      setSlideWidth(width);
+      setHasOverflow(enable);
+      // When sliding with duplicated items, translate by one set width only.
+      const firstSetWidth = enable ? Math.floor(track.scrollWidth / 2) : 0;
+      setSlideWidth(firstSetWidth);
     };
     recalc();
     window.addEventListener('resize', recalc);
@@ -77,65 +76,7 @@ export function ManufacturerLogos() {
 
   const trackItems = useMemo(() => (shouldSlide ? [...items, ...items] : items), [items, shouldSlide]);
 
-  // Calculate opacity based on distance from edges
-  const calculateOpacities = () => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const fadeDistance = 100; // pixels from edge where fade starts
-
-    const opacities = itemRefs.current.map((item) => {
-      if (!item) return 0.6;
-
-      const itemRect = item.getBoundingClientRect();
-      const itemCenter = itemRect.left + itemRect.width / 2;
-      const containerLeft = containerRect.left;
-      const containerRight = containerRect.right;
-
-      // Calculate distance from left edge
-      const distFromLeft = itemCenter - containerLeft;
-      // Calculate distance from right edge
-      const distFromRight = containerRight - itemCenter;
-
-      // Get minimum distance from either edge
-      const minDist = Math.min(distFromLeft, distFromRight);
-
-      // Calculate opacity: 0 at edge, 1 at fadeDistance or more
-      let opacity = 0.6;
-      if (minDist < 0) {
-        opacity = 0;
-      } else if (minDist < fadeDistance) {
-        opacity = 0.6 * (minDist / fadeDistance);
-      }
-
-      return opacity;
-    });
-
-    setItemOpacities(opacities);
-  };
-
-  // Update opacities on scroll or animation
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    calculateOpacities();
-
-    const handleScroll = () => {
-      calculateOpacities();
-    };
-
-    container.addEventListener('scroll', handleScroll);
-
-    // Update opacities periodically during auto-scroll
-    const interval = setInterval(calculateOpacities, 50);
-
-    return () => {
-      container.removeEventListener('scroll', handleScroll);
-      clearInterval(interval);
-    };
-  }, [trackItems.length]);
+  // No per-item opacity — fades handled by gradient overlays
 
   // Drag handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -211,52 +152,54 @@ export function ManufacturerLogos() {
       </div>
 
       {/* No background, borders or shadow; images only */}
-      <div
-        ref={containerRef}
-        className="relative overflow-x-auto overflow-y-hidden select-none scrollbar-hide"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
-        onWheel={handleWheel}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        style={{
-          cursor: isDragging ? 'grabbing' : 'grab',
-          userSelect: 'none',
-          WebkitOverflowScrolling: 'touch'
-        }}
-      >
+      <div className="relative">
+        {hasOverflow && (
+          <>
+            <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-24 bg-gradient-to-r from-[#fafafa] to-transparent" />
+            <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-24 bg-gradient-to-l from-[#fafafa] to-transparent" />
+          </>
+        )}
         <div
-          ref={trackRef}
-          className={`flex items-center ${shouldSlide ? 'manu-slide' : ''} ${paused ? 'paused' : ''}`}
-          style={{ width: shouldSlide ? `${trackItems.length * ITEM_TOTAL_WIDTH}px` : 'auto' }}
+          ref={containerRef}
+          className="overflow-x-auto overflow-y-hidden select-none scrollbar-hide"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          onWheel={handleWheel}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{
+            cursor: isDragging ? 'grabbing' : 'grab',
+            userSelect: 'none',
+            WebkitOverflowScrolling: 'touch'
+          }}
         >
-          {trackItems.map((m, idx) => {
-            const baseOpacity = itemOpacities[idx] ?? 0.6;
-
-            return (
-              <Link
-                key={`${m.slug}-${idx}`}
-                ref={(el) => { itemRefs.current[idx] = el; }}
-                to={`/manufacturers/${m.slug}`}
-                className="group mx-1 sm:mx-2 flex h-16 w-44 flex-shrink-0 items-center justify-center"
-                aria-label={`View ${m.name}`}
-                onDragStart={(e) => e.preventDefault()}
-                onMouseEnter={() => setPaused(true)}
-                onMouseLeave={() => !isDragging && setPaused(false)}
-              >
-                <img
-                  src={m.logoImage}
-                  alt={`${m.name} logo`}
-                  className="h-12 w-full object-contain transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
-                  style={{ opacity: baseOpacity }}
-                  draggable={false}
-                />
-              </Link>
-            );
-          })}
+          <div
+            ref={trackRef}
+            className={`flex items-center ${shouldSlide ? 'manu-slide' : ''} ${paused ? 'paused' : ''}`}
+            style={{ width: 'max-content' }}
+          >
+          {trackItems.map((m, idx) => (
+            <Link
+              key={`${m.slug}-${idx}`}
+              to={`/manufacturers/${m.slug}`}
+              className="group mx-1 sm:mx-2 flex h-16 flex-shrink-0 items-center justify-center px-4"
+              aria-label={`View ${m.name}`}
+              onDragStart={(e) => e.preventDefault()}
+              onMouseEnter={() => setPaused(true)}
+              onMouseLeave={() => !isDragging && setPaused(false)}
+            >
+              <img
+                src={m.logoImage}
+                alt={`${m.name} logo`}
+                className="h-12 w-auto max-w-none object-contain transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+                draggable={false}
+              />
+            </Link>
+          ))}
+          </div>
         </div>
       </div>
 

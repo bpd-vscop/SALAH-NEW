@@ -29,6 +29,9 @@ const config: Config = {
       maxWidth: {
         content: '1200px',
       },
+      screens: {
+        'admin': '1200px', // Custom breakpoint for admin layout
+      },
     },
   },
   plugins: [],

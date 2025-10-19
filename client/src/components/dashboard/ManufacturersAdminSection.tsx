@@ -194,7 +194,7 @@ export const ManufacturersAdminSection: React.FC<ManufacturersAdminSectionProps>
                   form.logoImage ? 'border-emerald-200 bg-emerald-100 text-emerald-700' : 'border-red-200 bg-red-100 text-red-700'
                 )}
               >
-                <span>{form.logoImage ? `Replace logo (AR 4:2 · max ${MAX_IMAGE_MB} MB)` : `Upload logo (AR 4:2 · max ${MAX_IMAGE_MB} MB)`}</span>
+                <span>{form.logoImage ? `Replace logo (max ${MAX_IMAGE_MB} MB)` : `Upload logo (max ${MAX_IMAGE_MB} MB)`}</span>
                 <input
                   type="file"
                   accept="image/*"

@@ -129,8 +129,8 @@ export const Footer: FC = () => {
               {/* Mobile: two-column layout for phones and emails */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 lg:hidden">
                 <div>
-                  <p className="flex items-start gap-2">
-                    <PhoneIcon className="h-4 w-4 text-[#ff6f61] flex-shrink-0" />
+                  <p className="flex flex-col items-center gap-1 text-center">
+                    <PhoneIcon className="hidden lg:block h-4 w-4 text-[#ff6f61] flex-shrink-0" />
                     <span className="flex flex-col">
                       {contactPhones.map((phone) => (
                         <a key={phone} href={`tel:${phone.replace(/[^+\d]/g, '')}`} className="hover:text-white">
@@ -141,8 +141,8 @@ export const Footer: FC = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="flex items-start gap-2">
-                    <MailIcon className="h-4 w-4 text-[#ff6f61] flex-shrink-0" />
+                  <p className="flex flex-col items-center gap-1 text-center">
+                    <MailIcon className="hidden lg:block h-4 w-4 text-[#ff6f61] flex-shrink-0" />
                     <span className="flex flex-col">
                       {contactEmails.map((email) => (
                         <a key={email} href={`mailto:${email}`} className="hover:text-white">
@@ -257,7 +257,7 @@ export const Footer: FC = () => {
       <button
         type="button"
         onClick={handleBackToTop}
-        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-red-700 text-white shadow-lg transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-transparent"
+        className="fixed bottom-6 right-6 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-red-700 text-white shadow-lg transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-transparent"
         aria-label="Back to top"
       >
         <svg

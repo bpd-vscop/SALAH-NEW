@@ -796,7 +796,7 @@ export const Header: React.FC = () => {
       </AnimatePresence>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-md xl:hidden" style={{ animation: mobileMenuClosing ? 'fadeOut 300ms ease-out' : 'fadeIn 300ms ease-out' }}>
+        <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-md xl:hidden" style={{ animation: mobileMenuClosing ? 'fadeOut 300ms ease-out' : 'fadeIn 300ms ease-out' }}>
           <aside
             ref={mobileMenuRef}
             className="flex h-full w-full max-w-xs flex-col bg-white shadow-2xl"
