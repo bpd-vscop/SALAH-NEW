@@ -3,7 +3,7 @@ import { AdminLayout } from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../api/users';
 import { useNavigate } from 'react-router-dom';
-import { adminTabs, getMenuIcon, homepageTabs } from '../utils/adminSidebar';
+import { adminTabs, getMenuIcon, homepageTabs, navigationTabs } from '../utils/adminSidebar';
 import { AdminTopNav } from '../components/dashboard/AdminTopNav';
 
 export const UserSettingsPage: React.FC = () => {
@@ -100,9 +100,41 @@ export const UserSettingsPage: React.FC = () => {
             label: tab.label,
             icon: getMenuIcon(tab.id),
             dropdown: {
-              items: homepageTabs.map((child) => ({ id: child.id, label: child.label })),
+              items: homepageTabs.map((child, index) => ({
+                id: child.id,
+                label: child.label,
+                separatorAfter: index < homepageTabs.length - 1,
+              })),
               activeId: homepageNavSelection,
               groupLabel: 'Homepage',
+            },
+          };
+        }
+        if (tab.id === 'categories') {
+          return {
+            id: tab.id,
+            label: tab.label,
+            icon: getMenuIcon(tab.id),
+            dropdown: {
+              items: [
+                { id: 'manage-categories', label: 'Categories', separatorAfter: true },
+                { id: 'manage-manufacturers', label: 'Manufacturers' },
+              ],
+            },
+          };
+        }
+        if (tab.id === 'navigation') {
+          return {
+            id: tab.id,
+            label: tab.label,
+            icon: getMenuIcon(tab.id),
+            dropdown: {
+              items: navigationTabs.map((child, index) => ({
+                id: child.id,
+                label: child.label,
+                separatorAfter: index === 0,
+              })),
+              groupLabel: 'Menu',
             },
           };
         }
