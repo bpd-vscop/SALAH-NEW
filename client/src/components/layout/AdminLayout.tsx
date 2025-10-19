@@ -130,7 +130,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
           {/* Tablet: Page Title */}
           <div className="admin-tablet-only flex-1 items-center justify-center">
             <span className="text-sm font-semibold text-slate-900">
-              {navItems.find(item => item.id === activeNavId)?.label || ''}
+              {(() => {
+                const activeItem = navItems.find(item => item.id === activeNavId);
+                if (!activeItem) return '';
+                const dropdownSelection = activeItem.dropdown?.items.find(
+                  (option) => option.id === activeItem.dropdown?.activeId
+                );
+                return activeItem.activeLabel ?? dropdownSelection?.label ?? activeItem.label;
+              })()}
             </span>
           </div>
 
