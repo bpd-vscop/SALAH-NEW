@@ -1,5 +1,6 @@
 export type UserRole = 'super_admin' | 'admin' | 'staff' | 'client';
 export type UserStatus = 'active' | 'inactive';
+export type ClientType = 'B2B' | 'C2B';
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
 export type ProductTag = 'in stock' | 'out of stock' | 'on sale' | 'available to order';
 
@@ -8,13 +9,27 @@ export interface CartItem {
   quantity: number;
 }
 
+export interface CompanyInfo {
+  name: string | null;
+  address: string | null;
+  phone: string | null;
+  businessType?: string | null;
+  taxId?: string | null;
+  website?: string | null;
+}
+
 export interface User {
   id: string;
   name: string;
   username: string;
   role: UserRole;
   status: UserStatus;
+  email?: string | null;
+  clientType?: ClientType | null;
+  company?: CompanyInfo | null;
   verificationFileUrl?: string | null;
+  profileImage?: string | null;
+  isEmailVerified?: boolean;
   cart: CartItem[];
   orderHistory: string[];
   accountCreated?: string | null;

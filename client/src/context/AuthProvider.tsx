@@ -36,6 +36,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         setUser(loggedInUser);
         return loggedInUser;
+      } catch (error: any) {
+        // If login fails due to unverified email, the error will contain verification data
+        // Re-throw the error so LoginPage can handle the redirect to /verify-email
+        throw error;
       } finally {
         setLoading(false);
       }
@@ -44,10 +48,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const register = useCallback<AuthContextValue['register']>(
-    async ({ name, username, password, guestCart }) => {
+    async ({ name, email, password, username, guestCart }) => {
       setLoading(true);
       try {
-        const { user: registeredUser } = await authApi.register({ name, username, password, guestCart });
+        const { user: registeredUser } = await authApi.register({ name, email, password, username, guestCart });
         if (!registeredUser) {
           throw new Error('Registration failed');
         }
@@ -65,6 +69,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await authApi.logout();
       setUser(null);
+      const currentPath = window.location.pathname;
+      const protectedRoots = ['/account', '/checkout', '/admin'];
+      if (protectedRoots.some((root) => currentPath.startsWith(root))) {
+        window.location.assign('/');
+      }
     } finally {
       setLoading(false);
     }

@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   allowRoles,
-  redirectTo = '/login',
+  redirectTo = '/',
 }) => {
   const { user, initializing } = useAuth();
   const location = useLocation();
@@ -24,6 +24,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   if (!user) {
     return <Navigate to={redirectTo} replace state={{ from: location }} />;
+  }
+
+  const requiresVerification =
+    user.role === 'client' && user.isEmailVerified === false;
+  if (requiresVerification && location.pathname !== '/verify-email') {
+    return <Navigate to="/verify-email" replace state={{ from: location }} />;
   }
 
   if (allowRoles && !allowRoles.includes(user.role)) {

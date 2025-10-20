@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, type ChangeEvent, type FormEvent } from 'react';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../api/users';
@@ -6,8 +6,16 @@ import { useNavigate } from 'react-router-dom';
 import { adminTabs, getMenuIcon, homepageTabs, navigationTabs } from '../utils/adminSidebar';
 import { AdminTopNav } from '../components/dashboard/AdminTopNav';
 
+const resolveProfileImage = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+  return `/uploads/${value}`;
+};
+
 export const UserSettingsPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -15,22 +23,84 @@ export const UserSettingsPage: React.FC = () => {
   const [homepageNavSelection, setHomepageNavSelection] = useState<'hero' | 'featured'>('hero');
 
   const [formData, setFormData] = useState({
-    name: '',
+    fullName: '',
+    email: '',
     username: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
+  const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+  const [initialProfileImage, setInitialProfileImage] = useState<string | null>(null);
+  const [removeProfileImage, setRemoveProfileImage] = useState(false);
+  const [previewObjectUrl, setPreviewObjectUrl] = useState<string | null>(null);
+  const displayInitial = useMemo(() => {
+    const source = (formData.fullName || user?.name || 'U').trim();
+    return (source.charAt(0) || 'U').toUpperCase();
+  }, [formData.fullName, user?.name]);
 
   useEffect(() => {
-    if (user) {
-      setFormData((prev) => ({
-        ...prev,
-        name: user.name || '',
-        username: user.username || '',
-      }));
+    if (!user) {
+      return;
     }
+    setFormData((prev) => ({
+      ...prev,
+      fullName: user.name || '',
+      email: user.email || '',
+      username: user.username || '',
+    }));
+    const resolved = resolveProfileImage(user.profileImage ?? null);
+    setInitialProfileImage(resolved);
+    setProfileImagePreview(resolved);
+    setRemoveProfileImage(false);
+    setProfileImageFile(null);
+    setPreviewObjectUrl(null);
   }, [user]);
+
+  useEffect(
+    () => () => {
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+      }
+    },
+    [previewObjectUrl]
+  );
+
+  const handleProfileImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setProfileImageFile(file);
+    setProfileImagePreview(previewUrl);
+    setPreviewObjectUrl(previewUrl);
+    setRemoveProfileImage(false);
+  };
+
+  const handleRemoveProfileImage = () => {
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+      setPreviewObjectUrl(null);
+    }
+    setProfileImageFile(null);
+    setProfileImagePreview(null);
+    setRemoveProfileImage(true);
+  };
+
+  const handleUndoRemoveProfileImage = () => {
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+      setPreviewObjectUrl(null);
+    }
+    setProfileImageFile(null);
+    setProfileImagePreview(initialProfileImage);
+    setRemoveProfileImage(false);
+  };
 
   const handleProfileUpdate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -41,11 +111,23 @@ export const UserSettingsPage: React.FC = () => {
     setError(null);
 
     try {
-      await usersApi.update(user.id, {
-        name: formData.name,
-        username: formData.username,
-      });
+      const payload = new FormData();
+      payload.append('fullName', formData.fullName.trim());
+      payload.append('username', formData.username.trim());
+      payload.append('email', formData.email.trim());
+      if (profileImageFile) {
+        payload.append('profileImage', profileImageFile);
+      } else if (removeProfileImage) {
+        payload.append('removeProfileImage', 'true');
+      }
+
+      await usersApi.update(user.id, payload);
+      await refresh();
+
       setStatusMessage('Profile updated successfully');
+      setRemoveProfileImage(false);
+      setProfileImageFile(null);
+      setPreviewObjectUrl(null);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Failed to update profile');
@@ -177,14 +259,84 @@ export const UserSettingsPage: React.FC = () => {
 
         {/* Profile Information */}
         <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-          <form onSubmit={handleProfileUpdate} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+          <form onSubmit={handleProfileUpdate} className="space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-4">
+                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-border bg-slate-100 text-xl font-semibold text-slate-500">
+                  {profileImagePreview ? (
+                    <img src={profileImagePreview} alt="Profile" className="h-full w-full object-cover" />
+                  ) : (
+                    <span>{displayInitial}</span>
+                  )}
+                </div>
+                <div className="space-y-2 text-sm text-slate-600">
+                  <p className="font-semibold text-slate-900">Profile photo</p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-border bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary">
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="sr-only"
+                        onChange={handleProfileImageChange}
+                      />
+                      Upload new
+                    </label>
+                    {!removeProfileImage && (profileImagePreview || initialProfileImage) && !profileImageFile && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveProfileImage}
+                        className="text-sm font-semibold text-red-600 transition hover:text-red-700"
+                      >
+                        Remove photo
+                      </button>
+                    )}
+                    {profileImageFile && (
+                      <button
+                        type="button"
+                        onClick={handleUndoRemoveProfileImage}
+                        className="text-sm font-semibold text-slate-600 transition hover:text-slate-900"
+                      >
+                        Cancel upload
+                      </button>
+                    )}
+                    {removeProfileImage && initialProfileImage && (
+                      <button
+                        type="button"
+                        onClick={handleUndoRemoveProfileImage}
+                        className="text-sm font-semibold text-slate-600 transition hover:text-slate-900"
+                      >
+                        Undo remove
+                      </button>
+                    )}
+                  </div>
+                  {profileImageFile && (
+                    <p className="text-xs text-slate-500">Selected file: {profileImageFile.name}</p>
+                  )}
+                  {removeProfileImage && (
+                    <p className="text-xs text-amber-600">Profile photo will be removed after saving.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
                 Full Name
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                  value={formData.fullName}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, fullName: e.target.value }))}
+                  required
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Email
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                   required
                   className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />

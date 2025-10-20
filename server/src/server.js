@@ -2,6 +2,7 @@
 
 const http = require('http');
 const app = require('./app');
+const { startCleanupService } = require('./services/cleanupService');
 
 const port = Number(process.env.PORT || 5000);
 
@@ -11,6 +12,9 @@ const server = http.createServer(app);
 
 server.listen(port, () => {
   console.log(`Server listening on port ${port}`);
+
+  // Start the cleanup service for unverified accounts
+  startCleanupService(24); // Run every 24 hours
 });
 
 const shutdown = (signal) => {

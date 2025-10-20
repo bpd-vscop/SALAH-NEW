@@ -13,6 +13,7 @@ const menuRoutes = require('./menu');
 const manufacturerRoutes = require('./manufacturers');
 const categoryDisplayRoutes = require('./categoryDisplay');
 const manufacturerDisplayRoutes = require('./manufacturerDisplay');
+const clientRoutes = require('./clients');
 
 module.exports = () => {
   const router = express.Router();
@@ -31,6 +32,7 @@ module.exports = () => {
   router.use('/manufacturers', manufacturerRoutes);
   router.use('/category-display', categoryDisplayRoutes);
   router.use('/manufacturer-display', manufacturerDisplayRoutes);
+  router.use('/clients', clientRoutes);
 
   return router;
 };

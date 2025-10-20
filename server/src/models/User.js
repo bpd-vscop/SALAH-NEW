@@ -16,6 +16,21 @@ const cartItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const companyInfoSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      trim: true,
+    },
+    address: { type: String, trim: true },
+    phone: { type: String, trim: true },
+    businessType: { type: String, trim: true },
+    taxId: { type: String, trim: true },
+    website: { type: String, trim: true },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -23,13 +38,21 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      unique: true,
+      sparse: true,
+    },
     username: {
       type: String,
       required: true,
       unique: true,
       trim: true,
       lowercase: true,
-      match: /^[a-z0-9._-]{3,30}$/,
+      minlength: 3,
+      maxlength: 30,
     },
     passwordHash: {
       type: String,
@@ -40,6 +63,10 @@ const userSchema = new mongoose.Schema(
       enum: ['super_admin', 'admin', 'staff', 'client'],
       default: 'client',
     },
+    clientType: {
+      type: String,
+      enum: ['B2B', 'C2B'],
+    },
     status: {
       type: String,
       enum: ['active', 'inactive'],
@@ -48,6 +75,18 @@ const userSchema = new mongoose.Schema(
     verificationFileUrl: {
       type: String,
       default: null,
+    },
+    profileImage: {
+      type: String,
+      default: null,
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    company: {
+      type: companyInfoSchema,
+      default: undefined,
     },
     cart: {
       type: [cartItemSchema],
@@ -80,6 +119,21 @@ const userSchema = new mongoose.Schema(
         delete ret._id;
         delete ret.passwordHash;
         delete ret.__v;
+        ret.email = ret.email || null;
+        ret.clientType = ret.clientType || null;
+        ret.profileImage = ret.profileImage || null;
+        ret.isEmailVerified =
+          typeof ret.isEmailVerified === 'boolean' ? ret.isEmailVerified : true;
+        ret.company = ret.company
+          ? {
+              name: ret.company.name || null,
+              address: ret.company.address || null,
+              phone: ret.company.phone || null,
+              businessType: ret.company.businessType || null,
+              taxId: ret.company.taxId || null,
+              website: ret.company.website || null,
+            }
+          : null;
         return ret;
       },
     },

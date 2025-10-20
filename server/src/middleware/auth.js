@@ -42,6 +42,11 @@ const attachCurrentUser = async (req, _res, next) => {
     }
 
     req.user = user;
+    if (user.role === 'client' && user.isEmailVerified === false) {
+      req.requiresEmailVerification = true;
+    } else {
+      req.requiresEmailVerification = false;
+    }
     return next();
   } catch (error) {
     next(error);

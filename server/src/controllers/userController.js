@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const { validateCreateUser, validateUpdateUser } = require('../validators/user');
+const { validateAdminProfile } = require('../validators/adminProfile');
 const { hashPassword } = require('../utils/password');
 const { badRequest, notFound, forbidden } = require('../utils/appError');
 const { canView, canEdit, rank } = require('../utils/roles');
@@ -23,6 +24,13 @@ const createUser = async (req, res, next) => {
       throw badRequest('Username already in use', [{ field: 'username' }]);
     }
 
+    if (data.email) {
+      const existingEmail = await User.findOne({ email: data.email.toLowerCase() });
+      if (existingEmail) {
+        throw badRequest('Email already in use', [{ field: 'email' }]);
+      }
+    }
+
     // Only allow creating users with a role strictly below the creator's role
     if (req.user && !canEdit(req.user.role, data.role)) {
       throw forbidden('Insufficient privileges to create a user with this role');
@@ -33,9 +41,11 @@ const createUser = async (req, res, next) => {
     const user = await User.create({
       name: data.name,
       username: data.username,
+      email: data.email?.toLowerCase(),
       role: data.role,
       status: data.status,
       passwordHash,
+      isEmailVerified: true,
     });
 
     res.status(201).json({ user: user.toJSON() });
@@ -47,7 +57,14 @@ const createUser = async (req, res, next) => {
 const updateUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const data = validateUpdateUser(req.body || {});
+    const payload = { ...(req.body || {}) };
+
+    if (req.file) {
+      payload.profileImage = `profile/${req.file.filename}`;
+      payload.removeProfileImage = false;
+    }
+
+    const data = validateUpdateUser(payload);
 
     const user = await User.findById(id);
     if (!user) {
@@ -60,6 +77,20 @@ const updateUser = async (req, res, next) => {
       throw forbidden('You cannot edit a user with higher or equal role');
     }
 
+    if (isSelf && ['admin', 'super_admin'].includes(user.role)) {
+      const profileImageValue = Object.prototype.hasOwnProperty.call(data, 'profileImage')
+        ? data.profileImage
+        : data.removeProfileImage
+        ? null
+        : user.profileImage ?? null;
+
+      validateAdminProfile({
+        fullName: data.fullName ?? data.name ?? user.name,
+        email: data.email ?? user.email,
+        profileImage: profileImageValue,
+      });
+    }
+
     if (data.username && data.username !== user.username) {
       const existing = await User.findOne({ username: data.username });
       if (existing) {
@@ -68,9 +99,23 @@ const updateUser = async (req, res, next) => {
       user.username = data.username;
     }
 
-    if (data.name) {
+    if (data.email && data.email.toLowerCase() !== (user.email || '').toLowerCase()) {
+      const existingEmail = await User.findOne({ email: data.email.toLowerCase() });
+      if (existingEmail && existingEmail.id !== user.id) {
+        throw badRequest('Email already in use', [{ field: 'email' }]);
+      }
+      user.email = data.email.toLowerCase();
+      if (user.role !== 'client') {
+        user.isEmailVerified = true;
+      }
+    }
+
+    if (data.fullName) {
+      user.name = data.fullName;
+    } else if (data.name) {
       user.name = data.name;
     }
+
     if (data.role) {
       if (req.user) {
         const actorRank = rank(req.user.role);
@@ -94,6 +139,12 @@ const updateUser = async (req, res, next) => {
     }
     if (data.password) {
       user.passwordHash = await hashPassword(data.password);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(data, 'profileImage')) {
+      user.profileImage = data.profileImage;
+    } else if (data.removeProfileImage) {
+      user.profileImage = null;
     }
 
     await user.save();

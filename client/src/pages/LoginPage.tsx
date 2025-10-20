@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import type { FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { clientsApi } from '../api/clients';
 import { useCart } from '../context/CartContext';
 import type { CartLine } from '../context/CartContext';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
@@ -47,7 +48,7 @@ type LoginPageProps = {
 };
 
 export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) => {
-  const { login, register: registerUser } = useAuth();
+  const { login } = useAuth();
   const { items, loadFromServer } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
@@ -92,22 +93,45 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     setLoginLoading(true);
     setLoginError(null);
     try {
+      const guestCartItems = Array.isArray(items) ? items : [];
       const user = await login({
         username: loginUsername,
         password: loginPassword,
-        guestCart: items.map((item: CartLine) => ({ productId: item.productId, quantity: item.quantity })),
+        guestCart: guestCartItems.map((item: CartLine) => ({ productId: item.productId, quantity: item.quantity })),
       });
-      await loadFromServer();
-      // Redirect based on role (super_admin/admin/staff -> /admin, client -> /account)
+      // Redirect based on role (super_admin/admin/staff -> dashboard, client -> account or verification)
       if (user.role === 'super_admin' || user.role === 'admin' || user.role === 'staff') {
-        navigate('/admin', { replace: true });
-      } else {
-        // If user came from a protected route, prefer that
+        await loadFromServer();
         const from = (location.state as LocationState)?.from?.pathname;
-        navigate(from && from !== '/login' ? from : '/account', { replace: true });
+        navigate(from && from !== '/login' ? from : '/admin', { replace: true });
+      } else {
+        if (user.isEmailVerified === false) {
+          navigate('/verify-email', {
+            replace: true,
+            state: { email: user.email || loginUsername },
+          });
+        } else {
+          await loadFromServer();
+          navigate('/account', { replace: true });
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      // Check if this is an email verification error with verification data
+      if (error?.status === 403 && error?.details) {
+        const details = error.details;
+        if (details.requiresVerification && details.email) {
+          navigate('/verify-email', {
+            replace: true,
+            state: {
+              email: details.email,
+              clientType: details.clientType,
+              previewCode: details.previewCode,
+            },
+          });
+          return;
+        }
+      }
       setLoginError(error instanceof Error ? error.message : 'Login failed');
     } finally {
       setLoginLoading(false);
@@ -160,14 +184,42 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     setSignupLoading(true);
     setSignupError(null);
     try {
-      await registerUser({
-        name: `${signupData.firstName} ${signupData.lastName}`,
-        username: signupData.username.toLowerCase(),
-        password: signupData.password,
-        guestCart: items.map((item: CartLine) => ({ productId: item.productId, quantity: item.quantity })),
+      const guestCartItems = Array.isArray(items) ? items : [];
+      const payload = {
+        clientType: signupData.accountType,
+        basicInfo: {
+          fullName: `${signupData.firstName} ${signupData.lastName}`.trim(),
+          email: signupData.username.toLowerCase(),
+          password: signupData.password,
+        },
+        companyInfo:
+          signupData.accountType === 'B2B'
+            ? {
+                companyName: signupData.companyName.trim(),
+                businessType: signupData.businessType || undefined,
+                taxId: signupData.taxId || undefined,
+                companyWebsite: signupData.companyWebsite || undefined,
+                companyPhone: signupData.phone || undefined,
+              }
+            : undefined,
+      } as const;
+
+      const response = await clientsApi.register(payload);
+      if (guestCartItems.length) {
+        // store guest cart locally until verification completes
+        console.info('Guest cart preserved until verification completes.');
+      }
+
+      navigate('/verify-email', {
+        state: {
+          email: response.email,
+          clientType: response.clientType,
+          previewCode: response.previewCode,
+        },
+        replace: true,
       });
-      await loadFromServer();
-      setSignupStep(isB2B ? 3 : 2);
+      resetSignup();
+      showLogin();
     } catch (error) {
       console.error(error);
       setSignupError(error instanceof Error ? error.message : 'Registration failed');

@@ -1,4 +1,4 @@
-﻿import { http } from './http';
+import { http } from './http';
 import type { User } from '../types/api';
 
 interface AuthResponse {
@@ -11,9 +11,12 @@ export const authApi = {
   me: () => http.get<AuthResponse>('/auth/me'),
   login: (payload: { username: string; password: string } & GuestCartPayload) =>
     http.post<AuthResponse>('/auth/login', payload),
-  register: (payload: { name: string; username: string; password: string } & GuestCartPayload) =>
+  register: (
+    payload: { name: string; email: string; password: string; username?: string } & GuestCartPayload
+  ) =>
     http.post<AuthResponse>('/auth/register', payload),
   logout: () => http.post<void>('/auth/logout'),
   changePassword: (payload: { currentPassword: string; newPassword: string }) =>
     http.post<{ message: string }>('/auth/change-password', payload),
+  verifyEmail: (payload: { email: string; code: string }) => http.post<AuthResponse>('/auth/verify', payload),
 };

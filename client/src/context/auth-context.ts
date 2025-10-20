@@ -6,7 +6,7 @@ export interface AuthContextValue {
   initializing: boolean;
   loading: boolean;
   login: (input: { username: string; password: string; guestCart?: Array<{ productId: string; quantity: number }> }) => Promise<User>;
-  register: (input: { name: string; username: string; password: string; guestCart?: Array<{ productId: string; quantity: number }> }) => Promise<User>;
+  register: (input: { name: string; email: string; password: string; username?: string; guestCart?: Array<{ productId: string; quantity: number }> }) => Promise<User>;
   logout: () => Promise<void>;
   refresh: () => Promise<User | null>;
   setUser: (user: User | null) => void;

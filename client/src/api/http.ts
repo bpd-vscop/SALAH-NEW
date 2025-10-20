@@ -43,8 +43,9 @@ export class HttpClient {
         hasJson && data?.error?.message ? data.error.message : response.statusText
       ) as Error & { status?: number; details?: unknown };
       error.status = response.status;
-      if (hasJson && data?.error?.details) {
-        error.details = data.error.details;
+      // Include all response data as details (for verification redirects, etc.)
+      if (hasJson && data) {
+        error.details = data.error?.details || data;
       }
       throw error;
     }

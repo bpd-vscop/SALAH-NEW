@@ -1,4 +1,4 @@
-import { useState, type ReactNode, isValidElement } from 'react';
+import { useMemo, useState, type ReactNode, isValidElement } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
@@ -19,6 +19,16 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [helpPopupOpen, setHelpPopupOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const profileImageUrl = useMemo(() => {
+    if (!user?.profileImage) {
+      return null;
+    }
+    if (user.profileImage.startsWith('http://') || user.profileImage.startsWith('https://')) {
+      return user.profileImage;
+    }
+    return `/uploads/${user.profileImage}`;
+  }, [user?.profileImage]);
+  const profileInitial = useMemo(() => user?.name?.[0]?.toUpperCase() || 'U', [user?.name]);
 
   // Extract props from topNav if it's an AdminTopNav component
   const topNavProps = isValidElement(topNav) ? (topNav.props as { items?: AdminTopNavItem[]; activeId?: string; onSelect?: (id: string, dropdownId?: string) => void }) : {};
@@ -268,9 +278,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
             <div className="relative">
               <button
                 onClick={() => setProfileDropdownOpen((open) => !open)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark text-sm font-semibold text-white shadow-sm transition hover:ring-2 hover:ring-primary/40"
+                className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary to-primary-dark text-sm font-semibold text-white shadow-sm transition hover:ring-2 hover:ring-primary/40"
               >
-                {user?.name?.[0]?.toUpperCase() || 'U'}
+                {profileImageUrl ? (
+                  <img
+                    src={profileImageUrl}
+                    alt={user?.name || 'Profile'}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  profileInitial
+                )}
               </button>
 
               <AnimatePresence>
@@ -420,9 +438,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
             <div className="relative">
               <button
                 onClick={() => setProfileDropdownOpen((open) => !open)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark text-sm font-semibold text-white shadow-sm transition hover:ring-2 hover:ring-primary/40"
+                className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary to-primary-dark text-sm font-semibold text-white shadow-sm transition hover:ring-2 hover:ring-primary/40"
               >
-                {user?.name?.[0]?.toUpperCase() || 'U'}
+                {profileImageUrl ? (
+                  <img
+                    src={profileImageUrl}
+                    alt={user?.name || 'Profile'}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  profileInitial
+                )}
               </button>
 
               <AnimatePresence>
