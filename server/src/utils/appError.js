@@ -13,6 +13,8 @@ const forbidden = (message = 'Insufficient privileges', details) =>
   new AppError(message, 403, details);
 const notFound = (message = 'Resource not found', details) =>
   new AppError(message, 404, details);
+const tooManyRequests = (message = 'Too many requests', details) =>
+  new AppError(message, 429, details);
 
 module.exports = {
   AppError,
@@ -20,4 +22,5 @@ module.exports = {
   unauthorized,
   forbidden,
   notFound,
+  tooManyRequests,
 };

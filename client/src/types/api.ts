@@ -8,12 +8,24 @@ export interface CartItem {
   quantity: number;
 }
 
+export interface ClientCompanyDetails {
+  name: string | null;
+  address: string | null;
+  phone: string | null;
+}
+
 export interface User {
   id: string;
   name: string;
+  email: string;
   username: string;
   role: UserRole;
   status: UserStatus;
+  profileImageUrl?: string | null;
+  clientType?: 'B2B' | 'C2B' | null;
+  company?: ClientCompanyDetails;
+  isEmailVerified?: boolean;
+  emailVerifiedAt?: string | null;
   verificationFileUrl?: string | null;
   cart: CartItem[];
   orderHistory: string[];

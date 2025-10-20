@@ -18,9 +18,17 @@ const createUser = async (req, res, next) => {
   try {
     const data = validateCreateUser(req.body || {});
 
-    const existing = await User.findOne({ username: data.username });
-    if (existing) {
+    const email = data.email.toLowerCase();
+    const username = data.username.toLowerCase();
+
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
       throw badRequest('Username already in use', [{ field: 'username' }]);
+    }
+
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      throw badRequest('Email already in use', [{ field: 'email' }]);
     }
 
     // Only allow creating users with a role strictly below the creator's role
@@ -30,12 +38,17 @@ const createUser = async (req, res, next) => {
 
     const passwordHash = await hashPassword(data.password);
 
+    const isClient = data.role === 'client';
+
     const user = await User.create({
       name: data.name,
-      username: data.username,
+      email,
+      username,
       role: data.role,
       status: data.status,
       passwordHash,
+      isEmailVerified: !isClient,
+      emailVerifiedAt: isClient ? null : new Date(),
     });
 
     res.status(201).json({ user: user.toJSON() });
@@ -60,16 +73,29 @@ const updateUser = async (req, res, next) => {
       throw forbidden('You cannot edit a user with higher or equal role');
     }
 
-    if (data.username && data.username !== user.username) {
-      const existing = await User.findOne({ username: data.username });
+    if (data.username && data.username.toLowerCase() !== user.username) {
+      const desiredUsername = data.username.toLowerCase();
+      const existing = await User.findOne({ username: desiredUsername });
       if (existing) {
         throw badRequest('Username already in use', [{ field: 'username' }]);
       }
-      user.username = data.username;
+      user.username = desiredUsername;
     }
 
     if (data.name) {
       user.name = data.name;
+    }
+    if (data.email && data.email.toLowerCase() !== user.email) {
+      const desiredEmail = data.email.toLowerCase();
+      const existingEmail = await User.findOne({ email: desiredEmail });
+      if (existingEmail) {
+        throw badRequest('Email already in use', [{ field: 'email' }]);
+      }
+      user.email = desiredEmail;
+      if (user.role === 'client') {
+        user.isEmailVerified = false;
+        user.emailVerifiedAt = null;
+      }
     }
     if (data.role) {
       if (req.user) {
@@ -88,6 +114,12 @@ const updateUser = async (req, res, next) => {
         }
       }
       user.role = data.role;
+      if (data.role !== 'client') {
+        user.isEmailVerified = true;
+        if (!user.emailVerifiedAt) {
+          user.emailVerifiedAt = new Date();
+        }
+      }
     }
     if (data.status) {
       user.status = data.status;

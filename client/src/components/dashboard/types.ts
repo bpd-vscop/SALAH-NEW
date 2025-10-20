@@ -3,6 +3,7 @@ import type { FeaturedVariant } from '../../api/featuredShowcase';
 
 export interface UserFormState {
   name: string;
+  email: string;
   username: string;
   role: UserRole;
   status: User['status'];

@@ -111,6 +111,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [userForm, setUserForm] = useState<UserFormState>({
     name: '',
+    email: '',
     username: '',
     role: 'client',
     status: 'active',
@@ -314,7 +315,7 @@ export const AdminDashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (!selectedUserId) {
-      setUserForm({ name: '', username: '', role: 'client', status: 'active', password: '' });
+      setUserForm({ name: '', email: '', username: '', role: 'client', status: 'active', password: '' });
       return;
     }
 
@@ -322,6 +323,7 @@ export const AdminDashboardPage: React.FC = () => {
     if (existing) {
       setUserForm({
         name: existing.name,
+        email: existing.email,
         username: existing.username,
         role: existing.role,
         status: existing.status,
@@ -486,6 +488,7 @@ export const AdminDashboardPage: React.FC = () => {
       if (selectedUserId) {
         await usersApi.update(selectedUserId, {
           name: userForm.name,
+          email: userForm.email,
           username: userForm.username,
           role: userForm.role,
           status: userForm.status,
@@ -495,6 +498,7 @@ export const AdminDashboardPage: React.FC = () => {
       } else {
         await usersApi.create({
           name: userForm.name,
+          email: userForm.email,
           username: userForm.username,
           role: userForm.role,
           status: userForm.status,

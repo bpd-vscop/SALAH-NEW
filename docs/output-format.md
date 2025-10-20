@@ -2,24 +2,61 @@
 
 ## Authentication
 - `POST /api/auth/register` → `201`
-  - Body: `{ user: User }`
+  - Request body:
+    ```json
+    {
+      "clientType": "B2B",
+      "basicInfo": {
+        "fullName": "Ada Lovelace",
+        "email": "ada@example.com",
+        "password": "password123"
+      },
+      "companyInfo": {
+        "companyName": "Analytical Engines",
+        "companyAddress": "10 Downing St, London",
+        "companyPhone": "+44 20 7946 0958"
+      }
+    }
+    ```
+  - Response body: `{ user: User }`
 - `POST /api/auth/login` → `200`
-  - Body: `{ user: User }`
+  - Request body: `{ identifier: string, password: string }`
+  - Response body: `{ user: User }`
 - `GET /api/auth/me` → `200`
   - Body: `{ user: User | null }`
 - `POST /api/auth/logout` → `204`
   - Body: _empty_
 - `POST /api/auth/change-password` → `200`
   - Body: `{ message: string }`
+- `POST /api/auth/verify` → `200`
+  - Request body: `{ email: string, code: string }`
+  - Success: `{ message: 'Email verified successfully.' }`
+  - Errors:
+    - Wrong code → `{ "error": { "message": "Invalid verification code." } }`
+    - Expired code → `{ "error": { "message": "Verification code expired. Please request a new code." } }`
+    - Too many attempts → `{ "error": { "message": "Too many failed attempts. Please request a new verification code." } }`
+- `POST /api/auth/verify/resend` → `200`
+  - Request body: `{ email: string }`
+  - Success: `{ message: 'Verification code sent.' }`
 
 ### User type
 ```
 User {
   id: string,
   name: string,
+  email: string,
   username: string,
-  role: 'admin' | 'manager' | 'staff' | 'client',
+  role: 'super_admin' | 'admin' | 'staff' | 'client',
   status: 'active' | 'inactive',
+  profileImageUrl?: string | null,
+  clientType?: 'B2B' | 'C2B' | null,
+  company?: {
+    name: string | null,
+    address: string | null,
+    phone: string | null,
+  },
+  isEmailVerified?: boolean,
+  emailVerifiedAt?: string | null,
   verificationFileUrl?: string | null,
   cart: CartItem[],
   orderHistory: string[],
@@ -154,4 +191,21 @@ Order {
 
 ## File uploads
 - `POST /api/uploads/verification` → `{ verificationFileUrl: string }`
+- `POST /api/uploads/profile-image` → `{ profileImageUrl: string }`
 - Errors deliver `{ error: { message: string, details?: Array<Record<string, unknown>> } }`
+
+## Email configuration
+Set the following environment variables to enable SMTP delivery from `bpd.claude@gmail.com` (or another sender):
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=bpd.claude@gmail.com
+SMTP_PASSWORD=<application-specific-password>
+SMTP_FROM="Brand Support <bpd.claude@gmail.com>"
+EMAIL_VERIFICATION_EXPIRY_MINUTES=15
+EMAIL_VERIFICATION_MAX_ATTEMPTS=5
+PROFILE_UPLOAD_MAX_MB=5
+```
+
+> **Note:** `SMTP_PASSWORD` must be an application-specific password when using Gmail. Codes expire after 15 minutes by default.

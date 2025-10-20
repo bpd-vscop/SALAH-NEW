@@ -38,6 +38,7 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
           <thead className="bg-background/80 text-xs uppercase tracking-wide text-muted">
             <tr>
               <th className="px-4 py-3 font-semibold">Name</th>
+              <th className="px-4 py-3 font-semibold">Email</th>
               <th className="px-4 py-3 font-semibold">Username</th>
               <th className="px-4 py-3 font-semibold">Role</th>
               <th className="px-4 py-3 font-semibold">Status</th>
@@ -48,6 +49,7 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
             {users.map((record) => (
               <tr key={record.id} className="hover:bg-primary/5">
                 <td className="px-4 py-3 font-medium text-slate-900">{record.name}</td>
+                <td className="px-4 py-3 text-sm text-slate-600">{record.email}</td>
                 <td className="px-4 py-3 text-sm text-slate-600">{record.username}</td>
                 <td className="px-4 py-3 text-sm text-slate-600">{record.role === 'super_admin' ? 'Super Admin' : record.role.charAt(0).toUpperCase() + record.role.slice(1)}</td>
                 <td className="px-4 py-3">
@@ -78,7 +80,7 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
             ))}
             {!users.length && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted">
+                <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted">
                   No users yet.
                 </td>
               </tr>
@@ -96,6 +98,17 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
             onChange={(event) => setForm((state) => ({ ...state, name: event.target.value }))}
             required
             placeholder="e.g. Jane Doe"
+            className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+        </label>
+        <label className="flex flex-col gap-2 text-sm text-slate-600">
+          Email
+          <input
+            type="email"
+            value={form.email}
+            onChange={(event) => setForm((state) => ({ ...state, email: event.target.value }))}
+            required
+            placeholder="name@company.com"
             className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </label>

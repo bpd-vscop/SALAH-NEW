@@ -96,15 +96,21 @@ export const AccountDashboardPage: React.FC = () => {
           </div>
           <dl className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
-              <dt className="text-xs uppercase tracking-wide text-muted">Name</dt>
+              <dt className="text-xs uppercase tracking-wide text-muted">Full name</dt>
               <dd className="text-sm font-medium text-slate-900">{user.name}</dd>
             </div>
             <div className="space-y-1">
-              <dt className="text-xs uppercase tracking-wide text-muted">Username</dt>
-              <dd className="text-sm font-medium text-slate-900">{user.username}</dd>
+              <dt className="text-xs uppercase tracking-wide text-muted">Email</dt>
+              <dd className="text-sm font-medium text-slate-900">{user.email}</dd>
             </div>
             <div className="space-y-1">
-              <dt className="text-xs uppercase tracking-wide text-muted">Status</dt>
+              <dt className="text-xs uppercase tracking-wide text-muted">Client type</dt>
+              <dd className="text-sm font-medium text-slate-900">
+                {user.clientType ? (user.clientType === 'B2B' ? 'Business to Business' : 'Consumer to Business') : 'Not specified'}
+              </dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-xs uppercase tracking-wide text-muted">Account status</dt>
               <dd>
                 <StatusPill
                   label={user.status === 'active' ? 'Active' : 'Inactive'}
@@ -112,7 +118,7 @@ export const AccountDashboardPage: React.FC = () => {
                 />
               </dd>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 sm:col-span-2">
               <dt className="text-xs uppercase tracking-wide text-muted">Member since</dt>
               <dd className="text-sm font-medium text-slate-900">{formatTimestamp(user.accountCreated)}</dd>
             </div>
@@ -158,6 +164,29 @@ export const AccountDashboardPage: React.FC = () => {
           </form>
           {uploadMessage && <p className="text-sm text-muted">{uploadMessage}</p>}
         </section>
+
+        {user.clientType === 'B2B' && (
+          <section className="space-y-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Company information</h2>
+              <p className="text-sm text-muted">Details shared during registration.</p>
+            </div>
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1">
+                <dt className="text-xs uppercase tracking-wide text-muted">Company name</dt>
+                <dd className="text-sm font-medium text-slate-900">{user.company?.name || '—'}</dd>
+              </div>
+              <div className="space-y-1">
+                <dt className="text-xs uppercase tracking-wide text-muted">Company phone</dt>
+                <dd className="text-sm font-medium text-slate-900">{user.company?.phone || '—'}</dd>
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <dt className="text-xs uppercase tracking-wide text-muted">Company address</dt>
+                <dd className="text-sm font-medium text-slate-900">{user.company?.address || '—'}</dd>
+              </div>
+            </dl>
+          </section>
+        )}
 
         <section id="orders" className="space-y-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div>

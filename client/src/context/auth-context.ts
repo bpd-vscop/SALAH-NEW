@@ -5,8 +5,8 @@ export interface AuthContextValue {
   user: User | null;
   initializing: boolean;
   loading: boolean;
-  login: (input: { username: string; password: string; guestCart?: Array<{ productId: string; quantity: number }> }) => Promise<User>;
-  register: (input: { name: string; username: string; password: string; guestCart?: Array<{ productId: string; quantity: number }> }) => Promise<User>;
+  login: (input: { identifier: string; password: string; guestCart?: Array<{ productId: string; quantity: number }> }) => Promise<User>;
+  register: (input: import('../api/auth').ClientRegistrationPayload) => Promise<User>;
   logout: () => Promise<void>;
   refresh: () => Promise<User | null>;
   setUser: (user: User | null) => void;

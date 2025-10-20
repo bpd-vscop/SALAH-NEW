@@ -5,11 +5,13 @@ import type { UserRole } from '../../types/api';
 interface ProtectedRouteProps {
   allowRoles?: UserRole[];
   redirectTo?: string;
+  allowUnverified?: boolean;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   allowRoles,
   redirectTo = '/login',
+  allowUnverified = false,
 }) => {
   const { user, initializing } = useAuth();
   const location = useLocation();
@@ -24,6 +26,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   if (!user) {
     return <Navigate to={redirectTo} replace state={{ from: location }} />;
+  }
+
+  if (
+    user.role === 'client' &&
+    user.isEmailVerified === false &&
+    !allowUnverified &&
+    location.pathname !== '/verify'
+  ) {
+    return <Navigate to="/verify" replace state={{ from: location, email: user.email }} />;
   }
 
   if (allowRoles && !allowRoles.includes(user.role)) {

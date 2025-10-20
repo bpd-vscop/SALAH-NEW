@@ -5,6 +5,7 @@ const { usernameRegex } = require('./auth');
 const createUserSchema = z
   .object({
     name: z.string().min(2).max(120),
+    email: z.string().email(),
     username: z.string().regex(usernameRegex, 'Invalid username'),
     role: z.enum(['super_admin', 'admin', 'staff', 'client']),
     status: z.enum(['active', 'inactive']).default('active'),
@@ -15,6 +16,7 @@ const createUserSchema = z
 const updateUserSchema = z
   .object({
     name: z.string().min(2).max(120).optional(),
+    email: z.string().email().optional(),
     username: z.string().regex(usernameRegex, 'Invalid username').optional(),
     role: z.enum(['super_admin', 'admin', 'staff', 'client']).optional(),
     status: z.enum(['active', 'inactive']).optional(),

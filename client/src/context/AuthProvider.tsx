@@ -27,10 +27,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [loadCurrentUser]);
 
   const login = useCallback<AuthContextValue['login']>(
-    async ({ username, password, guestCart }) => {
+    async ({ identifier, password, guestCart }) => {
       setLoading(true);
       try {
-        const { user: loggedInUser } = await authApi.login({ username, password, guestCart });
+        const { user: loggedInUser } = await authApi.login({ identifier, password, guestCart });
         if (!loggedInUser) {
           throw new Error('Login failed');
         }
@@ -44,10 +44,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const register = useCallback<AuthContextValue['register']>(
-    async ({ name, username, password, guestCart }) => {
+    async (payload) => {
       setLoading(true);
       try {
-        const { user: registeredUser } = await authApi.register({ name, username, password, guestCart });
+        const { user: registeredUser } = await authApi.register(payload);
         if (!registeredUser) {
           throw new Error('Registration failed');
         }

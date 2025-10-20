@@ -1,34 +1,38 @@
-import { useState, useEffect, useMemo, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, type FormEvent, type ChangeEvent } from 'react';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../api/users';
+import { uploadsApi } from '../api/uploads';
 import { useNavigate } from 'react-router-dom';
 import { adminTabs, getMenuIcon, homepageTabs } from '../utils/adminSidebar';
 import { AdminTopNav } from '../components/dashboard/AdminTopNav';
 
 export const UserSettingsPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [homepageNavSelection, setHomepageNavSelection] = useState<'hero' | 'featured'>('hero');
 
-  const [formData, setFormData] = useState({
+  const [profileForm, setProfileForm] = useState({
     name: '',
-    username: '',
-    currentPassword: '',
+    email: '',
+  });
+  const [passwordForm, setPasswordForm] = useState({
     newPassword: '',
     confirmPassword: '',
   });
+  const [profileImageStatus, setProfileImageStatus] = useState<string | null>(null);
+  const [profileImageError, setProfileImageError] = useState<string | null>(null);
+  const [profileImageLoading, setProfileImageLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
-      setFormData((prev) => ({
-        ...prev,
+      setProfileForm({
         name: user.name || '',
-        username: user.username || '',
-      }));
+        email: user.email || '',
+      });
     }
   }, [user]);
 
@@ -42,8 +46,8 @@ export const UserSettingsPage: React.FC = () => {
 
     try {
       await usersApi.update(user.id, {
-        name: formData.name,
-        username: formData.username,
+        name: profileForm.name,
+        email: profileForm.email,
       });
       setStatusMessage('Profile updated successfully');
     } catch (err) {
@@ -54,17 +58,38 @@ export const UserSettingsPage: React.FC = () => {
     }
   };
 
+  const handleProfileImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) {
+      return;
+    }
+    setProfileImageLoading(true);
+    setProfileImageStatus(null);
+    setProfileImageError(null);
+    try {
+      await uploadsApi.uploadProfileImage(file);
+      await refresh();
+      setProfileImageStatus('Profile image updated successfully');
+    } catch (err) {
+      console.error(err);
+      setProfileImageError(err instanceof Error ? err.message : 'Failed to update profile image');
+    } finally {
+      setProfileImageLoading(false);
+      event.target.value = '';
+    }
+  };
+
   const handlePasswordUpdate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) return;
 
-    if (formData.newPassword !== formData.confirmPassword) {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setError('New passwords do not match');
       return;
     }
 
-    if (formData.newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (passwordForm.newPassword.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
 
@@ -74,15 +99,10 @@ export const UserSettingsPage: React.FC = () => {
 
     try {
       await usersApi.update(user.id, {
-        password: formData.newPassword,
+        password: passwordForm.newPassword,
       });
       setStatusMessage('Password updated successfully');
-      setFormData((prev) => ({
-        ...prev,
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      }));
+      setPasswordForm({ newPassword: '', confirmPassword: '' });
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Failed to update password');
@@ -145,75 +165,114 @@ export const UserSettingsPage: React.FC = () => {
 
         {/* Profile Information */}
         <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-          <form onSubmit={handleProfileUpdate} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Full Name
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                  required
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Username
-                <input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, username: e.target.value }))}
-                  required
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-border bg-slate-100">
+                {user?.profileImageUrl ? (
+                  <img
+                    src={user.profileImageUrl}
+                    alt="Profile"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-sm font-medium text-slate-500">{user?.name?.charAt(0) ?? 'U'}</span>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Profile image</p>
+                <p className="text-xs text-muted">Upload a square image (JPG, PNG, or WEBP).</p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={handleProfileImageUpload}
+                    />
+                    {profileImageLoading ? 'Uploading…' : 'Upload image'}
+                  </label>
+                  {user?.profileImageUrl && (
+                    <a
+                      href={user.profileImageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm font-medium text-primary hover:text-primary-dark"
+                    >
+                      View current image
+                    </a>
+                  )}
+                </div>
+                {profileImageStatus && (
+                  <p className="mt-2 text-xs text-emerald-600">{profileImageStatus}</p>
+                )}
+                {profileImageError && (
+                  <p className="mt-2 text-xs text-red-600">{profileImageError}</p>
+                )}
+              </div>
             </div>
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={loading}
-                className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
-              >
-                {loading ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </form>
+            <form onSubmit={handleProfileUpdate} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  Full name
+                  <input
+                    type="text"
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, name: e.target.value }))}
+                    required
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  Email address
+                  <input
+                    type="email"
+                    value={profileForm.email}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, email: e.target.value }))}
+                    required
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
+                >
+                  {loading ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            </form>
+          </div>
         </section>
 
         {/* Change Password */}
         <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
           <form onSubmit={handlePasswordUpdate} className="space-y-4">
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Current Password
-              <input
-                type="password"
-                value={formData.currentPassword}
-                onChange={(e) => setFormData((prev) => ({ ...prev, currentPassword: e.target.value }))}
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                New Password
+                New password
                 <input
                   type="password"
-                  value={formData.newPassword}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, newPassword: e.target.value }))}
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
                   required
+                  minLength={8}
                   className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
 
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Confirm New Password
+                Confirm new password
                 <input
                   type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                   required
+                  minLength={8}
                   className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
@@ -225,7 +284,7 @@ export const UserSettingsPage: React.FC = () => {
                 disabled={loading}
                 className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
               >
-                {loading ? 'Updating...' : 'Update Password'}
+                {loading ? 'Updating…' : 'Update password'}
               </button>
             </div>
           </form>

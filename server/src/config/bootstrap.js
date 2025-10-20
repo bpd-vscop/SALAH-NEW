@@ -17,12 +17,18 @@ const ensureDefaultAdmin = async () => {
   const name = process.env.DEFAULT_ADMIN_NAME || 'Store Administrator';
   const passwordHash = await hashPassword(password);
 
+  const normalizedUsername = username.toLowerCase();
+  const email = (process.env.DEFAULT_ADMIN_EMAIL || normalizedUsername).toLowerCase();
+
   await User.create({
     name,
-    username: username.toLowerCase(),
+    username: normalizedUsername,
+    email,
     role: 'super_admin',
     status: 'active',
     passwordHash,
+    isEmailVerified: true,
+    emailVerifiedAt: new Date(),
   });
 
   console.log(`Default admin user created (${username.toLowerCase()})`);

@@ -1,19 +1,19 @@
 ﻿const express = require('express');
 const multer = require('multer');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { verificationUpload } = require('../middleware/upload');
-const { uploadVerification } = require('../controllers/uploadController');
+const { verificationUpload, profileUpload } = require('../middleware/upload');
+const { uploadVerification, uploadProfileImage } = require('../controllers/uploadController');
 const { badRequest } = require('../utils/appError');
 
 const router = express.Router();
 
-const handleUpload = (req, res, next) => {
-  verificationUpload.single('file')(req, res, (err) => {
+const handleUpload = (uploader, handler, maxMb) => (req, res, next) => {
+  uploader.single('file')(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return next(
           badRequest('File too large', [
-            { code: 'file_too_large', limitMb: Number(process.env.UPLOAD_MAX_MB || 10) },
+            { code: 'file_too_large', limitMb: maxMb },
           ])
         );
       }
@@ -22,10 +22,21 @@ const handleUpload = (req, res, next) => {
     if (err) {
       return next(err);
     }
-    return uploadVerification(req, res, next);
+    return handler(req, res, next);
   });
 };
 
-router.post('/verification', requireAuth, requireRole(['client']), handleUpload);
+router.post(
+  '/verification',
+  requireAuth,
+  requireRole(['client']),
+  handleUpload(verificationUpload, uploadVerification, Number(process.env.UPLOAD_MAX_MB || 10))
+);
+router.post(
+  '/profile-image',
+  requireAuth,
+  requireRole(['super_admin', 'admin', 'staff']),
+  handleUpload(profileUpload, uploadProfileImage, Number(process.env.PROFILE_UPLOAD_MAX_MB || 5))
+);
 
 module.exports = router;

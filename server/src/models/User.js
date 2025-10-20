@@ -23,13 +23,20 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
     username: {
       type: String,
       required: true,
       unique: true,
       trim: true,
       lowercase: true,
-      match: /^[a-z0-9._-]{3,30}$/,
+      match: /^[a-z0-9._%+-@]+$/,
     },
     passwordHash: {
       type: String,
@@ -47,6 +54,28 @@ const userSchema = new mongoose.Schema(
     },
     verificationFileUrl: {
       type: String,
+      default: null,
+    },
+    profileImageUrl: {
+      type: String,
+      default: null,
+    },
+    clientType: {
+      type: String,
+      enum: ['B2B', 'C2B', null],
+      default: null,
+    },
+    company: {
+      name: { type: String, default: null },
+      address: { type: String, default: null },
+      phone: { type: String, default: null },
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerifiedAt: {
+      type: Date,
       default: null,
     },
     cart: {
@@ -68,6 +97,20 @@ const userSchema = new mongoose.Schema(
         ret.id = ret._id.toString();
         ret.accountCreated = ret.accountCreated ? new Date(ret.accountCreated).toISOString() : null;
         ret.accountUpdated = ret.accountUpdated ? new Date(ret.accountUpdated).toISOString() : null;
+        ret.email = ret.email || null;
+        ret.profileImageUrl = ret.profileImageUrl || null;
+        ret.clientType = ret.clientType || null;
+        ret.company = ret.company
+          ? {
+              name: ret.company.name || null,
+              address: ret.company.address || null,
+              phone: ret.company.phone || null,
+            }
+          : { name: null, address: null, phone: null };
+        ret.isEmailVerified = Boolean(ret.isEmailVerified);
+        ret.emailVerifiedAt = ret.emailVerifiedAt
+          ? new Date(ret.emailVerifiedAt).toISOString()
+          : null;
         ret.cart = Array.isArray(ret.cart)
           ? ret.cart.map((item) => ({
               productId: item.productId ? item.productId.toString() : null,

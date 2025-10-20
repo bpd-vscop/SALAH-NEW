@@ -9,6 +9,7 @@ import { LoginPage } from '../pages/LoginPage';
 import { ProductCatalogPage } from '../pages/ProductCatalogPage';
 import { ProductDetailPage } from '../pages/ProductDetailPage';
 import { RegisterPage } from '../pages/RegisterPage';
+import { VerifyEmailPage } from '../pages/VerifyEmailPage';
 import { UserSettingsPage } from '../pages/UserSettingsPage';
 import { ManufacturersPage } from '../pages/ManufacturersPage';
 import { ManufacturerDetailPage } from '../pages/ManufacturerDetailPage';
@@ -28,6 +29,11 @@ export const AppRouter: React.FC = () => (
       <Route path="/cart" element={<CartPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route
+        element={<ProtectedRoute allowRoles={['client']} allowUnverified />}
+      >
+        <Route path="/verify" element={<VerifyEmailPage />} />
+      </Route>
 
       <Route element={<ProtectedRoute allowRoles={['client', 'super_admin', 'admin', 'staff']} /> }>
         <Route path="/checkout" element={<CheckoutPage />} />
