@@ -4,9 +4,11 @@ import type { FeaturedVariant } from '../../api/featuredShowcase';
 export interface UserFormState {
   name: string;
   username: string;
+  email: string;
   role: UserRole;
   status: User['status'];
   password: string;
+  profileImageUrl?: string | null;
 }
 
 export interface CategoryFormState {

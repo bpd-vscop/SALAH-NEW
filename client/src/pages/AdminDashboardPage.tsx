@@ -112,9 +112,11 @@ export const AdminDashboardPage: React.FC = () => {
   const [userForm, setUserForm] = useState<UserFormState>({
     name: '',
     username: '',
+    email: '',
     role: 'client',
     status: 'active',
     password: '',
+    profileImageUrl: null,
   });
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
@@ -314,7 +316,7 @@ export const AdminDashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (!selectedUserId) {
-      setUserForm({ name: '', username: '', role: 'client', status: 'active', password: '' });
+      setUserForm({ name: '', username: '', email: '', role: 'client', status: 'active', password: '', profileImageUrl: null });
       return;
     }
 
@@ -323,9 +325,11 @@ export const AdminDashboardPage: React.FC = () => {
       setUserForm({
         name: existing.name,
         username: existing.username,
+        email: existing.email || existing.username,
         role: existing.role,
         status: existing.status,
         password: '',
+        profileImageUrl: existing.profileImageUrl ?? null,
       });
     }
   }, [selectedUserId, users]);
@@ -487,18 +491,22 @@ export const AdminDashboardPage: React.FC = () => {
         await usersApi.update(selectedUserId, {
           name: userForm.name,
           username: userForm.username,
+          email: userForm.email,
           role: userForm.role,
           status: userForm.status,
           ...(userForm.password ? { password: userForm.password } : {}),
+          profileImageUrl: userForm.profileImageUrl ?? null,
         });
         setStatus('User updated');
       } else {
         await usersApi.create({
           name: userForm.name,
           username: userForm.username,
+          email: userForm.email,
           role: userForm.role,
           status: userForm.status,
           password: userForm.password,
+          profileImageUrl: userForm.profileImageUrl ?? null,
         });
         setStatus('User created');
       }

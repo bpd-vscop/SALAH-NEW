@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, type ChangeEvent, type FormEvent } from 'react';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../api/users';
 import { useNavigate } from 'react-router-dom';
 import { adminTabs, getMenuIcon, homepageTabs } from '../utils/adminSidebar';
 import { AdminTopNav } from '../components/dashboard/AdminTopNav';
+import { uploadsApi } from '../api/uploads';
 
 export const UserSettingsPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -15,19 +16,22 @@ export const UserSettingsPage: React.FC = () => {
   const [homepageNavSelection, setHomepageNavSelection] = useState<'hero' | 'featured'>('hero');
 
   const [formData, setFormData] = useState({
-    name: '',
-    username: '',
+    fullName: '',
+    email: '',
+    profileImageUrl: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
+  const [imageUploading, setImageUploading] = useState(false);
 
   useEffect(() => {
     if (user) {
       setFormData((prev) => ({
         ...prev,
-        name: user.name || '',
-        username: user.username || '',
+        fullName: user.fullName || user.name || '',
+        email: user.email || user.username || '',
+        profileImageUrl: user.profileImageUrl || '',
       }));
     }
   }, [user]);
@@ -41,16 +45,41 @@ export const UserSettingsPage: React.FC = () => {
     setError(null);
 
     try {
-      await usersApi.update(user.id, {
-        name: formData.name,
-        username: formData.username,
+      const { user: updated } = await usersApi.update(user.id, {
+        name: formData.fullName,
+        email: formData.email,
+        profileImageUrl: formData.profileImageUrl || null,
       });
+      setUser(updated);
       setStatusMessage('Profile updated successfully');
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Failed to update profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleProfileImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!user) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImageUploading(true);
+    setStatusMessage(null);
+    setError(null);
+    try {
+      const { profileImageUrl } = await uploadsApi.uploadProfileImage(file);
+      setFormData((prev) => ({ ...prev, profileImageUrl }));
+      if (user) {
+        setUser({ ...user, profileImageUrl });
+      }
+      setStatusMessage('Profile image updated successfully');
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to upload profile image');
+    } finally {
+      setImageUploading(false);
     }
   };
 
@@ -145,25 +174,49 @@ export const UserSettingsPage: React.FC = () => {
 
         {/* Profile Information */}
         <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-          <form onSubmit={handleProfileUpdate} className="space-y-4">
+          <form onSubmit={handleProfileUpdate} className="space-y-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-border bg-slate-50">
+                {formData.profileImageUrl ? (
+                  <img src={formData.profileImageUrl} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-sm font-semibold text-slate-500">No image</span>
+                )}
+              </div>
+              <div className="flex flex-1 flex-col gap-2 text-sm text-slate-600">
+                <span className="font-medium">Profile image</span>
+                <label className="inline-flex items-center gap-3 rounded-xl border border-dashed border-border px-4 py-2 text-xs text-slate-500 hover:border-primary hover:text-primary">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={handleProfileImageUpload}
+                    disabled={imageUploading}
+                    className="hidden"
+                  />
+                  <span>{imageUploading ? 'Uploading…' : 'Upload new image'}</span>
+                </label>
+                <span className="text-xs text-slate-400">PNG, JPG, or WEBP up to 5MB.</span>
+              </div>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Full Name
+                Full name
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                  value={formData.fullName}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, fullName: e.target.value }))}
                   required
                   className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
 
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Username
+                Email
                 <input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, username: e.target.value }))}
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                   required
                   className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
@@ -173,10 +226,10 @@ export const UserSettingsPage: React.FC = () => {
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={loading}
-                className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
+                disabled={loading || imageUploading}
+                className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? 'Saving...' : 'Save Changes'}
+                {loading ? 'Saving...' : 'Save changes'}
               </button>
             </div>
           </form>

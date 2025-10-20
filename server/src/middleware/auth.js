@@ -52,6 +52,9 @@ const requireAuth = (req, _res, next) => {
   if (!req.user) {
     return next(unauthorized());
   }
+  if (req.user.role === 'client' && req.user.isEmailVerified === false) {
+    return next(unauthorized('Please verify your email before accessing this resource.'));
+  }
   next();
 };
 

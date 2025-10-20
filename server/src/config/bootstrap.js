@@ -20,9 +20,11 @@ const ensureDefaultAdmin = async () => {
   await User.create({
     name,
     username: username.toLowerCase(),
+    email: username.toLowerCase(),
     role: 'super_admin',
     status: 'active',
     passwordHash,
+    isEmailVerified: true,
   });
 
   console.log(`Default admin user created (${username.toLowerCase()})`);

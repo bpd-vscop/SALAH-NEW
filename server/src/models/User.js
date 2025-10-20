@@ -29,7 +29,15 @@ const userSchema = new mongoose.Schema(
       unique: true,
       trim: true,
       lowercase: true,
-      match: /^[a-z0-9._-]{3,30}$/,
+      match: /^[a-z0-9._@-]{3,120}$/,
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      match: /.+@.+\..+/, // simple validation, stricter validation happens in validators
+      unique: true,
+      sparse: true,
     },
     passwordHash: {
       type: String,
@@ -44,6 +52,36 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ['active', 'inactive'],
       default: 'active',
+    },
+    clientType: {
+      type: String,
+      enum: ['B2B', 'C2B', null],
+      default: null,
+    },
+    company: {
+      name: {
+        type: String,
+        default: null,
+        trim: true,
+      },
+      address: {
+        type: String,
+        default: null,
+        trim: true,
+      },
+      phone: {
+        type: String,
+        default: null,
+        trim: true,
+      },
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: true,
+    },
+    profileImageUrl: {
+      type: String,
+      default: null,
     },
     verificationFileUrl: {
       type: String,
@@ -77,6 +115,12 @@ const userSchema = new mongoose.Schema(
         ret.orderHistory = Array.isArray(ret.orderHistory)
           ? ret.orderHistory.map((id) => id.toString())
           : [];
+        ret.fullName = ret.name;
+        ret.email = ret.email || ret.username || null;
+        ret.clientType = ret.clientType || null;
+        ret.company = ret.company || { name: null, address: null, phone: null };
+        ret.isEmailVerified = ret.isEmailVerified === undefined ? null : Boolean(ret.isEmailVerified);
+        ret.profileImageUrl = ret.profileImageUrl || null;
         delete ret._id;
         delete ret.passwordHash;
         delete ret.__v;

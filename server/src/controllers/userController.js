@@ -18,9 +18,15 @@ const createUser = async (req, res, next) => {
   try {
     const data = validateCreateUser(req.body || {});
 
-    const existing = await User.findOne({ username: data.username });
+    const username = data.username.toLowerCase();
+    const email = data.email.toLowerCase();
+
+    const existing = await User.findOne({
+      $or: [{ username }, { email }],
+    });
     if (existing) {
-      throw badRequest('Username already in use', [{ field: 'username' }]);
+      const field = existing.username === username ? 'username' : 'email';
+      throw badRequest(`${field === 'username' ? 'Username' : 'Email'} already in use`, [{ field }]);
     }
 
     // Only allow creating users with a role strictly below the creator's role
@@ -32,10 +38,13 @@ const createUser = async (req, res, next) => {
 
     const user = await User.create({
       name: data.name,
-      username: data.username,
+      username,
+      email,
       role: data.role,
       status: data.status,
       passwordHash,
+      profileImageUrl: data.profileImageUrl || null,
+      isEmailVerified: true,
     });
 
     res.status(201).json({ user: user.toJSON() });
@@ -60,12 +69,22 @@ const updateUser = async (req, res, next) => {
       throw forbidden('You cannot edit a user with higher or equal role');
     }
 
-    if (data.username && data.username !== user.username) {
-      const existing = await User.findOne({ username: data.username });
+    if (data.username && data.username.toLowerCase() !== user.username) {
+      const normalizedUsername = data.username.toLowerCase();
+      const existing = await User.findOne({ username: normalizedUsername });
       if (existing) {
         throw badRequest('Username already in use', [{ field: 'username' }]);
       }
-      user.username = data.username;
+      user.username = normalizedUsername;
+    }
+
+    if (data.email && data.email.toLowerCase() !== (user.email || '').toLowerCase()) {
+      const normalizedEmail = data.email.toLowerCase();
+      const existingEmail = await User.findOne({ email: normalizedEmail });
+      if (existingEmail && existingEmail.id !== user.id) {
+        throw badRequest('Email already in use', [{ field: 'email' }]);
+      }
+      user.email = normalizedEmail;
     }
 
     if (data.name) {
@@ -94,6 +113,10 @@ const updateUser = async (req, res, next) => {
     }
     if (data.password) {
       user.passwordHash = await hashPassword(data.password);
+    }
+
+    if (data.profileImageUrl !== undefined) {
+      user.profileImageUrl = data.profileImageUrl || null;
     }
 
     await user.save();

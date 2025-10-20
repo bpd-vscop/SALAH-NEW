@@ -39,9 +39,16 @@ export class HttpClient {
     const data = hasJson ? await response.json() : await response.text();
 
     if (!response.ok) {
-      const error = new Error(
-        hasJson && data?.error?.message ? data.error.message : response.statusText
-      ) as Error & { status?: number; details?: unknown };
+      let message = response.statusText;
+      if (hasJson) {
+        if (typeof data?.error === 'string') {
+          message = data.error;
+        } else if (data?.error?.message) {
+          message = data.error.message;
+        }
+      }
+
+      const error = new Error(message || 'Request failed') as Error & { status?: number; details?: unknown };
       error.status = response.status;
       if (hasJson && data?.error?.details) {
         error.details = data.error.details;

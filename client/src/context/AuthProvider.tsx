@@ -27,15 +27,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [loadCurrentUser]);
 
   const login = useCallback<AuthContextValue['login']>(
-    async ({ username, password, guestCart }) => {
+    async ({ email, password, guestCart }) => {
       setLoading(true);
       try {
-        const { user: loggedInUser } = await authApi.login({ username, password, guestCart });
+        const response = await authApi.login({ email, password, guestCart });
+        const { user: loggedInUser } = response;
         if (!loggedInUser) {
           throw new Error('Login failed');
         }
         setUser(loggedInUser);
-        return loggedInUser;
+        return {
+          user: loggedInUser,
+          requiresVerification: Boolean(
+            response.requiresVerification ??
+              (loggedInUser.role === 'client' && loggedInUser.isEmailVerified === false)
+          ),
+        };
       } finally {
         setLoading(false);
       }
@@ -44,15 +51,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const register = useCallback<AuthContextValue['register']>(
-    async ({ name, username, password, guestCart }) => {
+    async ({ guestCart, ...payload }) => {
       setLoading(true);
       try {
-        const { user: registeredUser } = await authApi.register({ name, username, password, guestCart });
+        const response = await authApi.register({ guestCart, ...payload });
+        const { user: registeredUser } = response;
         if (!registeredUser) {
           throw new Error('Registration failed');
         }
         setUser(registeredUser);
-        return registeredUser;
+        return {
+          user: registeredUser,
+          requiresVerification: Boolean(
+            response.requiresVerification ??
+              (registeredUser.role === 'client' && registeredUser.isEmailVerified === false)
+          ),
+          verification: response.verification,
+        };
       } finally {
         setLoading(false);
       }

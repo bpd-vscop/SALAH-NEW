@@ -1,5 +1,6 @@
 export type UserRole = 'super_admin' | 'admin' | 'staff' | 'client';
 export type UserStatus = 'active' | 'inactive';
+export type ClientType = 'B2B' | 'C2B';
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
 export type ProductTag = 'in stock' | 'out of stock' | 'on sale' | 'available to order';
 
@@ -12,9 +13,19 @@ export interface User {
   id: string;
   name: string;
   username: string;
+  fullName?: string | null;
+  email?: string | null;
   role: UserRole;
   status: UserStatus;
   verificationFileUrl?: string | null;
+  profileImageUrl?: string | null;
+  clientType?: ClientType | null;
+  company?: {
+    name: string | null;
+    address: string | null;
+    phone: string | null;
+  };
+  isEmailVerified?: boolean | null;
   cart: CartItem[];
   orderHistory: string[];
   accountCreated?: string | null;

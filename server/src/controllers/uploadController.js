@@ -17,6 +17,23 @@ const uploadVerification = async (req, res, next) => {
   }
 };
 
+const uploadProfileImage = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      throw badRequest('Profile image upload failed');
+    }
+
+    const relativePath = path.posix.join('/uploads/profile', req.file.filename);
+    req.user.profileImageUrl = relativePath;
+    await req.user.save();
+
+    res.json({ profileImageUrl: relativePath });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   uploadVerification,
+  uploadProfileImage,
 };

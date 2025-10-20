@@ -26,6 +26,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={redirectTo} replace state={{ from: location }} />;
   }
 
+  if (
+    user.role === 'client' &&
+    user.isEmailVerified === false &&
+    location.pathname !== '/verify'
+  ) {
+    return <Navigate to="/verify" replace state={{ email: user.email || user.username }} />;
+  }
+
   if (allowRoles && !allowRoles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
