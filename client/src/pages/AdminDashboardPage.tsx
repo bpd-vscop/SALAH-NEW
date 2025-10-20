@@ -900,8 +900,11 @@ export const AdminDashboardPage: React.FC = () => {
       case 'navigation':
         return (
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          <rect x="3" y="3" width="7" height="7" rx="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <rect x="14" y="3" width="7" height="7" rx="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <rect x="3" y="14" width="7" height="7" rx="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <rect x="14" y="14" width="7" height="7" rx="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
         );
       case 'homepage':
         return (
