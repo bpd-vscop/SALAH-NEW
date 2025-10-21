@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the complete email verification system for SALAH application, including setup, features, and troubleshooting.
+This document describes the complete email verification system for ULK Supply application, including setup, features, and troubleshooting.
 
 ## Features Implemented
 
@@ -83,7 +83,7 @@ npm install
 
 #### Step 2: Generate App Password
 1. Go to https://myaccount.google.com/apppasswords
-2. App name: "SALAH Email Verification"
+2. App name: "ULK Supply Email Verification"
 3. Click "Create"
 4. Copy the 16-character password (e.g., `xxxx xxxx xxxx xxxx`)
 
@@ -111,7 +111,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=bpd.claude@gmail.com
 SMTP_PASSWORD=xxxxxxxxxxxxxxxx
-SMTP_FROM="SALAH <bpd.claude@gmail.com>"
+SMTP_FROM="ULK Supply <bpd.claude@gmail.com>"
 VERIFICATION_CODE_TTL_MINUTES=15
 VERIFICATION_MAX_ATTEMPTS=5
 VERIFICATION_LOCK_MINUTES=15
@@ -178,11 +178,11 @@ Server listening on port 5000
 Users receive an email like:
 
 ```
-Subject: Verify your SALAH account
+Subject: Verify your ULK Supply account
 
 Hi [Full Name],
 
-Thanks for registering with SALAH.
+Thanks for registering with ULK Supply.
 
 123456
 

@@ -19,4 +19,9 @@ export const authApi = {
   changePassword: (payload: { currentPassword: string; newPassword: string }) =>
     http.post<{ message: string }>('/auth/change-password', payload),
   verifyEmail: (payload: { email: string; code: string }) => http.post<AuthResponse>('/auth/verify', payload),
+  resendVerificationCode: (payload: { email: string }) =>
+    http.post<{ email: string; expiresAt: string; requiresVerification: boolean; previewCode?: string }>(
+      '/auth/resend-verification',
+      payload
+    ),
 };

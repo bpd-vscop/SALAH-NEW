@@ -14,7 +14,7 @@
 
 **How to fix**:
 1. Go to https://myaccount.google.com/apppasswords
-2. Create app password for "SALAH Email Verification"
+2. Create app password for "ULK Supply Email Verification"
 3. Copy the 16-character password
 4. Edit `server/.env` line 28:
    ```env
@@ -109,7 +109,7 @@ SMTP_HOST=smtp.gmail.com               # SMTP server
 SMTP_PORT=587                          # SMTP port
 SMTP_USER=bpd.claude@gmail.com         # Your Gmail address
 SMTP_PASSWORD=xxxxxxxxxxxx             # ⚠️ REQUIRED: Gmail app password
-SMTP_FROM="SALAH <bpd.claude@gmail.com>"
+SMTP_FROM="ULK Supply <bpd.claude@gmail.com>"
 
 # Verification code settings
 VERIFICATION_CODE_TTL_MINUTES=15       # Code expiration (default: 15 min)

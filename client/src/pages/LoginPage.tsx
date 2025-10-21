@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import type { FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { clientsApi } from '../api/clients';
+import { authApi } from '../api/auth';
 import { useCart } from '../context/CartContext';
 import type { CartLine } from '../context/CartContext';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
@@ -13,7 +14,7 @@ type LocationState = {
   };
 };
 
-type SignupStep = 0 | 1 | 2 | 3;
+type SignupStep = 0 | 1 | 2 | 3 | 4;
 
 type SignupData = {
   accountType: 'B2B' | 'C2B';
@@ -48,7 +49,7 @@ type LoginPageProps = {
 };
 
 export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) => {
-  const { login } = useAuth();
+  const { login, refresh } = useAuth();
   const { items, loadFromServer } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
@@ -69,12 +70,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Verification step state
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [previewCode, setPreviewCode] = useState<string | null>(null);
+
   const resetSignup = () => {
     setSignupData(defaultSignup);
     setSignupStep(0);
     setSignupError(null);
     setSignupLoading(false);
     setPhoneValue({ countryCode: '+1', number: '' });
+    setVerificationEmail('');
+    setVerificationCode('');
+    setPreviewCode(null);
+    setResendCooldown(0);
   };
 
   const showSignup = () => {
@@ -87,6 +100,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     setLoginError(null);
     setLoginLoading(false);
   };
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setTimeout(() => setResendCooldown((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -210,16 +230,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
         console.info('Guest cart preserved until verification completes.');
       }
 
-      navigate('/verify-email', {
-        state: {
-          email: response.email,
-          clientType: response.clientType,
-          previewCode: response.previewCode,
-        },
-        replace: true,
-      });
-      resetSignup();
-      showLogin();
+      // Move to verification step instead of navigating away
+      setVerificationEmail(response.email);
+      setPreviewCode(response.previewCode || null);
+      setSignupError(null);
+      setSignupStep(isB2B ? 3 : 2); // Verification is step 3 for B2B, step 2 for C2B
     } catch (error) {
       console.error(error);
       setSignupError(error instanceof Error ? error.message : 'Registration failed');
@@ -228,8 +243,63 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     }
   };
 
+  const handleVerifyEmail = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (verificationCode.trim().length !== 6) {
+      setSignupError('Enter the 6-digit verification code.');
+      return;
+    }
+
+    setVerificationLoading(true);
+    setSignupError(null);
+
+    try {
+      await authApi.verifyEmail({
+        email: verificationEmail,
+        code: verificationCode.trim(),
+      });
+
+      await refresh();
+      await loadFromServer();
+
+      // Success - navigate to account
+      navigate('/account', { replace: true });
+      resetSignup();
+    } catch (error) {
+      console.error(error);
+      setSignupError(error instanceof Error ? error.message : 'Verification failed. Please try again.');
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0 || !verificationEmail) return;
+
+    setResendLoading(true);
+    setSignupError(null);
+
+    try {
+      const response = await authApi.resendVerificationCode({ email: verificationEmail });
+      setPreviewCode(response.previewCode ?? null);
+      setResendCooldown(60);
+      setSignupError(null);
+      // Show success message briefly
+      const successMsg = 'A new verification code has been sent to your email.';
+      setSignupError(null);
+      setTimeout(() => {
+        // Clear any error after showing success
+      }, 100);
+    } catch (error) {
+      console.error(error);
+      setSignupError(error instanceof Error ? error.message : 'Unable to resend verification code right now.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const isB2B = signupData.accountType === 'B2B';
-  const stepCount = isB2B ? 4 : 3;
+  const stepCount = isB2B ? 4 : 3; // Steps include verification now
 
   const EyeIcon = ({ show }: { show: boolean }) => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -887,50 +957,96 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                     </div>
                   ))}
 
-                {/* Step 3: Success (B2B) */}
-                {signupStep === 3 && (
-                  <div className="text-center pt-6 pr-4 pb-0 pl-4">
-                    <div
-                      className="mx-auto w-20 h-20 rounded-full flex items-center justify-center text-4xl font-bold mb-4 text-white"
-                      style={{ background: 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)' }}
-                    >
-                      ✔
+                {/* Step 3: Email Verification (both C2B at step 2 and B2B at step 3) */}
+                {(signupStep === 2 && !isB2B) || (signupStep === 3 && isB2B) ? (
+                  <form className="w-full self-center grid gap-[1.1rem]" onSubmit={handleVerifyEmail}>
+                    <div className="text-center mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Verify your email</h3>
+                      <p className="text-sm text-gray-600">
+                        We sent a 6-digit code to{' '}
+                        <span className="font-semibold text-gray-900">{verificationEmail}</span>
+                      </p>
+                      {previewCode && !import.meta.env.PROD && (
+                        <p className="text-xs font-semibold text-emerald-600 mt-2">
+                          Test code: {previewCode}
+                        </p>
+                      )}
                     </div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Account created!</h2>
-                    <p className="text-gray-600 mb-6">You can now sign in using your new credentials.</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        showLogin();
-                        resetSignup();
-                      }}
-                      className="w-full py-3.5 rounded-full border-none font-semibold text-white cursor-pointer transition-all duration-200 ease-out"
-                      style={{
-                        background: 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)',
-                        boxShadow: '0 20px 30px rgba(160, 11, 11, 0.25)',
-                        transform: 'translateY(0)',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 20px 30px rgba(160, 11, 11, 0.25)';
-                      }}
-                      onMouseDown={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 18px 28px rgba(160, 11, 11, 0.22)';
-                      }}
-                      onMouseUp={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
-                      }}
-                    >
-                      Go to Login
-                    </button>
-                  </div>
-                )}
+
+                    <label className="grid gap-2 text-sm text-slate-600">
+                      <span>Verification Code</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={6}
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="000000"
+                        required
+                        className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-center text-lg tracking-[0.5rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
+                      />
+                    </label>
+
+                    {signupError && (
+                      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {signupError}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-3">
+                      <button
+                        type="submit"
+                        disabled={verificationLoading}
+                        className="w-full py-3.5 rounded-full border-none font-semibold text-white cursor-pointer transition-all duration-200 ease-out disabled:opacity-65 disabled:cursor-not-allowed"
+                        style={{
+                          background: 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)',
+                          boxShadow: '0 20px 30px rgba(160, 11, 11, 0.25)',
+                          transform: 'translateY(0)',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!verificationLoading) {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!verificationLoading) {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 20px 30px rgba(160, 11, 11, 0.25)';
+                          }
+                        }}
+                        onMouseDown={(e) => {
+                          if (!verificationLoading) {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 18px 28px rgba(160, 11, 11, 0.22)';
+                          }
+                        }}
+                        onMouseUp={(e) => {
+                          if (!verificationLoading) {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
+                          }
+                        }}
+                      >
+                        {verificationLoading ? 'Verifying…' : 'Verify and Continue'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleResendCode}
+                        disabled={resendLoading || resendCooldown > 0}
+                        className="text-sm text-orange-600 hover:text-red-700 font-medium cursor-pointer bg-transparent border-none disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {resendCooldown > 0
+                          ? `Resend code in ${resendCooldown}s`
+                          : resendLoading
+                          ? 'Resending…'
+                          : 'Resend code'}
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
               </div>
 
               <div className="text-center flex flex-col items-center justify-center gap-2 text-sm text-gray-600 m-8">
