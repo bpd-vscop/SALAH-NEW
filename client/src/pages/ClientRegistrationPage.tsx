@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clientsApi, type ClientRegistrationPayload } from '../api/clients';
 import { authApi } from '../api/auth';

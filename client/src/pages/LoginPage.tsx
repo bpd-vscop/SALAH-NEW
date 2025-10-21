@@ -76,7 +76,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendLoading, setResendLoading] = useState(false);
-  const [previewCode, setPreviewCode] = useState<string | null>(null);
 
   const resetSignup = () => {
     setSignupData(defaultSignup);
@@ -86,7 +85,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     setPhoneValue({ countryCode: '+1', number: '' });
     setVerificationEmail('');
     setVerificationCode('');
-    setPreviewCode(null);
     setResendCooldown(0);
   };
 
@@ -146,7 +144,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
           // Show verification in signup tab
           setActiveTab('signup');
           setVerificationEmail(details.email);
-          setPreviewCode(details.previewCode || null);
           setSignupData({ ...signupData, accountType: details.clientType || 'C2B' });
           const isUserB2B = details.clientType === 'B2B';
           setSignupStep(isUserB2B ? 3 : 2); // Verification step
@@ -234,7 +231,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
 
       // Move to verification step instead of navigating away
       setVerificationEmail(response.email);
-      setPreviewCode(response.previewCode || null);
       setSignupError(null);
       setSignupStep(isB2B ? 3 : 2); // Verification is step 3 for B2B, step 2 for C2B
     } catch (error) {
@@ -281,16 +277,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     setSignupError(null);
 
     try {
-      const response = await authApi.resendVerificationCode({ email: verificationEmail });
-      setPreviewCode(response.previewCode ?? null);
+      await authApi.resendVerificationCode({ email: verificationEmail });
       setResendCooldown(60);
       setSignupError(null);
-      // Show success message briefly
-      const successMsg = 'A new verification code has been sent to your email.';
-      setSignupError(null);
-      setTimeout(() => {
-        // Clear any error after showing success
-      }, 100);
     } catch (error) {
       console.error(error);
       setSignupError(error instanceof Error ? error.message : 'Unable to resend verification code right now.');
