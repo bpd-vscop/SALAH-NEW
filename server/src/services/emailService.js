@@ -105,7 +105,7 @@ const sendClientVerificationEmail = async ({ to, code, fullName, clientType, exp
 
               <!-- Verification Code Box -->
               <div style="background: #fff5e6; border: 3px dashed #f6b210; border-radius: 16px; padding: 30px; text-align: center; margin: 0 0 30px;">
-                <div style="font-size: 42px; font-weight: 800; letter-spacing: 12px; color: #a00b0b; font-family: 'Courier New', monospace; text-shadow: 2px 2px 4px rgba(160, 11, 11, 0.1);">
+                <div style="font-size: 40px; font-weight: 600; letter-spacing: 10px; color: #a00b0b; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;">
                   ${code}
                 </div>
               </div>

@@ -14,8 +14,8 @@ const getJwtSecret = () => {
 const getAuthCookieName = () => process.env.AUTH_COOKIE_NAME || 'auth_token';
 
 const getCookieOptions = () => {
-  const secureEnv = process.env.AUTH_COOKIE_SECURE ?? process.env.SESSION_SECURE;
-  const sameSiteEnv = process.env.AUTH_COOKIE_SAMESITE || process.env.SESSION_SAMESITE || 'lax';
+  const secureEnv = process.env.AUTH_COOKIE_SECURE;
+  const sameSiteEnv = process.env.AUTH_COOKIE_SAMESITE || 'lax';
   return {
     httpOnly: true,
     secure: secureEnv === 'true',

@@ -126,10 +126,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
         navigate(from && from !== '/login' ? from : '/admin', { replace: true });
       } else {
         if (user.isEmailVerified === false) {
-          navigate('/verify-email', {
-            replace: true,
-            state: { email: user.email || loginUsername },
-          });
+          // Show verification in signup tab
+          setActiveTab('signup');
+          setVerificationEmail(user.email || loginUsername);
+          setSignupData({ ...signupData, accountType: user.clientType || 'C2B' });
+          const isUserB2B = user.clientType === 'B2B';
+          setSignupStep(isUserB2B ? 3 : 2); // Verification step
         } else {
           await loadFromServer();
           navigate('/account', { replace: true });
@@ -141,14 +143,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
       if (error?.status === 403 && error?.details) {
         const details = error.details;
         if (details.requiresVerification && details.email) {
-          navigate('/verify-email', {
-            replace: true,
-            state: {
-              email: details.email,
-              clientType: details.clientType,
-              previewCode: details.previewCode,
-            },
-          });
+          // Show verification in signup tab
+          setActiveTab('signup');
+          setVerificationEmail(details.email);
+          setPreviewCode(details.previewCode || null);
+          setSignupData({ ...signupData, accountType: details.clientType || 'C2B' });
+          const isUserB2B = details.clientType === 'B2B';
+          setSignupStep(isUserB2B ? 3 : 2); // Verification step
+          setLoginError(null); // Clear login error as we're showing verification
           return;
         }
       }
@@ -262,9 +264,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
       await refresh();
       await loadFromServer();
 
-      // Success - navigate to account
-      navigate('/account', { replace: true });
-      resetSignup();
+      // Success - show success step
+      setSignupStep(isB2B ? 4 : 3); // Success is step 4 for B2B, step 3 for C2B
     } catch (error) {
       console.error(error);
       setSignupError(error instanceof Error ? error.message : 'Verification failed. Please try again.');
@@ -299,7 +300,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   };
 
   const isB2B = signupData.accountType === 'B2B';
-  const stepCount = isB2B ? 4 : 3; // Steps include verification now
+  const stepCount = isB2B ? 5 : 4; // Steps include verification + success now
 
   const EyeIcon = ({ show }: { show: boolean }) => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -809,155 +810,112 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                     </form>
                   ))}
 
-                {/* Step 2: Credentials (B2B) or Success (C2B) */}
-                {signupStep === 2 &&
-                  (isB2B ? (
-                    <form className="w-full self-center grid gap-[1.1rem]" onSubmit={handleSignupCredentials}>
-                      <label className="grid gap-2 text-sm text-slate-600">
-                        <span>Email Address</span>
+                {/* Step 2: Credentials (B2B only) */}
+                {signupStep === 2 && isB2B && (
+                  <form className="w-full self-center grid gap-[1.1rem]" onSubmit={handleSignupCredentials}>
+                    <label className="grid gap-2 text-sm text-slate-600">
+                      <span>Email Address</span>
+                      <input
+                        type="email"
+                        value={signupData.username}
+                        onChange={(e) => setSignupData((prev) => ({ ...prev, username: e.target.value }))}
+                        placeholder="you@example.com"
+                        required
+                        className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
+                      />
+                    </label>
+
+                    <label className="grid gap-2 text-sm text-slate-600">
+                      <span>Password</span>
+                      <div className="relative">
                         <input
-                          type="email"
-                          value={signupData.username}
-                          onChange={(e) => setSignupData((prev) => ({ ...prev, username: e.target.value }))}
-                          placeholder="you@example.com"
+                          type={showSignupPassword ? 'text' : 'password'}
+                          value={signupData.password}
+                          onChange={(e) => setSignupData((prev) => ({ ...prev, password: e.target.value }))}
+                          placeholder="Create a password"
                           required
-                          className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
+                          className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 pr-11 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
                         />
-                      </label>
-
-                      <label className="grid gap-2 text-sm text-slate-600">
-                        <span>Password</span>
-                        <div className="relative">
-                          <input
-                            type={showSignupPassword ? 'text' : 'password'}
-                            value={signupData.password}
-                            onChange={(e) => setSignupData((prev) => ({ ...prev, password: e.target.value }))}
-                            placeholder="Create a password"
-                            required
-                            className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 pr-11 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowSignupPassword(!showSignupPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none p-1 cursor-pointer text-gray-500 flex items-center justify-center transition-colors duration-200 hover:text-gray-700"
-                          >
-                            <EyeIcon show={showSignupPassword} />
-                          </button>
-                        </div>
-                      </label>
-
-                      <label className="grid gap-2 text-sm text-slate-600">
-                        <span>Confirm Password</span>
-                        <div className="relative">
-                          <input
-                            type={showConfirmPassword ? 'text' : 'password'}
-                            value={signupData.confirmPassword}
-                            onChange={(e) => setSignupData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                            placeholder="Confirm your password"
-                            required
-                            className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 pr-11 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none p-1 cursor-pointer text-gray-500 flex items-center justify-center transition-colors duration-200 hover:text-gray-700"
-                          >
-                            <EyeIcon show={showConfirmPassword} />
-                          </button>
-                        </div>
-                      </label>
-
-                      <div className="flex justify-between gap-4 items-center">
                         <button
                           type="button"
-                          onClick={() => setSignupStep(1)}
-                          className="border-none bg-slate-900/8 text-slate-600 px-5 py-3 rounded-full font-semibold cursor-pointer transition-all duration-200 ease-in-out hover:bg-slate-900/12 hover:-translate-y-0.5 active:translate-y-0"
+                          onClick={() => setShowSignupPassword(!showSignupPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none p-1 cursor-pointer text-gray-500 flex items-center justify-center transition-colors duration-200 hover:text-gray-700"
                         >
-                          Back
+                          <EyeIcon show={showSignupPassword} />
                         </button>
+                      </div>
+                    </label>
+
+                    <label className="grid gap-2 text-sm text-slate-600">
+                      <span>Confirm Password</span>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={signupData.confirmPassword}
+                          onChange={(e) => setSignupData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                          placeholder="Confirm your password"
+                          required
+                          className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 pr-11 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
+                        />
                         <button
-                          type="submit"
-                          disabled={signupLoading}
-                          className="w-full py-3.5 rounded-full border-none font-semibold text-white cursor-pointer transition-all duration-200 ease-out disabled:opacity-65 disabled:cursor-not-allowed"
-                          style={{
-                            background: 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)',
-                            boxShadow: '0 20px 30px rgba(160, 11, 11, 0.25)',
-                            transform: 'translateY(0)',
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!signupLoading) {
-                              e.currentTarget.style.transform = 'translateY(-2px)';
-                              e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!signupLoading) {
-                              e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.boxShadow = '0 20px 30px rgba(160, 11, 11, 0.25)';
-                            }
-                          }}
-                          onMouseDown={(e) => {
-                            if (!signupLoading) {
-                              e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.boxShadow = '0 18px 28px rgba(160, 11, 11, 0.22)';
-                            }
-                          }}
-                          onMouseUp={(e) => {
-                            if (!signupLoading) {
-                              e.currentTarget.style.transform = 'translateY(-2px)';
-                              e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
-                            }
-                          }}
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none p-1 cursor-pointer text-gray-500 flex items-center justify-center transition-colors duration-200 hover:text-gray-700"
                         >
-                          {signupLoading ? 'Creating…' : 'Create Account'}
+                          <EyeIcon show={showConfirmPassword} />
                         </button>
                       </div>
-                    </form>
-                  ) : (
-                    <div className="text-center pt-6 pr-4 pb-0 pl-4">
-                      <div
-                        className="mx-auto w-20 h-20 rounded-full flex items-center justify-center text-4xl font-bold mb-4 text-white"
-                        style={{ background: 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)' }}
-                      >
-                        ✔
-                      </div>
-                      <h2 className="text-xl font-semibold text-gray-900 mb-2">Account created!</h2>
-                      <p className="text-gray-600 mb-6">You can now sign in using your new credentials.</p>
+                    </label>
+
+                    <div className="flex justify-between gap-4 items-center">
                       <button
                         type="button"
-                        onClick={() => {
-                          showLogin();
-                          resetSignup();
-                        }}
-                        className="w-full py-3.5 rounded-full border-none font-semibold text-white cursor-pointer transition-all duration-200 ease-out"
+                        onClick={() => setSignupStep(1)}
+                        className="border-none bg-slate-900/8 text-slate-600 px-5 py-3 rounded-full font-semibold cursor-pointer transition-all duration-200 ease-in-out hover:bg-slate-900/12 hover:-translate-y-0.5 active:translate-y-0"
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={signupLoading}
+                        className="w-full py-3.5 rounded-full border-none font-semibold text-white cursor-pointer transition-all duration-200 ease-out disabled:opacity-65 disabled:cursor-not-allowed"
                         style={{
                           background: 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)',
                           boxShadow: '0 20px 30px rgba(160, 11, 11, 0.25)',
                           transform: 'translateY(0)',
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
+                          if (!signupLoading) {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
+                          }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 20px 30px rgba(160, 11, 11, 0.25)';
+                          if (!signupLoading) {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 20px 30px rgba(160, 11, 11, 0.25)';
+                          }
                         }}
                         onMouseDown={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 18px 28px rgba(160, 11, 11, 0.22)';
+                          if (!signupLoading) {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 18px 28px rgba(160, 11, 11, 0.22)';
+                          }
                         }}
                         onMouseUp={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
+                          if (!signupLoading) {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
+                          }
                         }}
                       >
-                        Go to Login
+                        {signupLoading ? 'Creating…' : 'Create Account'}
                       </button>
                     </div>
-                  ))}
+                  </form>
+                )}
 
-                {/* Step 3: Email Verification (both C2B at step 2 and B2B at step 3) */}
+                {/* Step: Email Verification (C2B at step 2, B2B at step 3) */}
                 {(signupStep === 2 && !isB2B) || (signupStep === 3 && isB2B) ? (
                   <form className="w-full self-center grid gap-[1.1rem]" onSubmit={handleVerifyEmail}>
                     <div className="text-center mb-4">
@@ -966,11 +924,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                         We sent a 6-digit code to{' '}
                         <span className="font-semibold text-gray-900">{verificationEmail}</span>
                       </p>
-                      {previewCode && !import.meta.env.PROD && (
-                        <p className="text-xs font-semibold text-emerald-600 mt-2">
-                          Test code: {previewCode}
-                        </p>
-                      )}
                     </div>
 
                     <label className="grid gap-2 text-sm text-slate-600">
@@ -994,44 +947,44 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                       </div>
                     )}
 
-                    <div className="flex flex-col gap-3">
-                      <button
-                        type="submit"
-                        disabled={verificationLoading}
-                        className="w-full py-3.5 rounded-full border-none font-semibold text-white cursor-pointer transition-all duration-200 ease-out disabled:opacity-65 disabled:cursor-not-allowed"
-                        style={{
-                          background: 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)',
-                          boxShadow: '0 20px 30px rgba(160, 11, 11, 0.25)',
-                          transform: 'translateY(0)',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!verificationLoading) {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!verificationLoading) {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 20px 30px rgba(160, 11, 11, 0.25)';
-                          }
-                        }}
-                        onMouseDown={(e) => {
-                          if (!verificationLoading) {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 18px 28px rgba(160, 11, 11, 0.22)';
-                          }
-                        }}
-                        onMouseUp={(e) => {
-                          if (!verificationLoading) {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
-                          }
-                        }}
-                      >
-                        {verificationLoading ? 'Verifying…' : 'Verify and Continue'}
-                      </button>
+                    <button
+                      type="submit"
+                      disabled={verificationLoading}
+                      className="w-full py-3.5 rounded-full border-none font-semibold text-white cursor-pointer transition-all duration-200 ease-out disabled:opacity-65 disabled:cursor-not-allowed"
+                      style={{
+                        background: 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)',
+                        boxShadow: '0 20px 30px rgba(160, 11, 11, 0.25)',
+                        transform: 'translateY(0)',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!verificationLoading) {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!verificationLoading) {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 20px 30px rgba(160, 11, 11, 0.25)';
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        if (!verificationLoading) {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 18px 28px rgba(160, 11, 11, 0.22)';
+                        }
+                      }}
+                      onMouseUp={(e) => {
+                        if (!verificationLoading) {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
+                        }
+                      }}
+                    >
+                      {verificationLoading ? 'Verifying…' : 'Verify and Continue'}
+                    </button>
 
+                    <div className="mt-4 text-center">
                       <button
                         type="button"
                         onClick={handleResendCode}
@@ -1046,6 +999,51 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                       </button>
                     </div>
                   </form>
+                ) : null}
+
+                {/* Step: Success (C2B at step 3, B2B at step 4) */}
+                {(signupStep === 3 && !isB2B) || (signupStep === 4 && isB2B) ? (
+                  <div className="text-center pt-6 pr-4 pb-0 pl-4">
+                    <div
+                      className="mx-auto w-20 h-20 rounded-full flex items-center justify-center text-4xl font-bold mb-4 text-white"
+                      style={{ background: 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)' }}
+                    >
+                      ✔
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Account created!</h2>
+                    <p className="text-gray-600 mb-6">You can now sign in using your new credentials.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigate('/account', { replace: true });
+                        resetSignup();
+                      }}
+                      className="w-full py-3.5 rounded-full border-none font-semibold text-white cursor-pointer transition-all duration-200 ease-out"
+                      style={{
+                        background: 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)',
+                        boxShadow: '0 20px 30px rgba(160, 11, 11, 0.25)',
+                        transform: 'translateY(0)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 20px 30px rgba(160, 11, 11, 0.25)';
+                      }}
+                      onMouseDown={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 18px 28px rgba(160, 11, 11, 0.22)';
+                      }}
+                      onMouseUp={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
+                      }}
+                    >
+                      Go to My Account
+                    </button>
+                  </div>
                 ) : null}
               </div>
 

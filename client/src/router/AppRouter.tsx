@@ -15,7 +15,6 @@ import { ManufacturerDetailPage } from '../pages/ManufacturerDetailPage';
 import { CategoryPage } from '../pages/CategoryPage';
 import { CategoriesPage } from '../pages/CategoriesPage';
 import { ClientRegistrationPage } from '../pages/ClientRegistrationPage';
-import { VerifyEmailPage } from '../pages/VerifyEmailPage';
 
 export const AppRouter: React.FC = () => (
   <BrowserRouter>
@@ -31,7 +30,6 @@ export const AppRouter: React.FC = () => (
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/clients/register" element={<ClientRegistrationPage />} />
-      <Route path="/verify-email" element={<VerifyEmailPage />} />
 
       <Route element={<ProtectedRoute allowRoles={['client', 'super_admin', 'admin', 'staff']} /> }>
         <Route path="/checkout" element={<CheckoutPage />} />
