@@ -757,7 +757,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                           <LoadingDots />
                         </span>
                       ) : (
-                        'Send Reset Code'
+                        'Send Reset Email'
                       )}
                     </button>
                   </form>
