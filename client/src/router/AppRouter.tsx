@@ -28,6 +28,7 @@ export const AppRouter: React.FC = () => (
       <Route path="/categories/:categoryId" element={<CategoryPage />} />
       <Route path="/cart" element={<CartPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/reset-password/:token" element={<LoginPage initialTab="login" />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/clients/register" element={<ClientRegistrationPage />} />
 

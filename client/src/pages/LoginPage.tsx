@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link, useParams } from 'react-router-dom';
 import type { FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { clientsApi } from '../api/clients';
@@ -87,6 +87,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   const [resetLoading, setResetLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [handledResetToken, setHandledResetToken] = useState<string | null>(null);
 
   const [signupStep, setSignupStep] = useState<SignupStep>(0);
   const [signupData, setSignupData] = useState<SignupData>(defaultSignup);
@@ -172,6 +173,54 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     'w-full',
     resetConfirmMismatch ? 'focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600' : 'focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12',
   ].join(' ');
+
+  const { token: resetTokenParam } = useParams<{ token?: string }>();
+
+  useEffect(() => {
+    if (!resetTokenParam || handledResetToken === resetTokenParam) {
+      return;
+    }
+
+    setHandledResetToken(resetTokenParam);
+    setActiveTab('login');
+    setShowPasswordReset(true);
+    setResetError(null);
+    setResetLoading(true);
+    setPasswordResetStep('new-password');
+
+    authApi
+      .validateResetToken(resetTokenParam)
+      .then((response) => {
+        if (response.valid) {
+          setResetToken(response.token || resetTokenParam);
+        } else {
+          setResetError('Invalid or expired reset link. Please request a new reset email.');
+          setPasswordResetStep('request');
+          setResetToken('');
+        }
+      })
+      .catch(() => {
+        setResetError('Invalid or expired reset link. Please request a new reset email.');
+        setPasswordResetStep('request');
+        setResetToken('');
+      })
+      .finally(() => {
+        setResetLoading(false);
+      });
+  }, [resetTokenParam, handledResetToken]);
+
+  const openPasswordReset = () => {
+    const candidate = loginUsername.trim();
+    if (candidate.includes('@')) {
+      setResetEmail(candidate.toLowerCase());
+    }
+    setPasswordResetStep('request');
+    setResetCode('');
+    setResetToken('');
+    setResetError(null);
+    setHandledResetToken(null);
+    setShowPasswordReset(true);
+  };
 
   const resetSignup = () => {
     setSignupData(defaultSignup);
@@ -313,6 +362,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   };
 
   const resetPasswordResetFlow = () => {
+    if (resetTokenParam) {
+      navigate('/login', { replace: true });
+    }
     setShowPasswordReset(false);
     setPasswordResetStep('request');
     setResetEmail('');
@@ -322,6 +374,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     setConfirmNewPassword('');
     setResetError(null);
     setResetLoading(false);
+    if (!resetTokenParam) {
+      setHandledResetToken(null);
+    }
   };
 
   const handleSignupStep0 = (event: FormEvent<HTMLFormElement>) => {
@@ -580,7 +635,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                 <div className="flex items-center justify-end text-sm">
                   <button
                     type="button"
-                    onClick={() => setShowPasswordReset(true)}
+                    onClick={openPasswordReset}
                     className="text-slate-600 cursor-pointer hover:text-red-700 transition-colors bg-transparent border-none font-medium"
                   >
                     Forgot password?
