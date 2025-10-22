@@ -1,9 +1,10 @@
+const crypto = require('crypto');
 const VerificationCode = require('../models/VerificationCode');
 const { sendClientVerificationEmail } = require('./emailService');
 
 const VERIFICATION_CODE_TTL_MINUTES = Number(process.env.VERIFICATION_CODE_TTL_MINUTES || 15);
 
-const generateCode = () => String(Math.floor(100000 + Math.random() * 900000));
+const generateCode = () => crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
 
 const issueVerificationCode = async ({ email, fullName, clientType }) => {
   const code = generateCode();

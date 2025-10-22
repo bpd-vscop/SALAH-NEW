@@ -47,12 +47,15 @@ const userSchema = new mongoose.Schema(
     },
     username: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true,
       trim: true,
       lowercase: true,
       minlength: 3,
       maxlength: 30,
+      required: function requireUsername() {
+        return this.role && this.role !== 'client';
+      },
     },
     passwordHash: {
       type: String,
@@ -119,6 +122,7 @@ const userSchema = new mongoose.Schema(
         delete ret._id;
         delete ret.passwordHash;
         delete ret.__v;
+        ret.username = ret.username || null;
         ret.email = ret.email || null;
         ret.clientType = ret.clientType || null;
         ret.profileImage = ret.profileImage || null;

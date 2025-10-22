@@ -34,6 +34,7 @@ import { ManufacturersDisplayAdminSection } from '../components/dashboard/Manufa
 import { HomepageAdminSection } from '../components/dashboard/HomepageAdminSection';
 import { OrdersAdminSection } from '../components/dashboard/OrdersAdminSection';
 import { NavigationAdminSection } from '../components/dashboard/NavigationAdminSection';
+import { meetsPasswordPolicy, PASSWORD_COMPLEXITY_MESSAGE } from '../utils/password';
 import type {
   // BannerFormState,
   CategoryFormState,
@@ -322,7 +323,7 @@ export const AdminDashboardPage: React.FC = () => {
     if (existing) {
       setUserForm({
         name: existing.name,
-        username: existing.username,
+        username: existing.username ?? '',
         role: existing.role,
         status: existing.status,
         password: '',
@@ -479,6 +480,16 @@ export const AdminDashboardPage: React.FC = () => {
   const handleUserSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) {
+      return;
+    }
+
+    if (!selectedUserId) {
+      if (!meetsPasswordPolicy(userForm.password)) {
+        setStatus(null, PASSWORD_COMPLEXITY_MESSAGE);
+        return;
+      }
+    } else if (userForm.password && !meetsPasswordPolicy(userForm.password)) {
+      setStatus(null, PASSWORD_COMPLEXITY_MESSAGE);
       return;
     }
 

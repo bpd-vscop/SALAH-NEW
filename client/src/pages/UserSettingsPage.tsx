@@ -5,6 +5,7 @@ import { usersApi } from '../api/users';
 import { useNavigate } from 'react-router-dom';
 import { adminTabs, getMenuIcon, homepageTabs, navigationTabs } from '../utils/adminSidebar';
 import { AdminTopNav } from '../components/dashboard/AdminTopNav';
+import { meetsPasswordPolicy, PASSWORD_COMPLEXITY_MESSAGE, evaluatePasswordStrength } from '../utils/password';
 
 const resolveProfileImage = (value: string | null | undefined): string | null => {
   if (!value) return null;
@@ -39,6 +40,7 @@ export const UserSettingsPage: React.FC = () => {
     const source = (formData.fullName || user?.name || 'U').trim();
     return (source.charAt(0) || 'U').toUpperCase();
   }, [formData.fullName, user?.name]);
+  const newPasswordStrength = evaluatePasswordStrength(formData.newPassword);
 
   useEffect(() => {
     if (!user) {
@@ -145,8 +147,8 @@ export const UserSettingsPage: React.FC = () => {
       return;
     }
 
-    if (formData.newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (!meetsPasswordPolicy(formData.newPassword)) {
+      setError(PASSWORD_COMPLEXITY_MESSAGE);
       return;
     }
 
@@ -387,8 +389,14 @@ export const UserSettingsPage: React.FC = () => {
                   value={formData.newPassword}
                   onChange={(e) => setFormData((prev) => ({ ...prev, newPassword: e.target.value }))}
                   required
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={`h-11 rounded-xl border ${newPasswordStrength.borderClass} bg-white px-4 text-sm transition-colors duration-200 focus:outline-none ${newPasswordStrength.focusClass}`}
                 />
+                {newPasswordStrength.label && (
+                  <p className={`text-xs font-semibold ${newPasswordStrength.colorClass}`}>
+                    {newPasswordStrength.label}
+                  </p>
+                )}
+                <p className="text-xs text-slate-400">{PASSWORD_COMPLEXITY_MESSAGE}</p>
               </label>
 
               <label className="flex flex-col gap-2 text-sm text-slate-600">

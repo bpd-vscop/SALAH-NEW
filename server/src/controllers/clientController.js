@@ -2,7 +2,6 @@ const User = require('../models/User');
 const { hashPassword } = require('../utils/password');
 const { badRequest } = require('../utils/appError');
 const { validateClientRegistration } = require('../validators/clientRegistration');
-const { sanitizeUsernameBase, ensureUniqueUsername } = require('../utils/username');
 const { issueVerificationCode } = require('../services/verificationCodeService');
 
 const registerClient = async (req, res, next) => {
@@ -19,12 +18,9 @@ const registerClient = async (req, res, next) => {
     }
 
     if (!user) {
-      const baseUsername = sanitizeUsernameBase(email);
-      const username = await ensureUniqueUsername(baseUsername);
       user = new User({
         name: fullName,
         email,
-        username,
         role: 'client',
         status: 'active',
       });
@@ -37,6 +33,8 @@ const registerClient = async (req, res, next) => {
     user.status = 'active';
     user.isEmailVerified = false;
     user.passwordHash = passwordHash;
+    user.username = undefined;
+    user.set('username', undefined);
 
     if (payload.clientType === 'B2B') {
       const companyName = payload.companyInfo?.companyName?.trim() || '';

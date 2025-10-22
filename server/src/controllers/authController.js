@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const VerificationCode = require('../models/VerificationCode');
-const { hashPassword, comparePassword } = require('../utils/password');
+const { hashPassword, comparePassword, meetsPasswordComplexity, PASSWORD_COMPLEXITY_MESSAGE } = require('../utils/password');
 const { validateRegister, validateLogin, validateChangePassword, validateVerificationCode } = require('../validators/auth');
 const { mergeGuestCartIntoUser } = require('../services/cartService');
 const { badRequest, unauthorized } = require('../utils/appError');
@@ -30,38 +30,73 @@ const register = async (req, res, next) => {
 
     const fullName = data.name.trim();
     const email = data.email.toLowerCase();
+    const role = data.role && data.role !== 'client' ? data.role : 'client';
+
+    if (role === 'client' && data.username) {
+      throw badRequest('Clients do not use usernames', [{ field: 'username' }]);
+    }
 
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
       throw badRequest('Email already in use', [{ field: 'email' }]);
     }
 
-    const preferredBase = data.username
-      ? sanitizeUsernameBase(data.username, 'client')
-      : sanitizeUsernameBase(email.split('@')[0] || fullName, 'client');
-    const username = await ensureUniqueUsername(preferredBase);
+    let username;
+    if (role !== 'client') {
+      const fallback = role || 'user';
+      const preferredBase = data.username
+        ? sanitizeUsernameBase(data.username, fallback)
+        : sanitizeUsernameBase(email.split('@')[0] || fullName, fallback);
+      username = await ensureUniqueUsername(preferredBase);
+    }
 
     const passwordHash = await hashPassword(data.password);
 
     const user = new User({
       name: fullName,
-      username,
       email,
       passwordHash,
-      role: 'client',
-      isEmailVerified: true,
+      role,
+      username,
+      isEmailVerified: role !== 'client',
     });
 
     // Only clients maintain shopping carts; ignore guest cart for staff/admin roles
     if (user.role === 'client') {
+      user.set('username', undefined);
       await mergeGuestCartIntoUser(user, guestCart);
     }
     await user.save();
 
+    let verification;
+    if (user.role === 'client') {
+      try {
+        verification = await issueVerificationCode({
+          email: user.email,
+          fullName: user.name,
+          clientType: user.clientType || 'C2B',
+        });
+      } catch (emailError) {
+        console.error('Failed to send verification email on registration', emailError);
+        await User.deleteOne({ _id: user._id });
+        throw badRequest('Unable to send verification email. Please try again later.');
+      }
+    }
+
     const token = signAuthToken(user);
     setAuthCookie(res, token);
 
-    res.status(201).json({ user: user.toJSON() });
+    const responsePayload = { user: user.toJSON() };
+    if (verification) {
+      responsePayload.verification = {
+        email: user.email,
+        expiresAt: verification.expiresAt.toISOString(),
+        requiresVerification: true,
+        previewCode: verification.previewCode,
+      };
+    }
+
+    res.status(201).json(responsePayload);
   } catch (error) {
     next(error);
   }
@@ -79,7 +114,7 @@ const login = async (req, res, next) => {
 
     const user = await User.findOne(query);
     if (!user) {
-      throw unauthorized('Invalid username or password');
+      throw unauthorized('Invalid email or password');
     }
     if (user.status !== 'active') {
       throw unauthorized('Account is inactive');
@@ -87,7 +122,7 @@ const login = async (req, res, next) => {
 
     const isValid = await comparePassword(data.password, user.passwordHash);
     if (!isValid) {
-      throw unauthorized('Invalid username or password');
+      throw unauthorized('Invalid email or password');
     }
 
     // If client hasn't verified email, resend verification code and prompt them
@@ -269,13 +304,14 @@ const forgotPassword = async (req, res, next) => {
       throw badRequest('Email is required.');
     }
 
-    const result = await passwordResetService.createPasswordReset(email.trim());
+    const normalizedEmail = email.trim();
+    const result = await passwordResetService.createPasswordReset(normalizedEmail);
 
     res.json({
       message: 'If an account exists with this email, you will receive a password reset link.',
-      email: email.trim(),
-      expiresAt: result.expiresAt,
-      ...(result.code && { previewCode: result.code }), // Only in dev
+      email: normalizedEmail,
+      expiresAt: result?.expiresAt ? result.expiresAt.toISOString() : null,
+      ...(result?.code && { previewCode: result.code }), // Only in non-production
     });
   } catch (error) {
     next(error);
@@ -343,8 +379,8 @@ const resetPassword = async (req, res, next) => {
       throw badRequest('Token and new password are required.');
     }
 
-    if (newPassword.length < 8) {
-      throw badRequest('Password must be at least 8 characters long.');
+    if (newPassword.length < 8 || !meetsPasswordComplexity(newPassword)) {
+      throw badRequest(PASSWORD_COMPLEXITY_MESSAGE);
     }
 
     await passwordResetService.resetPassword(token, newPassword);

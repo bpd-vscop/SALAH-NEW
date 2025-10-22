@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const PasswordResetToken = require('../models/PasswordResetToken');
 const User = require('../models/User');
+const { hashPassword } = require('../utils/password');
 const { sendPasswordResetEmail } = require('./emailService');
 
 const RESET_TOKEN_TTL_MINUTES = Number(process.env.PASSWORD_RESET_TTL_MINUTES || 30);
@@ -17,7 +18,52 @@ const generateToken = () => {
  * Generate a 6-digit code
  */
 const generateCode = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  const upperBound = 10 ** RESET_CODE_LENGTH;
+  return crypto.randomInt(0, upperBound).toString().padStart(RESET_CODE_LENGTH, '0');
+};
+
+const normalizeOrigin = (origin) => {
+  if (!origin || typeof origin !== 'string') {
+    return null;
+  }
+
+  let value = origin.trim();
+  if (!value) {
+    return null;
+  }
+
+  // Fix missing colon in protocol declarations like "https//domain.com"
+  if (/^https?(?=\/\/)/i.test(value) && !/^https?:\/\//i.test(value)) {
+    value = value.replace(/^https?/i, (match) => `${match}:`);
+  }
+
+  if (!/^https?:\/\//i.test(value)) {
+    value = `https://${value.replace(/^\/+/, '')}`;
+  }
+
+  return value.replace(/\/+$/, '');
+};
+
+const getResetBaseUrl = () => {
+  const raw = process.env.CLIENT_ORIGIN || '';
+  const candidates = raw
+    .split(',')
+    .map((candidate) => normalizeOrigin(candidate))
+    .filter(Boolean);
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  return candidates.find((candidate) => candidate.startsWith('https://')) || candidates[0];
+};
+
+const buildResetUrl = (token) => {
+  const base = getResetBaseUrl();
+  if (!base) {
+    throw new Error('CLIENT_ORIGIN must include at least one valid URL to build the password reset link.');
+  }
+  return `${base}/reset-password/${token}`;
 };
 
 /**
@@ -26,11 +72,11 @@ const generateCode = () => {
  * @returns {Promise<{token: string, code: string, expiresAt: Date}>}
  */
 const createPasswordReset = async (email) => {
-  const user = await User.findOne({ email: email.toLowerCase(), role: 'client' });
+  const normalizedEmail = email.toLowerCase();
+  const user = await User.findOne({ email: normalizedEmail, role: 'client' });
 
   if (!user) {
-    // Don't reveal if user exists or not (security best practice)
-    throw new Error('If an account exists with this email, you will receive a password reset link.');
+    return null;
   }
 
   // Invalidate any existing unused tokens for this user
@@ -52,18 +98,30 @@ const createPasswordReset = async (email) => {
   });
 
   // Send email with both link and code
-  const resetUrl = `${process.env.CLIENT_ORIGIN}/reset-password/${token}`;
-  await sendPasswordResetEmail({
-    email: user.email,
-    fullName: user.name,
-    resetUrl,
-    code,
-    expiresInMinutes: RESET_TOKEN_TTL_MINUTES,
-  });
+  let resetUrl;
+  try {
+    resetUrl = buildResetUrl(token);
+  } catch (error) {
+    await PasswordResetToken.deleteOne({ _id: resetToken._id });
+    throw error;
+  }
+
+  try {
+    await sendPasswordResetEmail({
+      email: user.email,
+      fullName: user.name,
+      resetUrl,
+      code,
+      expiresInMinutes: RESET_TOKEN_TTL_MINUTES,
+    });
+  } catch (error) {
+    await PasswordResetToken.deleteOne({ _id: resetToken._id });
+    throw error;
+  }
 
   return {
     token: resetToken.token,
-    code: !process.env.PROD ? resetToken.code : undefined, // Only return code in dev
+    code: process.env.NODE_ENV !== 'production' ? resetToken.code : undefined,
     expiresAt: resetToken.expiresAt,
   };
 };
@@ -143,8 +201,8 @@ const resetPassword = async (token, newPassword) => {
     throw new Error('User not found.');
   }
 
-  // Update password
-  user.password = newPassword;
+  // Update password hash
+  user.passwordHash = await hashPassword(newPassword);
   await user.save();
 
   // Mark token as used

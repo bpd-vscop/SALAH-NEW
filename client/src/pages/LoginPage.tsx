@@ -7,6 +7,19 @@ import { authApi } from '../api/auth';
 import { useCart } from '../context/CartContext';
 import type { CartLine } from '../context/CartContext';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
+import { meetsPasswordPolicy, PASSWORD_COMPLEXITY_MESSAGE, evaluatePasswordStrength } from '../utils/password';
+
+const LoadingDots = ({ dotClass = 'bg-white' }: { dotClass?: string }) => (
+  <span className="inline-flex gap-1 ml-2">
+    {[0, 1, 2].map((index) => (
+      <span
+        key={index}
+        className={`h-1.5 w-1.5 rounded-full ${dotClass} animate-bounce`}
+        style={{ animationDelay: `${index * 0.15}s` }}
+      />
+    ))}
+  </span>
+);
 
 type LocationState = {
   from?: {
@@ -89,6 +102,41 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendLoading, setResendLoading] = useState(false);
+
+  const signupPasswordStrength = evaluatePasswordStrength(signupData.password);
+  const resetPasswordStrength = evaluatePasswordStrength(newPassword);
+  const signupPasswordInputClasses = [
+    'rounded-xl',
+    'border',
+    signupPasswordStrength.borderClass,
+    'bg-white/95',
+    'px-3.5',
+    'py-3',
+    'pr-11',
+    'text-[0.95rem]',
+    'transition-all',
+    'duration-250',
+    'ease-in-out',
+    'focus:outline-none',
+    'w-full',
+    signupPasswordStrength.focusClass,
+  ].join(' ');
+  const resetPasswordInputClasses = [
+    'rounded-xl',
+    'border',
+    resetPasswordStrength.borderClass,
+    'bg-white/95',
+    'px-3.5',
+    'py-3',
+    'pr-11',
+    'text-[0.95rem]',
+    'transition-all',
+    'duration-250',
+    'ease-in-out',
+    'focus:outline-none',
+    'w-full',
+    resetPasswordStrength.focusClass,
+  ].join(' ');
 
   const resetSignup = () => {
     setSignupData(defaultSignup);
@@ -208,8 +256,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
 
   const handleResetPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (newPassword.length < 8) {
-      setResetError('Password must be at least 8 characters long.');
+    if (!meetsPasswordPolicy(newPassword)) {
+      setResetError(PASSWORD_COMPLEXITY_MESSAGE);
       return;
     }
     if (newPassword !== confirmNewPassword) {
@@ -275,8 +323,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
       setSignupError('Please enter an email address.');
       return;
     }
-    if (signupData.password.length < 8) {
-      setSignupError('Password must be at least 8 characters.');
+    if (!meetsPasswordPolicy(signupData.password)) {
+      setSignupError(PASSWORD_COMPLEXITY_MESSAGE);
       return;
     }
     if (signupData.password !== signupData.confirmPassword) {
@@ -665,9 +713,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                               type={showNewPassword ? 'text' : 'password'}
                               value={newPassword}
                               onChange={(e) => setNewPassword(e.target.value)}
-                              placeholder="At least 8 characters"
+                              placeholder="Strong password required"
                               required
-                              className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 pr-11 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
+                              className={resetPasswordInputClasses}
                             />
                             <button
                               type="button"
@@ -677,6 +725,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                               <EyeIcon show={showNewPassword} />
                             </button>
                           </div>
+                          {resetPasswordStrength.label && (
+                            <p className={`text-xs font-semibold ${resetPasswordStrength.colorClass}`}>
+                              {resetPasswordStrength.label}
+                            </p>
+                          )}
+                          <p className="text-xs text-slate-400">{PASSWORD_COMPLEXITY_MESSAGE}</p>
                         </label>
 
                         <label className="grid gap-2 text-sm text-slate-600">
@@ -999,9 +1053,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                             type={showSignupPassword ? 'text' : 'password'}
                             value={signupData.password}
                             onChange={(e) => setSignupData((prev) => ({ ...prev, password: e.target.value }))}
-                            placeholder="Create a password"
+                            placeholder="Strong password required"
                             required
-                            className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 pr-11 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
+                            className={signupPasswordInputClasses}
                           />
                           <button
                             type="button"
@@ -1011,6 +1065,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                             <EyeIcon show={showSignupPassword} />
                           </button>
                         </div>
+                        {signupPasswordStrength.label && (
+                          <p className={`text-xs font-semibold ${signupPasswordStrength.colorClass}`}>
+                            {signupPasswordStrength.label}
+                          </p>
+                        )}
+                        <p className="text-xs text-slate-400">{PASSWORD_COMPLEXITY_MESSAGE}</p>
                       </label>
 
                       <label className="grid gap-2 text-sm text-slate-600">
@@ -1076,7 +1136,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                             }
                           }}
                         >
-                          {signupLoading ? 'Creating…' : 'Create Account'}
+                          {signupLoading ? (
+                            <span className="inline-flex items-center justify-center">
+                              Creating
+                              <LoadingDots />
+                            </span>
+                          ) : (
+                            'Create Account'
+                          )}
                         </button>
                       </div>
                     </form>
@@ -1104,9 +1171,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                           type={showSignupPassword ? 'text' : 'password'}
                           value={signupData.password}
                           onChange={(e) => setSignupData((prev) => ({ ...prev, password: e.target.value }))}
-                          placeholder="Create a password"
+                          placeholder="Strong password required"
                           required
-                          className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 pr-11 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
+                          className={signupPasswordInputClasses}
                         />
                         <button
                           type="button"
@@ -1116,6 +1183,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                           <EyeIcon show={showSignupPassword} />
                         </button>
                       </div>
+                      {signupPasswordStrength.label && (
+                        <p className={`text-xs font-semibold ${signupPasswordStrength.colorClass}`}>
+                          {signupPasswordStrength.label}
+                        </p>
+                      )}
+                      <p className="text-xs text-slate-400">{PASSWORD_COMPLEXITY_MESSAGE}</p>
                     </label>
 
                     <label className="grid gap-2 text-sm text-slate-600">
@@ -1181,7 +1254,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                           }
                         }}
                       >
-                        {signupLoading ? 'Creating…' : 'Create Account'}
+                        {signupLoading ? (
+                          <span className="inline-flex items-center justify-center">
+                            Creating
+                            <LoadingDots />
+                          </span>
+                        ) : (
+                          'Create Account'
+                        )}
                       </button>
                     </div>
                   </form>

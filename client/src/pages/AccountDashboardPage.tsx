@@ -101,7 +101,9 @@ export const AccountDashboardPage: React.FC = () => {
             </div>
             <div className="space-y-1">
               <dt className="text-xs uppercase tracking-wide text-muted">Username</dt>
-              <dd className="text-sm font-medium text-slate-900">{user.username}</dd>
+              <dd className="text-sm font-medium text-slate-900">
+                {user.username ?? '—'}
+              </dd>
             </div>
             <div className="space-y-1">
               <dt className="text-xs uppercase tracking-wide text-muted">Status</dt>

@@ -2,6 +2,7 @@ import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { StatusPill } from '../common/StatusPill';
 import type { User } from '../../types/api';
 import type { UserFormState } from './types';
+import { PASSWORD_COMPLEXITY_MESSAGE, evaluatePasswordStrength } from '../../utils/password';
 
 interface UsersAdminSectionProps {
   users: User[];
@@ -27,8 +28,11 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
   onDelete,
   canEditUsers,
   canManageUsers,
-}) => (
-  <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+}) => {
+  const passwordStrength = evaluatePasswordStrength(form.password);
+
+  return (
+    <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
     <div className="flex justify-end">
       {loading && <span className="text-xs text-muted">Loading...</span>}
     </div>
@@ -143,9 +147,15 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
             onChange={(event) => setForm((state) => ({ ...state, password: event.target.value }))}
             minLength={selectedUserId ? 0 : 8}
             required={!selectedUserId}
-            placeholder={selectedUserId ? 'Optional' : 'At least 8 characters'}
-            className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            placeholder={selectedUserId ? 'Optional' : 'Strong password required'}
+            className={`h-11 rounded-xl border ${passwordStrength.borderClass} bg-white px-4 text-sm transition-colors duration-200 focus:outline-none ${passwordStrength.focusClass}`}
           />
+          {passwordStrength.label && (
+            <p className={`text-xs font-semibold ${passwordStrength.colorClass}`}>
+              {passwordStrength.label}
+            </p>
+          )}
+          <p className="text-xs text-slate-400">{PASSWORD_COMPLEXITY_MESSAGE}</p>
         </label>
         <button
           type="submit"
@@ -166,5 +176,6 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
       </form>
     </div>
   </section>
-);
+  );
+};
 

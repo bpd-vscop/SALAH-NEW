@@ -26,7 +26,7 @@ export const authApi = {
     ),
   // Password Reset
   forgotPassword: (payload: { email: string }) =>
-    http.post<{ message: string; email: string; expiresAt: string; previewCode?: string }>(
+    http.post<{ message: string; email: string; expiresAt: string | null; previewCode?: string }>(
       '/auth/forgot-password',
       payload
     ),

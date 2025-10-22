@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const { parseWithSchema } = require('./index');
+const { meetsPasswordComplexity, PASSWORD_COMPLEXITY_MESSAGE } = require('../utils/password');
 
 const trimmedString = z.string().trim();
 const optionalTrimmedString = z.string().trim().optional();
@@ -11,7 +12,13 @@ const clientRegistrationSchema = z
       .object({
         fullName: trimmedString.min(1, 'Full name is required').max(120),
         email: z.string().trim().email('A valid email address is required'),
-        password: z.string().min(8, 'Password must be at least 8 characters').max(128),
+        password: z
+          .string()
+          .min(8, 'Password must be at least 8 characters')
+          .max(128, 'Password must be at most 128 characters')
+          .refine((value) => meetsPasswordComplexity(value), {
+            message: PASSWORD_COMPLEXITY_MESSAGE,
+          }),
       })
       .strict(),
     companyInfo: z

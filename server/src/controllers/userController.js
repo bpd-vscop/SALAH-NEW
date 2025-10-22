@@ -19,9 +19,11 @@ const createUser = async (req, res, next) => {
   try {
     const data = validateCreateUser(req.body || {});
 
-    const existing = await User.findOne({ username: data.username });
-    if (existing) {
-      throw badRequest('Username already in use', [{ field: 'username' }]);
+    if (data.username) {
+      const existing = await User.findOne({ username: data.username });
+      if (existing) {
+        throw badRequest('Username already in use', [{ field: 'username' }]);
+      }
     }
 
     if (data.email) {
@@ -40,12 +42,12 @@ const createUser = async (req, res, next) => {
 
     const user = await User.create({
       name: data.name,
-      username: data.username,
+      username: data.role === 'client' ? undefined : data.username,
       email: data.email?.toLowerCase(),
       role: data.role,
       status: data.status,
       passwordHash,
-      isEmailVerified: true,
+      isEmailVerified: data.role !== 'client',
     });
 
     res.status(201).json({ user: user.toJSON() });
@@ -91,12 +93,28 @@ const updateUser = async (req, res, next) => {
       });
     }
 
-    if (data.username && data.username !== user.username) {
-      const existing = await User.findOne({ username: data.username });
-      if (existing) {
-        throw badRequest('Username already in use', [{ field: 'username' }]);
+    const desiredRole = data.role || user.role;
+
+    if (Object.prototype.hasOwnProperty.call(data, 'username')) {
+      const providedUsername = data.username ?? undefined;
+      if (desiredRole === 'client') {
+        if (providedUsername) {
+          throw badRequest('Clients do not use usernames', [{ field: 'username' }]);
+        }
+        user.username = undefined;
+        user.set('username', undefined);
+      } else {
+        if (!providedUsername) {
+          throw badRequest('Username is required for this role', [{ field: 'username' }]);
+        }
+        if (providedUsername !== user.username) {
+          const existing = await User.findOne({ username: providedUsername });
+          if (existing) {
+            throw badRequest('Username already in use', [{ field: 'username' }]);
+          }
+          user.username = providedUsername;
+        }
       }
-      user.username = data.username;
     }
 
     if (data.email && data.email.toLowerCase() !== (user.email || '').toLowerCase()) {
@@ -134,6 +152,15 @@ const updateUser = async (req, res, next) => {
       }
       user.role = data.role;
     }
+
+    if (user.role !== 'client' && !user.username) {
+      throw badRequest('Username is required for this role', [{ field: 'username' }]);
+    }
+    if (user.role === 'client' && user.username) {
+      user.username = undefined;
+      user.set('username', undefined);
+    }
+
     if (data.status) {
       user.status = data.status;
     }

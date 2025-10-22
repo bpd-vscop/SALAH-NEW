@@ -21,7 +21,7 @@ export interface CompanyInfo {
 export interface User {
   id: string;
   name: string;
-  username: string;
+  username: string | null;
   role: UserRole;
   status: UserStatus;
   email?: string | null;
