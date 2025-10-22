@@ -182,11 +182,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     }
 
     setHandledResetToken(resetTokenParam);
-    setActiveTab('login');
-    setShowPasswordReset(true);
+    setActiveTab('reset-password');
+    setPasswordResetStep('new-password');
     setResetError(null);
     setResetLoading(true);
-    setPasswordResetStep('new-password');
+    setResetEmail('');
+    setResetCode('');
+    setNewPassword('');
+    setConfirmNewPassword('');
 
     authApi
       .validateResetToken(resetTokenParam)
@@ -208,19 +211,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
         setResetLoading(false);
       });
   }, [resetTokenParam, handledResetToken]);
-
-  const openPasswordReset = () => {
-    const candidate = loginUsername.trim();
-    if (candidate.includes('@')) {
-      setResetEmail(candidate.toLowerCase());
-    }
-    setPasswordResetStep('request');
-    setResetCode('');
-    setResetToken('');
-    setResetError(null);
-    setHandledResetToken(null);
-    setShowPasswordReset(true);
-  };
 
   const resetSignup = () => {
     setSignupData(defaultSignup);
@@ -246,12 +236,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
 
   const showPasswordReset = () => {
     // Pre-fill email from login form if available
-    if (loginUsername.trim()) {
-      setResetEmail(loginUsername.trim());
+    const candidate = loginUsername.trim();
+    if (candidate.includes('@')) {
+      setResetEmail(candidate.toLowerCase());
     }
     setActiveTab('reset-password');
     setPasswordResetStep('request');
     setResetError(null);
+    setResetLoading(false);
+    setResetCode('');
+    setResetToken('');
+    if (!resetTokenParam) {
+      setHandledResetToken(null);
+    }
+    setNewPassword('');
+    setConfirmNewPassword('');
   };
 
   // Resend cooldown timer

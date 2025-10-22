@@ -12,6 +12,7 @@ import { HeroSlider } from '../components/home/HeroSlider';
 import { FeaturedProducts } from '../components/home/FeaturedProducts';
 import { ManufacturerLogos } from '../components/home/ManufacturerLogos';
 import { CategoryGrid } from '../components/home/CategoryGrid';
+import { BatteryPromo } from '../components/home/BatteryPromo';
 
 const HOMEPAGE_CATEGORY_LIMIT = 18;
 
@@ -159,8 +160,11 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Manufacturers logos should appear last before footer */}
+      {/* Manufacturers logos */}
       <ManufacturerLogos />
+
+      {/* Battery Promo Section - appears last before footer */}
+      <BatteryPromo />
 
       {/* Banners removed */}
     </SiteLayout>
