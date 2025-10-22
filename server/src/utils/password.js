@@ -3,7 +3,7 @@
 const SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
 
 const PASSWORD_COMPLEXITY_MESSAGE =
-  'Password must be at least 8 characters and include at least two of the following: uppercase letter, number, special character.';
+  'Minimum 8 characters, including an uppercase letter, a number, and a special character.';
 
 const hashPassword = async (plainPassword) => {
   return bcrypt.hash(plainPassword, SALT_ROUNDS);
@@ -23,7 +23,7 @@ const meetsPasswordComplexity = (password) => {
   const hasSpecial = /[^A-Za-z0-9]/.test(password);
 
   const satisfiedCategories = [hasUppercase, hasNumber, hasSpecial].filter(Boolean).length;
-  return satisfiedCategories >= 2;
+  return satisfiedCategories === 3;
 };
 
 module.exports = {

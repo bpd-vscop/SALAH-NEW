@@ -3,7 +3,7 @@ const SPECIAL_CHAR_REGEX = /[^A-Za-z0-9]/;
 export type PasswordStrengthLevel = 'weak' | 'good' | 'strong';
 
 export const PASSWORD_COMPLEXITY_MESSAGE =
-  'Password must be at least 8 characters and include at least two of the following: uppercase letter, number, special character.';
+  'Minimum 8 characters, including an uppercase letter, a number, and a special character.';
 
 const STRENGTH_UI: Record<
   PasswordStrengthLevel,
@@ -44,7 +44,7 @@ export const meetsPasswordPolicy = (password: string): boolean => {
   const hasSpecial = SPECIAL_CHAR_REGEX.test(password);
 
   const categoriesMet = [hasUppercase, hasNumber, hasSpecial].filter(Boolean).length;
-  return password.length >= 8 && categoriesMet >= 2;
+  return password.length >= 8 && categoriesMet === 3;
 };
 
 export const evaluatePasswordStrength = (password: string) => {
@@ -65,7 +65,7 @@ export const evaluatePasswordStrength = (password: string) => {
   const hasNumber = /\d/.test(value);
   const hasSpecial = SPECIAL_CHAR_REGEX.test(value);
   const categoriesMet = [hasUppercase, hasNumber, hasSpecial].filter(Boolean).length;
-  const meetsPolicy = value.length >= 8 && categoriesMet >= 2;
+  const meetsPolicy = value.length >= 8 && categoriesMet === 3;
 
   if (!meetsPolicy) {
     return {
@@ -78,7 +78,7 @@ export const evaluatePasswordStrength = (password: string) => {
     };
   }
 
-  const isStrong = categoriesMet === 3 && value.length >= 12;
+  const isStrong = value.length >= 12;
   const bucket: PasswordStrengthLevel = isStrong ? 'strong' : 'good';
   const ui = STRENGTH_UI[bucket];
 
@@ -91,4 +91,3 @@ export const evaluatePasswordStrength = (password: string) => {
     meetsPolicy,
   };
 };
-

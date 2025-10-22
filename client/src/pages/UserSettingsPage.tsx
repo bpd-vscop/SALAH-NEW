@@ -41,6 +41,44 @@ export const UserSettingsPage: React.FC = () => {
     return (source.charAt(0) || 'U').toUpperCase();
   }, [formData.fullName, user?.name]);
   const newPasswordStrength = evaluatePasswordStrength(formData.newPassword);
+  const confirmPasswordMismatch =
+    formData.confirmPassword.length > 0 && formData.newPassword !== formData.confirmPassword;
+  const newPasswordInputClasses = useMemo(
+    () =>
+      [
+        'h-11',
+        'rounded-xl',
+        'border',
+        newPasswordStrength.borderClass,
+        'bg-white',
+        'px-4',
+        'text-sm',
+        'transition-colors',
+        'duration-200',
+        'focus:outline-none',
+        newPasswordStrength.focusClass,
+      ].join(' '),
+    [newPasswordStrength]
+  );
+  const confirmPasswordInputClasses = useMemo(
+    () =>
+      [
+        'h-11',
+        'rounded-xl',
+        'border',
+        confirmPasswordMismatch ? 'border-rose-500' : 'border-border',
+        'bg-white',
+        'px-4',
+        'text-sm',
+        'transition-colors',
+        'duration-200',
+        'focus:outline-none',
+        confirmPasswordMismatch
+          ? 'focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600'
+          : 'focus:border-primary focus:ring-2 focus:ring-primary/20',
+      ].join(' '),
+    [confirmPasswordMismatch]
+  );
 
   useEffect(() => {
     if (!user) {
@@ -143,7 +181,7 @@ export const UserSettingsPage: React.FC = () => {
     if (!user) return;
 
     if (formData.newPassword !== formData.confirmPassword) {
-      setError('New passwords do not match');
+      setError(null);
       return;
     }
 
@@ -389,7 +427,7 @@ export const UserSettingsPage: React.FC = () => {
                   value={formData.newPassword}
                   onChange={(e) => setFormData((prev) => ({ ...prev, newPassword: e.target.value }))}
                   required
-                  className={`h-11 rounded-xl border ${newPasswordStrength.borderClass} bg-white px-4 text-sm transition-colors duration-200 focus:outline-none ${newPasswordStrength.focusClass}`}
+                  className={newPasswordInputClasses}
                 />
                 {newPasswordStrength.label && (
                   <p className={`text-xs font-semibold ${newPasswordStrength.colorClass}`}>
@@ -406,8 +444,11 @@ export const UserSettingsPage: React.FC = () => {
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                   required
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={confirmPasswordInputClasses}
                 />
+                {confirmPasswordMismatch && (
+                  <p className="text-xs font-semibold text-rose-600">Passwords do not match.</p>
+                )}
               </label>
             </div>
 

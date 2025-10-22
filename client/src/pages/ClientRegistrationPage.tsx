@@ -4,6 +4,11 @@ import { clientsApi, type ClientRegistrationPayload } from '../api/clients';
 import { authApi } from '../api/auth';
 import { useAuth } from '../context/useAuth';
 import type { ClientType } from '../types/api';
+import {
+  evaluatePasswordStrength,
+  meetsPasswordPolicy,
+  PASSWORD_COMPLEXITY_MESSAGE,
+} from '../utils/password';
 
 type RegistrationStep = 'clientType' | 'basicInfo' | 'companyInfo' | 'verification' | 'success';
 
@@ -35,6 +40,44 @@ export const ClientRegistrationPage: React.FC = () => {
   const [status, setStatus] = useState<string | null>(null);
 
   const isB2B = useMemo(() => clientType === 'B2B', [clientType]);
+  const passwordStrength = useMemo(() => evaluatePasswordStrength(basicInfo.password), [basicInfo.password]);
+  const confirmMismatch = basicInfo.confirmPassword.length > 0 && basicInfo.password !== basicInfo.confirmPassword;
+  const passwordInputClasses = useMemo(
+    () =>
+      [
+        'h-11',
+        'rounded-xl',
+        'border',
+        passwordStrength.borderClass,
+        'bg-white',
+        'px-4',
+        'text-sm',
+        'transition-colors',
+        'duration-200',
+        'focus:outline-none',
+        passwordStrength.focusClass,
+      ].join(' '),
+    [passwordStrength]
+  );
+  const confirmInputClasses = useMemo(
+    () =>
+      [
+        'h-11',
+        'rounded-xl',
+        'border',
+        confirmMismatch ? 'border-rose-500' : 'border-border',
+        'bg-white',
+        'px-4',
+        'text-sm',
+        'transition-colors',
+        'duration-200',
+        'focus:outline-none',
+        confirmMismatch
+          ? 'focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600'
+          : 'focus:border-primary focus:ring-2 focus:ring-primary/20',
+      ].join(' '),
+    [confirmMismatch]
+  );
 
   const handleClientTypeSelection = (type: ClientType) => {
     setClientType(type);
@@ -47,8 +90,13 @@ export const ClientRegistrationPage: React.FC = () => {
     event.preventDefault();
     if (!clientType) return;
 
+    if (!meetsPasswordPolicy(basicInfo.password)) {
+      setError(PASSWORD_COMPLEXITY_MESSAGE);
+      return;
+    }
+
     if (basicInfo.password !== basicInfo.confirmPassword) {
-      setError('Passwords do not match');
+      setError(null);
       return;
     }
 
@@ -69,6 +117,19 @@ export const ClientRegistrationPage: React.FC = () => {
 
   const submitRegistration = async () => {
     if (!clientType) return;
+
+    if (!meetsPasswordPolicy(basicInfo.password)) {
+      setError(PASSWORD_COMPLEXITY_MESSAGE);
+      return;
+    }
+
+    if (basicInfo.password !== basicInfo.confirmPassword) {
+      setError(null);
+      return;
+    }
+
+    setError(null);
+    setStatus(null);
 
     const payload: ClientRegistrationPayload = {
       clientType,
@@ -224,8 +285,14 @@ export const ClientRegistrationPage: React.FC = () => {
                     required
                     value={basicInfo.password}
                     onChange={(e) => setBasicInfo((prev) => ({ ...prev, password: e.target.value }))}
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className={passwordInputClasses}
                   />
+                  {passwordStrength.label && (
+                    <span className={`text-xs font-semibold ${passwordStrength.colorClass}`}>
+                      {passwordStrength.label}
+                    </span>
+                  )}
+                  <span className="text-xs text-slate-400">{PASSWORD_COMPLEXITY_MESSAGE}</span>
                 </label>
 
                 <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -235,8 +302,11 @@ export const ClientRegistrationPage: React.FC = () => {
                     required
                     value={basicInfo.confirmPassword}
                     onChange={(e) => setBasicInfo((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className={confirmInputClasses}
                   />
+                  {confirmMismatch && (
+                    <span className="text-xs font-semibold text-rose-600">Passwords do not match.</span>
+                  )}
                 </label>
               </div>
             </div>
@@ -411,4 +481,3 @@ export const ClientRegistrationPage: React.FC = () => {
     </div>
   );
 };
-

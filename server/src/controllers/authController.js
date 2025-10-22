@@ -11,6 +11,23 @@ const passwordResetService = require('../services/passwordResetService');
 
 const MAX_VERIFICATION_ATTEMPTS = Number(process.env.VERIFICATION_MAX_ATTEMPTS || 5);
 const VERIFICATION_LOCK_MINUTES = Number(process.env.VERIFICATION_LOCK_MINUTES || 15);
+const PENDING_VERIFICATION_RETENTION_MS = 15 * 24 * 60 * 60 * 1000;
+
+const getAccountCreatedAt = (user) => {
+  if (!user) {
+    return null;
+  }
+  if (user.accountCreated instanceof Date) {
+    return user.accountCreated;
+  }
+  if (user.createdAt instanceof Date) {
+    return user.createdAt;
+  }
+  if (typeof user._id?.getTimestamp === 'function') {
+    return user._id.getTimestamp();
+  }
+  return null;
+};
 
 const setAuthCookie = (res, token) => {
   const cookieName = getAuthCookieName();
@@ -36,9 +53,21 @@ const register = async (req, res, next) => {
       throw badRequest('Clients do not use usernames', [{ field: 'username' }]);
     }
 
-    const existingEmail = await User.findOne({ email });
+    let existingEmail = await User.findOne({ email });
     if (existingEmail) {
-      throw badRequest('Email already in use', [{ field: 'email' }]);
+      if (existingEmail.isEmailVerified === false) {
+        const createdAt = getAccountCreatedAt(existingEmail);
+        const ageMs = createdAt ? Date.now() - createdAt.getTime() : 0;
+        if (ageMs > PENDING_VERIFICATION_RETENTION_MS) {
+          await User.deleteOne({ _id: existingEmail._id });
+          await VerificationCode.deleteOne({ email });
+          existingEmail = null;
+        } else {
+          throw badRequest('An account with this email already exists. Please log in to continue.', [{ field: 'email' }]);
+        }
+      } else {
+        throw badRequest('An account with this email already exists.', [{ field: 'email' }]);
+      }
     }
 
     let username;

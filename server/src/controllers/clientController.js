@@ -1,8 +1,27 @@
 const User = require('../models/User');
+const VerificationCode = require('../models/VerificationCode');
 const { hashPassword } = require('../utils/password');
 const { badRequest } = require('../utils/appError');
 const { validateClientRegistration } = require('../validators/clientRegistration');
 const { issueVerificationCode } = require('../services/verificationCodeService');
+
+const PENDING_VERIFICATION_RETENTION_MS = 15 * 24 * 60 * 60 * 1000;
+
+const getAccountCreatedAt = (user) => {
+  if (!user) {
+    return null;
+  }
+  if (user.accountCreated instanceof Date) {
+    return user.accountCreated;
+  }
+  if (user.createdAt instanceof Date) {
+    return user.createdAt;
+  }
+  if (typeof user._id?.getTimestamp === 'function') {
+    return user._id.getTimestamp();
+  }
+  return null;
+};
 
 const registerClient = async (req, res, next) => {
   try {
@@ -12,9 +31,24 @@ const registerClient = async (req, res, next) => {
     const passwordHash = await hashPassword(payload.basicInfo.password);
 
     let user = await User.findOne({ email });
-    const createdNewUser = !user;
-    if (user && user.isEmailVerified) {
-      throw badRequest('An account with this email already exists.');
+    let createdNewUser = !user;
+    if (user) {
+      const accountCreatedAt = getAccountCreatedAt(user);
+      const isPendingVerification = user.isEmailVerified === false;
+      if (isPendingVerification) {
+        const ageMs = accountCreatedAt ? Date.now() - accountCreatedAt.getTime() : 0;
+        if (ageMs <= PENDING_VERIFICATION_RETENTION_MS) {
+          throw badRequest('An account with this email already exists. Please log in to continue.', [
+            { field: 'email' },
+          ]);
+        }
+        await User.deleteOne({ _id: user._id });
+        await VerificationCode.deleteOne({ email });
+        user = null;
+        createdNewUser = true;
+      } else {
+        throw badRequest('An account with this email already exists.', [{ field: 'email' }]);
+      }
     }
 
     if (!user) {

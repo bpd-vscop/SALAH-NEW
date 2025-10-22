@@ -105,6 +105,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
 
   const signupPasswordStrength = evaluatePasswordStrength(signupData.password);
   const resetPasswordStrength = evaluatePasswordStrength(newPassword);
+  const signupConfirmMismatch =
+    signupData.confirmPassword.length > 0 && signupData.password !== signupData.confirmPassword;
   const signupPasswordInputClasses = [
     'rounded-xl',
     'border',
@@ -136,6 +138,39 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     'focus:outline-none',
     'w-full',
     resetPasswordStrength.focusClass,
+  ].join(' ');
+  const signupConfirmInputClasses = [
+    'rounded-xl',
+    'border',
+    signupConfirmMismatch ? 'border-rose-500' : 'border-slate-400/45',
+    'bg-white/95',
+    'px-3.5',
+    'py-3',
+    'pr-11',
+    'text-[0.95rem]',
+    'transition-all',
+    'duration-250',
+    'ease-in-out',
+    'focus:outline-none',
+    'w-full',
+    signupConfirmMismatch ? 'focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600' : 'focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12',
+  ].join(' ');
+  const resetConfirmMismatch = confirmNewPassword.length > 0 && newPassword !== confirmNewPassword;
+  const resetConfirmInputClasses = [
+    'rounded-xl',
+    'border',
+    resetConfirmMismatch ? 'border-rose-500' : 'border-slate-400/45',
+    'bg-white/95',
+    'px-3.5',
+    'py-3',
+    'pr-11',
+    'text-[0.95rem]',
+    'transition-all',
+    'duration-250',
+    'ease-in-out',
+    'focus:outline-none',
+    'w-full',
+    resetConfirmMismatch ? 'focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600' : 'focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12',
   ].join(' ');
 
   const resetSignup = () => {
@@ -261,7 +296,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
       return;
     }
     if (newPassword !== confirmNewPassword) {
-      setResetError('Passwords do not match.');
+      setResetError(null);
       return;
     }
     setResetLoading(true);
@@ -328,7 +363,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
       return;
     }
     if (signupData.password !== signupData.confirmPassword) {
-      setSignupError('Passwords do not match.');
+      setSignupError(null);
       return;
     }
 
@@ -641,7 +676,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                             boxShadow: '0 20px 30px rgba(160, 11, 11, 0.25)',
                           }}
                         >
-                          {resetLoading ? 'Sending…' : 'Send Reset Code'}
+                          {resetLoading ? (
+                            <span className="inline-flex items-center justify-center">
+                              Sending
+                              <LoadingDots />
+                            </span>
+                          ) : (
+                            'Send Reset Code'
+                          )}
                         </button>
                       </form>
                     </div>
@@ -692,7 +734,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                             boxShadow: '0 20px 30px rgba(160, 11, 11, 0.25)',
                           }}
                         >
-                          {resetLoading ? 'Verifying…' : 'Verify Code'}
+                          {resetLoading ? (
+                            <span className="inline-flex items-center justify-center">
+                              Verifying
+                              <LoadingDots />
+                            </span>
+                          ) : (
+                            'Verify Code'
+                          )}
                         </button>
                       </form>
                     </div>
@@ -742,7 +791,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                               onChange={(e) => setConfirmNewPassword(e.target.value)}
                               placeholder="Re-enter your password"
                               required
-                              className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 pr-11 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
+                              className={resetConfirmInputClasses}
                             />
                             <button
                               type="button"
@@ -752,6 +801,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                               <EyeIcon show={showConfirmNewPassword} />
                             </button>
                           </div>
+                          {resetConfirmMismatch && (
+                            <p className="text-xs font-semibold text-rose-600">Passwords do not match.</p>
+                          )}
                         </label>
 
                         {resetError && (
@@ -769,7 +821,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                             boxShadow: '0 20px 30px rgba(160, 11, 11, 0.25)',
                           }}
                         >
-                          {resetLoading ? 'Resetting…' : 'Reset Password'}
+                          {resetLoading ? (
+                            <span className="inline-flex items-center justify-center">
+                              Resetting
+                              <LoadingDots />
+                            </span>
+                          ) : (
+                            'Reset Password'
+                          )}
                         </button>
                       </form>
                     </div>
@@ -1082,7 +1141,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                             onChange={(e) => setSignupData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                             placeholder="Confirm your password"
                             required
-                            className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 pr-11 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
+                            className={signupConfirmInputClasses}
                           />
                           <button
                             type="button"
@@ -1092,6 +1151,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                             <EyeIcon show={showConfirmPassword} />
                           </button>
                         </div>
+                        {signupConfirmMismatch && (
+                          <p className="text-xs font-semibold text-rose-600">Passwords do not match.</p>
+                        )}
                       </label>
 
                       <div className="flex justify-between gap-4 items-center">
@@ -1333,7 +1395,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                         }
                       }}
                     >
-                      {verificationLoading ? 'Verifying…' : 'Verify and Continue'}
+                      {verificationLoading ? (
+                        <span className="inline-flex items-center justify-center">
+                          Verifying
+                          <LoadingDots />
+                        </span>
+                      ) : (
+                        'Verify and Continue'
+                      )}
                     </button>
 
                     <div className="mt-4 text-center">
