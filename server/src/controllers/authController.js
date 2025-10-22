@@ -7,6 +7,7 @@ const { badRequest, unauthorized } = require('../utils/appError');
 const { signAuthToken, getCookieOptions, getAuthCookieName } = require('../config/jwt');
 const { sanitizeUsernameBase, ensureUniqueUsername } = require('../utils/username');
 const { issueVerificationCode } = require('../services/verificationCodeService');
+const passwordResetService = require('../services/passwordResetService');
 
 const MAX_VERIFICATION_ATTEMPTS = Number(process.env.VERIFICATION_MAX_ATTEMPTS || 5);
 const VERIFICATION_LOCK_MINUTES = Number(process.env.VERIFICATION_LOCK_MINUTES || 15);
@@ -259,6 +260,103 @@ const resendVerificationCode = async (req, res, next) => {
   }
 };
 
+// Password Reset: Step 1 - Request reset (send email with link + code)
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      throw badRequest('Email is required.');
+    }
+
+    const result = await passwordResetService.createPasswordReset(email.trim());
+
+    res.json({
+      message: 'If an account exists with this email, you will receive a password reset link.',
+      email: email.trim(),
+      expiresAt: result.expiresAt,
+      ...(result.code && { previewCode: result.code }), // Only in dev
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Password Reset: Step 2a - Validate magic link token
+const validateResetToken = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+
+    if (!token) {
+      throw badRequest('Reset token is required.');
+    }
+
+    const result = await passwordResetService.validateResetToken(token);
+
+    if (!result.valid) {
+      throw badRequest('Invalid or expired reset token.');
+    }
+
+    res.json({
+      valid: true,
+      token,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Password Reset: Step 2b - Validate 6-digit code (alternative to magic link)
+const verifyResetCode = async (req, res, next) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      throw badRequest('Email and code are required.');
+    }
+
+    if (!/^\d{6}$/.test(code)) {
+      throw badRequest('Code must be 6 digits.');
+    }
+
+    const result = await passwordResetService.validateResetCode(email.trim(), code.trim());
+
+    if (!result.valid) {
+      throw badRequest('Invalid or expired reset code.');
+    }
+
+    res.json({
+      valid: true,
+      token: result.token, // Return token for next step
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Password Reset: Step 3 - Set new password
+const resetPassword = async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      throw badRequest('Token and new password are required.');
+    }
+
+    if (newPassword.length < 8) {
+      throw badRequest('Password must be at least 8 characters long.');
+    }
+
+    await passwordResetService.resetPassword(token, newPassword);
+
+    res.json({
+      message: 'Password reset successful. You can now log in with your new password.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -267,6 +365,10 @@ module.exports = {
   changePassword,
   verifyRegistration,
   resendVerificationCode,
+  forgotPassword,
+  validateResetToken,
+  verifyResetCode,
+  resetPassword,
 };
 
 

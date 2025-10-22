@@ -21,7 +21,19 @@ export const authApi = {
   verifyEmail: (payload: { email: string; code: string }) => http.post<AuthResponse>('/auth/verify', payload),
   resendVerificationCode: (payload: { email: string }) =>
     http.post<{ email: string; expiresAt: string; requiresVerification: boolean; previewCode?: string }>(
-      '/auth/resend-verification',
+      '/auth/resend-code',
       payload
     ),
+  // Password Reset
+  forgotPassword: (payload: { email: string }) =>
+    http.post<{ message: string; email: string; expiresAt: string; previewCode?: string }>(
+      '/auth/forgot-password',
+      payload
+    ),
+  validateResetToken: (token: string) =>
+    http.get<{ valid: boolean; token: string }>(`/auth/reset-password/${token}`),
+  verifyResetCode: (payload: { email: string; code: string }) =>
+    http.post<{ valid: boolean; token: string }>('/auth/verify-reset-code', payload),
+  resetPassword: (payload: { token: string; newPassword: string }) =>
+    http.post<{ message: string }>('/auth/reset-password', payload),
 };

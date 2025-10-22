@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const VerificationCode = require('../models/VerificationCode');
+const PasswordResetToken = require('../models/PasswordResetToken');
 
 const UNVERIFIED_ACCOUNT_EXPIRY_DAYS = Number(process.env.UNVERIFIED_ACCOUNT_EXPIRY_DAYS || 15);
 
@@ -29,6 +30,15 @@ const cleanupUnverifiedAccounts = async () => {
 
     if (codeCleanup.deletedCount > 0) {
       console.log(`[Cleanup] Removed ${codeCleanup.deletedCount} expired verification codes.`);
+    }
+
+    // Clean up expired password reset tokens
+    const resetTokenCleanup = await PasswordResetToken.deleteMany({
+      expiresAt: { $lt: new Date() },
+    });
+
+    if (resetTokenCleanup.deletedCount > 0) {
+      console.log(`[Cleanup] Removed ${resetTokenCleanup.deletedCount} expired password reset tokens.`);
     }
   } catch (error) {
     console.error('[Cleanup] Error during cleanup:', error);
