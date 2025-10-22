@@ -243,12 +243,14 @@ export const Footer: FC = () => {
 
         <div className="mt-10 space-y-6 border-t border-white/20 pt-6 text-center text-sm text-white/70">
           <div className="flex justify-center">
-            <img
-              src="https://i.postimg.cc/136fcG0Z/qt-q-95.png"
-              alt="ULK Supply logo"
+            <a href="/" className="inline-block">
+              <img
+                src="/logo-white.png"
+                alt="ULK Supply logo"
               className="h-16 w-auto object-contain"
-              loading="lazy"
-            />
+                loading="lazy"
+              />
+            </a>
           </div>
           <p>© {currentYear} ULK Supply. All Rights Reserved | Powered by <a href="https://www.bpd.ma" target="_blank" rel="noopener noreferrer" className="transition hover:text-white">BP. Digital</a></p>
         </div>
