@@ -5,9 +5,8 @@ import { cn } from '../../utils/cn';
 import { heroSlidesApi, type HeroSlide } from '../../api/heroSlides';
 
 // FIXED MARGIN CONFIGURATION
-// Adjust this value to control the top margin of the hero slider
-// This should account for: Promo Banner + Main Header + Search Bar (closed)
-const HERO_SLIDER_TOP_MARGIN = 28; // pixels - adjust this value as needed
+// No margin needed - handled by SiteLayout padding for fixed header
+const HERO_SLIDER_TOP_MARGIN = 25; // pixels
 
 export function HeroSlider() {
   const [slides, setSlides] = useState<HeroSlide[]>([]);
