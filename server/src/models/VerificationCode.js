@@ -7,11 +7,15 @@ const verificationCodeSchema = new mongoose.Schema(
       required: true,
       trim: true,
       lowercase: true,
-      unique: true,
     },
     code: {
       type: String,
       required: true,
+    },
+    type: {
+      type: String,
+      enum: ['registration', 'password-change', 'password-reset'],
+      default: 'registration',
     },
     expiresAt: {
       type: Date,
@@ -35,5 +39,8 @@ const verificationCodeSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Compound index for email and type to allow multiple codes per email (different purposes)
+verificationCodeSchema.index({ email: 1, type: 1 }, { unique: true });
 
 module.exports = mongoose.model('VerificationCode', verificationCodeSchema);

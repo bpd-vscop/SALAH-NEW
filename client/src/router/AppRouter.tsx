@@ -1,6 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from '../components/routing/ProtectedRoute';
-import { AccountDashboardPage } from '../pages/AccountDashboardPage';
 import { AdminDashboardPage } from '../pages/AdminDashboardPage';
 import { CartPage } from '../pages/CartPage';
 import { CheckoutPage } from '../pages/CheckoutPage';
@@ -15,6 +14,7 @@ import { ManufacturerDetailPage } from '../pages/ManufacturerDetailPage';
 import { CategoryPage } from '../pages/CategoryPage';
 import { CategoriesPage } from '../pages/CategoriesPage';
 import { ClientRegistrationPage } from '../pages/ClientRegistrationPage';
+import { ClientDashboardPage } from '../pages/ClientDashboardPage';
 
 export const AppRouter: React.FC = () => (
   <BrowserRouter>
@@ -34,7 +34,11 @@ export const AppRouter: React.FC = () => (
 
       <Route element={<ProtectedRoute allowRoles={['client', 'super_admin', 'admin', 'staff']} /> }>
         <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/account" element={<AccountDashboardPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute allowRoles={['client']} /> }>
+        <Route path="/dashboard" element={<ClientDashboardPage />} />
+        <Route path="/account" element={<ClientDashboardPage />} />
       </Route>
 
       <Route element={<ProtectedRoute allowRoles={['super_admin', 'admin', 'staff']} /> }>

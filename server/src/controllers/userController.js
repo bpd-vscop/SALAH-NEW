@@ -4,6 +4,8 @@ const { validateAdminProfile } = require('../validators/adminProfile');
 const { hashPassword } = require('../utils/password');
 const { badRequest, notFound, forbidden } = require('../utils/appError');
 const { canView, canEdit, rank } = require('../utils/roles');
+const { issuePasswordChangeCode, verifyPasswordChangeCode } = require('../services/verificationCodeService');
+const { sendPasswordChangedConfirmation } = require('../services/emailService');
 
 const listUsers = async (req, res, next) => {
   try {
@@ -207,9 +209,231 @@ const deleteUser = async (req, res, next) => {
   }
 };
 
+const addShippingAddress = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const data = req.body || {};
+
+    const user = await User.findById(id);
+    if (!user) {
+      throw notFound('User not found');
+    }
+
+    const isSelf = req.user && (req.user.id === id || req.user._id?.toString() === id);
+    if (!isSelf) {
+      throw forbidden('You can only manage your own shipping addresses');
+    }
+
+    // If this is set as default, unset all other defaults
+    if (data.isDefault) {
+      user.shippingAddresses.forEach((addr) => {
+        addr.isDefault = false;
+      });
+    }
+
+    // If this is the first address, make it default
+    if (user.shippingAddresses.length === 0) {
+      data.isDefault = true;
+    }
+
+    user.shippingAddresses.push({
+      fullName: data.fullName || null,
+      phone: data.phone || null,
+      addressLine1: data.addressLine1 || null,
+      addressLine2: data.addressLine2 || null,
+      city: data.city || null,
+      state: data.state || null,
+      postalCode: data.postalCode || null,
+      country: data.country || 'Morocco',
+      isDefault: data.isDefault || false,
+    });
+
+    await user.save();
+
+    res.status(201).json({ user: user.toJSON() });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateShippingAddress = async (req, res, next) => {
+  try {
+    const { id, addressId } = req.params;
+    const data = req.body || {};
+
+    const user = await User.findById(id);
+    if (!user) {
+      throw notFound('User not found');
+    }
+
+    const isSelf = req.user && (req.user.id === id || req.user._id?.toString() === id);
+    if (!isSelf) {
+      throw forbidden('You can only manage your own shipping addresses');
+    }
+
+    const address = user.shippingAddresses.id(addressId);
+    if (!address) {
+      throw notFound('Shipping address not found');
+    }
+
+    // If setting as default, unset all other defaults
+    if (data.isDefault && !address.isDefault) {
+      user.shippingAddresses.forEach((addr) => {
+        addr.isDefault = false;
+      });
+    }
+
+    // Update fields
+    if (data.fullName !== undefined) address.fullName = data.fullName;
+    if (data.phone !== undefined) address.phone = data.phone;
+    if (data.addressLine1 !== undefined) address.addressLine1 = data.addressLine1;
+    if (data.addressLine2 !== undefined) address.addressLine2 = data.addressLine2;
+    if (data.city !== undefined) address.city = data.city;
+    if (data.state !== undefined) address.state = data.state;
+    if (data.postalCode !== undefined) address.postalCode = data.postalCode;
+    if (data.country !== undefined) address.country = data.country;
+    if (data.isDefault !== undefined) address.isDefault = data.isDefault;
+
+    await user.save();
+
+    res.json({ user: user.toJSON() });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteShippingAddress = async (req, res, next) => {
+  try {
+    const { id, addressId } = req.params;
+
+    const user = await User.findById(id);
+    if (!user) {
+      throw notFound('User not found');
+    }
+
+    const isSelf = req.user && (req.user.id === id || req.user._id?.toString() === id);
+    if (!isSelf) {
+      throw forbidden('You can only manage your own shipping addresses');
+    }
+
+    const address = user.shippingAddresses.id(addressId);
+    if (!address) {
+      throw notFound('Shipping address not found');
+    }
+
+    const wasDefault = address.isDefault;
+    address.deleteOne();
+
+    // If we deleted the default address, make the first remaining address default
+    if (wasDefault && user.shippingAddresses.length > 0) {
+      user.shippingAddresses[0].isDefault = true;
+    }
+
+    await user.save();
+
+    res.json({ user: user.toJSON() });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const requestPasswordChange = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+    if (!user) {
+      throw notFound('User not found');
+    }
+
+    const isSelf = req.user && (req.user.id === id || req.user._id?.toString() === id);
+    if (!isSelf) {
+      throw forbidden('You can only change your own password');
+    }
+
+    if (!user.email) {
+      throw badRequest('No email associated with this account');
+    }
+
+    const { previewCode } = await issuePasswordChangeCode({
+      email: user.email,
+      fullName: user.name,
+    });
+
+    res.json({
+      message: 'Verification code sent to your email',
+      ...(previewCode ? { previewCode } : {}),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const changePassword = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { code, newPassword } = req.body || {};
+
+    if (!code || !newPassword) {
+      throw badRequest('Verification code and new password are required');
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      throw notFound('User not found');
+    }
+
+    const isSelf = req.user && (req.user.id === id || req.user._id?.toString() === id);
+    if (!isSelf) {
+      throw forbidden('You can only change your own password');
+    }
+
+    if (!user.email) {
+      throw badRequest('No email associated with this account');
+    }
+
+    // Verify the code
+    const verification = await verifyPasswordChangeCode({
+      email: user.email,
+      code,
+    });
+
+    if (!verification.valid) {
+      throw badRequest(verification.error || 'Invalid verification code');
+    }
+
+    // Update password
+    user.passwordHash = await hashPassword(newPassword);
+    await user.save();
+
+    // Send confirmation email
+    try {
+      await sendPasswordChangedConfirmation({
+        email: user.email,
+        fullName: user.name,
+      });
+    } catch (emailError) {
+      console.error('Failed to send password change confirmation email:', emailError);
+      // Don't fail the password change if email fails
+    }
+
+    res.json({
+      message: 'Password changed successfully',
+      user: user.toJSON(),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   listUsers,
   createUser,
   updateUser,
   deleteUser,
+  addShippingAddress,
+  updateShippingAddress,
+  deleteShippingAddress,
+  requestPasswordChange,
+  changePassword,
 };

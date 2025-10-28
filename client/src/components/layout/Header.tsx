@@ -120,8 +120,23 @@ const vehicleYears = ['2024', '2023', '2022', '2021', '2020', '2019'];
 const vehicleMakes = ['Toyota', 'Honda', 'Ford', 'BMW', 'Mercedes-Benz', 'Kia'];
 const vehicleModels = ['Camry', 'Accord', 'F-150', 'RAV4', 'C-Class', 'Telluride'];
 
-const PromoBanner: React.FC<{ text: string; visible: boolean }> = ({ text, visible }) => {
-  if (!visible) return null;
+const PromoBanner: React.FC<{ text: string; visible: boolean; loading?: boolean }> = ({ text, visible, loading = false }) => {
+  // Show placeholder while loading
+  if (loading) {
+    return (
+      <div className="relative overflow-hidden bg-gradient-to-r from-[#f6b210] via-[#dc4f0c] to-[#a00b0b] text-white shadow-[0_12px_24px_rgba(160,11,11,0.25)] transition-all duration-500 ease-in-out">
+        <div className="mx-auto flex max-w-content flex-col items-center justify-center gap-2 px-4 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-center sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-6 sm:text-[0.75rem]">
+          <div className="h-6 w-full sm:w-auto opacity-0" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!visible) {
+    return (
+      <div className="relative overflow-hidden transition-all duration-500 ease-in-out h-0 opacity-0" style={{ maxHeight: 0 }} />
+    );
+  }
   useEffect(() => {
     if (typeof document === 'undefined') {
       return;
@@ -145,7 +160,7 @@ const PromoBanner: React.FC<{ text: string; visible: boolean }> = ({ text, visib
   const telHref = useMemo(() => selectedNumber.replace(/[^+\d]/g, ''), [selectedNumber]);
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-[#f6b210] via-[#dc4f0c] to-[#a00b0b] text-white shadow-[0_12px_24px_rgba(160,11,11,0.25)]">
+    <div className="relative overflow-hidden bg-gradient-to-r from-[#f6b210] via-[#dc4f0c] to-[#a00b0b] text-white shadow-[0_12px_24px_rgba(160,11,11,0.25)] transition-all duration-500 ease-in-out animate-[slideDown_0.5s_ease-out]">
       <span
         aria-hidden
         className="pointer-events-none absolute -left-16 top-1/2 h-28 w-28 -translate-y-1/2 rounded-full bg-white/15 blur-2xl"
@@ -335,6 +350,7 @@ export const Header: React.FC = () => {
   const [menuLinks, setMenuLinks] = useState<PreparedMenuLink[]>([]);
   const [promoText, setPromoText] = useState('');
   const [promoVisible, setPromoVisible] = useState(false);
+  const [promoLoading, setPromoLoading] = useState(true); // Start as loading
   const [menuLoading, setMenuLoading] = useState(false);
 
   useEffect(() => {
@@ -396,6 +412,7 @@ export const Header: React.FC = () => {
           const nextText = (promo?.text || '').trim();
           setPromoText(nextText);
           setPromoVisible(Boolean(promo?.visible && nextText));
+          setPromoLoading(false);
       } catch (error) {
         console.warn('Failed to load navigation menu', error);
         if (active) {
@@ -404,6 +421,7 @@ export const Header: React.FC = () => {
           setMenuLinks([]);
           setPromoText('');
           setPromoVisible(false);
+          setPromoLoading(false);
         }
       } finally {
         if (active) {
@@ -504,8 +522,8 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 overflow-x-clip">
-      <PromoBanner text={promoText} visible={promoVisible} />
+    <header id="main-header" className="fixed top-0 left-0 right-0 z-40 overflow-x-clip">
+      <PromoBanner text={promoText} visible={promoVisible} loading={promoLoading} />
       <div className="relative border-b border-[#d76c28] bg-gradient-to-r from-[#f6b210] via-[#dc4f0c] to-[#a00b0b] text-white shadow-md" ref={headerRef}>
         <div className="flex w-full items-center justify-between gap-4 px-4 py-2 sm:px-6">
           <div className="flex items-center gap-3 flex-shrink-0">

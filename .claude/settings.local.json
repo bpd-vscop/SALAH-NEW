@@ -8,7 +8,12 @@
       "Bash(npm run build)",
       "Bash(node -e \"console.log(''SMTP_PASSWORD:'', process.env.SMTP_PASSWORD ? ''***SET***'' : ''NOT SET'')\")",
       "Bash(npm install:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

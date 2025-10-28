@@ -18,6 +18,19 @@ export interface CompanyInfo {
   website?: string | null;
 }
 
+export interface ShippingAddress {
+  id: string;
+  fullName: string | null;
+  phone: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+  isDefault: boolean;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -30,6 +43,7 @@ export interface User {
   verificationFileUrl?: string | null;
   profileImage?: string | null;
   isEmailVerified?: boolean;
+  shippingAddresses?: ShippingAddress[];
   cart: CartItem[];
   orderHistory: string[];
   accountCreated?: string | null;
