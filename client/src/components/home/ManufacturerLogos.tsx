@@ -13,6 +13,8 @@ export function ManufacturerLogos() {
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [hasOverflow, setHasOverflow] = useState(false);
+  const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevShouldSlideRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -56,25 +58,85 @@ export function ManufacturerLogos() {
     };
   }, [slideWidth]);
 
-  // Recalculate when items or container width changes
+  const clearResumeTimeout = () => {
+    if (resumeTimeoutRef.current) {
+      clearTimeout(resumeTimeoutRef.current);
+      resumeTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleResume = (delay = 500) => {
+    clearResumeTimeout();
+    resumeTimeoutRef.current = setTimeout(() => {
+      setPaused(false);
+      resumeTimeoutRef.current = null;
+    }, delay);
+  };
+
+  useEffect(() => {
+    return () => clearResumeTimeout();
+  }, []);
+
+  // Recalculate when items, container width, or sliding state changes
   useEffect(() => {
     const recalc = () => {
       const container = containerRef.current;
       const track = trackRef.current;
       if (!container || !track) return;
-      const enable = track.scrollWidth > container.clientWidth + 40; // small buffer
-      setShouldSlide(enable);
-      setHasOverflow(enable);
-      // When sliding with duplicated items, translate by one set width only.
-      const firstSetWidth = enable ? Math.floor(track.scrollWidth / 2) : 0;
-      setSlideWidth(firstSetWidth);
+      const copies = shouldSlide ? 3 : 1;
+      const totalWidth = track.scrollWidth;
+      const baseWidth = copies > 0 ? totalWidth / copies : 0;
+      const enable = baseWidth > container.clientWidth + 40 && items.length > 0;
+
+      setShouldSlide((prev) => (prev === enable ? prev : enable));
+      setHasOverflow((prev) => (prev === enable ? prev : enable));
+      setSlideWidth(enable ? Math.max(0, baseWidth) : 0);
     };
     recalc();
     window.addEventListener('resize', recalc);
     return () => window.removeEventListener('resize', recalc);
-  }, [items.length]);
+  }, [items.length, shouldSlide]);
 
-  const trackItems = useMemo(() => (shouldSlide ? [...items, ...items] : items), [items, shouldSlide]);
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (shouldSlide && !prevShouldSlideRef.current && slideWidth) {
+      container.scrollLeft = slideWidth;
+    } else if (!shouldSlide && prevShouldSlideRef.current) {
+      container.scrollLeft = 0;
+    }
+
+    prevShouldSlideRef.current = shouldSlide;
+  }, [shouldSlide, slideWidth]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !shouldSlide || !slideWidth) return;
+
+    let ticking = false;
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const max = slideWidth * 2;
+        if (container.scrollLeft <= 0) {
+          container.scrollLeft += slideWidth;
+        } else if (container.scrollLeft >= max) {
+          container.scrollLeft -= slideWidth;
+        }
+        ticking = false;
+      });
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [shouldSlide, slideWidth]);
+
+  const trackItems = useMemo(
+    () => (shouldSlide ? [...items, ...items, ...items] : items),
+    [items, shouldSlide]
+  );
 
   // No per-item opacity — fades handled by gradient overlays
 
@@ -82,6 +144,7 @@ export function ManufacturerLogos() {
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!containerRef.current) return;
     setIsDragging(true);
+    clearResumeTimeout();
     setPaused(true);
     setStartX(e.pageX - containerRef.current.offsetLeft);
     setScrollLeft(containerRef.current.scrollLeft);
@@ -97,13 +160,14 @@ export function ManufacturerLogos() {
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    scheduleResume();
   };
 
   const handleMouseLeave = () => {
     if (isDragging) {
       setIsDragging(false);
     }
-    setPaused(false);
+    scheduleResume();
   };
 
   // Mouse wheel horizontal scroll
@@ -111,16 +175,15 @@ export function ManufacturerLogos() {
     if (!containerRef.current) return;
     e.preventDefault();
     containerRef.current.scrollLeft += e.deltaY;
+    clearResumeTimeout();
     setPaused(true);
-
-    // Resume auto-scroll after 2 seconds of no wheel activity
-    const resumeTimeout = setTimeout(() => setPaused(false), 2000);
-    return () => clearTimeout(resumeTimeout);
+    scheduleResume(1500);
   };
 
   // Touch handlers for mobile
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!containerRef.current) return;
+    clearResumeTimeout();
     setPaused(true);
     setStartX(e.touches[0].pageX - containerRef.current.offsetLeft);
     setScrollLeft(containerRef.current.scrollLeft);
@@ -134,7 +197,7 @@ export function ManufacturerLogos() {
   };
 
   const handleTouchEnd = () => {
-    setPaused(false);
+    scheduleResume();
   };
 
   if (!items.length) return null;

@@ -31,11 +31,14 @@ import { evaluatePasswordStrength, PASSWORD_COMPLEXITY_MESSAGE } from '../utils/
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
 import { CountrySelect } from '../components/common/CountrySelect';
 import { COUNTRIES } from '../data/countries';
+import { BusinessTypeSelect } from '../components/common/BusinessTypeSelect';
+import { isBusinessTypeOption, type BusinessTypeOption } from '../data/businessTypes';
 
 type TabType = 'account' | 'orders' | 'reviews' | 'settings' | 'b2b-upgrade';
 
 const DASHBOARD_TOP_MARGIN = 28; // matches hero/search stack height
 const DESKTOP_SIDEBAR_HEIGHT = `calc(100vh - ${DASHBOARD_TOP_MARGIN}px)`;
+const COMPANY_WEBSITE_PATTERN = /^[^\s]+\.[^\s]+$/;
 
 const resolveProfileImage = (value: string | null | undefined): string | null => {
   if (!value) return null;
@@ -74,8 +77,14 @@ export const ClientDashboardPage: React.FC = () => {
     taxId: '',
     website: '',
   });
+  const [useCustomBusinessType, setUseCustomBusinessType] = useState(false);
   const [b2bVerificationFile, setB2bVerificationFile] = useState<File | null>(null);
   const [b2bConversionLoading, setB2bConversionLoading] = useState(false);
+  const [companyTaxIdDraft, setCompanyTaxIdDraft] = useState('');
+  const [companyWebsiteDraft, setCompanyWebsiteDraft] = useState('');
+  const [companyDetailsLoading, setCompanyDetailsLoading] = useState(false);
+  const [companyDetailsError, setCompanyDetailsError] = useState<string | null>(null);
+  const [companyDetailsSuccess, setCompanyDetailsSuccess] = useState<string | null>(null);
 
   // Shipping address states
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -225,6 +234,23 @@ export const ClientDashboardPage: React.FC = () => {
     }
   }, [user, navigate]);
 
+  useEffect(() => {
+    const currentType = b2bFormData.businessType;
+    if (!currentType) {
+      return;
+    }
+    if (!isBusinessTypeOption(currentType) && !useCustomBusinessType) {
+      setUseCustomBusinessType(true);
+    }
+  }, [b2bFormData.businessType, useCustomBusinessType]);
+
+  useEffect(() => {
+    setCompanyTaxIdDraft('');
+    setCompanyWebsiteDraft('');
+    setCompanyDetailsError(null);
+    setCompanyDetailsSuccess(null);
+  }, [user?.company?.taxId, user?.company?.website]);
+
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     setSearchParams({ tab });
@@ -264,6 +290,75 @@ export const ClientDashboardPage: React.FC = () => {
     setProfileImageFile(null);
     setProfileImagePreview(null);
     setRemoveProfileImage(true);
+  };
+
+  const handleBusinessTypePresetSelect = (option: BusinessTypeOption) => {
+    setUseCustomBusinessType(false);
+    setB2bFormData((prev) => ({
+      ...prev,
+      businessType: option,
+    }));
+  };
+
+  const handleEnableCustomBusinessType = () => {
+    setUseCustomBusinessType(true);
+    setB2bFormData((prev) => ({ ...prev, businessType: '' }));
+  };
+
+  const handleCustomBusinessTypeChange = (value: string) => {
+    setB2bFormData((prev) => ({ ...prev, businessType: value }));
+  };
+
+  const handleSaveCompanyTaxId = async () => {
+    if (!user) {
+      return;
+    }
+    const value = companyTaxIdDraft.trim();
+    if (!value) {
+      setCompanyDetailsError('Tax ID is required.');
+      return;
+    }
+    setCompanyDetailsLoading(true);
+    setCompanyDetailsError(null);
+    setCompanyDetailsSuccess(null);
+    try {
+      await usersApi.update(user.id, { companyTaxId: value });
+      setCompanyTaxIdDraft('');
+      await refresh();
+      setCompanyDetailsSuccess('Tax ID added to your company profile.');
+    } catch (error) {
+      setCompanyDetailsError(error instanceof Error ? error.message : 'Failed to add Tax ID.');
+    } finally {
+      setCompanyDetailsLoading(false);
+    }
+  };
+
+  const handleSaveCompanyWebsite = async () => {
+    if (!user) {
+      return;
+    }
+    const value = companyWebsiteDraft.trim();
+    if (!value) {
+      setCompanyDetailsError('Company website is required.');
+      return;
+    }
+    if (!COMPANY_WEBSITE_PATTERN.test(value)) {
+      setCompanyDetailsError('Enter a valid website (example.com).');
+      return;
+    }
+    setCompanyDetailsLoading(true);
+    setCompanyDetailsError(null);
+    setCompanyDetailsSuccess(null);
+    try {
+      await usersApi.update(user.id, { companyWebsite: value });
+      setCompanyWebsiteDraft('');
+      await refresh();
+      setCompanyDetailsSuccess('Company website added successfully.');
+    } catch (error) {
+      setCompanyDetailsError(error instanceof Error ? error.message : 'Failed to add company website.');
+    } finally {
+      setCompanyDetailsLoading(false);
+    }
   };
 
   const handleUndoRemoveProfileImage = () => {
@@ -1094,9 +1189,82 @@ export const ClientDashboardPage: React.FC = () => {
                           <div className="flex flex-col gap-2">
                             <label className="text-sm font-medium text-slate-600">Website</label>
                             <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
-                              <a href={user.company.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                                {user.company.website}
-                              </a>
+                              {(() => {
+                                const raw = user.company?.website ?? '';
+                                const normalized = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+                                return (
+                                  <a href={normalized} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                    {raw}
+                                  </a>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {isB2B && user.company && (!user.company.taxId || !user.company.website) && (
+                    <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+                      <h3 className="text-lg font-semibold text-slate-900">Complete Company Details</h3>
+                      <p className="text-sm text-slate-600">
+                        Add the remaining optional company information below. Once saved, these fields become locked.
+                      </p>
+                      {companyDetailsError && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+                          {companyDetailsError}
+                        </div>
+                      )}
+                      {companyDetailsSuccess && (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+                          {companyDetailsSuccess}
+                        </div>
+                      )}
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {!user.company.taxId && (
+                          <div className="flex flex-col gap-2">
+                            <label className="text-sm font-medium text-slate-600">Tax ID</label>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                              <input
+                                type="text"
+                                value={companyTaxIdDraft}
+                                onChange={(event) => setCompanyTaxIdDraft(event.target.value)}
+                                placeholder="Tax ID / EIN"
+                                disabled={companyDetailsLoading}
+                                className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleSaveCompanyTaxId}
+                                disabled={companyDetailsLoading || !companyTaxIdDraft.trim()}
+                                className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {!user.company.website && (
+                          <div className="flex flex-col gap-2">
+                            <label className="text-sm font-medium text-slate-600">Company Website</label>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                              <input
+                                type="text"
+                                value={companyWebsiteDraft}
+                                onChange={(event) => setCompanyWebsiteDraft(event.target.value)}
+                                placeholder="example.com"
+                                disabled={companyDetailsLoading}
+                                className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleSaveCompanyWebsite}
+                                disabled={companyDetailsLoading || !companyWebsiteDraft.trim()}
+                                className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Save
+                              </button>
                             </div>
                           </div>
                         )}
@@ -1677,7 +1845,11 @@ export const ClientDashboardPage: React.FC = () => {
                           </div>
                         </div>
                         <button
-                          onClick={() => setB2bConversionStep('form')}
+                          type="button"
+                          onClick={() => {
+                            setUseCustomBusinessType(false);
+                            setB2bConversionStep('form');
+                          }}
                           className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-8 py-3 text-base font-semibold text-white shadow-lg transition hover:from-amber-600 hover:to-orange-700 hover:shadow-xl"
                         >
                           Start Upgrade Process
@@ -1700,7 +1872,7 @@ export const ClientDashboardPage: React.FC = () => {
                         try {
                           const formData = new FormData();
                           formData.append('companyName', b2bFormData.companyName);
-                          formData.append('businessType', b2bFormData.businessType);
+                          formData.append('businessType', b2bFormData.businessType.trim());
                           if (b2bFormData.taxId) {
                             formData.append('taxId', b2bFormData.taxId);
                           }
@@ -1714,6 +1886,7 @@ export const ClientDashboardPage: React.FC = () => {
                           const response = await usersApi.convertToB2B(user.id, formData);
                           await refresh();
                           setStatusMessage(response.message || 'Successfully converted to B2B account!');
+                          handleTabChange('account');
                           setB2bConversionStep('info');
                           setB2bFormData({
                             companyName: '',
@@ -1721,6 +1894,7 @@ export const ClientDashboardPage: React.FC = () => {
                             taxId: '',
                             website: '',
                           });
+                          setUseCustomBusinessType(false);
                           setB2bVerificationFile(null);
                         } catch (err) {
                           setError(err instanceof Error ? err.message : 'Failed to convert to B2B account');
@@ -1754,15 +1928,38 @@ export const ClientDashboardPage: React.FC = () => {
                             <label htmlFor="businessType" className="block text-sm font-medium text-slate-700">
                               Business Type <span className="text-red-600">*</span>
                             </label>
-                            <input
-                              id="businessType"
-                              type="text"
-                              value={b2bFormData.businessType}
-                              onChange={(e) => setB2bFormData({ ...b2bFormData, businessType: e.target.value })}
-                              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              placeholder="e.g. LLC, Sole Proprietor"
-                              required
+                            <BusinessTypeSelect
+                              value={
+                                !useCustomBusinessType && isBusinessTypeOption(b2bFormData.businessType)
+                                  ? b2bFormData.businessType
+                                  : ''
+                              }
+                              onSelect={handleBusinessTypePresetSelect}
+                              onSelectCustom={handleEnableCustomBusinessType}
+                              placeholder="Select business type"
                             />
+                            {useCustomBusinessType && (
+                              <div className="grid gap-2 pt-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                                <input
+                                  type="text"
+                                  value={b2bFormData.businessType}
+                                  onChange={(event) => handleCustomBusinessTypeChange(event.target.value)}
+                                  className="h-12 w-full rounded-2xl border border-border/60 bg-white/95 px-4 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
+                                  placeholder="Enter your business type"
+                                  required
+                                />
+                                <button
+                                  type="button"
+                                  className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-100"
+                                  onClick={() => {
+                                    setUseCustomBusinessType(false);
+                                    setB2bFormData((prev) => ({ ...prev, businessType: '' }));
+                                  }}
+                                >
+                                  Choose preset
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           <div className="space-y-2">

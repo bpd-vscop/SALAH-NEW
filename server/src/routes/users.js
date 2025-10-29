@@ -9,9 +9,10 @@ const {
   deleteShippingAddress,
   requestPasswordChange,
   changePassword,
+  convertToB2B,
 } = require('../controllers/userController');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { profileUpload } = require('../middleware/upload');
+const { profileUpload, verificationUpload } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -26,6 +27,8 @@ router.put(
   updateUser
 );
 router.delete('/:id', requireRole(['super_admin']), deleteUser);
+
+router.post('/:id/convert-to-b2b', verificationUpload.single('verificationFile'), convertToB2B);
 
 // Shipping address routes (clients can manage their own)
 router.post('/:id/shipping-addresses', addShippingAddress);

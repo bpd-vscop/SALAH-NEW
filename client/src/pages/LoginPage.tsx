@@ -7,7 +7,9 @@ import { authApi } from '../api/auth';
 import { useCart } from '../context/CartContext';
 import type { CartLine } from '../context/CartContext';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
+import { BusinessTypeSelect } from '../components/common/BusinessTypeSelect';
 import { meetsPasswordPolicy, PASSWORD_COMPLEXITY_MESSAGE, evaluatePasswordStrength } from '../utils/password';
+import { isBusinessTypeOption, type BusinessTypeOption } from '../data/businessTypes';
 
 const LoadingDots = ({ dotClass = 'bg-white' }: { dotClass?: string }) => (
   <span className="inline-flex gap-1 ml-2">
@@ -89,11 +91,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const [handledResetToken, setHandledResetToken] = useState<string | null>(null);
 
-  const [signupStep, setSignupStep] = useState<SignupStep>(0);
-  const [signupData, setSignupData] = useState<SignupData>(defaultSignup);
-  const [signupError, setSignupError] = useState<string | null>(null);
-  const [signupLoading, setSignupLoading] = useState(false);
-  const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCode: '+1', number: '' }); // Default to United States
+const [signupStep, setSignupStep] = useState<SignupStep>(0);
+const [signupData, setSignupData] = useState<SignupData>(defaultSignup);
+const [signupBusinessTypeCustom, setSignupBusinessTypeCustom] = useState(false);
+const [signupError, setSignupError] = useState<string | null>(null);
+const [signupLoading, setSignupLoading] = useState(false);
+const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCode: '+1', number: '' }); // Default to United States
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -157,10 +160,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     signupConfirmMismatch ? 'focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600' : 'focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12',
   ].join(' ');
   const resetConfirmMismatch = confirmNewPassword.length > 0 && newPassword !== confirmNewPassword;
-  const resetConfirmInputClasses = [
-    'rounded-xl',
-    'border',
-    resetConfirmMismatch ? 'border-rose-500' : 'border-slate-400/45',
+const resetConfirmInputClasses = [
+  'rounded-xl',
+  'border',
+  resetConfirmMismatch ? 'border-rose-500' : 'border-slate-400/45',
     'bg-white/95',
     'px-3.5',
     'py-3',
@@ -171,10 +174,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     'ease-in-out',
     'focus:outline-none',
     'w-full',
-    resetConfirmMismatch ? 'focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600' : 'focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12',
-  ].join(' ');
+  resetConfirmMismatch ? 'focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600' : 'focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12',
+].join(' ');
 
-  const { token: resetTokenParam } = useParams<{ token?: string }>();
+useEffect(() => {
+  if (!signupData.businessType) {
+    return;
+  }
+  if (!isBusinessTypeOption(signupData.businessType) && !signupBusinessTypeCustom) {
+    setSignupBusinessTypeCustom(true);
+  }
+}, [signupData.businessType, signupBusinessTypeCustom]);
+
+useEffect(() => {
+  if (signupData.accountType !== 'B2B') {
+    setSignupBusinessTypeCustom(false);
+  }
+}, [signupData.accountType]);
+
+const { token: resetTokenParam } = useParams<{ token?: string }>();
 
   useEffect(() => {
     if (!resetTokenParam || handledResetToken === resetTokenParam) {
@@ -215,6 +233,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   const resetSignup = () => {
     setSignupData(defaultSignup);
     setSignupStep(0);
+    setSignupBusinessTypeCustom(false);
     setSignupError(null);
     setSignupLoading(false);
     setPhoneValue({ countryCode: '+1', number: '' });
@@ -402,16 +421,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     setSignupStep(1);
   };
 
+  const handleSignupBusinessTypePresetSelect = (option: BusinessTypeOption) => {
+    setSignupBusinessTypeCustom(false);
+    setSignupData((prev) => ({ ...prev, businessType: option }));
+  };
+
+  const handleSignupEnableCustomBusinessType = () => {
+    setSignupBusinessTypeCustom(true);
+    setSignupData((prev) => ({ ...prev, businessType: '' }));
+  };
+
+  const handleSignupCustomBusinessTypeChange = (value: string) => {
+    setSignupData((prev) => ({ ...prev, businessType: value }));
+  };
+
   const handleSignupStep1B2B = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!signupData.companyName.trim()) {
+    const companyName = signupData.companyName.trim();
+    const businessType = signupData.businessType.trim();
+    if (!companyName) {
       setSignupError('Company name is required.');
       return;
     }
-    if (!signupData.businessType.trim()) {
+    if (!businessType) {
       setSignupError('Business type is required.');
       return;
     }
+    setSignupData((prev) => ({ ...prev, companyName, businessType }));
     setSignupError(null);
     setSignupStep(2);
   };
@@ -435,6 +471,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
     setSignupError(null);
     try {
       const guestCartItems = Array.isArray(items) ? items : [];
+      const companyName = signupData.companyName.trim();
+      const businessType = signupData.businessType.trim();
+      const taxId = signupData.taxId.trim();
+      const companyWebsite = signupData.companyWebsite.trim();
+      const companyPhone = signupData.phone.trim();
       const payload = {
         clientType: signupData.accountType,
         basicInfo: {
@@ -447,11 +488,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
         companyInfo:
           signupData.accountType === 'B2B'
             ? {
-                companyName: signupData.companyName.trim(),
-                businessType: signupData.businessType || undefined,
-                taxId: signupData.taxId || undefined,
-                companyWebsite: signupData.companyWebsite || undefined,
-                companyPhone: signupData.phone || undefined,
+                companyName,
+                businessType: businessType || undefined,
+                taxId: taxId || undefined,
+                companyWebsite: companyWebsite || undefined,
+                companyPhone: companyPhone || undefined,
               }
             : undefined,
       } as const;
@@ -1093,14 +1134,38 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
 
                       <label className="grid gap-2 text-sm text-slate-600">
                         <span>Business Type <span className="text-red-600">*</span></span>
-                        <input
-                          type="text"
-                          value={signupData.businessType}
-                          onChange={(e) => setSignupData((prev) => ({ ...prev, businessType: e.target.value }))}
+                        <BusinessTypeSelect
+                          value={
+                            !signupBusinessTypeCustom && isBusinessTypeOption(signupData.businessType)
+                              ? signupData.businessType
+                              : ''
+                          }
+                          onSelect={handleSignupBusinessTypePresetSelect}
+                          onSelectCustom={handleSignupEnableCustomBusinessType}
                           placeholder="e.g. LLC, Sole Proprietor"
-                          required
-                          className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
                         />
+                        {signupBusinessTypeCustom && (
+                          <div className="grid gap-2 pt-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                            <input
+                              type="text"
+                              value={signupData.businessType}
+                              onChange={(e) => handleSignupCustomBusinessTypeChange(e.target.value)}
+                              placeholder="Enter your business type"
+                              required
+                              className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSignupBusinessTypeCustom(false);
+                                setSignupData((prev) => ({ ...prev, businessType: '' }));
+                              }}
+                              className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-100"
+                            >
+                              Choose preset
+                            </button>
+                          </div>
+                        )}
                       </label>
 
                       <label className="grid gap-2 text-sm text-slate-600">

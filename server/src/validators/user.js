@@ -3,6 +3,15 @@ const { parseWithSchema } = require('./index');
 const { usernameRegex } = require('./auth');
 const { meetsPasswordComplexity, PASSWORD_COMPLEXITY_MESSAGE } = require('../utils/password');
 
+const optionalTrimmed = (schema) =>
+  z.preprocess((value) => {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+  }, schema.optional());
+
 const createUserSchema = z
   .object({
     name: z.string().min(2).max(120),
@@ -63,10 +72,32 @@ const updateUserSchema = z
       .optional(),
     phoneCode: z.string().optional(),
     phoneNumber: z.string().optional(),
+    companyTaxId: optionalTrimmed(z.string().max(80)),
+    companyWebsite: optionalTrimmed(
+      z
+        .string()
+        .max(200)
+        .regex(/^[^\s]+\.[^\s]+$/, 'Website must be a valid domain or URL')
+    ),
+  })
+  .strict();
+
+const convertToB2BSchema = z
+  .object({
+    companyName: z.string().trim().min(2, 'Company name is required').max(120),
+    businessType: z.string().trim().min(2, 'Business type is required').max(120),
+    taxId: optionalTrimmed(z.string().max(80)),
+    website: optionalTrimmed(
+      z
+        .string()
+        .max(200)
+        .regex(/^[^\s]+\.[^\s]+$/, 'Website must be a valid domain or URL')
+    ),
   })
   .strict();
 
 module.exports = {
   validateCreateUser: (payload) => parseWithSchema(createUserSchema, payload),
   validateUpdateUser: (payload) => parseWithSchema(updateUserSchema, payload),
+  validateConvertToB2B: (payload) => parseWithSchema(convertToB2BSchema, payload),
 };

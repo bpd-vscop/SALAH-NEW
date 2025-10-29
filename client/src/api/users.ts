@@ -11,6 +11,8 @@ export type UpdateUserPayload = Partial<{
   password: string;
   profileImage: string | null;
   removeProfileImage: boolean;
+  companyTaxId: string;
+  companyWebsite: string;
 }>;
 
 export type ShippingAddressPayload = {

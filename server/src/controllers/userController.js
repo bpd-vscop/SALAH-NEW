@@ -1,5 +1,7 @@
+const fs = require('fs/promises');
+const path = require('path');
 const User = require('../models/User');
-const { validateCreateUser, validateUpdateUser } = require('../validators/user');
+const { validateCreateUser, validateUpdateUser, validateConvertToB2B } = require('../validators/user');
 const { validateAdminProfile } = require('../validators/adminProfile');
 const { hashPassword } = require('../utils/password');
 const { badRequest, notFound, forbidden } = require('../utils/appError');
@@ -179,6 +181,40 @@ const updateUser = async (req, res, next) => {
     if (user.role === 'client' && user.username) {
       user.username = undefined;
       user.set('username', undefined);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'companyTaxId')) {
+      if (user.role !== 'client') {
+        throw forbidden('Only client accounts can update company information');
+      }
+      if (!user.company) {
+        throw badRequest('Company information not found');
+      }
+      if (user.company.taxId) {
+        throw forbidden('Tax ID is already set for this account');
+      }
+      if (!data.companyTaxId) {
+        throw badRequest('Tax ID is required');
+      }
+      user.company.taxId = data.companyTaxId;
+      user.markModified('company');
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'companyWebsite')) {
+      if (user.role !== 'client') {
+        throw forbidden('Only client accounts can update company information');
+      }
+      if (!user.company) {
+        throw badRequest('Company information not found');
+      }
+      if (user.company.website) {
+        throw forbidden('Company website is already set');
+      }
+      if (!data.companyWebsite) {
+        throw badRequest('Company website is required');
+      }
+      user.company.website = data.companyWebsite;
+      user.markModified('company');
     }
 
     if (data.status) {
@@ -444,6 +480,66 @@ const changePassword = async (req, res, next) => {
   }
 };
 
+const convertToB2B = async (req, res, next) => {
+  const uploadedFilePath = req.file?.path;
+  try {
+    const data = validateConvertToB2B(req.body || {});
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+    if (!user) {
+      throw notFound('User not found');
+    }
+
+    const isSelf = req.user && (req.user.id === id || req.user._id?.toString() === id);
+    if (!isSelf && (!req.user || !canEdit(req.user.role, user.role))) {
+      throw forbidden('You cannot convert this account');
+    }
+
+    if (user.role !== 'client') {
+      throw badRequest('Only client accounts can be converted to B2B');
+    }
+
+    if (user.clientType === 'B2B') {
+      if (uploadedFilePath) {
+        await fs.unlink(uploadedFilePath).catch(() => {});
+      }
+      return res.json({
+        message: 'Account is already a B2B account',
+        user: user.toJSON(),
+      });
+    }
+
+    if (req.file) {
+      const relativePath = path.posix.join('/uploads/verification', req.file.filename);
+      user.verificationFileUrl = relativePath;
+    }
+
+    const existingCompany = user.company || {};
+    user.clientType = 'B2B';
+    user.company = {
+      name: data.companyName,
+      businessType: data.businessType,
+      taxId: data.taxId ?? null,
+      website: data.website ?? null,
+      phone: existingCompany.phone ?? null,
+      address: existingCompany.address ?? null,
+    };
+
+    await user.save();
+
+    res.json({
+      message: 'Account converted to B2B successfully',
+      user: user.toJSON(),
+    });
+  } catch (error) {
+    if (uploadedFilePath) {
+      await fs.unlink(uploadedFilePath).catch(() => {});
+    }
+    next(error);
+  }
+};
+
 module.exports = {
   listUsers,
   createUser,
@@ -454,4 +550,5 @@ module.exports = {
   deleteShippingAddress,
   requestPasswordChange,
   changePassword,
+  convertToB2B,
 };

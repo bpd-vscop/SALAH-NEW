@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clientsApi, type ClientRegistrationPayload } from '../api/clients';
 import { authApi } from '../api/auth';
@@ -9,6 +9,8 @@ import {
   meetsPasswordPolicy,
   PASSWORD_COMPLEXITY_MESSAGE,
 } from '../utils/password';
+import { BusinessTypeSelect } from '../components/common/BusinessTypeSelect';
+import { isBusinessTypeOption, type BusinessTypeOption } from '../data/businessTypes';
 
 type RegistrationStep = 'clientType' | 'basicInfo' | 'companyInfo' | 'verification' | 'success';
 
@@ -21,8 +23,11 @@ const initialBasicInfo = {
 
 const initialCompanyInfo = {
   companyName: '',
+  businessType: '',
   companyAddress: '',
   companyPhone: '',
+  taxId: '',
+  companyWebsite: '',
 };
 
 export const ClientRegistrationPage: React.FC = () => {
@@ -33,6 +38,7 @@ export const ClientRegistrationPage: React.FC = () => {
   const [clientType, setClientType] = useState<ClientType | null>(null);
   const [basicInfo, setBasicInfo] = useState(initialBasicInfo);
   const [companyInfo, setCompanyInfo] = useState(initialCompanyInfo);
+  const [useCustomBusinessType, setUseCustomBusinessType] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationContext, setVerificationContext] = useState<{ email: string; expiresAt: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,11 +85,36 @@ export const ClientRegistrationPage: React.FC = () => {
     [confirmMismatch]
   );
 
+  useEffect(() => {
+    const currentType = companyInfo.businessType;
+    if (!currentType) {
+      return;
+    }
+    if (!isBusinessTypeOption(currentType) && !useCustomBusinessType) {
+      setUseCustomBusinessType(true);
+    }
+  }, [companyInfo.businessType, useCustomBusinessType]);
+
   const handleClientTypeSelection = (type: ClientType) => {
     setClientType(type);
     setStep('basicInfo');
     setError(null);
     setStatus(null);
+    setUseCustomBusinessType(false);
+  };
+
+  const handleBusinessTypePresetSelect = (option: BusinessTypeOption) => {
+    setUseCustomBusinessType(false);
+    setCompanyInfo((prev) => ({ ...prev, businessType: option }));
+  };
+
+  const handleEnableCustomBusinessType = () => {
+    setUseCustomBusinessType(true);
+    setCompanyInfo((prev) => ({ ...prev, businessType: '' }));
+  };
+
+  const handleCustomBusinessTypeChange = (value: string) => {
+    setCompanyInfo((prev) => ({ ...prev, businessType: value }));
   };
 
   const handleBasicInfoSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -141,10 +172,22 @@ export const ClientRegistrationPage: React.FC = () => {
     };
 
     if (clientType === 'B2B') {
-      payload.companyInfo = {
+      const trimmedCompanyInfo = {
         companyName: companyInfo.companyName.trim(),
+        businessType: companyInfo.businessType.trim(),
         companyAddress: companyInfo.companyAddress.trim(),
         companyPhone: companyInfo.companyPhone.trim(),
+        taxId: companyInfo.taxId.trim(),
+        companyWebsite: companyInfo.companyWebsite.trim(),
+      };
+
+      payload.companyInfo = {
+        companyName: trimmedCompanyInfo.companyName,
+        businessType: trimmedCompanyInfo.businessType || undefined,
+        companyAddress: trimmedCompanyInfo.companyAddress,
+        companyPhone: trimmedCompanyInfo.companyPhone || undefined,
+        taxId: trimmedCompanyInfo.taxId || undefined,
+        companyWebsite: trimmedCompanyInfo.companyWebsite || undefined,
       };
     }
 
@@ -203,6 +246,7 @@ export const ClientRegistrationPage: React.FC = () => {
     setClientType(null);
     setBasicInfo(initialBasicInfo);
     setCompanyInfo(initialCompanyInfo);
+    setUseCustomBusinessType(false);
     setVerificationCode('');
     setVerificationContext(null);
     setError(null);
@@ -351,6 +395,42 @@ export const ClientRegistrationPage: React.FC = () => {
               </label>
 
               <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Business type
+                <BusinessTypeSelect
+                  value={
+                    !useCustomBusinessType && isBusinessTypeOption(companyInfo.businessType)
+                      ? companyInfo.businessType
+                      : ''
+                  }
+                  onSelect={handleBusinessTypePresetSelect}
+                  onSelectCustom={handleEnableCustomBusinessType}
+                  placeholder="e.g. LLC, Sole Proprietor"
+                />
+                {useCustomBusinessType && (
+                  <div className="grid gap-2 pt-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                    <input
+                      type="text"
+                      value={companyInfo.businessType}
+                      onChange={(event) => handleCustomBusinessTypeChange(event.target.value)}
+                      className="h-11 w-full rounded-2xl border border-border/60 bg-white/95 px-4 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
+                      placeholder="Enter your business type"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-100"
+                      onClick={() => {
+                        setUseCustomBusinessType(false);
+                        setCompanyInfo((prev) => ({ ...prev, businessType: '' }));
+                      }}
+                    >
+                      Choose preset
+                    </button>
+                  </div>
+                )}
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
                 Company address
                 <input
                   type="text"
@@ -361,12 +441,37 @@ export const ClientRegistrationPage: React.FC = () => {
                 />
               </label>
 
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  Company phone (optional)
+                  <input
+                    type="tel"
+                    value={companyInfo.companyPhone}
+                    onChange={(e) => setCompanyInfo((prev) => ({ ...prev, companyPhone: e.target.value }))}
+                    placeholder="+1 (555) 123-4567"
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  Tax ID (optional)
+                  <input
+                    type="text"
+                    value={companyInfo.taxId}
+                    onChange={(e) => setCompanyInfo((prev) => ({ ...prev, taxId: e.target.value }))}
+                    placeholder="e.g. EIN / VAT number"
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+              </div>
+
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Company phone (optional)
+                Company website (optional)
                 <input
-                  type="tel"
-                  value={companyInfo.companyPhone}
-                  onChange={(e) => setCompanyInfo((prev) => ({ ...prev, companyPhone: e.target.value }))}
+                  type="text"
+                  value={companyInfo.companyWebsite}
+                  onChange={(e) => setCompanyInfo((prev) => ({ ...prev, companyWebsite: e.target.value }))}
+                  placeholder="example.com"
                   className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>

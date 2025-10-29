@@ -672,23 +672,32 @@ export const Header: React.FC = () => {
             <div className="relative z-[100]">
               <button
                 type="button"
-                className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary to-primary-dark text-sm font-semibold text-white shadow-sm transition hover:ring-2 hover:ring-primary/40"
+                className={cn(
+                  'flex h-10 w-10 items-center justify-center rounded-full transition',
+                  user
+                    ? 'overflow-hidden bg-gradient-to-br from-primary to-primary-dark text-sm font-semibold text-white shadow-sm hover:ring-2 hover:ring-primary/40'
+                    : 'text-white hover:bg-white/10'
+                )}
                 onClick={() => setAccountMenuOpen((state) => !state)}
                 aria-haspopup="true"
                 aria-expanded={accountMenuOpen}
               >
-                {user?.profileImage ? (
-                  <img
-                    src={
-                      user.profileImage.startsWith('http://') || user.profileImage.startsWith('https://')
-                        ? user.profileImage
-                        : `/uploads/${user.profileImage}`
-                    }
-                    alt={user?.name || 'Profile'}
-                    className="h-full w-full object-cover"
-                  />
+                {user ? (
+                  user.profileImage ? (
+                    <img
+                      src={
+                        user.profileImage.startsWith('http://') || user.profileImage.startsWith('https://')
+                          ? user.profileImage
+                          : `/uploads/${user.profileImage}`
+                      }
+                      alt={user?.name || 'Profile'}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span>{user.name?.[0]?.toUpperCase() || 'U'}</span>
+                  )
                 ) : (
-                  <span>{user?.name?.[0]?.toUpperCase() || 'U'}</span>
+                  <User className="h-5 w-5" />
                 )}
               </button>
 
