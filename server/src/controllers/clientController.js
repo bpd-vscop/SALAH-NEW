@@ -62,6 +62,8 @@ const registerClient = async (req, res, next) => {
 
     user.name = fullName;
     user.email = email;
+    user.phoneCode = payload.basicInfo.phoneCode?.trim() || null;
+    user.phoneNumber = payload.basicInfo.phoneNumber?.trim() || null;
     user.clientType = payload.clientType;
     user.role = 'client';
     user.status = 'active';

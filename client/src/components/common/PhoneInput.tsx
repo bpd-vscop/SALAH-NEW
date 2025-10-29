@@ -22,7 +22,7 @@ const COUNTRIES: Country[] = [
   { code: '+1-684', name: 'American Samoa' },
   { code: '+1-758', name: 'Saint Lucia' },
   { code: '+1-767', name: 'Dominica' },
-  { code: '+1-784', name: 'Saint Vincent and the Grenadines' },
+  { code: '+1-784', name: 'Saint Vincent' },
   { code: '+1-809', name: 'Dominican Republic' },
   { code: '+1-829', name: 'Dominican Republic' },
   { code: '+1-849', name: 'Dominican Republic' },

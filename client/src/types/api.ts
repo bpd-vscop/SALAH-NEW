@@ -38,6 +38,8 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   email?: string | null;
+  phoneCode?: string | null;
+  phoneNumber?: string | null;
   clientType?: ClientType | null;
   company?: CompanyInfo | null;
   verificationFileUrl?: string | null;

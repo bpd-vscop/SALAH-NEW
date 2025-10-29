@@ -28,6 +28,9 @@ import { usersApi, type ShippingAddressPayload } from '../api/users';
 import { cn } from '../utils/cn';
 import type { ShippingAddress } from '../types/api';
 import { evaluatePasswordStrength, PASSWORD_COMPLEXITY_MESSAGE } from '../utils/password';
+import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
+import { CountrySelect } from '../components/common/CountrySelect';
+import { COUNTRIES } from '../data/countries';
 
 type TabType = 'account' | 'orders' | 'reviews' | 'settings' | 'b2b-upgrade';
 
@@ -74,10 +77,22 @@ export const ClientDashboardPage: React.FC = () => {
     city: '',
     state: '',
     postalCode: '',
-    country: 'Morocco',
+    country: 'United States',
     isDefault: false,
   });
+  const [addressPhoneValue, setAddressPhoneValue] = useState<PhoneNumberInputValue>({
+    countryCode: '+1',
+    number: ''
+  });
   const [addressLoading, setAddressLoading] = useState(false);
+
+  // Phone editing states (account info)
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [editPhoneValue, setEditPhoneValue] = useState<PhoneNumberInputValue>({
+    countryCode: '+1',
+    number: ''
+  });
+  const [phoneUpdateLoading, setPhoneUpdateLoading] = useState(false);
 
   // Password change states
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -202,7 +217,11 @@ export const ClientDashboardPage: React.FC = () => {
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     setSearchParams({ tab });
-    setSidebarOpen(false); // Close sidebar on mobile after selection
+
+    // Only close sidebar on mobile/tablet (< 1024px)
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
 
     // Smooth scroll to top when changing tabs
     window.scrollTo({
@@ -343,7 +362,50 @@ export const ClientDashboardPage: React.FC = () => {
     }
   };
 
+  const parsePhoneNumber = (phoneCode: string | null | undefined, phoneNumber: string | null | undefined): PhoneNumberInputValue => {
+    return {
+      countryCode: phoneCode || '+1', // Default to United States
+      number: phoneNumber || ''
+    };
+  };
+
+  const handleAddNewAddress = () => {
+    const phoneValue = parsePhoneNumber(user?.phoneCode, user?.phoneNumber);
+
+    setAddressForm({
+      fullName: user?.name || '',
+      phone: '',
+      addressLine1: '',
+      addressLine2: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      country: 'United States',
+      isDefault: false,
+    });
+    setAddressPhoneValue(phoneValue);
+    setEditingAddressId(null);
+    setShowAddressForm(true);
+  };
+
   const handleEditAddress = (address: ShippingAddress) => {
+    // Parse phone from combined format by checking known country codes
+    let phoneValue: PhoneNumberInputValue = { countryCode: '+1', number: address.phone || '' };
+
+    if (address.phone) {
+      // Try to find a matching country code
+      const sortedCodes = [...new Set(COUNTRIES.map(c => c.code))].sort((a, b) => b.length - a.length);
+      for (const code of sortedCodes) {
+        if (address.phone.startsWith(code)) {
+          phoneValue = {
+            countryCode: code,
+            number: address.phone.substring(code.length)
+          };
+          break;
+        }
+      }
+    }
+
     setAddressForm({
       fullName: address.fullName || '',
       phone: address.phone || '',
@@ -352,9 +414,10 @@ export const ClientDashboardPage: React.FC = () => {
       city: address.city || '',
       state: address.state || '',
       postalCode: address.postalCode || '',
-      country: address.country || 'Morocco',
+      country: address.country || 'United States',
       isDefault: address.isDefault,
     });
+    setAddressPhoneValue(phoneValue);
     setEditingAddressId(address.id);
     setShowAddressForm(true);
   };
@@ -860,6 +923,70 @@ export const ClientDashboardPage: React.FC = () => {
                       <p className="text-xs text-slate-500">Set during registration - cannot be changed</p>
                     </div>
 
+                    {(user.phoneCode || user.phoneNumber || isEditingPhone) && (
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-medium text-slate-600">Phone Number</label>
+                        {isEditingPhone ? (
+                          <PhoneNumberInput
+                            value={editPhoneValue}
+                            onChange={setEditPhoneValue}
+                            placeholder="600000000"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                              {user.phoneCode}{user.phoneNumber}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setEditPhoneValue(parsePhoneNumber(user.phoneCode, user.phoneNumber));
+                                setIsEditingPhone(true);
+                              }}
+                              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+                        {isEditingPhone && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setIsEditingPhone(false)}
+                              className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!user) return;
+                                setPhoneUpdateLoading(true);
+                                setError(null);
+
+                                try {
+                                  await usersApi.updatePhone(user.id, {
+                                    phoneCode: editPhoneValue.countryCode,
+                                    phoneNumber: editPhoneValue.number,
+                                  });
+                                  await refresh();
+                                  setStatusMessage('Phone number updated successfully');
+                                  setIsEditingPhone(false);
+                                } catch (err) {
+                                  console.error(err);
+                                  setError(err instanceof Error ? err.message : 'Failed to update phone number');
+                                } finally {
+                                  setPhoneUpdateLoading(false);
+                                }
+                              }}
+                              disabled={phoneUpdateLoading || !editPhoneValue.number}
+                              className="flex-1 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-50"
+                            >
+                              {phoneUpdateLoading ? 'Saving...' : 'Save'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {user.username && (
                       <div className="flex flex-col gap-2">
                         <label className="text-sm font-medium text-slate-600">Username</label>
@@ -906,7 +1033,7 @@ export const ClientDashboardPage: React.FC = () => {
                           <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                         </svg>
                         <p className="text-sm text-blue-800 font-medium">
-                          Company information cannot be changed after B2B conversion. Contact support if you need to update these details.
+                          Company information cannot be changed. Contact support if you need to update these details.
                         </p>
                       </div>
 
@@ -1078,7 +1205,7 @@ export const ClientDashboardPage: React.FC = () => {
         </div>
         {!showAddressForm && (
           <button
-            onClick={() => setShowAddressForm(true)}
+            onClick={handleAddNewAddress}
             className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
           >
             <Plus className="h-4 w-4" />
@@ -1108,13 +1235,13 @@ export const ClientDashboardPage: React.FC = () => {
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">Phone *</label>
-                <input
-                  type="tel"
-                  required
-                  value={addressForm.phone}
-                  onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                  placeholder="+212 600 000 000"
+                <PhoneNumberInput
+                  value={addressPhoneValue}
+                  onChange={(val) => {
+                    setAddressPhoneValue(val);
+                    setAddressForm({ ...addressForm, phone: `${val.countryCode}${val.number}` });
+                  }}
+                  placeholder="600000000"
                 />
               </div>
             </div>
@@ -1178,13 +1305,13 @@ export const ClientDashboardPage: React.FC = () => {
 
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">Country *</label>
-              <input
-                type="text"
-                required
-                value={addressForm.country}
-                onChange={(e) => setAddressForm({ ...addressForm, country: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                placeholder="Morocco"
+              <CountrySelect
+                value={addressForm.country || 'United States'}
+                onChange={(countryName) => {
+                  setAddressForm({ ...addressForm, country: countryName });
+                }}
+                defaultPhoneCode={addressPhoneValue.countryCode}
+                className="w-full"
               />
             </div>
 

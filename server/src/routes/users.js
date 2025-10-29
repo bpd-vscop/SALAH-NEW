@@ -21,7 +21,7 @@ router.get('/', requireRole(['super_admin', 'admin']), listUsers);
 router.post('/', requireRole(['super_admin', 'admin']), createUser);
 router.put(
   '/:id',
-  requireRole(['super_admin', 'admin']),
+  // Allow users to update their own profile, admins can update any
   profileUpload.single('profileImage'),
   updateUser
 );
@@ -35,5 +35,8 @@ router.delete('/:id/shipping-addresses/:addressId', deleteShippingAddress);
 // Password change routes (users can change their own password)
 router.post('/:id/request-password-change', requestPasswordChange);
 router.post('/:id/change-password', changePassword);
+
+// Phone update route (users can update their own phone)
+router.put('/:id/phone', updateUser);
 
 module.exports = router;

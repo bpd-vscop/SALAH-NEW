@@ -76,9 +76,19 @@ const updateUser = async (req, res, next) => {
     }
 
     const isSelf = req.user && (req.user.id === id || req.user._id?.toString() === id);
-    // Prevent editing other users with equal or higher role; allow self-edit
-    if (!isSelf && req.user && !canEdit(req.user.role, user.role)) {
-      throw forbidden('You cannot edit a user with higher or equal role');
+
+    // Allow users to edit their own profile
+    if (isSelf) {
+      // Users can only update their own basic info (name, phone, profile image)
+      // Prevent clients from changing role, status, etc.
+      if (user.role === 'client' && (data.role || data.status)) {
+        throw forbidden('You cannot change your role or status');
+      }
+    } else {
+      // Prevent editing other users with equal or higher role
+      if (req.user && !canEdit(req.user.role, user.role)) {
+        throw forbidden('You cannot edit a user with higher or equal role');
+      }
     }
 
     if (isSelf && ['admin', 'super_admin'].includes(user.role)) {
@@ -134,6 +144,14 @@ const updateUser = async (req, res, next) => {
       user.name = data.fullName;
     } else if (data.name) {
       user.name = data.name;
+    }
+
+    // Update phone if provided
+    if (data.phoneCode !== undefined) {
+      user.phoneCode = data.phoneCode || null;
+    }
+    if (data.phoneNumber !== undefined) {
+      user.phoneNumber = data.phoneNumber || null;
     }
 
     if (data.role) {

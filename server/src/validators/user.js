@@ -61,6 +61,8 @@ const updateUserSchema = z
         return val;
       }, z.boolean())
       .optional(),
+    phoneCode: z.string().optional(),
+    phoneNumber: z.string().optional(),
   })
   .strict();
 

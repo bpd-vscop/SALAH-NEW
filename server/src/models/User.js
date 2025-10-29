@@ -60,6 +60,16 @@ const userSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
+    phoneCode: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    phoneNumber: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     username: {
       type: String,
       unique: true,
@@ -143,6 +153,8 @@ const userSchema = new mongoose.Schema(
         delete ret.__v;
         ret.username = ret.username || null;
         ret.email = ret.email || null;
+        ret.phoneCode = ret.phoneCode || null;
+        ret.phoneNumber = ret.phoneNumber || null;
         ret.clientType = ret.clientType || null;
         ret.profileImage = ret.profileImage || null;
         ret.isEmailVerified =

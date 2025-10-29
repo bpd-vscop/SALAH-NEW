@@ -19,6 +19,8 @@ const clientRegistrationSchema = z
           .refine((value) => meetsPasswordComplexity(value), {
             message: PASSWORD_COMPLEXITY_MESSAGE,
           }),
+        phoneCode: trimmedString.min(1, 'Phone code is required'),
+        phoneNumber: trimmedString.min(1, 'Phone number is required'),
       })
       .strict(),
     companyInfo: z

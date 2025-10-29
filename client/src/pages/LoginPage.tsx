@@ -93,7 +93,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   const [signupData, setSignupData] = useState<SignupData>(defaultSignup);
   const [signupError, setSignupError] = useState<string | null>(null);
   const [signupLoading, setSignupLoading] = useState(false);
-  const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCode: '+1', number: '' });
+  const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCode: '+1', number: '' }); // Default to United States
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -441,6 +441,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
           fullName: `${signupData.firstName} ${signupData.lastName}`.trim(),
           email: signupData.username.toLowerCase(),
           password: signupData.password,
+          phoneCode: phoneValue.countryCode,
+          phoneNumber: phoneValue.number,
         },
         companyInfo:
           signupData.accountType === 'B2B'

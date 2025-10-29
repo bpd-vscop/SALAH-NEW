@@ -51,4 +51,8 @@ export const usersApi = {
     http.post<{ message: string; previewCode?: string }>(`/users/${userId}/request-password-change`, {}),
   changePassword: (userId: string, payload: { code: string; newPassword: string }) =>
     http.post<{ message: string; user: User }>(`/users/${userId}/change-password`, payload),
+
+  // Phone update
+  updatePhone: (userId: string, payload: { phoneCode: string; phoneNumber: string }) =>
+    http.put<{ user: User }>(`/users/${userId}/phone`, payload),
 };
