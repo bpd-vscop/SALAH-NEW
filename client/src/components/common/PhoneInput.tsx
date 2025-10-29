@@ -245,6 +245,7 @@ interface PhoneNumberInputProps {
   onChange: (val: PhoneNumberInputValue) => void;
   disabled?: boolean;
   placeholder?: string;
+  required?: boolean;
 }
 
 export function PhoneNumberInput({
@@ -252,6 +253,7 @@ export function PhoneNumberInput({
   onChange,
   disabled,
   placeholder = '1234567890',
+  required = false,
 }: PhoneNumberInputProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -381,6 +383,7 @@ export function PhoneNumberInput({
         pattern="[0-9]*"
         placeholder={placeholder}
         disabled={disabled}
+        required={required}
         value={value.number}
         onChange={(e) => {
           const digitsOnly = e.target.value.replace(/\D+/g, '');

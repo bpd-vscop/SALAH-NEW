@@ -55,4 +55,8 @@ export const usersApi = {
   // Phone update
   updatePhone: (userId: string, payload: { phoneCode: string; phoneNumber: string }) =>
     http.put<{ user: User }>(`/users/${userId}/phone`, payload),
+
+  // B2B conversion
+  convertToB2B: (userId: string, payload: FormData) =>
+    http.post<{ user: User; message: string }>(`/users/${userId}/convert-to-b2b`, payload),
 };

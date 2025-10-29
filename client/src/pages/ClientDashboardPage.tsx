@@ -66,6 +66,17 @@ export const ClientDashboardPage: React.FC = () => {
   const [verificationFile, setVerificationFile] = useState<File | null>(null);
   const [verificationLoading, setVerificationLoading] = useState(false);
 
+  // B2B Conversion states
+  const [b2bConversionStep, setB2bConversionStep] = useState<'info' | 'form'>('info');
+  const [b2bFormData, setB2bFormData] = useState({
+    companyName: '',
+    businessType: '',
+    taxId: '',
+    website: '',
+  });
+  const [b2bVerificationFile, setB2bVerificationFile] = useState<File | null>(null);
+  const [b2bConversionLoading, setB2bConversionLoading] = useState(false);
+
   // Shipping address states
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
@@ -1605,69 +1616,230 @@ export const ClientDashboardPage: React.FC = () => {
 
               {activeTab === 'b2b-upgrade' && isC2B && (
                 <div className="space-y-6">
-                  <div className="relative overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 p-8 shadow-lg animate-[highlight_3s_ease-in-out]">
-                    <div className="pointer-events-none absolute top-0 right-0 -mt-4 -mr-4 z-0">
-                      <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-4xl shadow-lg">
-                        🚀
-                      </div>
-                    </div>
-                    <div className="relative z-10">
-                      <h2 className="text-2xl font-bold text-slate-900 mb-4">Upgrade to B2B Account</h2>
-                      <p className="text-slate-700 mb-6">
-                        Unlock exclusive benefits and access to our full B2B catalog! Over 90% of our products are available exclusively to B2B customers.
-                      </p>
-                      <div className="grid gap-4 md:grid-cols-2 mb-6">
-                        <div className="flex items-start gap-3">
-                          <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          <div>
-                            <p className="font-semibold text-slate-900">Access to B2B Catalog</p>
-                            <p className="text-sm text-slate-600">90%+ of products available</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          <div>
-                            <p className="font-semibold text-slate-900">Wholesale Pricing</p>
-                            <p className="text-sm text-slate-600">Better prices for bulk orders</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          <div>
-                            <p className="font-semibold text-slate-900">Priority Support</p>
-                            <p className="text-sm text-slate-600">Dedicated account manager</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          <div>
-                            <p className="font-semibold text-slate-900">Flexible Payment Terms</p>
-                            <p className="text-sm text-slate-600">Net 30/60 options available</p>
-                          </div>
+                  {b2bConversionStep === 'info' ? (
+                    <div className="relative overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 p-8 shadow-lg animate-[highlight_3s_ease-in-out]">
+                      <div className="pointer-events-none absolute top-0 right-0 -mt-4 -mr-4 z-0">
+                        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-4xl shadow-lg">
+                          🚀
                         </div>
                       </div>
-                      <p className="text-sm text-slate-600 mb-6">
-                        <strong>Note:</strong> Once converted to B2B, your company information cannot be changed. Please ensure all details are accurate before proceeding. Contact support if you need assistance.
-                      </p>
-                      <button
-                        onClick={() => alert('B2B conversion flow will be implemented in Phase 3')}
-                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-8 py-3 text-base font-semibold text-white shadow-lg transition hover:from-amber-600 hover:to-orange-700 hover:shadow-xl"
-                      >
-                        Start Upgrade Process
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                        </svg>
-                      </button>
+                      <div className="relative z-10">
+                        <h2 className="text-2xl font-bold text-slate-900 mb-4">Upgrade to B2B Account</h2>
+                        <p className="text-slate-700 mb-6">
+                          Unlock exclusive benefits and access to our full B2B catalog! Over 90% of our products are available exclusively to B2B customers.
+                        </p>
+                        <div className="grid gap-4 md:grid-cols-2 mb-6">
+                          <div className="flex items-start gap-3">
+                            <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <div>
+                              <p className="font-semibold text-slate-900">Access to B2B Catalog</p>
+                              <p className="text-sm text-slate-600">90%+ of products available</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <div>
+                              <p className="font-semibold text-slate-900">Wholesale Pricing</p>
+                              <p className="text-sm text-slate-600">Better prices for bulk orders</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <div>
+                              <p className="font-semibold text-slate-900">Priority Support</p>
+                              <p className="text-sm text-slate-600">Dedicated account manager</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <div>
+                              <p className="font-semibold text-slate-900">Flexible Payment Terms</p>
+                              <p className="text-sm text-slate-600">Net 30/60 options available</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-4 mb-6">
+                          <div className="flex items-start gap-2">
+                            <svg className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                            </svg>
+                            <p className="text-sm text-red-900">
+                              <strong>Important:</strong> Once converted to B2B, your company information cannot be changed. Please ensure all details are accurate before proceeding. Contact support if you need assistance.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setB2bConversionStep('form')}
+                          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-8 py-3 text-base font-semibold text-white shadow-lg transition hover:from-amber-600 hover:to-orange-700 hover:shadow-xl"
+                        >
+                          Start Upgrade Process
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!user) return;
+
+                        setB2bConversionLoading(true);
+                        setError(null);
+                        setStatusMessage(null);
+
+                        try {
+                          const formData = new FormData();
+                          formData.append('companyName', b2bFormData.companyName);
+                          formData.append('businessType', b2bFormData.businessType);
+                          if (b2bFormData.taxId) {
+                            formData.append('taxId', b2bFormData.taxId);
+                          }
+                          if (b2bFormData.website) {
+                            formData.append('website', b2bFormData.website);
+                          }
+                          if (b2bVerificationFile) {
+                            formData.append('verificationFile', b2bVerificationFile);
+                          }
+
+                          const response = await usersApi.convertToB2B(user.id, formData);
+                          await refresh();
+                          setStatusMessage(response.message || 'Successfully converted to B2B account!');
+                          setB2bConversionStep('info');
+                          setB2bFormData({
+                            companyName: '',
+                            businessType: '',
+                            taxId: '',
+                            website: '',
+                          });
+                          setB2bVerificationFile(null);
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : 'Failed to convert to B2B account');
+                        } finally {
+                          setB2bConversionLoading(false);
+                        }
+                      }}
+                      className="space-y-6"
+                    >
+                      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h3 className="text-xl font-semibold text-slate-900 mb-4">Company Information</h3>
+                        <p className="text-sm text-slate-600 mb-6">Please provide your business details to complete the B2B conversion.</p>
+
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <label htmlFor="companyName" className="block text-sm font-medium text-slate-700">
+                              Company Name <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                              id="companyName"
+                              type="text"
+                              value={b2bFormData.companyName}
+                              onChange={(e) => setB2bFormData({ ...b2bFormData, companyName: e.target.value })}
+                              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              placeholder="Your company name"
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label htmlFor="businessType" className="block text-sm font-medium text-slate-700">
+                              Business Type <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                              id="businessType"
+                              type="text"
+                              value={b2bFormData.businessType}
+                              onChange={(e) => setB2bFormData({ ...b2bFormData, businessType: e.target.value })}
+                              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              placeholder="e.g. LLC, Sole Proprietor"
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label htmlFor="taxId" className="block text-sm font-medium text-slate-700">
+                              Tax ID
+                            </label>
+                            <input
+                              id="taxId"
+                              type="text"
+                              value={b2bFormData.taxId}
+                              onChange={(e) => setB2bFormData({ ...b2bFormData, taxId: e.target.value })}
+                              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              placeholder="Tax ID"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label htmlFor="website" className="block text-sm font-medium text-slate-700">
+                              Company Website
+                            </label>
+                            <input
+                              id="website"
+                              type="text"
+                              value={b2bFormData.website}
+                              onChange={(e) => setB2bFormData({ ...b2bFormData, website: e.target.value })}
+                              pattern="^[^\s]+\.[^\s]+$"
+                              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              placeholder="example.com"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label htmlFor="verificationFile" className="block text-sm font-medium text-slate-700">
+                              Business Verification Document
+                            </label>
+                            <input
+                              id="verificationFile"
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={(e) => setB2bVerificationFile(e.target.files?.[0] || null)}
+                              className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
+                            />
+                            <p className="text-xs text-slate-500">Upload your business license, tax certificate, or other official business documentation (PDF, JPG, PNG - max 10MB)</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setB2bConversionStep('info');
+                            setB2bFormData({
+                              companyName: '',
+                              businessType: '',
+                              taxId: '',
+                              website: '',
+                            });
+                            setB2bVerificationFile(null);
+                          }}
+                          className="rounded-xl border border-slate-300 px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={b2bConversionLoading}
+                          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-8 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-4 focus:ring-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {b2bConversionLoading ? 'Converting...' : 'Complete B2B Conversion'}
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                          </svg>
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               )}
               </motion.div>

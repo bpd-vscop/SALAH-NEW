@@ -672,51 +672,99 @@ export const Header: React.FC = () => {
             <div className="relative z-[100]">
               <button
                 type="button"
-                className="rounded-full p-2 transition hover:bg-white/10"
+                className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary to-primary-dark text-sm font-semibold text-white shadow-sm transition hover:ring-2 hover:ring-primary/40"
                 onClick={() => setAccountMenuOpen((state) => !state)}
                 aria-haspopup="true"
                 aria-expanded={accountMenuOpen}
               >
-                <User className="h-5 w-5" />
-                <span className="sr-only">Account</span>
-              </button>
-              <div
-                className={cn(
-                  'absolute right-0 top-full mt-2 w-48 rounded-xl border border-slate-100 bg-white p-3 text-sm text-slate-700 shadow-lg z-50',
-                  accountMenuOpen ? 'block' : 'hidden'
-                )}
-              >
-                {user ? (
-                  <>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Signed in</p>
-                    <p className="mb-3 text-sm font-medium text-slate-800">{user.name}</p>
-                    <div className="space-y-2">
-                      <Link to={user.role === 'client' ? '/account' : '/admin'} className="block rounded-lg px-3 py-2 transition hover:bg-slate-100">
-                        {user.role === 'client' ? 'Account dashboard' : 'Admin area'}
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAccountMenuOpen(false);
-                          void logout();
-                        }}
-                        className="w-full rounded-lg px-3 py-2 text-left transition hover:bg-slate-100"
-                      >
-                        Sign out
-                      </button>
-                    </div>
-                  </>
+                {user?.profileImage ? (
+                  <img
+                    src={
+                      user.profileImage.startsWith('http://') || user.profileImage.startsWith('https://')
+                        ? user.profileImage
+                        : `/uploads/${user.profileImage}`
+                    }
+                    alt={user?.name || 'Profile'}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
-                  <div className="space-y-2">
-                    <Link to="/login" className="block rounded-lg px-3 py-2 transition hover:bg-slate-100">
-                      Sign in
-                    </Link>
-                    <Link to="/register" className="block rounded-lg px-3 py-2 transition hover:bg-slate-100">
-                      Create account
-                    </Link>
-                  </div>
+                  <span>{user?.name?.[0]?.toUpperCase() || 'U'}</span>
                 )}
-              </div>
+              </button>
+
+              <AnimatePresence>
+                {accountMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-3 w-56 rounded-xl border border-slate-200 bg-white shadow-xl z-50"
+                  >
+                    <div className="p-3">
+                      {user ? (
+                        <>
+                          <div className="mb-3 rounded-lg bg-slate-50 p-3">
+                            <p className="text-sm font-semibold text-slate-900">{user.name}</p>
+                            <p className="text-xs text-slate-500">{user.username || user.email}</p>
+                            <span className="mt-2 inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary capitalize">
+                              {user.clientType === 'B2B' ? 'B2B Account' : user.clientType === 'C2B' ? 'C2B Account' : user.role}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            <Link
+                              to={user.role === 'client' ? '/account' : '/admin'}
+                              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                              onClick={() => setAccountMenuOpen(false)}
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              {user.role === 'client' ? 'Account Dashboard' : 'Admin Area'}
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAccountMenuOpen(false);
+                                void logout();
+                              }}
+                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                              </svg>
+                              Logout
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="space-y-1">
+                          <Link
+                            to="/login"
+                            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                            onClick={() => setAccountMenuOpen(false)}
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                            </svg>
+                            Sign In
+                          </Link>
+                          <Link
+                            to="/register"
+                            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                            onClick={() => setAccountMenuOpen(false)}
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                            </svg>
+                            Create Account
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             <Link
               to="/cart"
@@ -828,71 +876,108 @@ export const Header: React.FC = () => {
                 <div className="relative" ref={mobileAccountMenuRef}>
                   <button
                     type="button"
-                    className="rounded-full p-2 text-slate-700 transition hover:bg-slate-100"
+                    className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary to-primary-dark text-sm font-semibold text-white shadow-sm transition hover:ring-2 hover:ring-primary/40"
                     onClick={() => setMobileAccountMenuOpen((state) => !state)}
                     aria-label="Account"
                   >
-                    <User className="h-5 w-5" />
-                  </button>
-                  <div
-                    className={cn(
-                      'absolute right-0 top-full mt-2 w-48 rounded-xl border border-slate-100 bg-white p-3 text-sm text-slate-700 shadow-lg z-50',
-                      mobileAccountMenuOpen ? 'block' : 'hidden'
-                    )}
-                  >
-                    {user ? (
-                      <>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Signed in</p>
-                        <p className="mb-3 text-sm font-medium text-slate-800">{user.name}</p>
-                        <div className="space-y-2">
-                          <Link
-                            to={user.role === 'client' ? '/account' : '/admin'}
-                            className="block rounded-lg px-3 py-2 transition hover:bg-slate-100"
-                            onClick={() => {
-                              setMobileAccountMenuOpen(false);
-                              closeMobileMenu();
-                            }}
-                          >
-                            {user.role === 'client' ? 'Account dashboard' : 'Admin area'}
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMobileAccountMenuOpen(false);
-                              closeMobileMenu();
-                              void logout();
-                            }}
-                            className="w-full rounded-lg px-3 py-2 text-left transition hover:bg-slate-100"
-                          >
-                            Sign out
-                          </button>
-                        </div>
-                      </>
+                    {user?.profileImage ? (
+                      <img
+                        src={
+                          user.profileImage.startsWith('http://') || user.profileImage.startsWith('https://')
+                            ? user.profileImage
+                            : `/uploads/${user.profileImage}`
+                        }
+                        alt={user?.name || 'Profile'}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
-                      <div className="space-y-2">
-                        <Link
-                          to="/login"
-                          className="block rounded-lg px-3 py-2 transition hover:bg-slate-100"
-                          onClick={() => {
-                            setMobileAccountMenuOpen(false);
-                            closeMobileMenu();
-                          }}
-                        >
-                          Sign in
-                        </Link>
-                        <Link
-                          to="/register"
-                          className="block rounded-lg px-3 py-2 transition hover:bg-slate-100"
-                          onClick={() => {
-                            setMobileAccountMenuOpen(false);
-                            closeMobileMenu();
-                          }}
-                        >
-                          Create account
-                        </Link>
-                      </div>
+                      <span>{user?.name?.[0]?.toUpperCase() || 'U'}</span>
                     )}
-                  </div>
+                  </button>
+
+                  <AnimatePresence>
+                    {mobileAccountMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 top-full mt-3 w-56 rounded-xl border border-slate-200 bg-white shadow-xl z-50"
+                      >
+                        <div className="p-3">
+                          {user ? (
+                            <>
+                              <div className="mb-3 rounded-lg bg-slate-50 p-3">
+                                <p className="text-sm font-semibold text-slate-900">{user.name}</p>
+                                <p className="text-xs text-slate-500">{user.username || user.email}</p>
+                                <span className="mt-2 inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary capitalize">
+                                  {user.clientType === 'B2B' ? 'B2B Account' : user.clientType === 'C2B' ? 'C2B Account' : user.role}
+                                </span>
+                              </div>
+                              <div className="space-y-1">
+                                <Link
+                                  to={user.role === 'client' ? '/account' : '/admin'}
+                                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                                  onClick={() => {
+                                    setMobileAccountMenuOpen(false);
+                                    closeMobileMenu();
+                                  }}
+                                >
+                                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                  </svg>
+                                  {user.role === 'client' ? 'Account Dashboard' : 'Admin Area'}
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setMobileAccountMenuOpen(false);
+                                    closeMobileMenu();
+                                    void logout();
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                                >
+                                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                  </svg>
+                                  Logout
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="space-y-1">
+                              <Link
+                                to="/login"
+                                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                                onClick={() => {
+                                  setMobileAccountMenuOpen(false);
+                                  closeMobileMenu();
+                                }}
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                                </svg>
+                                Sign In
+                              </Link>
+                              <Link
+                                to="/register"
+                                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                                onClick={() => {
+                                  setMobileAccountMenuOpen(false);
+                                  closeMobileMenu();
+                                }}
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                </svg>
+                                Create Account
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
                 <Link
                   to="/cart"

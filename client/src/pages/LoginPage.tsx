@@ -1009,7 +1009,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                     </div>
 
                     <label className="grid gap-2 text-sm text-slate-600">
-                      <span>First Name</span>
+                      <span>First Name <span className="text-red-600">*</span></span>
                       <input
                         type="text"
                         value={signupData.firstName}
@@ -1021,7 +1021,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                     </label>
 
                     <label className="grid gap-2 text-sm text-slate-600">
-                      <span>Last Name</span>
+                      <span>Last Name <span className="text-red-600">*</span></span>
                       <input
                         type="text"
                         value={signupData.lastName}
@@ -1033,7 +1033,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                     </label>
 
                     <label className="grid gap-2 text-sm text-slate-600">
-                      <span>Phone Number</span>
+                      <span>Phone Number <span className="text-red-600">*</span></span>
                       <PhoneNumberInput
                         value={phoneValue}
                         onChange={(val) => {
@@ -1041,6 +1041,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                           setSignupData((prev) => ({ ...prev, phone: `${val.countryCode}${val.number}` }));
                         }}
                         placeholder="1234567890"
+                        required
                       />
                     </label>
 
@@ -1079,7 +1080,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                   (isB2B ? (
                     <form className="w-full self-center grid gap-[1.1rem]" onSubmit={handleSignupStep1B2B}>
                       <label className="grid gap-2 text-sm text-slate-600">
-                        <span>Company Name</span>
+                        <span>Company Name <span className="text-red-600">*</span></span>
                         <input
                           type="text"
                           value={signupData.companyName}
@@ -1091,7 +1092,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                       </label>
 
                       <label className="grid gap-2 text-sm text-slate-600">
-                        <span>Business Type</span>
+                        <span>Business Type <span className="text-red-600">*</span></span>
                         <input
                           type="text"
                           value={signupData.businessType}
@@ -1103,7 +1104,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                       </label>
 
                       <label className="grid gap-2 text-sm text-slate-600">
-                        <span>Tax ID (optional)</span>
+                        <span>Tax ID</span>
                         <input
                           type="text"
                           value={signupData.taxId}
@@ -1114,12 +1115,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                       </label>
 
                       <label className="grid gap-2 text-sm text-slate-600">
-                        <span>Company Website (optional)</span>
+                        <span>Company Website</span>
                         <input
                           type="text"
                           value={signupData.companyWebsite}
                           onChange={(e) => setSignupData((prev) => ({ ...prev, companyWebsite: e.target.value }))}
-                          placeholder="https://example.com"
+                          pattern="^[^\s]+\.[^\s]+$"
+                          placeholder="example.com"
                           className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
                         />
                       </label>
@@ -1164,7 +1166,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                   ) : (
                     <form className="w-full self-center grid gap-[1.1rem]" onSubmit={handleSignupCredentials}>
                       <label className="grid gap-2 text-sm text-slate-600">
-                        <span>Email Address</span>
+                        <span>Email Address <span className="text-red-600">*</span></span>
                         <input
                           type="email"
                           value={signupData.username}
@@ -1176,7 +1178,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
                       </label>
 
                       <label className="grid gap-2 text-sm text-slate-600">
-                        <span>Password</span>
+                        <span>Password <span className="text-red-600">*</span></span>
                         <div className="relative">
                           <input
                             type={showSignupPassword ? 'text' : 'password'}
