@@ -1,4 +1,5 @@
 import { useMemo, type FC, type ReactNode } from 'react';
+import { ContactWidget } from '../common/ContactWidget';
 
 const corporateLinks = [
   { label: 'Track Your Order', href: '#' },
@@ -255,6 +256,9 @@ export const Footer: FC = () => {
           <p>© {currentYear} ULK Supply. All Rights Reserved | Powered by <a href="https://www.bpd.ma" target="_blank" rel="noopener noreferrer" className="transition hover:text-white">BP. Digital</a></p>
         </div>
       </div>
+
+      {/* Contact Widget */}
+      <ContactWidget />
 
       <button
         type="button"
