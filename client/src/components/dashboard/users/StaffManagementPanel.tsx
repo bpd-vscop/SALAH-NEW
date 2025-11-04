@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Eye, EyeOff, Search, X } from 'lucide-react';
 import { usersApi, type CreateUserPayload, type ListUsersParams, type UpdateUserPayload } from '../../../api/users';
 import type { User, UserRole } from '../../../types/api';
 import type { StatusSetter } from '../types';
@@ -6,6 +7,8 @@ import { StatusPill } from '../../common/StatusPill';
 import { PASSWORD_COMPLEXITY_MESSAGE, evaluatePasswordStrength, meetsPasswordPolicy } from '../../../utils/password';
 import { formatTimestamp } from '../../../utils/format';
 import { cn } from '../../../utils/cn';
+import { PhoneNumberInput, type PhoneNumberInputValue } from '../../common/PhoneInput';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface StaffManagementPanelProps {
   role: UserRole;
@@ -25,8 +28,6 @@ interface StaffFormState {
   status: User['status'];
   password: string;
   confirmPassword: string;
-  phoneCode: string;
-  phoneNumber: string;
 }
 
 const ROLE_RANK: Record<UserRole, number> = {
@@ -63,8 +64,6 @@ const buildEmptyForm = (defaultRole: UserRole): StaffFormState => ({
   status: 'active',
   password: '',
   confirmPassword: '',
-  phoneCode: '',
-  phoneNumber: '',
 });
 
 export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role, currentUserId, setStatus }) => {
@@ -96,6 +95,8 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
   const [pendingDelete, setPendingDelete] = useState<User | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCode: '+1', number: '' });
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
@@ -122,20 +123,16 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
       setRecords([]);
       return;
     }
-
     const params: ListUsersParams = {
       role: roleFilter === 'all' ? baseRoles : [roleFilter as UserRole],
       sort: SORT_TO_QUERY[sort],
     };
-
     if (statusFilter !== 'all') {
       params.status = statusFilter;
     }
-
     if (debouncedSearch) {
       params.search = debouncedSearch;
     }
-
     setLoading(true);
     setLocalError(null);
     try {
@@ -159,6 +156,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
   const passwordStrength = useMemo(() => evaluatePasswordStrength(form.password), [form.password]);
 
   const canCreate = assignableRoles.length > 0;
+
   const actorRank = ROLE_RANK[role] ?? 0;
 
   const canEditUserRecord = useCallback(
@@ -194,8 +192,10 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
       status: candidate.status,
       password: '',
       confirmPassword: '',
-      phoneCode: candidate.phoneCode ?? '',
-      phoneNumber: candidate.phoneNumber ?? '',
+    });
+    setPhoneValue({
+      countryCode: candidate.phoneCode ?? '+1',
+      number: candidate.phoneNumber ?? '',
     });
     setFormError(null);
     setShowPassword(false);
@@ -205,6 +205,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
   const resetForm = () => {
     setEditingId(null);
     setForm(buildEmptyForm(defaultRole));
+    setPhoneValue({ countryCode: '+1', number: '' });
     setFormError(null);
     setShowPassword(false);
     setShowConfirmPassword(false);
@@ -214,8 +215,8 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
     const trimmedName = form.name.trim();
     const trimmedUsername = form.username.trim();
     const trimmedEmail = form.email.trim();
-    const trimmedPhoneCode = form.phoneCode.trim();
-    const trimmedPhoneNumber = form.phoneNumber.trim();
+    const trimmedPhoneCode = phoneValue.countryCode.trim();
+    const trimmedPhoneNumber = phoneValue.number.trim();
 
     if (!trimmedName) {
       setFormError('Name is required');
@@ -244,6 +245,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
       }
 
       const trimmedPassword = form.password.trim();
+
       if (!trimmedPassword) {
         setFormError('Password is required');
         return null;
@@ -270,9 +272,11 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
       if (trimmedEmail) {
         payload.email = trimmedEmail.toLowerCase();
       }
+
       if (trimmedPhoneCode) {
         payload.phoneCode = trimmedPhoneCode;
       }
+
       if (trimmedPhoneNumber) {
         payload.phoneNumber = trimmedPhoneNumber;
       }
@@ -281,6 +285,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
     }
 
     const target = records.find((record) => record.id === editingId);
+
     if (!target) {
       setFormError('Unable to locate the selected team member');
       return null;
@@ -305,6 +310,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
         setFormError('You do not have permission to update this account');
         return null;
       }
+
       if (actorRank <= desiredRank) {
         setFormError('You cannot assign a role equal or higher than your own');
         return null;
@@ -316,6 +322,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
         setFormError('Passwords do not match');
         return null;
       }
+
       if (!meetsPasswordPolicy(form.password)) {
         setFormError(PASSWORD_COMPLEXITY_MESSAGE);
         return null;
@@ -334,6 +341,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
     if (trimmedEmail) {
       payload.email = trimmedEmail.toLowerCase();
     }
+
     if (form.password) {
       payload.password = form.password;
     }
@@ -347,11 +355,13 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
 
     const isCreating = !editingId;
     const validation = validateStaffForm(isCreating);
+
     if (!validation) {
       return;
     }
 
     setSubmitting(true);
+
     try {
       if (isCreating) {
         await usersApi.create(validation.payload as CreateUserPayload);
@@ -403,162 +413,224 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
   }, [baseRoles]);
 
   return (
-    <section className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-white/80 p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Team members</h2>
-            <p className="text-sm text-slate-600">Manage administrative and staff accounts.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
-              <input
-                type="search"
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Search by name or email"
-                className="h-10 w-56 rounded-xl border border-border bg-white px-4 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <svg
-                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z" />
-              </svg>
-            </div>
-            <select
-              value={roleFilter}
-              onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
-              className="h-10 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              {roleFilterOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option === 'all' ? 'All roles' : option.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())}
-                </option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-              className="h-10 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="all">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <select
-              value={sort}
-              onChange={(event) => setSort(event.target.value as SortOption)}
-              className="h-10 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="recent">Most recent</option>
-              <option value="name-asc">Name: A to Z</option>
-              <option value="name-desc">Name: Z to A</option>
-            </select>
-          </div>
-        </div>
-
-        {localError && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-            {localError}
-          </div>
-        )}
-
-        <div className="overflow-hidden rounded-2xl border border-border bg-white">
-          <table className="min-w-full divide-y divide-border text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-muted">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Name</th>
-                <th className="px-4 py-3 font-semibold">Username</th>
-                <th className="px-4 py-3 font-semibold">Role</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Created</th>
-                <th className="px-4 py-3 text-right font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {loading && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted">
-                    Loading team members...
-                  </td>
-                </tr>
-              )}
-              {!loading && records.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted">
-                    No team members found.
-                  </td>
-                </tr>
-              )}
-              {!loading &&
-                records.map((member) => {
-                  const isEditing = editingId === member.id;
-                  return (
-                    <tr
-                      key={member.id}
-                      className={cn(
-                        'transition hover:bg-primary/5',
-                        isEditing && 'bg-primary/10'
-                      )}
-                    >
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-slate-900">{member.name}</div>
-                        <div className="text-xs text-slate-500">{member.email || '—'}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{member.username}</td>
-                      <td className="px-4 py-3 capitalize text-sm text-slate-600">{member.role.replace('_', ' ')}</td>
-                      <td className="px-4 py-3">
-                        <StatusPill label={member.status === 'active' ? 'Active' : 'Inactive'} tone={toneForStatus(member.status)} />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-500">{formatTimestamp(member.accountCreated)}</td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleEdit(member)}
-                            className="inline-flex items-center rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                            disabled={!canEditUserRecord(member)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPendingDelete(member)}
-                            className="inline-flex items-center rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                            disabled={!canDeleteUserRecord(member)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-        </div>
+    <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900">Team members</h2>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-border bg-white/80 p-6 shadow-sm">
-        <div>
-          <h3 className="text-base font-semibold text-slate-900">{editingId ? 'Edit team member' : 'Add team member'}</h3>
-          <p className="text-sm text-slate-600">Fill in the details below to {editingId ? 'update' : 'create'} an account.</p>
+      {localError && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          {localError}
+        </div>
+      )}
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_450px]">
+        {/* Table Section */}
+        <div className="flex flex-col gap-3">
+          {/* Filters above table */}
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setSort('recent')}
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-xs font-medium transition',
+                  sort === 'recent' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                )}
+              >
+                Recent
+              </button>
+              <button
+                type="button"
+                onClick={() => setSort('name-asc')}
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-xs font-medium transition',
+                  sort === 'name-asc' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                )}
+              >
+                A-Z
+              </button>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <select
+                value={roleFilter}
+                onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
+                className="h-10 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="all">Role</option>
+                {roleFilterOptions.filter(option => option !== 'all').map((option) => (
+                  <option key={option} value={option}>
+                    {option.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+                className="h-10 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="all">Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+              <div className="relative w-full sm:w-auto">
+                <motion.div
+                  animate={{ width: searchOpen ? '100%' : 40 }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  className="overflow-hidden"
+                >
+                  <AnimatePresence mode="wait">
+                    {searchOpen ? (
+                      <motion.div
+                        key="search-input"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="relative"
+                      >
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="search"
+                          value={searchInput}
+                          onChange={(event) => setSearchInput(event.target.value)}
+                          placeholder="Search by name or email"
+                          className="h-10 w-full rounded-xl border border-border bg-white pl-9 pr-9 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                        {searchInput && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchInput('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            aria-label="Clear search"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </motion.div>
+                    ) : (
+                      <motion.button
+                        key="search-icon"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        type="button"
+                        className="h-10 w-10 flex items-center justify-center rounded-xl border border-border bg-white text-slate-600 hover:bg-slate-100"
+                        onClick={() => setSearchOpen(true)}
+                        aria-label="Open search"
+                      >
+                        <Search className="h-4 w-4" />
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              </div>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="max-h-[600px] overflow-auto rounded-2xl border border-border bg-background">
+            <table className="min-w-full divide-y divide-border text-left text-sm">
+              <thead className="sticky top-0 z-10 bg-background text-xs uppercase tracking-wide text-muted">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Name</th>
+                  <th className="px-4 py-3 font-semibold">Username</th>
+                  <th className="px-4 py-3 font-semibold">Role</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Created</th>
+                  <th className="px-4 py-3 text-right font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border bg-surface">
+                {loading && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted">
+                      Loading team members...
+                    </td>
+                  </tr>
+                )}
+                {!loading && records.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted">
+                      No team members found.
+                    </td>
+                  </tr>
+                )}
+                {!loading &&
+                  records.map((member) => {
+                    const isEditing = editingId === member.id;
+                    return (
+                      <tr
+                        key={member.id}
+                        className={cn(
+                          'transition hover:bg-primary/5',
+                          isEditing && 'bg-primary/10'
+                        )}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-slate-900">{member.name}</div>
+                          <div className="text-xs text-slate-500">{member.email || '—'}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{member.username}</td>
+                        <td className="px-4 py-3 capitalize text-sm text-slate-600">{member.role.replace('_', ' ')}</td>
+                        <td className="px-4 py-3">
+                          <StatusPill label={member.status === 'active' ? 'Active' : 'Inactive'} tone={toneForStatus(member.status)} />
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-500">{formatTimestamp(member.accountCreated)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleEdit(member)}
+                              className="inline-flex items-center rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                              disabled={!canEditUserRecord(member)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPendingDelete(member)}
+                              className="inline-flex items-center rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                              disabled={!canDeleteUserRecord(member)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {!canCreate && !editingId && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-            You do not have permission to create new team members.
+        {/* Form Sidebar */}
+        <form
+          onSubmit={handleSubmit}
+          className={cn(
+            'flex flex-col gap-4 rounded-2xl border p-6 shadow-sm transition-all duration-300',
+            editingId
+              ? 'border-blue-300 bg-blue-50/50 ring-2 ring-blue-200/50'
+              : 'border-border bg-background'
+          )}
+        >
+          <div>
+            <h3 className="text-base font-semibold text-slate-900">{editingId ? 'Edit team member' : 'Add team member'}</h3>
+            <p className="text-sm text-slate-600">Fill in the details below to {editingId ? 'update' : 'create'} an account.</p>
           </div>
-        )}
 
-        {formError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>
-        )}
+          {!canCreate && !editingId && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              You do not have permission to create new team members.
+            </div>
+          )}
 
-        <div className="grid gap-4 md:grid-cols-2">
+          {formError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>
+          )}
+
           <label className="flex flex-col gap-2 text-sm text-slate-600">
             Full name
             <input
@@ -570,6 +642,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
               required
             />
           </label>
+
           <label className="flex flex-col gap-2 text-sm text-slate-600">
             Email
             <input
@@ -580,9 +653,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
               className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </label>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
           <label className="flex flex-col gap-2 text-sm text-slate-600">
             Username
             <input
@@ -594,74 +665,76 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
               required
             />
           </label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Role
-              <select
-                value={form.role}
-                onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value as UserRole }))}
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                disabled={(() => {
-                  if (!editingId) {
-                    return !canCreate;
+
+          <label className="flex flex-col gap-2 text-sm text-slate-600">
+            Role
+            <select
+              value={form.role}
+              onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value as UserRole }))}
+              className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              disabled={(() => {
+                if (!editingId) {
+                  return !canCreate;
+                }
+                const editingTarget = records.find((record) => record.id === editingId);
+                if (!editingTarget) {
+                  return true;
+                }
+                if (editingTarget.id === currentUserId) {
+                  return false;
+                }
+                return !(actorRank > (ROLE_RANK[editingTarget.role] ?? 0));
+              })()}
+            >
+              {[...new Set([...assignableRoles, form.role])]
+                .filter((candidate) => candidate !== 'client')
+                .map((candidate) => (
+                  <option key={candidate} value={candidate}>
+                    {candidate.replace('_', ' ')}
+                  </option>
+                ))}
+            </select>
+          </label>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-slate-600">Status</label>
+            <div className="grid grid-cols-2 gap-2.5">
+              {(['active', 'inactive'] as const).map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, status }))}
+                  className={`rounded-full px-2 py-1.5 border font-semibold cursor-pointer transition-all duration-300 ease-in-out ${
+                    form.status === status
+                      ? 'text-white scale-[1.01]'
+                      : 'border-slate-400/40 bg-white/70 text-slate-600 hover:border-slate-400/55 hover:bg-white/95 hover:-translate-y-0.5 hover:shadow-md'
+                  }`}
+                  style={
+                    form.status === status
+                      ? {
+                          background: status === 'active'
+                            ? 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)'
+                            : 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                          borderColor: status === 'active' ? '#22c55e' : '#ef4444',
+                        }
+                      : undefined
                   }
-                  const editingTarget = records.find((record) => record.id === editingId);
-                  if (!editingTarget) {
-                    return true;
-                  }
-                  if (editingTarget.id === currentUserId) {
-                    return false;
-                  }
-                  return !(actorRank > (ROLE_RANK[editingTarget.role] ?? 0));
-                })()}
-              >
-                {[...new Set([...assignableRoles, form.role])]
-                  .filter((candidate) => candidate !== 'client')
-                  .map((candidate) => (
-                    <option key={candidate} value={candidate}>
-                      {candidate.replace('_', ' ')}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Status
-              <select
-                value={form.status}
-                onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as User['status'] }))}
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </label>
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
           <label className="flex flex-col gap-2 text-sm text-slate-600">
-            Phone code
-            <input
-              type="text"
-              value={form.phoneCode}
-              onChange={(event) => setForm((prev) => ({ ...prev, phoneCode: event.target.value }))}
-              placeholder="e.g. +1"
-              className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            Phone Number
+            <PhoneNumberInput
+              value={phoneValue}
+              onChange={setPhoneValue}
+              placeholder="1234567890"
             />
           </label>
-          <label className="flex flex-col gap-2 text-sm text-slate-600">
-            Phone number
-            <input
-              type="text"
-              value={form.phoneNumber}
-              onChange={(event) => setForm((prev) => ({ ...prev, phoneNumber: event.target.value }))}
-              placeholder="Optional"
-              className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </label>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
           <label className="flex flex-col gap-2 text-sm text-slate-600">
             {editingId ? 'New password' : 'Password'}
             <div className="relative">
@@ -680,9 +753,9 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-primary"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
               >
-                {showPassword ? 'Hide' : 'Show'}
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
             {form.password && passwordStrength.label && (
@@ -694,6 +767,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
               <span className="text-xs text-slate-400">{PASSWORD_COMPLEXITY_MESSAGE}</span>
             )}
           </label>
+
           <label className="flex flex-col gap-2 text-sm text-slate-600">
             Confirm password
             <div className="relative">
@@ -707,15 +781,13 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-primary"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
               >
-                {showConfirmPassword ? 'Hide' : 'Show'}
+                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
           </label>
-        </div>
 
-        <div className="flex items-center gap-3">
           <button
             type="submit"
             className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-70"
@@ -723,6 +795,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
           >
             {submitting ? 'Saving…' : editingId ? 'Save changes' : 'Create team member'}
           </button>
+
           {editingId && (
             <button
               type="button"
@@ -733,12 +806,12 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
               Cancel
             </button>
           )}
-        </div>
-      </form>
+        </form>
+      </div>
 
       {pendingDelete && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl">
             <div className="mb-4 flex items-start gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
                 <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
