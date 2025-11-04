@@ -18,7 +18,11 @@
       "Bash(npm start)",
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Read(//c/Users/redou/.codex/**)",
+      "Bash(claude mcp add:*)",
+      "Read(//c/Users/redou/**)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []
