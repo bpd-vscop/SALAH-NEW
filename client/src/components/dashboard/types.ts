@@ -68,7 +68,6 @@ export interface FeatureFormState {
 
 export type DeleteConfirmationState =
   | { type: 'hero' | 'featured'; id: string }
-  | { type: 'user'; id: string }
   | { type: 'category'; id: string }
   | { type: 'menu-section'; id: string } // id is index (as string)
   | { type: 'menu-link'; id: string }    // id is index (as string)

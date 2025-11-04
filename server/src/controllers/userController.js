@@ -1,19 +1,158 @@
 const fs = require('fs/promises');
 const path = require('path');
+const crypto = require('crypto');
 const User = require('../models/User');
 const { validateCreateUser, validateUpdateUser, validateConvertToB2B } = require('../validators/user');
 const { validateAdminProfile } = require('../validators/adminProfile');
 const { hashPassword } = require('../utils/password');
 const { badRequest, notFound, forbidden } = require('../utils/appError');
-const { canView, canEdit, rank } = require('../utils/roles');
-const { issuePasswordChangeCode, verifyPasswordChangeCode } = require('../services/verificationCodeService');
+const { canView, canEdit, rank, ROLE_RANK } = require('../utils/roles');
+const {
+  issuePasswordChangeCode,
+  verifyPasswordChangeCode,
+  issueVerificationCode,
+} = require('../services/verificationCodeService');
 const { sendPasswordChangedConfirmation } = require('../services/emailService');
+
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const parseCsvParam = (value) =>
+  String(value || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
 
 const listUsers = async (req, res, next) => {
   try {
-    const users = await User.find().sort({ accountCreated: -1 });
+    const {
+      role: roleQuery,
+      status: statusQuery,
+      clientType: clientTypeQuery,
+      search: searchQuery,
+      sort: sortQuery,
+      emailVerified: emailVerifiedQuery,
+    } = req.query || {};
+
+    const accessibleRoles = Object.keys(ROLE_RANK).filter((role) =>
+      req.user ? canView(req.user.role, role) : true
+    );
+
+    let requestedRoles = accessibleRoles;
+    if (roleQuery) {
+      const requested = parseCsvParam(roleQuery).filter((role) => ROLE_RANK[role] !== undefined);
+      requestedRoles = requested.filter((role) => accessibleRoles.includes(role));
+    }
+
+    const filter = {};
+    if (requestedRoles.length > 0) {
+      filter.role = { $in: requestedRoles };
+    } else if (roleQuery) {
+      // If caller requested roles they cannot access, return empty list early
+      return res.json({ users: [] });
+    }
+
+    if (statusQuery) {
+      const statuses = parseCsvParam(statusQuery).filter((status) => ['active', 'inactive'].includes(status));
+      if (statuses.length > 0) {
+        filter.status = { $in: statuses };
+      }
+    }
+
+    if (clientTypeQuery) {
+      const clientTypes = parseCsvParam(clientTypeQuery).filter((type) => ['B2B', 'C2B'].includes(type));
+      if (clientTypes.length > 0) {
+        filter.clientType = { $in: clientTypes };
+      }
+    }
+
+    if (typeof emailVerifiedQuery === 'string' && emailVerifiedQuery.length > 0) {
+      const normalized = emailVerifiedQuery.toLowerCase();
+      if (normalized === 'true' || normalized === 'false') {
+        filter.isEmailVerified = normalized === 'true';
+      }
+    }
+
+    if (searchQuery) {
+      const trimmed = String(searchQuery).trim();
+      if (trimmed) {
+        const pattern = new RegExp(escapeRegex(trimmed), 'i');
+        filter.$or = [
+          { name: pattern },
+          { email: pattern },
+          { username: pattern },
+          { phoneNumber: pattern },
+        ];
+      }
+    }
+
+    let sort = { accountCreated: -1, _id: -1 };
+    switch (String(sortQuery || '').toLowerCase()) {
+      case 'oldest':
+        sort = { accountCreated: 1, _id: 1 };
+        break;
+      case 'name-asc':
+      case 'a-to-z':
+      case 'a_z':
+        sort = { name: 1, accountCreated: -1 };
+        break;
+      case 'name-desc':
+      case 'z-to-a':
+      case 'z_a':
+        sort = { name: -1, accountCreated: -1 };
+        break;
+      case 'recently-updated':
+      case 'updated':
+        sort = { accountUpdated: -1, accountCreated: -1 };
+        break;
+      default:
+        sort = { accountCreated: -1, _id: -1 };
+    }
+
+    const users = await User.find(filter).sort(sort);
     const visible = req.user ? users.filter((u) => canView(req.user.role, u.role)) : users;
     res.json({ users: visible.map((u) => u.toJSON()) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const sendClientVerification = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id);
+    if (!user) {
+      throw notFound('User not found');
+    }
+
+    if (user.role !== 'client') {
+      throw badRequest('Verification emails are only available for client accounts');
+    }
+
+    if (!req.user || !canEdit(req.user.role, user.role)) {
+      throw forbidden('You do not have permission to send verification emails for this user');
+    }
+
+    if (!user.email) {
+      throw badRequest('Client does not have an email address', [{ field: 'email' }]);
+    }
+
+    if (user.isEmailVerified === true) {
+      return res.json({
+        message: 'Email is already verified',
+        alreadyVerified: true,
+      });
+    }
+
+    const { expiresAt, previewCode } = await issueVerificationCode({
+      email: user.email,
+      fullName: user.name,
+      clientType: user.clientType || 'C2B',
+    });
+
+    res.json({
+      message: 'Verification email sent',
+      expiresAt: expiresAt.toISOString(),
+      ...(previewCode ? { previewCode } : {}),
+    });
   } catch (error) {
     next(error);
   }
@@ -42,16 +181,28 @@ const createUser = async (req, res, next) => {
       throw forbidden('Insufficient privileges to create a user with this role');
     }
 
-    const passwordHash = await hashPassword(data.password);
+    const role = data.role;
+    const normalizedName = data.name ?? (role === 'client' ? 'New Client' : undefined);
+
+    if (role !== 'client' && !normalizedName) {
+      throw badRequest('Name is required for this role', [{ field: 'name' }]);
+    }
+
+    const resolvedPassword =
+      data.password ||
+      crypto.randomBytes(12).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 16) ||
+      crypto.randomBytes(9).toString('hex');
+    const passwordHash = await hashPassword(resolvedPassword);
 
     const user = await User.create({
-      name: data.name,
-      username: data.role === 'client' ? undefined : data.username,
+      name: normalizedName || 'New Team Member',
+      username: role === 'client' ? undefined : data.username,
       email: data.email?.toLowerCase(),
-      role: data.role,
+      role,
       status: data.status,
       passwordHash,
-      isEmailVerified: data.role !== 'client',
+      clientType: role === 'client' ? data.clientType ?? undefined : undefined,
+      isEmailVerified: role !== 'client',
     });
 
     res.status(201).json({ user: user.toJSON() });
@@ -108,6 +259,21 @@ const updateUser = async (req, res, next) => {
     }
 
     const desiredRole = data.role || user.role;
+    const actorCanEditTarget = !isSelf && req.user && canEdit(req.user.role, user.role);
+    const actorHasClientAdminPrivileges =
+      actorCanEditTarget && req.user && (req.user.role === 'admin' || req.user.role === 'super_admin');
+
+    const ensureClientCompany = () => {
+      if (user.role !== 'client') {
+        throw forbidden('Only client accounts can update company information');
+      }
+      if (!user.company) {
+        user.company = {};
+      }
+      return user.company;
+    };
+
+    let companyModified = false;
 
     if (Object.prototype.hasOwnProperty.call(data, 'username')) {
       const providedUsername = data.username ?? undefined;
@@ -183,37 +349,75 @@ const updateUser = async (req, res, next) => {
       user.set('username', undefined);
     }
 
-    if (Object.prototype.hasOwnProperty.call(payload, 'companyTaxId')) {
+    if (Object.prototype.hasOwnProperty.call(data, 'clientType')) {
       if (user.role !== 'client') {
-        throw forbidden('Only client accounts can update company information');
+        throw forbidden('Only client accounts can update client type');
       }
-      if (!user.company) {
-        throw badRequest('Company information not found');
+      if (!actorHasClientAdminPrivileges) {
+        throw forbidden('You do not have permission to change client type');
       }
-      if (user.company.taxId) {
-        throw forbidden('Tax ID is already set for this account');
+      user.clientType = data.clientType;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'companyName')) {
+      const company = ensureClientCompany();
+      company.name = data.companyName ?? null;
+      companyModified = true;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'companyPhone')) {
+      const company = ensureClientCompany();
+      company.phone = data.companyPhone ?? null;
+      companyModified = true;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'companyAddress')) {
+      const company = ensureClientCompany();
+      company.address = data.companyAddress ?? null;
+      companyModified = true;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'companyBusinessType')) {
+      const company = ensureClientCompany();
+      company.businessType = data.companyBusinessType ?? null;
+      companyModified = true;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'companyTaxId')) {
+      const company = ensureClientCompany();
+      const requestedTaxId = data.companyTaxId ?? null;
+
+      if (!actorHasClientAdminPrivileges) {
+        if (company.taxId && requestedTaxId && company.taxId !== requestedTaxId) {
+          throw forbidden('Tax ID is already set for this account');
+        }
+        if (!requestedTaxId) {
+          throw badRequest('Tax ID is required');
+        }
       }
-      if (!data.companyTaxId) {
-        throw badRequest('Tax ID is required');
-      }
-      user.company.taxId = data.companyTaxId;
-      user.markModified('company');
+
+      company.taxId = requestedTaxId;
+      companyModified = true;
     }
 
     if (Object.prototype.hasOwnProperty.call(payload, 'companyWebsite')) {
-      if (user.role !== 'client') {
-        throw forbidden('Only client accounts can update company information');
+      const company = ensureClientCompany();
+      const requestedWebsite = data.companyWebsite ?? null;
+
+      if (!actorHasClientAdminPrivileges) {
+        if (company.website && requestedWebsite && company.website !== requestedWebsite) {
+          throw forbidden('Company website is already set');
+        }
+        if (!requestedWebsite) {
+          throw badRequest('Company website is required');
+        }
       }
-      if (!user.company) {
-        throw badRequest('Company information not found');
-      }
-      if (user.company.website) {
-        throw forbidden('Company website is already set');
-      }
-      if (!data.companyWebsite) {
-        throw badRequest('Company website is required');
-      }
-      user.company.website = data.companyWebsite;
+
+      company.website = requestedWebsite;
+      companyModified = true;
+    }
+
+    if (companyModified) {
       user.markModified('company');
     }
 
@@ -550,5 +754,6 @@ module.exports = {
   deleteShippingAddress,
   requestPasswordChange,
   changePassword,
+  sendClientVerification,
   convertToB2B,
 };

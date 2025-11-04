@@ -14,34 +14,54 @@ const optionalTrimmed = (schema) =>
 
 const createUserSchema = z
   .object({
-    name: z.string().min(2).max(120),
-    username: z.string().regex(usernameRegex, 'Invalid username').optional(),
-    email: z.string().email().optional(),
+    name: optionalTrimmed(z.string().min(2, 'Name must be at least 2 characters').max(120)),
+    username: optionalTrimmed(z.string().regex(usernameRegex, 'Invalid username')),
+    email: optionalTrimmed(z.string().email('Invalid email address')),
     role: z.enum(['super_admin', 'admin', 'staff', 'client']),
     status: z.enum(['active', 'inactive']).default('active'),
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters long')
-      .max(128, 'Password must be at most 128 characters long')
-      .refine((value) => meetsPasswordComplexity(value), {
-        message: PASSWORD_COMPLEXITY_MESSAGE,
-      }),
+    password: optionalTrimmed(
+      z
+        .string()
+        .min(8, 'Password must be at least 8 characters long')
+        .max(128, 'Password must be at most 128 characters long')
+        .refine((value) => meetsPasswordComplexity(value), {
+          message: PASSWORD_COMPLEXITY_MESSAGE,
+        })
+    ),
+    clientType: z.enum(['B2B', 'C2B']).optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
-    if (data.role === 'client' && data.username) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Clients do not use usernames',
-        path: ['username'],
-      });
-    }
-    if (data.role !== 'client' && !data.username) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Username is required for this role',
-        path: ['username'],
-      });
+    if (data.role === 'client') {
+      if (data.username) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Clients do not use usernames',
+          path: ['username'],
+        });
+      }
+    } else {
+      if (!data.username) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Username is required for this role',
+          path: ['username'],
+        });
+      }
+      if (!data.password) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Password is required for this role',
+          path: ['password'],
+        });
+      }
+      if (!data.name) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Name is required for this role',
+          path: ['name'],
+        });
+      }
     }
   });
 
@@ -79,6 +99,11 @@ const updateUserSchema = z
         .max(200)
         .regex(/^[^\s]+\.[^\s]+$/, 'Website must be a valid domain or URL')
     ),
+    clientType: z.enum(['B2B', 'C2B']).optional(),
+    companyName: optionalTrimmed(z.string().max(120)),
+    companyPhone: optionalTrimmed(z.string().max(40)),
+    companyAddress: optionalTrimmed(z.string().max(200)),
+    companyBusinessType: optionalTrimmed(z.string().max(120)),
   })
   .strict();
 

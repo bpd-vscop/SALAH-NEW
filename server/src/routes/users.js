@@ -10,6 +10,7 @@ const {
   requestPasswordChange,
   changePassword,
   convertToB2B,
+  sendClientVerification,
 } = require('../controllers/userController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { profileUpload, verificationUpload } = require('../middleware/upload');
@@ -29,6 +30,7 @@ router.put(
 router.delete('/:id', requireRole(['super_admin']), deleteUser);
 
 router.post('/:id/convert-to-b2b', verificationUpload.single('verificationFile'), convertToB2B);
+router.post('/:id/send-verification', requireRole(['super_admin', 'admin']), sendClientVerification);
 
 // Shipping address routes (clients can manage their own)
 router.post('/:id/shipping-addresses', addShippingAddress);

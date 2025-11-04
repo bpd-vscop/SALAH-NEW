@@ -8,7 +8,6 @@ import { featuredShowcaseApi, type FeaturedShowcaseItem, type FeaturedVariant } 
 import { heroSlidesApi, type HeroSlide } from '../api/heroSlides';
 import { ordersApi } from '../api/orders';
 import { productsApi } from '../api/products';
-import { usersApi } from '../api/users';
 import { menuApi, type MenuSectionInput, type MenuLinkInput } from '../api/menu';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { SiteLayout } from '../components/layout/SiteLayout';
@@ -21,11 +20,9 @@ import type {
   OrderStatus,
   Product,
   ProductTag,
-  User,
   UserRole,
 } from '../types/api';
 import { adminTabs, homepageTabs, navigationTabs } from '../utils/adminSidebar';
-import { UsersAdminSection } from '../components/dashboard/UsersAdminSection';
 import { CategoriesAdminSection } from '../components/dashboard/CategoriesAdminSection';
 import { ProductsAdminSection } from '../components/dashboard/ProductsAdminSection';
 // import { BannersAdminSection } from '../components/dashboard/BannersAdminSection';
@@ -34,7 +31,6 @@ import { ManufacturersDisplayAdminSection } from '../components/dashboard/Manufa
 import { HomepageAdminSection } from '../components/dashboard/HomepageAdminSection';
 import { OrdersAdminSection } from '../components/dashboard/OrdersAdminSection';
 import { NavigationAdminSection } from '../components/dashboard/NavigationAdminSection';
-import { meetsPasswordPolicy, PASSWORD_COMPLEXITY_MESSAGE } from '../utils/password';
 import type {
   // BannerFormState,
   CategoryFormState,
@@ -45,10 +41,11 @@ import type {
   OrderConflictState,
   ProductFormState,
   StatusSetter,
-  UserFormState,
 } from '../components/dashboard/types';
 import { AdminTopNav } from '../components/dashboard/AdminTopNav';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { StaffManagementPanel } from '../components/dashboard/users/StaffManagementPanel';
+import { ClientManagementPanel } from '../components/dashboard/users/ClientManagementPanel';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_HOMEPAGE_CATEGORIES = 18;
@@ -72,8 +69,6 @@ const productTags: ProductTag[] = ['in stock', 'out of stock', 'on sale', 'avail
 // const bannerTypes: BannerType[] = ['slide', 'row', 'advertising'];
 const orderStatuses: OrderStatus[] = ['pending', 'processing', 'completed', 'cancelled'];
 
-const canManageUsers = (role: UserRole) => role === 'super_admin';
-const canEditUsers = (role: UserRole) => role === 'super_admin' || role === 'admin';
 const canEditOrders = (role: UserRole) => role === 'super_admin' || role === 'admin' || role === 'staff';
 const canEditHomepage = (role: UserRole) => role === 'super_admin' || role === 'admin' || role === 'staff';
 const canDeleteHomepage = (role: UserRole) => role === 'super_admin' || role === 'admin';
@@ -86,8 +81,8 @@ export const AdminDashboardPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<(typeof adminTabs)[number]['id']>('users');
+  const [usersSection, setUsersSection] = useState<'staff' | 'clients'>('staff');
 
-  const [users, setUsers] = useState<User[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   // const [banners] = useState<Banner[]>([]);
@@ -107,16 +102,6 @@ export const AdminDashboardPage: React.FC = () => {
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [userForm, setUserForm] = useState<UserFormState>({
-    name: '',
-    username: '',
-    role: 'client',
-    status: 'active',
-    password: '',
-  });
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [categoryForm, setCategoryForm] = useState<CategoryFormState>({
@@ -174,6 +159,7 @@ export const AdminDashboardPage: React.FC = () => {
       | {
           active?: string;
           homepageSection?: 'hero' | 'featured';
+          usersSection?: 'staff' | 'clients';
         }
       | null;
 
@@ -183,20 +169,23 @@ export const AdminDashboardPage: React.FC = () => {
           setHomepageSection(state.homepageSection);
         }
         setActiveTab('homepage');
+      } else if (state.active === 'users') {
+        if (state.usersSection === 'staff' || state.usersSection === 'clients') {
+          setUsersSection(state.usersSection);
+        }
+        setActiveTab('users');
       } else if (adminTabs.some((tab) => tab.id === state.active)) {
         setActiveTab(state.active as (typeof adminTabs)[number]['id']);
       }
+    } else if (state?.usersSection === 'staff' || state?.usersSection === 'clients') {
+      setUsersSection(state.usersSection);
+      setActiveTab('users');
     }
 
-    if (state?.active || state?.homepageSection) {
+    if (state?.active || state?.homepageSection || state?.usersSection) {
       navigate('/admin', { replace: true, state: null });
     }
   }, [location.state, navigate]);
-
-  const refreshUsers = async () => {
-    const { users: data } = await usersApi.list();
-    setUsers(data);
-  };
 
   const refreshCategories = async () => {
     const { categories: data } = await categoriesApi.list();
@@ -278,9 +267,7 @@ export const AdminDashboardPage: React.FC = () => {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        setLoading(true);
         await Promise.all([
-          refreshUsers(),
           refreshCategories(),
           refreshProducts(),
           refreshBanners(),
@@ -293,8 +280,6 @@ export const AdminDashboardPage: React.FC = () => {
       } catch (err) {
         console.error(err);
         setError(err instanceof Error ? err.message : 'Failed to load admin data');
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -312,24 +297,6 @@ export const AdminDashboardPage: React.FC = () => {
       setHomepageSection('hero');
     }
   }, [activeTab]);
-
-  useEffect(() => {
-    if (!selectedUserId) {
-      setUserForm({ name: '', username: '', role: 'client', status: 'active', password: '' });
-      return;
-    }
-
-    const existing = users.find((candidate) => candidate.id === selectedUserId);
-    if (existing) {
-      setUserForm({
-        name: existing.name,
-        username: existing.username ?? '',
-        role: existing.role,
-        status: existing.status,
-        password: '',
-      });
-    }
-  }, [selectedUserId, users]);
 
   useEffect(() => {
     if (!selectedCategoryId) {
@@ -477,50 +444,6 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
-  const handleUserSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!user) {
-      return;
-    }
-
-    if (!selectedUserId) {
-      if (!meetsPasswordPolicy(userForm.password)) {
-        setStatus(null, PASSWORD_COMPLEXITY_MESSAGE);
-        return;
-      }
-    } else if (userForm.password && !meetsPasswordPolicy(userForm.password)) {
-      setStatus(null, PASSWORD_COMPLEXITY_MESSAGE);
-      return;
-    }
-
-    try {
-      if (selectedUserId) {
-        await usersApi.update(selectedUserId, {
-          name: userForm.name,
-          username: userForm.username,
-          role: userForm.role,
-          status: userForm.status,
-          ...(userForm.password ? { password: userForm.password } : {}),
-        });
-        setStatus('User updated');
-      } else {
-        await usersApi.create({
-          name: userForm.name,
-          username: userForm.username,
-          role: userForm.role,
-          status: userForm.status,
-          password: userForm.password,
-        });
-        setStatus('User created');
-      }
-      await refreshUsers();
-      setSelectedUserId('');
-    } catch (err) {
-      console.error(err);
-      setStatus(null, err instanceof Error ? err.message : 'User operation failed');
-    }
-  };
-
   const handleCategorySubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
@@ -600,17 +523,6 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   // const handleBannerSubmit = async (_event: FormEvent<HTMLFormElement>) => { /* unused now */ };
-
-  const deleteUser = async (id: string) => {
-    try {
-      await usersApi.delete(id);
-      await refreshUsers();
-      setStatus('User deleted');
-    } catch (err) {
-      console.error(err);
-      setStatus(null, err instanceof Error ? err.message : 'Unable to delete user');
-    }
-  };
 
   const deleteCategory = async (id: string) => {
     try {
@@ -992,6 +904,22 @@ export const AdminDashboardPage: React.FC = () => {
   const topNavItems = useMemo(
     () =>
       adminTabs.map((tab) => {
+        if (tab.id === 'users') {
+          const activeUsersLabel = usersSection === 'clients' ? 'Clients' : 'Staff';
+          return {
+            id: tab.id,
+            label: tab.label,
+            icon: getMenuIcon(tab.id),
+            dropdown: {
+              items: [
+                { id: 'staff', label: 'Staff' },
+                { id: 'clients', label: 'Clients' },
+              ],
+              activeId: activeTab === 'users' ? usersSection : undefined,
+            },
+            activeLabel: activeTab === 'users' ? activeUsersLabel : undefined,
+          };
+        }
         if (tab.id === 'homepage') {
           const activeHomepageLabel =
             homepageSection === 'featured' ? 'Featured highlights' :
@@ -1059,10 +987,17 @@ export const AdminDashboardPage: React.FC = () => {
           icon: getMenuIcon(tab.id),
         };
       }),
-    [homepageSection, navigationSection, activeTab, categoriesSection]
+    [homepageSection, navigationSection, activeTab, categoriesSection, usersSection]
   );
 
   const handleTopNavSelect = (id: string, dropdownId?: string) => {
+    if (id === 'users') {
+      if (dropdownId === 'staff' || dropdownId === 'clients') {
+        setUsersSection(dropdownId);
+      }
+      setActiveTab('users');
+      return;
+    }
     if (id === 'homepage') {
       if (dropdownId === 'hero' || dropdownId === 'featured' || dropdownId === 'categorydisplay' || dropdownId === 'manufacturers') {
         setHomepageSection(dropdownId);
@@ -1107,7 +1042,7 @@ export const AdminDashboardPage: React.FC = () => {
   return (
     <AdminLayout
       topNav={<AdminTopNav items={topNavItems} activeId={activeTab} onSelect={handleTopNavSelect} />}
-      contentKey={activeTab}
+      contentKey={activeTab === 'users' ? `users-${usersSection}` : activeTab}
     >
       <div className="space-y-6">
         {statusMessage && (
@@ -1122,27 +1057,25 @@ export const AdminDashboardPage: React.FC = () => {
         <AnimatePresence mode="wait">
           {activeTab === 'users' && (
             <motion.div
-              key="users"
+              key={`users-${usersSection}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
-              <UsersAdminSection
-                users={users}
-                loading={loading}
-                form={userForm}
-                setForm={setUserForm}
-                selectedUserId={selectedUserId}
-                onSelectUser={setSelectedUserId}
-                onSubmit={handleUserSubmit}
-                onDelete={(id) => {
-                  setDeleteConfirmation({ type: 'user', id });
-                  return Promise.resolve();
-                }}
-                canEditUsers={canEditUsers(role)}
-                canManageUsers={canManageUsers(role)}
-              />
+              {usersSection === 'staff' ? (
+                <StaffManagementPanel
+                  role={role}
+                  currentUserId={user?.id ?? ''}
+                  setStatus={setStatus}
+                />
+              ) : (
+                <ClientManagementPanel
+                  role={role}
+                  currentUserId={user?.id ?? ''}
+                  setStatus={setStatus}
+                />
+              )}
             </motion.div>
           )}
 
@@ -1391,7 +1324,6 @@ export const AdminDashboardPage: React.FC = () => {
                 <p className="mt-2 text-sm text-slate-600">
                   {deleteConfirmation.type === 'hero' && 'Are you sure you want to delete this hero slide?'}
                   {deleteConfirmation.type === 'featured' && 'Are you sure you want to delete this featured item?'}
-                  {deleteConfirmation.type === 'user' && 'Are you sure you want to delete this user?'}
                   {deleteConfirmation.type === 'category' && 'Are you sure you want to delete this category?'}
                   {(deleteConfirmation.type === 'menu-section' || deleteConfirmation.type === 'menu-link') && 'Remove this item from navigation?'}
                 </p>
@@ -1414,8 +1346,6 @@ export const AdminDashboardPage: React.FC = () => {
                     void deleteHeroSlide(deleteConfirmation.id);
                   } else if (t === 'featured') {
                     void deleteFeaturedItem(deleteConfirmation.id);
-                  } else if (t === 'user') {
-                    void deleteUser(deleteConfirmation.id);
                   } else if (t === 'category') {
                     void deleteCategory(deleteConfirmation.id);
                   } else if (t === 'menu-section') {
