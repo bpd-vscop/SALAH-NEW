@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usersApi, type CreateUserPayload, type ListUsersParams, type UpdateUserPayload } from '../../../api/users';
 import type { ClientType, User, UserRole } from '../../../types/api';
 import type { StatusSetter } from '../types';
@@ -9,7 +9,8 @@ import { PhoneNumberInput, type PhoneNumberInputValue } from '../../common/Phone
 import { BusinessTypeSelect } from '../../common/BusinessTypeSelect';
 import { isBusinessTypeOption, type BusinessTypeOption } from '../../../data/businessTypes';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X } from 'lucide-react';
+import { Eye, EyeOff, Search, X } from 'lucide-react';
+import { PASSWORD_COMPLEXITY_MESSAGE, evaluatePasswordStrength, meetsPasswordPolicy } from '../../../utils/password';
 
 interface ClientManagementPanelProps {
   role: UserRole;
@@ -23,8 +24,11 @@ type TypeFilter = 'all' | ClientType;
 type VerificationFilter = 'all' | 'verified' | 'pending';
 
 interface ClientFormState {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
+  password: string;
+  confirmPassword: string;
   status: User['status'];
   clientType: ClientType;
   companyName: string;
@@ -44,8 +48,11 @@ const SORT_TO_QUERY: Record<SortOption, ListUsersParams['sort']> = {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
 const buildEmptyForm = (): ClientFormState => ({
-  name: '',
+  firstName: '',
+  lastName: '',
   email: '',
+  password: '',
+  confirmPassword: '',
   status: 'active',
   clientType: 'C2B',
   companyName: '',
@@ -88,6 +95,12 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
   const [formStep, setFormStep] = useState<1 | 2>(1);
   const [useCustomBusinessType, setUseCustomBusinessType] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formCollapsed, setFormCollapsed] = useState(true);
+
+  const passwordStrength = useMemo(() => evaluatePasswordStrength(form.password), [form.password]);
+  const isFormVisible = !formCollapsed || Boolean(editingId);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
@@ -135,20 +148,29 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
     void loadClients();
   }, [loadClients]);
 
-  const resetForm = () => {
+  const resetForm = (options?: { collapse?: boolean }) => {
     setEditingId(null);
     setForm(buildEmptyForm());
     setPhoneValue({ countryCode: '+1', number: '' });
     setFormStep(1);
     setUseCustomBusinessType(false);
     setFormError(null);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    if (options?.collapse) {
+      setFormCollapsed(true);
+    }
   };
 
   const handleEdit = (client: User) => {
     setEditingId(client.id);
+    const [firstName = '', lastName = ''] = (client.name ?? '').split(/\s+/, 2);
     setForm({
-      name: client.name ?? '',
+      firstName,
+      lastName,
       email: client.email ?? '',
+      password: '',
+      confirmPassword: '',
       status: client.status,
       clientType: client.clientType ?? 'C2B',
       companyName: client.company?.name ?? '',
@@ -166,6 +188,10 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
       !!client.company?.businessType && !isBusinessTypeOption(client.company.businessType)
     );
     setFormError(null);
+    setFormStep(1);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setFormCollapsed(false);
   };
 
   const handleBusinessTypePresetSelect = (option: BusinessTypeOption) => {
@@ -189,12 +215,161 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
     return EMAIL_REGEX.test(value);
   };
 
+  const ensureBasicsValid = (requirePassword: boolean) => {
+    const trimmedEmail = form.email.trim();
+    if (!validateEmail(trimmedEmail)) {
+      setFormError('Enter a valid email address');
+      return null;
+    }
+
+    const trimmedFirstName = form.firstName.trim();
+    if (!trimmedFirstName) {
+      setFormError('First name is required');
+      return null;
+    }
+    if (trimmedFirstName.length < 2) {
+      setFormError('First name must be at least 2 characters');
+      return null;
+    }
+
+    const trimmedLastName = form.lastName.trim();
+    if (!trimmedLastName) {
+      setFormError('Last name is required');
+      return null;
+    }
+    if (trimmedLastName.length < 2) {
+      setFormError('Last name must be at least 2 characters');
+      return null;
+    }
+
+    const trimmedFullName = `${trimmedFirstName} ${trimmedLastName}`.trim();
+
+    const trimmedPassword = form.password.trim();
+    const trimmedConfirmPassword = form.confirmPassword.trim();
+
+    if (requirePassword) {
+      if (!trimmedPassword) {
+        setFormError('Password is required');
+        return null;
+      }
+      if (trimmedPassword !== trimmedConfirmPassword) {
+        setFormError('Passwords do not match');
+        return null;
+      }
+      if (!meetsPasswordPolicy(trimmedPassword)) {
+        setFormError(PASSWORD_COMPLEXITY_MESSAGE);
+        return null;
+      }
+    } else if (trimmedPassword || trimmedConfirmPassword) {
+      if (trimmedPassword !== trimmedConfirmPassword) {
+        setFormError('Passwords do not match');
+        return null;
+      }
+      if (!meetsPasswordPolicy(trimmedPassword)) {
+        setFormError(PASSWORD_COMPLEXITY_MESSAGE);
+        return null;
+      }
+    }
+
+    return { trimmedEmail, trimmedFullName, trimmedPassword };
+  };
+
+  const handleAdvanceToCompanyDetails = () => {
+    setFormError(null);
+    const basics = ensureBasicsValid(true);
+    if (!basics) {
+      return;
+    }
+    setFormStep(2);
+  };
+
+  const handleStartCreate = () => {
+    resetForm();
+    setFormCollapsed(false);
+  };
+
+  const handleDownloadCsv = () => {
+    const headers = [
+      'ID',
+      'First Name',
+      'Last Name',
+      'Email',
+      'Status',
+      'Client Type',
+      'Phone Code',
+      'Phone Number',
+      'Company Name',
+      'Company Phone',
+      'Company Address',
+      'Company Business Type',
+      'Company Tax ID',
+      'Company Website',
+      'Account Created',
+      'Account Updated',
+      'Email Verified',
+    ];
+
+    const escapeCsvValue = (value: unknown) => {
+      if (value === null || value === undefined) {
+        return '';
+      }
+      return String(value).replace(/"/g, '""');
+    };
+
+    const rows = records.map((client) => {
+      const nameParts = (client.name ?? '').trim().split(/\s+/);
+      const firstName = nameParts.shift() ?? '';
+      const lastName = nameParts.join(' ');
+      return [
+        client.id ?? '',
+        firstName,
+        lastName,
+        client.email ?? '',
+        client.status === 'active' ? 'Active' : 'Inactive',
+        client.clientType ?? 'C2B',
+        client.phoneCode ?? '',
+        client.phoneNumber ?? '',
+        client.company?.name ?? '',
+        client.company?.phone ?? '',
+        client.company?.address ?? '',
+        client.company?.businessType ?? '',
+        client.company?.taxId ?? '',
+        client.company?.website ?? '',
+        client.accountCreated ?? '',
+        client.accountUpdated ?? '',
+        client.isEmailVerified ? 'Yes' : 'No',
+      ];
+    });
+
+    const csvLines = [headers, ...rows].map((row) =>
+      row.map((value) => `"${escapeCsvValue(value)}"`).join(',')
+    );
+
+    const csvContent = csvLines.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    link.download = `clients-${dateStamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    setStatus('Client CSV downloaded');
+  };
+
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
     setFormError(null);
 
-    const trimmedEmail = form.email.trim();
-    const trimmedName = form.name.trim();
+    const basics = ensureBasicsValid(!editingId);
+
+    if (!basics) {
+      return;
+    }
+
+    const { trimmedEmail, trimmedFullName, trimmedPassword } = basics;
     const trimmedPhoneCode = phoneValue.countryCode.trim();
     const trimmedPhoneNumber = phoneValue.number.trim();
     const trimmedCompanyName = form.companyName.trim();
@@ -203,11 +378,6 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
     const trimmedCompanyBusinessType = form.companyBusinessType.trim();
     const trimmedCompanyTaxId = form.companyTaxId.trim();
     const trimmedCompanyWebsite = form.companyWebsite.trim();
-
-    if (!validateEmail(trimmedEmail)) {
-      setFormError('Enter a valid email address');
-      return;
-    }
 
     try {
       setSubmitting(true);
@@ -221,58 +391,66 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
           role: 'client',
           status: form.status,
           clientType: form.clientType,
+          name: trimmedFullName,
+          password: trimmedPassword,
         };
 
-        if (trimmedName) {
-          createPayload.name = trimmedName;
-        }
         if (trimmedEmail) {
           createPayload.email = trimmedEmail.toLowerCase();
         }
-        if (trimmedPhoneCode) {
-          createPayload.phoneCode = trimmedPhoneCode;
-        }
         if (trimmedPhoneNumber) {
           createPayload.phoneNumber = trimmedPhoneNumber;
+          if (trimmedPhoneCode) {
+            createPayload.phoneCode = trimmedPhoneCode;
+          }
         }
 
         const { user } = await usersApi.create(createPayload);
 
-        const companyPayload: UpdateUserPayload = {};
+        const detailsPayload: UpdateUserPayload = {
+          name: trimmedFullName,
+          fullName: trimmedFullName,
+        };
+        if (trimmedPhoneNumber) {
+          detailsPayload.phoneNumber = trimmedPhoneNumber;
+          detailsPayload.phoneCode = trimmedPhoneCode || '+1';
+        }
         if (trimmedCompanyName) {
-          companyPayload.companyName = trimmedCompanyName;
+          detailsPayload.companyName = trimmedCompanyName;
         }
         if (trimmedCompanyPhone) {
-          companyPayload.companyPhone = trimmedCompanyPhone;
+          detailsPayload.companyPhone = trimmedCompanyPhone;
         }
         if (trimmedCompanyAddress) {
-          companyPayload.companyAddress = trimmedCompanyAddress;
+          detailsPayload.companyAddress = trimmedCompanyAddress;
         }
         if (trimmedCompanyBusinessType) {
-          companyPayload.companyBusinessType = trimmedCompanyBusinessType;
+          detailsPayload.companyBusinessType = trimmedCompanyBusinessType;
         }
         if (trimmedCompanyTaxId) {
-          companyPayload.companyTaxId = trimmedCompanyTaxId;
+          detailsPayload.companyTaxId = trimmedCompanyTaxId;
         }
         if (trimmedCompanyWebsite) {
-          companyPayload.companyWebsite = trimmedCompanyWebsite;
+          detailsPayload.companyWebsite = trimmedCompanyWebsite;
         }
 
-        if (Object.keys(companyPayload).length > 0) {
-          await usersApi.update(user.id, companyPayload);
+        if (Object.keys(detailsPayload).length > 0) {
+          await usersApi.update(user.id, detailsPayload);
         }
 
         setStatus('Client record created');
-        resetForm();
+        resetForm({ collapse: true });
         await loadClients();
         return;
       }
 
+      const hasPhone = Boolean(trimmedPhoneNumber);
+
       const updatePayload: UpdateUserPayload = {
         status: form.status,
         clientType: form.clientType,
-        phoneCode: trimmedPhoneCode || null,
-        phoneNumber: trimmedPhoneNumber || null,
+        phoneCode: hasPhone ? trimmedPhoneCode || '+1' : null,
+        phoneNumber: hasPhone ? trimmedPhoneNumber : null,
         companyName: trimmedCompanyName || null,
         companyPhone: trimmedCompanyPhone || null,
         companyAddress: trimmedCompanyAddress || null,
@@ -281,16 +459,18 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
         companyWebsite: trimmedCompanyWebsite || null,
       };
 
-      if (trimmedName) {
-        updatePayload.name = trimmedName;
-      }
+      updatePayload.name = trimmedFullName;
+      updatePayload.fullName = trimmedFullName;
       if (trimmedEmail) {
         updatePayload.email = trimmedEmail.toLowerCase();
+      }
+      if (trimmedPassword) {
+        updatePayload.password = trimmedPassword;
       }
 
       await usersApi.update(editingId, updatePayload);
       setStatus('Client details updated');
-      resetForm();
+      resetForm({ collapse: true });
       await loadClients();
     } catch (error) {
       console.error(error);
@@ -314,7 +494,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
       await usersApi.delete(id);
       setStatus('Client removed');
       if (editingId === id) {
-        resetForm();
+        resetForm({ collapse: true });
       }
       await loadClients();
     } catch (error) {
@@ -353,8 +533,26 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
 
   return (
     <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-      <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-semibold text-slate-900">Registered clients</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownloadCsv}
+            className="inline-flex items-center justify-center rounded-xl border border-primary/40 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={loading || records.length === 0}
+          >
+            Download CSV
+          </button>
+          <button
+            type="button"
+            onClick={handleStartCreate}
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!canManageClients}
+          >
+            New client
+          </button>
+        </div>
       </div>
 
       {localError && (
@@ -363,7 +561,12 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_480px]">
+      <div
+        className={cn(
+          'grid gap-6',
+          isFormVisible ? 'xl:grid-cols-[minmax(0,1fr)_480px]' : 'xl:grid-cols-[minmax(0,1fr)]'
+        )}
+      >
         {/* Table Section */}
         <div className="flex flex-col gap-3">
           {/* Filters above table */}
@@ -436,7 +639,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                       >
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <input
-                          type="search"
+                          type="text"
                           value={searchInput}
                           onChange={(event) => setSearchInput(event.target.value)}
                           placeholder="Search by name or email"
@@ -578,29 +781,46 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
           </div>
         </div>
 
-        {/* Form Sidebar */}
-        <form
-          onSubmit={handleSubmit}
-          className={cn(
-            'flex flex-col gap-4 rounded-2xl border p-6 shadow-sm transition-all duration-300',
-            editingId
-              ? 'border-blue-300 bg-blue-50/50 ring-2 ring-blue-200/50'
-              : 'border-border bg-background'
-          )}
-        >
-          <div>
-            <h3 className="text-base font-semibold text-slate-900">
-              {editingId ? 'Edit client details' : `Create client record${formStep === 2 ? ` - Step 2` : ''}`}
-            </h3>
-            <p className="text-sm text-slate-600">
-              {editingId
-                ? 'Update client information and company details.'
-                : formStep === 1
-                ? 'Enter basic client information to get started.'
-                : form.clientType === 'B2B'
-                ? 'Provide company details for this B2B client.'
-                : 'Review and create the client record.'}
-            </p>
+        <AnimatePresence initial={false} mode="wait">
+          {isFormVisible && (
+            <motion.form
+              key={editingId ?? 'create'}
+              onSubmit={handleSubmit}
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 40 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className={cn(
+                'flex h-full flex-col gap-4 rounded-2xl border p-6 shadow-sm',
+                editingId
+                  ? 'border-blue-300 bg-blue-50/50 ring-2 ring-blue-200/50'
+                  : 'border-border bg-background'
+              )}
+            >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold text-slate-900">
+                {editingId ? 'Edit client details' : `Create client record${formStep === 2 ? ` - Step 2` : ''}`}
+              </h3>
+              <p className="text-sm text-slate-600">
+                {editingId
+                  ? 'Update client information and company details.'
+                  : formStep === 1
+                  ? 'Enter basic client information to get started.'
+                  : form.clientType === 'B2B'
+                  ? 'Provide company details for this B2B client.'
+                  : 'Review and create the client record.'}
+              </p>
+            </div>
+            {!editingId && (
+              <button
+                type="button"
+                onClick={() => resetForm({ collapse: true })}
+                className="inline-flex items-center rounded-lg border border-border px-3 py-1 text-xs font-medium text-slate-500 transition hover:border-primary hover:text-primary"
+              >
+                Collapse
+              </button>
+            )}
           </div>
 
           {!canManageClients && !editingId && (
@@ -616,16 +836,32 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
           {/* Step 1 or Edit Mode: Basic Info */}
           {(editingId || formStep === 1) && (
             <>
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Full name
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                  placeholder="Optional"
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  First name
+                  <input
+                    type="text"
+                    value={form.firstName}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, firstName: event.target.value }))
+                    }
+                    placeholder="e.g. Jane"
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  Last name
+                  <input
+                    type="text"
+                    value={form.lastName}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, lastName: event.target.value }))
+                    }
+                    placeholder="e.g. Doe"
+                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+              </div>
 
               <label className="flex flex-col gap-2 text-sm text-slate-600">
                 Email
@@ -663,9 +899,10 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                       style={
                         form.status === status
                           ? {
-                              background: status === 'active' 
-                                ? 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)' 
-                                : 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                              background:
+                                status === 'active'
+                                  ? 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)'
+                                  : 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
                               borderColor: status === 'active' ? '#22c55e' : '#ef4444',
                             }
                           : undefined
@@ -699,21 +936,77 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                         editingId && 'cursor-not-allowed opacity-50'
                       )}
                       style={
-  form.clientType === type
-    ? {
-        background: type === 'C2B' 
-          ? 'linear-gradient(135deg, #60a5fa 0%, #1d4ed8 100%)' 
-          : 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)',
-        borderColor: type === 'C2B' ? '#60a5fa' : '#a00b0b',
-      }
-    : undefined
-}
+                        form.clientType === type
+                          ? {
+                              background:
+                                type === 'C2B'
+                                  ? 'linear-gradient(135deg, #60a5fa 0%, #1d4ed8 100%)'
+                                  : 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)',
+                              borderColor: type === 'C2B' ? '#60a5fa' : '#a00b0b',
+                            }
+                          : undefined
+                      }
                     >
                       {type === 'B2B' ? 'Business (B2B)' : 'Individual (C2B)'}
                     </button>
                   ))}
                 </div>
               </div>
+
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                {editingId ? 'New password' : 'Password'}
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                    placeholder={editingId ? 'Leave blank to keep current password' : 'Strong password required'}
+                    className={cn(
+                      'h-11 w-full rounded-xl border px-4 text-sm focus:outline-none',
+                      form.password
+                        ? `${passwordStrength.borderClass} ${passwordStrength.focusClass}`
+                        : 'border-border focus:border-primary focus:ring-2 focus:ring-primary/20'
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-primary"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+                {form.password && passwordStrength.label && (
+                  <span className={cn('text-xs font-semibold', passwordStrength.colorClass)}>
+                    {passwordStrength.label}
+                  </span>
+                )}
+                {!editingId && (
+                  <span className="text-xs text-slate-400">{PASSWORD_COMPLEXITY_MESSAGE}</span>
+                )}
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Confirm password
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={form.confirmPassword}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
+                    }
+                    placeholder={editingId ? 'Repeat new password' : 'Repeat password'}
+                    className="h-11 w-full rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-primary"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+              </label>
             </>
           )}
 
@@ -831,7 +1124,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
             {!editingId && formStep === 1 && (
               <button
                 type={form.clientType === 'C2B' ? 'submit' : 'button'}
-                onClick={form.clientType === 'B2B' ? () => setFormStep(2) : undefined}
+                onClick={form.clientType === 'B2B' ? handleAdvanceToCompanyDetails : undefined}
                 className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-70"
                 disabled={submitting || !canManageClients}
               >
@@ -870,7 +1163,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                 </button>
                 <button
                   type="button"
-                  onClick={resetForm}
+                  onClick={() => resetForm({ collapse: true })}
                   className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
                   disabled={submitting}
                 >
@@ -879,7 +1172,9 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
               </>
             )}
           </div>
-        </form>
+            </motion.form>
+          )}
+        </AnimatePresence>
       </div>
 
       {pendingDelete && (

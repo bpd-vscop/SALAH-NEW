@@ -6,7 +6,8 @@ const parseWithSchema = (schema, payload) => {
     return schema.parse(payload);
   } catch (error) {
     if (error instanceof ZodError) {
-      const details = error.errors.map((err) => ({
+      const issues = Array.isArray(error.issues) ? error.issues : error.errors || [];
+      const details = issues.map((err) => ({
         path: err.path.join('.'),
         message: err.message,
       }));

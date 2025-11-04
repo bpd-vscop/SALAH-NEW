@@ -211,7 +211,9 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
     setShowConfirmPassword(false);
   };
 
-  const validateStaffForm = (isCreating: boolean): { payload: CreateUserPayload | UpdateUserPayload; target?: User } | null => {
+  const validateStaffForm = (
+    isCreating: boolean
+  ): { payload: CreateUserPayload | UpdateUserPayload; phoneUpdate?: UpdateUserPayload } | null => {
     const trimmedName = form.name.trim();
     const trimmedUsername = form.username.trim();
     const trimmedEmail = form.email.trim();
@@ -273,12 +275,12 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
         payload.email = trimmedEmail.toLowerCase();
       }
 
-      if (trimmedPhoneCode) {
-        payload.phoneCode = trimmedPhoneCode;
-      }
-
       if (trimmedPhoneNumber) {
-        payload.phoneNumber = trimmedPhoneNumber;
+        const phoneUpdate: UpdateUserPayload = {
+          phoneNumber: trimmedPhoneNumber,
+          phoneCode: trimmedPhoneCode || '+1',
+        };
+        return { payload, phoneUpdate };
       }
 
       return { payload };
@@ -329,13 +331,15 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
       }
     }
 
+    const hasPhone = Boolean(trimmedPhoneNumber);
+
     const payload: UpdateUserPayload = {
       name: trimmedName,
       username: trimmedUsername,
       status: form.status,
       role: desiredRole,
-      phoneCode: trimmedPhoneCode || null,
-      phoneNumber: trimmedPhoneNumber || null,
+      phoneCode: hasPhone ? trimmedPhoneCode || '+1' : null,
+      phoneNumber: hasPhone ? trimmedPhoneNumber : null,
     };
 
     if (trimmedEmail) {
@@ -346,7 +350,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
       payload.password = form.password;
     }
 
-    return { payload, target };
+    return { payload };
   };
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (event) => {
@@ -363,12 +367,16 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
     setSubmitting(true);
 
     try {
+      const { payload, phoneUpdate } = validation;
       if (isCreating) {
-        await usersApi.create(validation.payload as CreateUserPayload);
+        const { user } = await usersApi.create(payload as CreateUserPayload);
+        if (phoneUpdate) {
+          await usersApi.update(user.id, phoneUpdate);
+        }
         setStatus('Team member created');
         resetForm();
       } else if (editingId) {
-        await usersApi.update(editingId, validation.payload as UpdateUserPayload);
+        await usersApi.update(editingId, payload as UpdateUserPayload);
         setStatus('Team member updated');
         resetForm();
       }
@@ -491,7 +499,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
                       >
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <input
-                          type="search"
+                          type="text"
                           value={searchInput}
                           onChange={(event) => setSearchInput(event.target.value)}
                           placeholder="Search by name or email"
