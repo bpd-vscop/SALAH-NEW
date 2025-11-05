@@ -8,7 +8,8 @@
         "lint": "echo \"lint not configured\"",
         "dev": "nodemon src/server.js",
         "start": "node src/server.js",
-        "build": "echo \"Server build completed - no compilation needed\""
+        "build": "echo \"Server build completed - no compilation needed\"",
+        "seed:sample-product": "node scripts/seed-sample-product.js"
     },
     "keywords": [],
     "author": "",

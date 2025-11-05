@@ -3,6 +3,101 @@ export type UserStatus = 'active' | 'inactive';
 export type ClientType = 'B2B' | 'C2B';
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
 export type ProductTag = 'in stock' | 'out of stock' | 'on sale' | 'available to order';
+export type ProductInventoryStatus = 'in_stock' | 'low_stock' | 'out_of_stock' | 'backorder' | 'preorder';
+export type ProductType = 'simple' | 'variable' | 'grouped';
+export type ProductStatus = 'draft' | 'scheduled' | 'private' | 'published';
+export type ProductVisibility = 'catalog' | 'search' | 'hidden' | 'catalog-and-search';
+
+export interface ProductInventory {
+  quantity?: number;
+  lowStockThreshold?: number;
+  status?: ProductInventoryStatus;
+  allowBackorder?: boolean;
+  leadTime?: string | null;
+}
+
+export interface ProductShippingDimensions {
+  length?: number | null;
+  width?: number | null;
+  height?: number | null;
+  unit?: string | null;
+}
+
+export interface ProductShipping {
+  weight?: number | null;
+  weightUnit?: string | null;
+  dimensions?: ProductShippingDimensions | null;
+  shippingClass?: string | null;
+  hazardous?: boolean;
+  warehouseLocation?: string | null;
+}
+
+export interface ProductSpecification {
+  label: string;
+  value: string;
+}
+
+export interface ProductDocument {
+  label: string;
+  url: string;
+}
+
+export interface ProductCompatibilityEntry {
+  yearStart?: number;
+  yearEnd?: number;
+  year?: number;
+  make: string;
+  model: string;
+  subModel?: string;
+  engine?: string;
+  notes?: string;
+}
+
+export interface ProductVariation {
+  id?: string;
+  sku?: string;
+  name?: string;
+  attributes?: Record<string, string>;
+  price?: number | null;
+  salePrice?: number | null;
+  stockQuantity?: number | null;
+  allowBackorder?: boolean;
+  image?: string | null;
+  weight?: number | null;
+}
+
+export interface ProductBadge {
+  label: string;
+  description?: string;
+  icon?: string;
+}
+
+export interface ProductSupportDetails {
+  warranty?: string;
+  returnPolicy?: string;
+  supportPhone?: string;
+  supportEmail?: string;
+  liveChatUrl?: string;
+  supportHours?: string;
+}
+
+export interface ProductReviewsSummary {
+  averageRating?: number | null;
+  reviewCount?: number | null;
+  ratingBreakdown?: Record<string, number>;
+}
+
+export interface ProductSeo {
+  metaTitle?: string;
+  metaDescription?: string;
+  canonicalUrl?: string;
+  openGraphImage?: string;
+}
+
+export interface ProductNotes {
+  sales?: string;
+  internal?: string;
+}
 
 export interface CartItem {
   productId: string;
@@ -55,12 +150,44 @@ export interface User {
 export interface Product {
   id: string;
   name: string;
+  slug?: string | null;
+  sku?: string | null;
+  productCode?: string | null;
+  productType?: ProductType;
+  status?: ProductStatus;
+  visibility?: ProductVisibility;
   categoryId: string;
+  manufacturerId?: string | null;
+  manufacturerName?: string | null;
   tags: ProductTag[];
+  shortDescription?: string | null;
   description: string;
   images: string[];
+  videoUrls?: string[];
   price: number;
+  salePrice?: number | null;
+  saleStartDate?: string | null;
+  saleEndDate?: string | null;
+  taxClass?: string | null;
+  featureHighlights?: string[];
+  inventory?: ProductInventory | null;
+  shipping?: ProductShipping | null;
+  packageContents?: string[];
+  specifications?: ProductSpecification[];
   attributes?: Record<string, string> | null;
+  customAttributes?: Record<string, string> | null;
+  variationAttributes?: string[];
+  variations?: ProductVariation[];
+  documents?: ProductDocument[];
+  compatibility?: ProductCompatibilityEntry[];
+  relatedProductIds?: string[];
+  upsellProductIds?: string[];
+  crossSellProductIds?: string[];
+  seo?: ProductSeo | null;
+  badges?: ProductBadge[];
+  support?: ProductSupportDetails | null;
+  reviewsSummary?: ProductReviewsSummary | null;
+  notes?: ProductNotes | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 }

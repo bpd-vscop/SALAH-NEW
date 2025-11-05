@@ -4,6 +4,16 @@ const Category = require('../models/Category');
 const { validateCreateProduct, validateUpdateProduct } = require('../validators/product');
 const { notFound, badRequest } = require('../utils/appError');
 
+const sanitizeVariations = (variations) =>
+  Array.isArray(variations)
+    ? variations.map(({ id, _id, ...rest }) => {
+        if (_id) {
+          return { ...rest, _id };
+        }
+        return rest;
+      })
+    : variations;
+
 const listProducts = async (req, res, next) => {
   try {
     const { categoryId, tags, search } = req.query;
@@ -51,10 +61,30 @@ const createProduct = async (req, res, next) => {
       throw badRequest('Category does not exist');
     }
 
-    const product = await Product.create({
+    const payload = {
       ...data,
       tags: data.tags && data.tags.length ? data.tags : undefined,
-    });
+      manufacturerId: data.manufacturerId || null,
+      saleStartDate: data.saleStartDate ?? undefined,
+      saleEndDate: data.saleEndDate ?? undefined,
+    };
+
+    if (typeof data.saleStartDate === 'string' && !data.saleStartDate) {
+      payload.saleStartDate = undefined;
+    }
+    if (typeof data.saleEndDate === 'string' && !data.saleEndDate) {
+      payload.saleEndDate = undefined;
+    }
+
+    if (typeof data.manufacturerName === 'string' && !data.manufacturerName.trim()) {
+      payload.manufacturerName = undefined;
+    }
+
+    if (data.variations) {
+      payload.variations = sanitizeVariations(data.variations);
+    }
+
+    const product = await Product.create(payload);
 
     res.status(201).json({ product: product.toJSON() });
   } catch (error) {
@@ -84,24 +114,71 @@ const updateProduct = async (req, res, next) => {
       product.name = data.name;
     }
 
-    if (typeof data.tags !== 'undefined') {
-      product.tags = data.tags;
+    const assignFields = [
+      'name',
+      'slug',
+      'sku',
+      'productCode',
+      'productType',
+      'status',
+      'visibility',
+      'manufacturerName',
+      'tags',
+      'shortDescription',
+      'description',
+      'featureHighlights',
+      'images',
+      'videoUrls',
+      'price',
+      'salePrice',
+      'saleStartDate',
+      'saleEndDate',
+      'taxClass',
+      'packageContents',
+      'specifications',
+      'attributes',
+      'customAttributes',
+      'variationAttributes',
+      'documents',
+      'compatibility',
+      'relatedProductIds',
+      'upsellProductIds',
+      'crossSellProductIds',
+      'seo',
+      'badges',
+      'support',
+      'reviewsSummary',
+      'notes',
+    ];
+
+    assignFields.forEach((field) => {
+      if (typeof data[field] !== 'undefined') {
+        if ((field === 'saleStartDate' || field === 'saleEndDate') && data[field] === null) {
+          product[field] = undefined;
+        } else {
+          product[field] = data[field];
+        }
+      }
+    });
+
+    if (typeof data.manufacturerId !== 'undefined') {
+      product.manufacturerId = data.manufacturerId || null;
     }
 
-    if (typeof data.description !== 'undefined') {
-      product.description = data.description;
+    if (typeof data.inventory !== 'undefined') {
+      product.inventory = data.inventory;
     }
 
-    if (typeof data.images !== 'undefined') {
-      product.images = data.images;
+    if (typeof data.shipping !== 'undefined') {
+      product.shipping = data.shipping;
     }
 
-    if (typeof data.price !== 'undefined') {
-      product.price = data.price;
+    if (typeof data.variations !== 'undefined') {
+      product.variations = sanitizeVariations(data.variations);
     }
 
-    if (typeof data.attributes !== 'undefined') {
-      product.attributes = data.attributes;
+    if (product.manufacturerName && !product.manufacturerName.trim()) {
+      product.manufacturerName = undefined;
     }
 
     await product.save();

@@ -8,6 +8,7 @@ import { featuredShowcaseApi, type FeaturedShowcaseItem, type FeaturedVariant } 
 import { heroSlidesApi, type HeroSlide } from '../api/heroSlides';
 import { ordersApi } from '../api/orders';
 import { productsApi } from '../api/products';
+import { manufacturersApi, type Manufacturer } from '../api/manufacturers';
 import { menuApi, type MenuSectionInput, type MenuLinkInput } from '../api/menu';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { SiteLayout } from '../components/layout/SiteLayout';
@@ -21,6 +22,7 @@ import type {
   Product,
   ProductTag,
   UserRole,
+  ProductInventoryStatus,
 } from '../types/api';
 import { adminTabs, homepageTabs, navigationTabs } from '../utils/adminSidebar';
 import { CategoriesAdminSection } from '../components/dashboard/CategoriesAdminSection';
@@ -75,6 +77,218 @@ const canDeleteHomepage = (role: UserRole) => role === 'super_admin' || role ===
 
 const isObjectId = (value?: string | null) => Boolean(value && /^[0-9a-fA-F]{24}$/.test(value));
 
+const makeTempId = () => Math.random().toString(36).slice(2, 10);
+
+const toDateTimeLocal = (iso?: string | null) => {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 16);
+};
+
+const recordToRows = (record?: Record<string, string> | null) =>
+  Object.entries(record ?? {}).map(([label, value]) => ({
+    id: makeTempId(),
+    label,
+    value,
+  }));
+
+const createEmptyProductForm = (): ProductFormState => ({
+  name: '',
+  slug: '',
+  sku: '',
+  productCode: '',
+  productType: '',
+  status: 'draft',
+  visibility: 'catalog-and-search',
+  categoryId: '',
+  manufacturerId: '',
+  manufacturerName: '',
+  shortDescription: '',
+  description: '',
+  price: '',
+  salePrice: '',
+  saleStartDate: '',
+  saleEndDate: '',
+  taxClass: '',
+  featureHighlights: [],
+  tags: new Set<ProductTag>(),
+  images: [],
+  videoUrls: [],
+  packageContents: [],
+  specifications: [],
+  attributes: [],
+  customAttributes: [],
+  variationAttributes: [],
+  variations: [],
+  documents: [],
+  compatibility: [],
+  relatedProductIds: [],
+  upsellProductIds: [],
+  crossSellProductIds: [],
+  inventory: {
+    quantity: '',
+    lowStockThreshold: '',
+    status: '' as ProductInventoryStatus | '',
+    allowBackorder: false,
+    leadTime: '',
+  },
+  shipping: {
+    weight: '',
+    weightUnit: 'lb',
+    length: '',
+    width: '',
+    height: '',
+    dimensionUnit: 'in',
+    shippingClass: '',
+    hazardous: false,
+    warehouseLocation: '',
+  },
+  seo: {
+    metaTitle: '',
+    metaDescription: '',
+    canonicalUrl: '',
+    openGraphImage: '',
+  },
+  support: {
+    warranty: '',
+    returnPolicy: '',
+    supportPhone: '',
+    supportEmail: '',
+    liveChatUrl: '',
+    supportHours: '',
+  },
+  badges: [],
+  notes: {
+    sales: '',
+    internal: '',
+  },
+  reviewsSummary: {
+    averageRating: '',
+    reviewCount: '',
+    ratingBreakdown: [],
+  },
+});
+
+const mapProductToForm = (product: Product): ProductFormState => ({
+  name: product.name ?? '',
+  slug: product.slug ?? '',
+  sku: product.sku ?? '',
+  productCode: product.productCode ?? '',
+  productType: product.productType ?? '',
+  status: product.status ?? '',
+  visibility: product.visibility ?? 'catalog-and-search',
+  categoryId: product.categoryId ?? '',
+  manufacturerId: product.manufacturerId ?? '',
+  manufacturerName: product.manufacturerName ?? '',
+  shortDescription: product.shortDescription ?? '',
+  description: product.description ?? '',
+  price: typeof product.price === 'number' ? String(product.price) : '',
+  salePrice: product.salePrice != null ? String(product.salePrice) : '',
+  saleStartDate: toDateTimeLocal(product.saleStartDate ?? null),
+  saleEndDate: toDateTimeLocal(product.saleEndDate ?? null),
+  taxClass: product.taxClass ?? '',
+  featureHighlights: [...(product.featureHighlights ?? [])],
+  tags: new Set(product.tags ?? []),
+  images: [...(product.images ?? [])],
+  videoUrls: [...(product.videoUrls ?? [])],
+  packageContents: [...(product.packageContents ?? [])],
+  specifications: (product.specifications ?? []).map((spec) => ({
+    id: makeTempId(),
+    label: spec.label,
+    value: spec.value,
+  })),
+  attributes: recordToRows(product.attributes ?? undefined),
+  customAttributes: recordToRows(product.customAttributes ?? undefined),
+  variationAttributes: [...(product.variationAttributes ?? [])],
+  variations: (product.variations ?? []).map((variation) => ({
+    id: makeTempId(),
+    existingId: variation.id,
+    name: variation.name ?? '',
+    sku: variation.sku ?? '',
+    attributes: recordToRows(variation.attributes ?? undefined),
+    price: variation.price != null ? String(variation.price) : '',
+    salePrice: variation.salePrice != null ? String(variation.salePrice) : '',
+    stockQuantity: variation.stockQuantity != null ? String(variation.stockQuantity) : '',
+    allowBackorder: variation.allowBackorder ?? false,
+    image: variation.image ?? '',
+    weight: variation.weight != null ? String(variation.weight) : '',
+  })),
+  documents: (product.documents ?? []).map((doc) => ({
+    id: makeTempId(),
+    label: doc.label,
+    url: doc.url,
+  })),
+  compatibility: (product.compatibility ?? []).map((entry) => ({
+    id: makeTempId(),
+    yearStart: entry.yearStart != null ? String(entry.yearStart) : '',
+    yearEnd: entry.yearEnd != null ? String(entry.yearEnd) : '',
+    year: entry.year != null ? String(entry.year) : '',
+    make: entry.make ?? '',
+    model: entry.model ?? '',
+    subModel: entry.subModel ?? '',
+    engine: entry.engine ?? '',
+    notes: entry.notes ?? '',
+  })),
+  relatedProductIds: [...(product.relatedProductIds ?? [])],
+  upsellProductIds: [...(product.upsellProductIds ?? [])],
+  crossSellProductIds: [...(product.crossSellProductIds ?? [])],
+  inventory: {
+    quantity: product.inventory?.quantity != null ? String(product.inventory.quantity) : '',
+    lowStockThreshold:
+      product.inventory?.lowStockThreshold != null ? String(product.inventory.lowStockThreshold) : '',
+    status: product.inventory?.status ?? '' as ProductInventoryStatus | '',
+    allowBackorder: product.inventory?.allowBackorder ?? false,
+    leadTime: product.inventory?.leadTime ?? '',
+  },
+  shipping: {
+    weight: product.shipping?.weight != null ? String(product.shipping.weight) : '',
+    weightUnit: product.shipping?.weightUnit ?? 'lb',
+    length: product.shipping?.dimensions?.length != null ? String(product.shipping.dimensions.length) : '',
+    width: product.shipping?.dimensions?.width != null ? String(product.shipping.dimensions.width) : '',
+    height: product.shipping?.dimensions?.height != null ? String(product.shipping.dimensions.height) : '',
+    dimensionUnit: product.shipping?.dimensions?.unit ?? 'in',
+    shippingClass: product.shipping?.shippingClass ?? '',
+    hazardous: product.shipping?.hazardous ?? false,
+    warehouseLocation: product.shipping?.warehouseLocation ?? '',
+  },
+  seo: {
+    metaTitle: product.seo?.metaTitle ?? '',
+    metaDescription: product.seo?.metaDescription ?? '',
+    canonicalUrl: product.seo?.canonicalUrl ?? '',
+    openGraphImage: product.seo?.openGraphImage ?? '',
+  },
+  support: {
+    warranty: product.support?.warranty ?? '',
+    returnPolicy: product.support?.returnPolicy ?? '',
+    supportPhone: product.support?.supportPhone ?? '',
+    supportEmail: product.support?.supportEmail ?? '',
+    liveChatUrl: product.support?.liveChatUrl ?? '',
+    supportHours: product.support?.supportHours ?? '',
+  },
+  badges: (product.badges ?? []).map((badge) => ({
+    id: makeTempId(),
+    label: badge.label ?? '',
+    description: badge.description ?? '',
+    icon: badge.icon ?? '',
+  })),
+  notes: {
+    sales: product.notes?.sales ?? '',
+    internal: product.notes?.internal ?? '',
+  },
+  reviewsSummary: {
+    averageRating: product.reviewsSummary?.averageRating != null ? String(product.reviewsSummary.averageRating) : '',
+    reviewCount: product.reviewsSummary?.reviewCount != null ? String(product.reviewsSummary.reviewCount) : '',
+    ratingBreakdown: Object.entries(product.reviewsSummary?.ratingBreakdown ?? {}).map(([rating, count]) => ({
+      id: makeTempId(),
+      rating,
+      count: String(count),
+    })),
+  },
+});
+
 export const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const role = user?.role ?? 'client';
@@ -85,6 +299,7 @@ export const AdminDashboardPage: React.FC = () => {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
   // const [banners] = useState<Banner[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
@@ -112,14 +327,7 @@ export const AdminDashboardPage: React.FC = () => {
   });
 
   const [selectedProductId, setSelectedProductId] = useState<string>('');
-  const [productForm, setProductForm] = useState<ProductFormState>({
-    name: '',
-    categoryId: '',
-    price: 0,
-    tags: new Set<ProductTag>(),
-    description: '',
-    images: '',
-  });
+  const [productForm, setProductForm] = useState<ProductFormState>(() => createEmptyProductForm());
 
   // const [selectedBannerId] = useState<string>('');
   // const [bannerForm, setBannerForm] = useState<BannerFormState>({
@@ -197,6 +405,11 @@ export const AdminDashboardPage: React.FC = () => {
     setProducts(data);
   };
 
+  const refreshManufacturers = async () => {
+    const { manufacturers: data } = await manufacturersApi.list();
+    setManufacturers(data);
+  };
+
   const refreshBanners = async () => { /* manufacturers replaces this section */ };
 
   const refreshHeroSlider = async () => {
@@ -271,6 +484,7 @@ export const AdminDashboardPage: React.FC = () => {
           refreshCategories(),
           refreshProducts(),
           refreshBanners(),
+          refreshManufacturers(),
           refreshHeroSlider(),
           refreshFeaturedShowcase(),
           refreshOrders(),
@@ -329,27 +543,13 @@ export const AdminDashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (!selectedProductId) {
-      setProductForm({
-        name: '',
-        categoryId: '',
-        price: 0,
-        tags: new Set(),
-        description: '',
-        images: '',
-      });
+      setProductForm(createEmptyProductForm());
       return;
     }
 
     const existing = products.find((product) => product.id === selectedProductId);
     if (existing) {
-      setProductForm({
-        name: existing.name,
-        categoryId: existing.categoryId ?? '',
-        price: existing.price ?? 0,
-        tags: new Set(existing.tags),
-        description: existing.description ?? '',
-        images: existing.images.join(', '),
-      });
+      setProductForm(mapProductToForm(existing));
     }
   }, [selectedProductId, products]);
 
@@ -495,16 +695,237 @@ export const AdminDashboardPage: React.FC = () => {
   const handleProductSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
+      const cleanStringArray = (values: string[]) => {
+        const seen = new Set<string>();
+        return values
+          .map((value) => value.trim())
+          .filter((value) => {
+            if (!value) return false;
+            if (seen.has(value)) return false;
+            seen.add(value);
+            return true;
+          });
+      };
+
+      const rowsToRecord = (rows: ProductFormState['attributes']) => {
+        const record: Record<string, string> = {};
+        rows.forEach((row) => {
+          const key = row.label.trim();
+          const value = row.value.trim();
+          if (key && value) {
+            record[key] = value;
+          }
+        });
+        return Object.keys(record).length ? record : undefined;
+      };
+
+      const specificationPayload = productForm.specifications
+        .map((row) => ({
+          label: row.label.trim(),
+          value: row.value.trim(),
+        }))
+        .filter((row) => row.label && row.value);
+
+      const documentsPayload = productForm.documents
+        .map((row) => ({
+          label: row.label.trim(),
+          url: row.url.trim(),
+        }))
+        .filter((row) => row.label && row.url);
+
+      const compatibilityPayload = productForm.compatibility
+        .map((row) => {
+          const base = {
+            make: row.make.trim(),
+            model: row.model.trim(),
+            subModel: row.subModel.trim() || undefined,
+            engine: row.engine.trim() || undefined,
+            notes: row.notes.trim() || undefined,
+          };
+          const year = row.year.trim() ? Number(row.year) : undefined;
+          const yearStart = row.yearStart.trim() ? Number(row.yearStart) : undefined;
+          const yearEnd = row.yearEnd.trim() ? Number(row.yearEnd) : undefined;
+          return {
+            ...base,
+            year: Number.isFinite(year ?? NaN) ? year : undefined,
+            yearStart: Number.isFinite(yearStart ?? NaN) ? yearStart : undefined,
+            yearEnd: Number.isFinite(yearEnd ?? NaN) ? yearEnd : undefined,
+          };
+        })
+        .filter((entry) => entry.make && entry.model);
+
+      const variationAttributes = cleanStringArray(productForm.variationAttributes);
+
+      const variationsPayload = productForm.variations
+        .map((variation) => {
+          const attributes = rowsToRecord(variation.attributes) ?? undefined;
+          const price = variation.price.trim() ? Number(variation.price) : undefined;
+          const salePrice = variation.salePrice.trim() ? Number(variation.salePrice) : undefined;
+          const stockQuantity = variation.stockQuantity.trim()
+            ? Number.parseInt(variation.stockQuantity, 10)
+            : undefined;
+          const weight = variation.weight.trim() ? Number(variation.weight) : undefined;
+          return {
+            ...(variation.existingId ? { _id: variation.existingId } : {}),
+            sku: variation.sku.trim() || undefined,
+            name: variation.name.trim() || undefined,
+            attributes,
+            price,
+            salePrice: Number.isFinite(salePrice ?? NaN) ? salePrice : undefined,
+            stockQuantity: Number.isFinite(stockQuantity ?? NaN) ? stockQuantity : undefined,
+            allowBackorder: variation.allowBackorder,
+            image: variation.image.trim() || undefined,
+            weight: Number.isFinite(weight ?? NaN) ? weight : undefined,
+          };
+        })
+        .filter(
+          (variation) =>
+            variation.sku ||
+            variation.name ||
+            (variation.attributes && Object.keys(variation.attributes).length) ||
+            typeof variation.price === 'number' ||
+            typeof variation.salePrice === 'number'
+        );
+
+      const badgesPayload = productForm.badges
+        .map((badge) => ({
+          label: badge.label.trim(),
+          description: badge.description.trim(),
+          icon: badge.icon.trim(),
+        }))
+        .filter((badge) => badge.label);
+
+      const ratingBreakdownPayload = productForm.reviewsSummary.ratingBreakdown.reduce<Record<string, number>>(
+        (acc, row) => {
+          const ratingKey = row.rating.trim();
+          const count = row.count.trim() ? Number(row.count) : 0;
+          if (!ratingKey) {
+            return acc;
+          }
+          const parsedCount = Number.isFinite(count) ? count : 0;
+          acc[ratingKey] = parsedCount;
+          return acc;
+        },
+        {}
+      );
+
+      const parseNumber = (value: string) => {
+        if (!value.trim()) return undefined;
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : undefined;
+      };
+
+      const priceValue = parseNumber(productForm.price) ?? 0;
+      const salePriceParsed = parseNumber(productForm.salePrice);
+      const inventoryQuantity = parseNumber(productForm.inventory.quantity);
+      const lowStock = parseNumber(productForm.inventory.lowStockThreshold);
+
+      const shippingWeight = parseNumber(productForm.shipping.weight);
+      const dimensionLength = parseNumber(productForm.shipping.length);
+      const dimensionWidth = parseNumber(productForm.shipping.width);
+      const dimensionHeight = parseNumber(productForm.shipping.height);
+
+      const relatedIds = cleanStringArray(productForm.relatedProductIds);
+      const upsellIds = cleanStringArray(productForm.upsellProductIds);
+      const crossSellIds = cleanStringArray(productForm.crossSellProductIds);
+
       const payload = {
-        name: productForm.name,
+        name: productForm.name.trim(),
+        slug: productForm.slug.trim() || undefined,
+        sku: productForm.sku.trim() || undefined,
+        productCode: productForm.productCode.trim() || undefined,
+        productType: productForm.productType || undefined,
+        status: productForm.status || undefined,
+        visibility: productForm.visibility || undefined,
         categoryId: productForm.categoryId,
-        price: Number(productForm.price) || 0,
-        description: productForm.description,
+        manufacturerId: productForm.manufacturerId ? productForm.manufacturerId : null,
+        manufacturerName: productForm.manufacturerName.trim() || undefined,
+        shortDescription: productForm.shortDescription.trim() || undefined,
+        description: productForm.description.trim(),
+        price: priceValue,
+        salePrice:
+          salePriceParsed != null
+            ? Number.isFinite(salePriceParsed)
+              ? salePriceParsed
+              : undefined
+            : selectedProductId
+              ? null
+              : undefined,
+        saleStartDate: productForm.saleStartDate
+          ? new Date(productForm.saleStartDate).toISOString()
+          : selectedProductId
+            ? null
+            : undefined,
+        saleEndDate: productForm.saleEndDate
+          ? new Date(productForm.saleEndDate).toISOString()
+          : selectedProductId
+            ? null
+            : undefined,
+        taxClass: productForm.taxClass.trim() || undefined,
         tags: Array.from(productForm.tags),
-        images: productForm.images
-          .split(',')
-          .map((url) => url.trim())
-          .filter(Boolean),
+        featureHighlights: cleanStringArray(productForm.featureHighlights),
+        images: cleanStringArray(productForm.images),
+        videoUrls: cleanStringArray(productForm.videoUrls),
+        packageContents: cleanStringArray(productForm.packageContents),
+        specifications: specificationPayload,
+        attributes: rowsToRecord(productForm.attributes),
+        customAttributes: rowsToRecord(productForm.customAttributes),
+        variationAttributes: variationAttributes.length ? variationAttributes : undefined,
+        variations: variationsPayload.length ? variationsPayload : undefined,
+        documents: documentsPayload.length ? documentsPayload : undefined,
+        compatibility: compatibilityPayload.length ? compatibilityPayload : undefined,
+        relatedProductIds: relatedIds.length ? relatedIds : undefined,
+        upsellProductIds: upsellIds.length ? upsellIds : undefined,
+        crossSellProductIds: crossSellIds.length ? crossSellIds : undefined,
+        inventory: {
+          quantity: Number.isFinite(inventoryQuantity ?? NaN) ? inventoryQuantity ?? undefined : undefined,
+          lowStockThreshold: Number.isFinite(lowStock ?? NaN) ? lowStock ?? undefined : undefined,
+          status: productForm.inventory.status || undefined,
+          allowBackorder: productForm.inventory.allowBackorder,
+          leadTime: productForm.inventory.leadTime.trim() || undefined,
+        },
+        shipping: {
+          weight: Number.isFinite(shippingWeight ?? NaN) ? shippingWeight ?? undefined : undefined,
+          weightUnit: productForm.shipping.weightUnit.trim() || undefined,
+          dimensions: {
+            length: Number.isFinite(dimensionLength ?? NaN) ? dimensionLength ?? undefined : undefined,
+            width: Number.isFinite(dimensionWidth ?? NaN) ? dimensionWidth ?? undefined : undefined,
+            height: Number.isFinite(dimensionHeight ?? NaN) ? dimensionHeight ?? undefined : undefined,
+            unit: productForm.shipping.dimensionUnit.trim() || undefined,
+          },
+          shippingClass: productForm.shipping.shippingClass.trim() || undefined,
+          hazardous: productForm.shipping.hazardous,
+          warehouseLocation: productForm.shipping.warehouseLocation.trim() || undefined,
+        },
+        seo: {
+          metaTitle: productForm.seo.metaTitle.trim() || undefined,
+          metaDescription: productForm.seo.metaDescription.trim() || undefined,
+          canonicalUrl: productForm.seo.canonicalUrl.trim() || undefined,
+          openGraphImage: productForm.seo.openGraphImage.trim() || undefined,
+        },
+        support: {
+          warranty: productForm.support.warranty.trim() || undefined,
+          returnPolicy: productForm.support.returnPolicy.trim() || undefined,
+          supportPhone: productForm.support.supportPhone.trim() || undefined,
+          supportEmail: productForm.support.supportEmail.trim() || undefined,
+          liveChatUrl: productForm.support.liveChatUrl.trim() || undefined,
+          supportHours: productForm.support.supportHours.trim() || undefined,
+        },
+        badges: badgesPayload.length ? badgesPayload : undefined,
+        notes: {
+          sales: productForm.notes.sales.trim() || undefined,
+          internal: productForm.notes.internal.trim() || undefined,
+        },
+        reviewsSummary:
+          productForm.reviewsSummary.averageRating.trim() ||
+          productForm.reviewsSummary.reviewCount.trim() ||
+          Object.keys(ratingBreakdownPayload).length
+            ? {
+                averageRating: parseNumber(productForm.reviewsSummary.averageRating),
+                reviewCount: parseNumber(productForm.reviewsSummary.reviewCount),
+                ratingBreakdown: Object.keys(ratingBreakdownPayload).length ? ratingBreakdownPayload : undefined,
+              }
+            : undefined,
       };
 
       if (selectedProductId) {
@@ -1144,6 +1565,7 @@ export const AdminDashboardPage: React.FC = () => {
                 onSubmit={handleProductSubmit}
                 onDelete={deleteProduct}
                 productTags={productTags}
+                manufacturers={manufacturers}
               />
             </motion.div>
           )}
