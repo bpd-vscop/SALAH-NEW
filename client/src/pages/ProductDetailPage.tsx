@@ -327,16 +327,17 @@ export const ProductDetailPage: React.FC = () => {
 
   return (
     <SiteLayout>
-      {loading && (
-        <div className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
-          Loading product details...
-        </div>
-      )}
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-6 text-sm text-red-700">{error}</div>
-      )}
-      {product && !loading && !error && (
-        <article className="space-y-10">
+      <div className="mx-auto w-[88%] py-8">
+        {loading && (
+          <div className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
+            Loading product details...
+          </div>
+        )}
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-6 text-sm text-red-700">{error}</div>
+        )}
+        {product && !loading && !error && (
+          <article className="space-y-10">
           <header className="space-y-6">
             <nav className="text-xs text-muted">
               <Link to="/" className="font-medium text-slate-600 transition hover:text-primary">Home</Link>
@@ -708,7 +709,8 @@ export const ProductDetailPage: React.FC = () => {
             />
           </div>
         </article>
-      )}
+        )}
+      </div>
     </SiteLayout>
   );
 };
