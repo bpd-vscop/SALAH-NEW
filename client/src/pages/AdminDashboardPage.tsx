@@ -148,18 +148,32 @@ const extractYouTubeVideo = (raw: string): { id: string; start?: number } | null
   }
 };
 
+const buildYouTubeEmbedUrl = (id: string, start?: number) => {
+  const params = new URLSearchParams();
+  if (start && start > 0) {
+    params.set('start', String(start));
+  }
+  params.set('autoplay', '1');
+  params.set('mute', '1');
+  params.set('controls', '0');
+  params.set('rel', '0');
+  params.set('modestbranding', '1');
+  params.set('playsinline', '1');
+  params.set('enablejsapi', '1');
+  params.set('fs', '0');
+  params.set('iv_load_policy', '3');
+  params.set('showinfo', '0');
+  params.set('disablekb', '1');
+  const query = params.toString();
+  return `https://www.youtube.com/embed/${id}?${query}`;
+};
+
 const normalizeYouTubeUrl = (raw: string): string | null => {
   const parsed = extractYouTubeVideo(raw);
   if (!parsed) {
     return null;
   }
-
-  const params = new URLSearchParams();
-  if (parsed.start && parsed.start > 0) {
-    params.set('start', String(parsed.start));
-  }
-  const query = params.toString();
-  return `https://www.youtube.com/embed/${parsed.id}${query ? `?${query}` : ''}`;
+  return buildYouTubeEmbedUrl(parsed.id, parsed.start);
 };
 
 const createEmptyProductForm = (): ProductFormState => ({

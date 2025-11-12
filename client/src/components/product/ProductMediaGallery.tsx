@@ -12,6 +12,7 @@ type MediaItem = {
   type: 'image' | 'video';
   url: string;
   label: string;
+  thumbnail?: string;
 };
 
 const PLACEHOLDER = 'https://placehold.co/800x600?text=No+Image';
@@ -66,31 +67,35 @@ const extractYouTubeVideo = (raw: string): { id: string; start?: number } | null
   }
 };
 
-const ensureYouTubeEmbedUrl = (raw: string): string => {
-  const parsed = extractYouTubeVideo(raw);
-  if (!parsed) {
-    return raw;
-  }
+const buildYouTubeEmbedUrl = (id: string, start?: number) => {
   const params = new URLSearchParams();
-  if (parsed.start && parsed.start > 0) {
-    params.set('start', String(parsed.start));
+  if (start && start > 0) {
+    params.set('start', String(start));
   }
+  params.set('autoplay', '1');
+  params.set('mute', '1');
+  params.set('controls', '0');
+  params.set('rel', '0');
+  params.set('modestbranding', '1');
+  params.set('playsinline', '1');
+  params.set('enablejsapi', '1');
+  params.set('fs', '0');
+  params.set('iv_load_policy', '3');
+  params.set('showinfo', '0');
+  params.set('disablekb', '1');
   const query = params.toString();
-  return `https://www.youtube.com/embed/${parsed.id}${query ? `?${query}` : ''}`;
+  return `https://www.youtube.com/embed/${id}?${query}`;
 };
 
-const isYouTubeUrl = (raw: string): boolean => {
-  try {
-    const host = new URL(raw).hostname.toLowerCase();
-    return (
-      host === 'youtu.be' ||
-      host.endsWith('.youtu.be') ||
-      host === 'youtube.com' ||
-      host.endsWith('.youtube.com')
-    );
-  } catch {
-    return false;
+const ensureYouTubeEmbedUrl = (raw: string): { embed: string; thumbnail?: string } => {
+  const parsed = extractYouTubeVideo(raw);
+  if (!parsed) {
+    return { embed: raw };
   }
+  return {
+    embed: buildYouTubeEmbedUrl(parsed.id, parsed.start),
+    thumbnail: `https://i.ytimg.com/vi/${parsed.id}/hqdefault.jpg`,
+  };
 };
 
 const buildMediaItems = (images?: string[], videoUrls?: string[]): MediaItem[] => {
@@ -109,12 +114,16 @@ const buildMediaItems = (images?: string[], videoUrls?: string[]): MediaItem[] =
 
   if (Array.isArray(videoUrls) && videoUrls.length) {
     media.push(
-      ...videoUrls.map((url, index) => ({
-        id: `video-${index}`,
-        type: 'video' as const,
-        url: ensureYouTubeEmbedUrl(url),
-        label: `Video ${index + 1}`,
-      }))
+      ...videoUrls.map((url, index) => {
+        const normalized = ensureYouTubeEmbedUrl(url);
+        return {
+          id: `video-${index}`,
+          type: 'video' as const,
+          url: normalized.embed,
+          label: `Video ${index + 1}`,
+          thumbnail: normalized.thumbnail,
+        };
+      })
     );
   }
 
@@ -133,6 +142,7 @@ const buildMediaItems = (images?: string[], videoUrls?: string[]): MediaItem[] =
 export const ProductMediaGallery: React.FC<ProductMediaGalleryProps> = ({ name, images, videoUrls }) => {
   const mediaItems = useMemo(() => buildMediaItems(images, videoUrls), [images, videoUrls]);
   const [activeId, setActiveId] = useState<string>(mediaItems[0]?.id ?? 'placeholder');
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!mediaItems.find((item) => item.id === activeId)) {
@@ -141,24 +151,62 @@ export const ProductMediaGallery: React.FC<ProductMediaGalleryProps> = ({ name, 
   }, [activeId, mediaItems]);
 
   const activeItem = mediaItems.find((item) => item.id === activeId) ?? mediaItems[0];
+  const isVideoActive = activeItem?.type === 'video';
+  const isVideoPlaying = isVideoActive && playingVideoId === activeItem.id;
+
+  const handleSelectMedia = (item: MediaItem) => {
+    setActiveId(item.id);
+    if (item.type === 'video') {
+      setPlayingVideoId(item.id);
+    } else {
+      setPlayingVideoId(null);
+    }
+  };
+
+  const renderVideoFrame = () => {
+    if (!isVideoActive) {
+      return null;
+    }
+
+    if (!isVideoPlaying) {
+      return (
+        <button
+          type="button"
+          onClick={() => setPlayingVideoId(activeItem.id)}
+          className="group relative flex h-full w-full items-center justify-center"
+        >
+          <img
+            src={activeItem.thumbnail || PLACEHOLDER}
+            alt={`${name} video preview`}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+          <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+          <span className="absolute flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-primary shadow-lg transition group-hover:scale-105">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </span>
+        </button>
+      );
+    }
+
+    return (
+      <iframe
+        src={activeItem.url}
+        title={`${name} video`}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        className="h-full w-full border-0"
+      />
+    );
+  };
 
   return (
     <div className="space-y-4">
       <div className="relative overflow-hidden rounded-2xl border border-border bg-black/5">
         {activeItem?.type === 'video' ? (
-          <div className="aspect-[4/3] w-full bg-black">
-            {isYouTubeUrl(activeItem.url) ? (
-              <iframe
-                src={activeItem.url}
-                title={`${name} video`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="h-full w-full border-0"
-              />
-            ) : (
-              <video src={activeItem.url} controls className="h-full w-full object-contain" />
-            )}
-          </div>
+          <div className="aspect-[4/3] w-full bg-black">{renderVideoFrame()}</div>
         ) : (
           <img
             src={activeItem?.url ?? PLACEHOLDER}
@@ -188,32 +236,28 @@ export const ProductMediaGallery: React.FC<ProductMediaGalleryProps> = ({ name, 
             <button
               key={item.id}
               type="button"
-              onClick={() => setActiveId(item.id)}
+              onClick={() => handleSelectMedia(item)}
               className={cn(
                 'group relative overflow-hidden rounded-xl border border-border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                 activeId === item.id ? 'border-primary ring-2 ring-primary/40' : 'hover:border-primary'
               )}
               aria-label={item.label}
             >
-              {item.type === 'video' ? (
-                <div className="flex aspect-square items-center justify-center bg-black/70 text-white">
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    className="h-6 w-6 text-white"
-                  >
-                    <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3h9A1.5 1.5 0 0 1 16 4.5v15a1.5 1.5 0 0 1-2.238 1.306l-9-5.167A1.5 1.5 0 0 1 4 14.333V4.5Z" />
-                  </svg>
-                </div>
-              ) : (
+              <div className="relative aspect-square w-full overflow-hidden">
                 <img
-                  src={item.url}
+                  src={item.type === 'video' ? item.thumbnail || PLACEHOLDER : item.url}
                   alt={item.label}
                   loading="lazy"
-                  className="aspect-square w-full object-cover transition group-hover:scale-[1.02]"
+                  className="h-full w-full object-cover transition group-hover:scale-[1.02]"
                 />
-              )}
+                {item.type === 'video' && (
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 transition group-hover:opacity-100">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6 text-white">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </span>
+                )}
+              </div>
             </button>
           ))}
         </div>
