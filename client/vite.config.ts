@@ -1,12 +1,12 @@
-import { defineConfig, type Plugin, type ResolvedConfig } from 'vite';
+import { defineConfig, type PluginOption, type ResolvedConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import fs from 'node:fs';
 import path from 'node:path';
 
 // Generate a version.json in the build output so the client can detect new builds
-const versionFilePlugin = (): Plugin => {
+const versionFilePlugin = () => {
   let outDir = 'dist';
-  return {
+  return ({
     name: 'version-file',
     apply: 'build',
     configResolved(config: ResolvedConfig) {
@@ -30,7 +30,7 @@ const versionFilePlugin = (): Plugin => {
       // eslint-disable-next-line no-console
       console.log(`[version-file] wrote ${filePath}`);
     },
-  };
+  }) as unknown as PluginOption;
 };
 
 // https://vite.dev/config/
