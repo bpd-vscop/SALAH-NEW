@@ -1285,9 +1285,12 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
                   }))
                 }
                 rows={2}
-                placeholder="YouTube, Vimeo, or hosted links"
+                placeholder="Only YouTube links (watch, share, or embed)"
                 className="rounded-xl border border-border bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
+              <p className="text-xs text-muted">
+                Example: https://youtu.be/VIDEO or https://www.youtube.com/watch?v=VIDEO
+              </p>
             </label>
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm text-slate-600">

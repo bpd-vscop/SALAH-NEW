@@ -14,6 +14,24 @@ const objectId = z
   .refine((val) => mongoose.Types.ObjectId.isValid(val), 'Invalid identifier');
 
 const urlSchema = z.string().url();
+const isYouTubeUrl = (value) => {
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.toLowerCase();
+    return (
+      host === 'youtu.be' ||
+      host.endsWith('.youtu.be') ||
+      host === 'youtube.com' ||
+      host.endsWith('.youtube.com')
+    );
+  } catch (_err) {
+    return false;
+  }
+};
+const youtubeUrlSchema = z
+  .string()
+  .url()
+  .refine((val) => isYouTubeUrl(val), 'Video URLs must be YouTube links');
 const optionalString = (max) => z.string().min(1).max(max);
 
 const slugSchema = z
@@ -138,7 +156,7 @@ const baseFields = {
   description: z.string().max(10000).optional(),
   featureHighlights: z.array(optionalString(200)).max(20).optional(),
   images: z.array(urlSchema).max(20).optional(),
-  videoUrls: z.array(urlSchema).max(10).optional(),
+  videoUrls: z.array(youtubeUrlSchema).max(10).optional(),
   price: z.number().min(0).optional(),
   salePrice: z.number().min(0).nullable().optional(),
   saleStartDate: z.string().datetime().nullable().optional(),

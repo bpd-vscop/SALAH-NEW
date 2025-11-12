@@ -98,6 +98,70 @@ const recordToRows = (record?: Record<string, string> | null) =>
     value,
   }));
 
+const parseYouTubeTimestamp = (value: string | null): number | null => {
+  if (!value) return null;
+  if (/^\d+$/.test(value)) {
+    return Number(value);
+  }
+  const match = value.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
+  if (!match) {
+    return null;
+  }
+  const hours = Number(match[1] || 0);
+  const minutes = Number(match[2] || 0);
+  const seconds = Number(match[3] || 0);
+  if (!hours && !minutes && !seconds) {
+    return null;
+  }
+  return hours * 3600 + minutes * 60 + seconds;
+};
+
+const extractYouTubeVideo = (raw: string): { id: string; start?: number } | null => {
+  try {
+    const parsed = new URL(raw);
+    const host = parsed.hostname.toLowerCase();
+    let videoId: string | null = null;
+
+    if (host === 'youtu.be' || host.endsWith('.youtu.be')) {
+      videoId = parsed.pathname.split('/').filter(Boolean)[0] ?? null;
+    } else if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
+      if (parsed.pathname.startsWith('/embed/')) {
+        videoId = parsed.pathname.split('/')[2] ?? null;
+      } else if (parsed.pathname.startsWith('/shorts/')) {
+        videoId = parsed.pathname.split('/')[2] ?? null;
+      } else {
+        videoId = parsed.searchParams.get('v');
+      }
+    }
+
+    if (!videoId) {
+      return null;
+    }
+
+    const start =
+      parseYouTubeTimestamp(parsed.searchParams.get('t')) ??
+      parseYouTubeTimestamp(parsed.searchParams.get('start'));
+
+    return start ? { id: videoId, start } : { id: videoId };
+  } catch {
+    return null;
+  }
+};
+
+const normalizeYouTubeUrl = (raw: string): string | null => {
+  const parsed = extractYouTubeVideo(raw);
+  if (!parsed) {
+    return null;
+  }
+
+  const params = new URLSearchParams();
+  if (parsed.start && parsed.start > 0) {
+    params.set('start', String(parsed.start));
+  }
+  const query = params.toString();
+  return `https://www.youtube.com/embed/${parsed.id}${query ? `?${query}` : ''}`;
+};
+
 const createEmptyProductForm = (): ProductFormState => ({
   name: '',
   slug: '',
@@ -833,6 +897,16 @@ export const AdminDashboardPage: React.FC = () => {
       const upsellIds = cleanStringArray(productForm.upsellProductIds);
       const crossSellIds = cleanStringArray(productForm.crossSellProductIds);
 
+      const normalizedVideoUrls: string[] = [];
+      for (const url of productForm.videoUrls) {
+        const normalized = normalizeYouTubeUrl(url);
+        if (!normalized) {
+          setStatus(null, 'Video URLs must be valid YouTube links (for example https://youtu.be/VIDEO).');
+          return;
+        }
+        normalizedVideoUrls.push(normalized);
+      }
+
       const payload = {
         name: productForm.name.trim(),
         slug: productForm.slug.trim() || undefined,
@@ -846,6 +920,7 @@ export const AdminDashboardPage: React.FC = () => {
         manufacturerName: productForm.manufacturerName.trim() || undefined,
         shortDescription: productForm.shortDescription.trim() || undefined,
         description: productForm.description.trim(),
+        videoUrls: normalizedVideoUrls.length ? normalizedVideoUrls : undefined,
         price: priceValue,
         salePrice:
           salePriceParsed != null
@@ -869,7 +944,6 @@ export const AdminDashboardPage: React.FC = () => {
         tags: Array.from(productForm.tags),
         featureHighlights: cleanStringArray(productForm.featureHighlights),
         images: cleanStringArray(productForm.images),
-        videoUrls: cleanStringArray(productForm.videoUrls),
         packageContents: cleanStringArray(productForm.packageContents),
         specifications: specificationPayload,
         attributes: rowsToRecord(productForm.attributes),

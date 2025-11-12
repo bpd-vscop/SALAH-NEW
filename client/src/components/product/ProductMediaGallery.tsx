@@ -16,6 +16,83 @@ type MediaItem = {
 
 const PLACEHOLDER = 'https://placehold.co/800x600?text=No+Image';
 
+const parseYouTubeTimestamp = (value: string | null): number | null => {
+  if (!value) return null;
+  if (/^\d+$/.test(value)) {
+    return Number(value);
+  }
+  const match = value.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
+  if (!match) {
+    return null;
+  }
+  const hours = Number(match[1] || 0);
+  const minutes = Number(match[2] || 0);
+  const seconds = Number(match[3] || 0);
+  if (!hours && !minutes && !seconds) {
+    return null;
+  }
+  return hours * 3600 + minutes * 60 + seconds;
+};
+
+const extractYouTubeVideo = (raw: string): { id: string; start?: number } | null => {
+  try {
+    const parsed = new URL(raw);
+    const host = parsed.hostname.toLowerCase();
+    let videoId: string | null = null;
+
+    if (host === 'youtu.be' || host.endsWith('.youtu.be')) {
+      videoId = parsed.pathname.split('/').filter(Boolean)[0] ?? null;
+    } else if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
+      if (parsed.pathname.startsWith('/embed/')) {
+        videoId = parsed.pathname.split('/')[2] ?? null;
+      } else if (parsed.pathname.startsWith('/shorts/')) {
+        videoId = parsed.pathname.split('/')[2] ?? null;
+      } else {
+        videoId = parsed.searchParams.get('v');
+      }
+    }
+
+    if (!videoId) {
+      return null;
+    }
+
+    const start =
+      parseYouTubeTimestamp(parsed.searchParams.get('t')) ??
+      parseYouTubeTimestamp(parsed.searchParams.get('start'));
+
+    return start ? { id: videoId, start } : { id: videoId };
+  } catch {
+    return null;
+  }
+};
+
+const ensureYouTubeEmbedUrl = (raw: string): string => {
+  const parsed = extractYouTubeVideo(raw);
+  if (!parsed) {
+    return raw;
+  }
+  const params = new URLSearchParams();
+  if (parsed.start && parsed.start > 0) {
+    params.set('start', String(parsed.start));
+  }
+  const query = params.toString();
+  return `https://www.youtube.com/embed/${parsed.id}${query ? `?${query}` : ''}`;
+};
+
+const isYouTubeUrl = (raw: string): boolean => {
+  try {
+    const host = new URL(raw).hostname.toLowerCase();
+    return (
+      host === 'youtu.be' ||
+      host.endsWith('.youtu.be') ||
+      host === 'youtube.com' ||
+      host.endsWith('.youtube.com')
+    );
+  } catch {
+    return false;
+  }
+};
+
 const buildMediaItems = (images?: string[], videoUrls?: string[]): MediaItem[] => {
   const media: MediaItem[] = [];
 
@@ -35,7 +112,7 @@ const buildMediaItems = (images?: string[], videoUrls?: string[]): MediaItem[] =
       ...videoUrls.map((url, index) => ({
         id: `video-${index}`,
         type: 'video' as const,
-        url,
+        url: ensureYouTubeEmbedUrl(url),
         label: `Video ${index + 1}`,
       }))
     );
@@ -70,7 +147,7 @@ export const ProductMediaGallery: React.FC<ProductMediaGalleryProps> = ({ name, 
       <div className="relative overflow-hidden rounded-2xl border border-border bg-black/5">
         {activeItem?.type === 'video' ? (
           <div className="aspect-[4/3] w-full bg-black">
-            {activeItem.url.includes('youtube') || activeItem.url.includes('vimeo') ? (
+            {isYouTubeUrl(activeItem.url) ? (
               <iframe
                 src={activeItem.url}
                 title={`${name} video`}

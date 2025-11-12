@@ -8,7 +8,7 @@ const objectId = z
 
 const createSchema = z
   .object({
-    name: z.string().min(2).max(120),
+    name: z.string().min(1).max(120),
     brandId: objectId,
     order: z.number().int().min(0).optional().default(0),
     isActive: z.boolean().optional().default(true),
@@ -17,7 +17,7 @@ const createSchema = z
 
 const updateSchema = z
   .object({
-    name: z.string().min(2).max(120).optional(),
+    name: z.string().min(1).max(120).optional(),
     brandId: objectId.optional(),
     order: z.number().int().min(0).optional(),
     isActive: z.boolean().optional(),
