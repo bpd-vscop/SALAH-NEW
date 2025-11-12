@@ -71,6 +71,10 @@ export const ModelsAdminSection: React.FC<ModelsAdminSectionProps> = ({ onOrderC
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!form.brandId) {
+      setStatus(null, 'Select a parent brand before saving.');
+      return;
+    }
     setLoading(true);
     try {
       const payload = { name: form.name, brandId: form.brandId || null };
@@ -187,8 +191,9 @@ export const ModelsAdminSection: React.FC<ModelsAdminSectionProps> = ({ onOrderC
               value={form.brandId}
               onChange={(e) => setForm((s) => ({ ...s, brandId: e.target.value }))}
               className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              required
             >
-              <option value="">No brand</option>
+              <option value="">Select a brand</option>
               {brands.map((brand) => (
                 <option key={brand.id} value={brand.id}>
                   {brand.name}
