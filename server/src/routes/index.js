@@ -13,6 +13,9 @@ const menuRoutes = require('./menu');
 const manufacturerRoutes = require('./manufacturers');
 const categoryDisplayRoutes = require('./categoryDisplay');
 const manufacturerDisplayRoutes = require('./manufacturerDisplay');
+const brandRoutes = require('./brands');
+const modelRoutes = require('./models');
+const tagRoutes = require('./tags');
 const clientRoutes = require('./clients');
 
 module.exports = () => {
@@ -32,6 +35,9 @@ module.exports = () => {
   router.use('/manufacturers', manufacturerRoutes);
   router.use('/category-display', categoryDisplayRoutes);
   router.use('/manufacturer-display', manufacturerDisplayRoutes);
+  router.use('/brands', brandRoutes);
+  router.use('/models', modelRoutes);
+  router.use('/tags', tagRoutes);
   router.use('/clients', clientRoutes);
 
   return router;

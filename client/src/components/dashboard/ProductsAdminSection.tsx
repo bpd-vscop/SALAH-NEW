@@ -1,4 +1,4 @@
-import type { Dispatch, FormEvent, SetStateAction } from 'react';
+import { useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import { formatCurrency } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import type {
@@ -30,6 +30,8 @@ interface ProductsAdminSectionProps {
   onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   productTags: ProductTag[];
+  view: 'all' | 'add';
+  onViewChange: (view: 'all' | 'add') => void;
 }
 
 const productTypes: ProductType[] = ['simple', 'variable', 'grouped'];
@@ -66,7 +68,41 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   onSubmit,
   onDelete,
   productTags,
+  view,
+  onViewChange,
 }) => {
+  const [displayMode, setDisplayMode] = useState<'card' | 'table'>('card');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'recent' | 'oldest' | 'a-z' | 'z-a' | 'price-low' | 'price-high'>('recent');
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProducts((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedProducts.size === filteredAndSortedProducts.length) {
+      setSelectedProducts(new Set());
+    } else {
+      setSelectedProducts(new Set(filteredAndSortedProducts.map(p => p.id)));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    selectedProducts.forEach((id) => {
+      void onDelete(id);
+    });
+    setSelectedProducts(new Set());
+  };
+
   const toggleTag = (tag: ProductTag) => {
     setForm((state) => {
       const next = new Set(state.tags);
@@ -392,11 +428,146 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  // Filter and sort products
+  const filteredAndSortedProducts = products
+    .filter((product) => {
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        product.name.toLowerCase().includes(query) ||
+        product.sku?.toLowerCase().includes(query) ||
+        product.productCode?.toLowerCase().includes(query) ||
+        product.manufacturerName?.toLowerCase().includes(query)
+      );
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'recent':
+          return new Date(b.updatedAt ?? b.createdAt ?? 0).getTime() - new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+        case 'oldest':
+          return new Date(a.updatedAt ?? a.createdAt ?? 0).getTime() - new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+        case 'a-z':
+          return a.name.localeCompare(b.name);
+        case 'z-a':
+          return b.name.localeCompare(a.name);
+        case 'price-low':
+          return (a.salePrice ?? a.price) - (b.salePrice ?? b.price);
+        case 'price-high':
+          return (b.salePrice ?? b.price) - (a.salePrice ?? a.price);
+        default:
+          return 0;
+      }
+    });
+
   return (
     <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_540px]">
-        <div className="space-y-4">
-          {products.map((product) => {
+      {/* All Products View */}
+      {view === 'all' && (
+        <div className="space-y-6">
+          {/* Filters and Search Bar */}
+          <div className="space-y-4">
+            {/* Search and View Toggle */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative flex-1 max-w-md">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-border bg-white pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <svg className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+
+              {/* View Mode Toggle */}
+              <div className="flex gap-2 rounded-xl border border-border bg-white p-1">
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode('card')}
+                  className={cn(
+                    'flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition',
+                    displayMode === 'card'
+                      ? 'bg-primary text-white'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  )}
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                  Cards
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode('table')}
+                  className={cn(
+                    'flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition',
+                    displayMode === 'table'
+                      ? 'bg-primary text-white'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  )}
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Table
+                </button>
+              </div>
+            </div>
+
+            {/* Sort Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-muted">Sort by:</span>
+              {[
+                { value: 'recent', label: 'Most Recent' },
+                { value: 'oldest', label: 'Oldest' },
+                { value: 'a-z', label: 'A-Z' },
+                { value: 'z-a', label: 'Z-A' },
+                { value: 'price-low', label: 'Price: Low to High' },
+                { value: 'price-high', label: 'Price: High to Low' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setSortBy(option.value as typeof sortBy)}
+                  className={cn(
+                    'rounded-full px-3 py-1 text-xs font-medium transition',
+                    sortBy === option.value
+                      ? 'bg-primary text-white'
+                      : 'border border-border bg-white text-slate-600 hover:border-primary hover:text-primary'
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Results Count and Bulk Actions */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted">
+                Showing {filteredAndSortedProducts.length} of {products.length} products
+                {selectedProducts.size > 0 && ` • ${selectedProducts.size} selected`}
+              </p>
+              {selectedProducts.size > 0 && (
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Delete Selected ({selectedProducts.size})
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Card View */}
+          {displayMode === 'card' && (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredAndSortedProducts.map((product) => {
             const inventoryStatus = product.inventory?.status ?? 'in_stock';
             const badgeClasses = cn(
               'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold',
@@ -411,85 +582,287 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               <article
                 key={product.id}
                 className={cn(
-                  'rounded-2xl border border-border bg-background p-5 shadow-sm transition hover:border-primary hover:shadow-md',
+                  'rounded-2xl border border-border bg-background overflow-hidden shadow-sm transition hover:border-primary hover:shadow-md',
                   selectedProductId === product.id && 'border-primary bg-white shadow-md'
                 )}
               >
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-1">
-                      <h3 className="text-base font-semibold text-slate-900">{product.name}</h3>
-                      <p className="text-xs text-muted">
-                        {categoryNameById.get(product.categoryId) ?? 'Unassigned'}
-                      </p>
-                      <div className="flex flex-wrap gap-2 text-[11px] text-muted">
-                        {product.sku ? <span>SKU: {product.sku}</span> : null}
-                        {product.productCode ? <span>Code: {product.productCode}</span> : null}
-                        {product.manufacturerName ? <span>Brand: {product.manufacturerName}</span> : null}
-                      </div>
-                    </div>
-                    <div className="text-right">
+                {/* Product Image */}
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                  <img
+                    src={product.images[0] ?? 'https://placehold.co/400x300?text=No+Image'}
+                    alt={product.name}
+                    className="h-full w-full object-cover"
+                  />
+                  {/* Selection Checkbox - Top Left */}
+                  <div className="absolute left-2 top-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleProductSelection(product.id);
+                      }}
+                      className={cn(
+                        'flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all',
+                        selectedProducts.has(product.id)
+                          ? 'border-primary bg-primary'
+                          : 'border-white bg-white/90 backdrop-blur-sm hover:border-primary'
+                      )}
+                      title="Select product"
+                    >
+                      {selectedProducts.has(product.id) && (
+                        <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  {/* Action Icons - Top Right */}
+                  <div className="absolute right-2 top-2 flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelectProduct(product.id);
+                        onViewChange('add');
+                      }}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md backdrop-blur-sm transition-all hover:scale-110 hover:bg-primary hover:text-white"
+                      title="Edit product"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void onDelete(product.id)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-red-600 shadow-md backdrop-blur-sm transition-all hover:scale-110 hover:bg-red-600 hover:text-white"
+                      title="Delete product"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 p-4">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-semibold text-slate-900 line-clamp-2">{product.name}</h3>
+                    <p className="text-xs text-muted">
+                      {categoryNameById.get(product.categoryId) ?? 'Unassigned'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-baseline justify-between">
+                    <div className="text-left">
                       <p className="text-sm font-semibold text-primary">
                         {formatCurrency(hasSale ? product.salePrice ?? product.price : product.price)}
                       </p>
-                      {hasSale ? (
+                      {hasSale && (
                         <p className="text-xs text-muted line-through">{formatCurrency(product.price)}</p>
-                      ) : null}
+                      )}
                     </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
                     <span className={badgeClasses}>
                       {inventoryStatus.replace(/_/g, ' ')}
                     </span>
-                    {product.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary"
-                      >
-                        {tag}
-                      </span>
-                    ))}
                   </div>
-                  {product.shortDescription ? (
-                    <p className="text-sm text-muted">
-                      {product.shortDescription.length > 160
-                        ? `${product.shortDescription.slice(0, 160)}…`
-                        : product.shortDescription}
-                    </p>
-                  ) : product.description ? (
-                    <p className="text-sm text-muted">
-                      {product.description.length > 160
-                        ? `${product.description.slice(0, 160)}…`
-                        : product.description}
-                    </p>
-                  ) : null}
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                      onClick={() => onSelectProduct(product.id)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                      onClick={() => void onDelete(product.id)}
-                    >
-                      Delete
-                    </button>
+
+                  <div className="flex items-center gap-2 text-[11px] text-muted">
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>
+                      {product.updatedAt
+                        ? `Updated ${new Date(product.updatedAt).toLocaleDateString()}`
+                        : product.createdAt
+                        ? `Created ${new Date(product.createdAt).toLocaleDateString()}`
+                        : 'No date'}
+                    </span>
                   </div>
                 </div>
               </article>
             );
           })}
-          {!products.length && (
-            <p className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
-              No products yet.
+          {!filteredAndSortedProducts.length && (
+            <p className="col-span-full rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-center text-sm text-muted">
+              {products.length === 0
+                ? 'No products yet. Click "Add Product" above to create your first product.'
+                : 'No products match your search criteria.'}
             </p>
           )}
         </div>
+          )}
 
+          {/* Table View */}
+          {displayMode === 'table' && (
+            <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-border">
+                  <tr>
+                    <th className="px-4 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={toggleSelectAll}
+                        className={cn(
+                          'flex h-5 w-5 items-center justify-center rounded border-2 transition-all mx-auto',
+                          selectedProducts.size === filteredAndSortedProducts.length && filteredAndSortedProducts.length > 0
+                            ? 'border-primary bg-primary'
+                            : 'border-slate-400 bg-white hover:border-primary'
+                        )}
+                        title="Select all"
+                      >
+                        {selectedProducts.size === filteredAndSortedProducts.length && filteredAndSortedProducts.length > 0 && (
+                          <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Image</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Product</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Category</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Price</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Stock</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredAndSortedProducts.map((product) => {
+                    const inventoryStatus = product.inventory?.status ?? 'in_stock';
+                    const badgeClasses = cn(
+                      'inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[10px] font-semibold',
+                      inventoryStatus === 'in_stock' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                      inventoryStatus === 'low_stock' && 'border-amber-200 bg-amber-50 text-amber-700',
+                      inventoryStatus === 'out_of_stock' && 'border-red-200 bg-red-50 text-red-700',
+                      inventoryStatus === 'backorder' && 'border-sky-200 bg-sky-50 text-sky-700',
+                      inventoryStatus === 'preorder' && 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                    );
+                    const hasSale = typeof product.salePrice === 'number' && product.salePrice < product.price;
+
+                    return (
+                      <tr
+                        key={product.id}
+                        className={cn(
+                          'transition hover:bg-slate-50',
+                          selectedProductId === product.id && 'bg-primary/5',
+                          selectedProducts.has(product.id) && 'bg-primary/5'
+                        )}
+                      >
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleProductSelection(product.id);
+                            }}
+                            className={cn(
+                              'flex h-5 w-5 items-center justify-center rounded border-2 transition-all mx-auto',
+                              selectedProducts.has(product.id)
+                                ? 'border-primary bg-primary'
+                                : 'border-slate-400 bg-white hover:border-primary'
+                            )}
+                            title="Select product"
+                          >
+                            {selectedProducts.has(product.id) && (
+                              <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          <img
+                            src={product.images[0] ?? 'https://placehold.co/80x60?text=No+Image'}
+                            alt={product.name}
+                            className="h-12 w-16 rounded-lg border border-border object-cover"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-slate-900 line-clamp-2">{product.name}</p>
+                            <div className="flex flex-wrap gap-1">
+                              {product.tags.slice(0, 2).map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-xs text-muted">
+                            {categoryNameById.get(product.categoryId) ?? 'Unassigned'}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-0.5">
+                            <p className="text-sm font-semibold text-primary">
+                              {formatCurrency(hasSale ? product.salePrice ?? product.price : product.price)}
+                            </p>
+                            {hasSale && (
+                              <p className="text-xs text-muted line-through">{formatCurrency(product.price)}</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={badgeClasses}>
+                            {inventoryStatus.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-xs text-muted">
+                            {product.updatedAt
+                              ? new Date(product.updatedAt).toLocaleDateString()
+                              : product.createdAt
+                              ? new Date(product.createdAt).toLocaleDateString()
+                              : 'N/A'}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center rounded-lg border border-border px-2 py-1 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                              onClick={() => {
+                                onSelectProduct(product.id);
+                                onViewChange('add');
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center rounded-lg border border-red-200 px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                              onClick={() => void onDelete(product.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {!filteredAndSortedProducts.length && (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted">
+                        {products.length === 0
+                          ? 'No products yet. Click "Add Product" above to create your first product.'
+                          : 'No products match your search criteria.'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add Product View */}
+      {view === 'add' && (
         <form className="flex flex-col gap-5 rounded-2xl border border-border bg-background p-6 shadow-sm" onSubmit={onSubmit}>
           <FormPanel title="Basic information" description="Control naming, categorisation, and visibility.">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -1882,14 +2255,24 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               <button
                 type="button"
                 className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted transition hover:border-primary hover:text-primary"
-                onClick={() => onSelectProduct('')}
+                onClick={() => {
+                  onSelectProduct('');
+                  onViewChange('all');
+                }}
               >
                 Cancel
               </button>
             )}
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+              onClick={() => onViewChange('all')}
+            >
+              ← Back to All Products
+            </button>
           </div>
         </form>
-      </div>
+      )}
     </section>
   );
 };

@@ -30,6 +30,9 @@ import { ProductsAdminSection } from '../components/dashboard/ProductsAdminSecti
 // import { BannersAdminSection } from '../components/dashboard/BannersAdminSection';
 import { ManufacturersAdminSection } from '../components/dashboard/ManufacturersAdminSection';
 import { ManufacturersDisplayAdminSection } from '../components/dashboard/ManufacturersDisplayAdminSection';
+import { BrandsAdminSection } from '../components/dashboard/BrandsAdminSection';
+import { ModelsAdminSection } from '../components/dashboard/ModelsAdminSection';
+import { TagsAdminSection } from '../components/dashboard/TagsAdminSection';
 import { HomepageAdminSection } from '../components/dashboard/HomepageAdminSection';
 import { OrdersAdminSection } from '../components/dashboard/OrdersAdminSection';
 import { NavigationAdminSection } from '../components/dashboard/NavigationAdminSection';
@@ -356,8 +359,9 @@ export const AdminDashboardPage: React.FC = () => {
   const [featureForm, setFeatureForm] = useState<FeatureFormState>(() => emptyFeatureForm('feature'));
 
   const [homepageSection, setHomepageSection] = useState<'hero' | 'featured' | 'categorydisplay' | 'manufacturers'>('hero');
-  const [categoriesSection, setCategoriesSection] = useState<'categories' | 'manufacturers'>('categories');
+  const [catalogSection, setCatalogSection] = useState<'categories' | 'manufacturers' | 'brands' | 'models' | 'tags'>('categories');
   const [navigationSection, setNavigationSection] = useState<'topnav' | 'sections' | 'quicklinks' | 'visible'>('topnav');
+  const [productsView, setProductsView] = useState<'all' | 'add'>('all');
   const [activeFeatureTab, setActiveFeatureTab] = useState<'feature' | 'tile'>('feature');
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>(null);
   const [orderConflict, setOrderConflict] = useState<OrderConflictState>(null);
@@ -961,9 +965,11 @@ export const AdminDashboardPage: React.FC = () => {
       await productsApi.delete(id);
       await refreshProducts();
       setStatus('Product deleted');
+      setDeleteConfirmation(null);
     } catch (err) {
       console.error(err);
       setStatus(null, err instanceof Error ? err.message : 'Unable to delete product');
+      setDeleteConfirmation(null);
     }
   };
 
@@ -1363,22 +1369,27 @@ export const AdminDashboardPage: React.FC = () => {
           };
         }
         if (tab.id === 'categories') {
-          const activeCategoriesLabel =
-            categoriesSection === 'manufacturers' ? 'Manufacturers' : 'Categories';
+          const activeCatalogLabel =
+            catalogSection === 'manufacturers' ? 'Manufacturers' :
+            catalogSection === 'brands' ? 'Brands' :
+            catalogSection === 'models' ? 'Models' :
+            catalogSection === 'tags' ? 'Tags' : 'Categories';
           return {
             id: tab.id,
             label: tab.label,
             icon: getMenuIcon(tab.id),
             dropdown: {
               items: [
-                { id: 'manage-categories', label: 'Categories', separatorAfter: true },
-                { id: 'manage-manufacturers', label: 'Manufacturers' },
+                { id: 'categories', label: 'Categories' },
+                { id: 'manufacturers', label: 'Manufacturers' },
+                { id: 'brands', label: 'Brands' },
+                { id: 'models', label: 'Models' },
+                { id: 'tags', label: 'Tags' },
               ],
-              activeId: activeTab === 'categories'
-                ? (categoriesSection === 'manufacturers' ? 'manage-manufacturers' : 'manage-categories')
-                : undefined,
+              activeId: activeTab === 'categories' ? catalogSection : undefined,
+              groupLabel: 'Catalog',
             },
-            activeLabel: activeTab === 'categories' ? activeCategoriesLabel : undefined,
+            activeLabel: activeTab === 'categories' ? activeCatalogLabel : undefined,
           };
         }
         if (tab.id === 'navigation') {
@@ -1402,13 +1413,29 @@ export const AdminDashboardPage: React.FC = () => {
             activeLabel: activeTab === 'navigation' ? activeNavigationLabel : undefined,
           };
         }
+        if (tab.id === 'products') {
+          const activeProductsLabel = productsView === 'add' ? 'Add Product' : 'All Products';
+          return {
+            id: tab.id,
+            label: tab.label,
+            icon: getMenuIcon(tab.id),
+            dropdown: {
+              items: [
+                { id: 'all', label: 'All Products' },
+                { id: 'add', label: 'Add Product' },
+              ],
+              activeId: activeTab === 'products' ? productsView : undefined,
+            },
+            activeLabel: activeTab === 'products' ? activeProductsLabel : undefined,
+          };
+        }
         return {
           id: tab.id,
           label: tab.label,
           icon: getMenuIcon(tab.id),
         };
       }),
-    [homepageSection, navigationSection, activeTab, categoriesSection, usersSection]
+    [homepageSection, navigationSection, activeTab, catalogSection, usersSection, productsView]
   );
 
   const handleTopNavSelect = (id: string, dropdownId?: string) => {
@@ -1428,10 +1455,8 @@ export const AdminDashboardPage: React.FC = () => {
     }
 
     if (id === 'categories') {
-      if (dropdownId === 'manage-categories') {
-        setCategoriesSection('categories');
-      } else if (dropdownId === 'manage-manufacturers') {
-        setCategoriesSection('manufacturers');
+      if (dropdownId === 'categories' || dropdownId === 'manufacturers' || dropdownId === 'brands' || dropdownId === 'models' || dropdownId === 'tags') {
+        setCatalogSection(dropdownId);
       }
       setActiveTab('categories');
       return;
@@ -1442,6 +1467,14 @@ export const AdminDashboardPage: React.FC = () => {
         setNavigationSection(dropdownId);
       }
       setActiveTab('navigation');
+      return;
+    }
+
+    if (id === 'products') {
+      if (dropdownId === 'all' || dropdownId === 'add') {
+        setProductsView(dropdownId);
+      }
+      setActiveTab('products');
       return;
     }
 
@@ -1500,7 +1533,7 @@ export const AdminDashboardPage: React.FC = () => {
             </motion.div>
           )}
 
-          {activeTab === 'categories' && categoriesSection === 'categories' && (
+          {activeTab === 'categories' && catalogSection === 'categories' && (
             <motion.div
               key="categories"
               initial={{ opacity: 0, y: 20 }}
@@ -1529,7 +1562,7 @@ export const AdminDashboardPage: React.FC = () => {
               />
             </motion.div>
           )}
-          {activeTab === 'categories' && categoriesSection === 'manufacturers' && (
+          {activeTab === 'categories' && catalogSection === 'manufacturers' && (
             <motion.div
               key="manufacturers-manage"
               initial={{ opacity: 0, y: 20 }}
@@ -1538,6 +1571,54 @@ export const AdminDashboardPage: React.FC = () => {
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
               <ManufacturersAdminSection
+                onOrderConflict={(order, existingTitle, onConfirm) =>
+                  setOrderConflict({ type: 'featured', order, existingTitle, onConfirm })
+                }
+                setStatus={setStatus}
+              />
+            </motion.div>
+          )}
+          {activeTab === 'categories' && catalogSection === 'brands' && (
+            <motion.div
+              key="brands-manage"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <BrandsAdminSection
+                onOrderConflict={(order, existingTitle, onConfirm) =>
+                  setOrderConflict({ type: 'featured', order, existingTitle, onConfirm })
+                }
+                setStatus={setStatus}
+              />
+            </motion.div>
+          )}
+          {activeTab === 'categories' && catalogSection === 'models' && (
+            <motion.div
+              key="models-manage"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <ModelsAdminSection
+                onOrderConflict={(order, existingTitle, onConfirm) =>
+                  setOrderConflict({ type: 'featured', order, existingTitle, onConfirm })
+                }
+                setStatus={setStatus}
+              />
+            </motion.div>
+          )}
+          {activeTab === 'categories' && catalogSection === 'tags' && (
+            <motion.div
+              key="tags-manage"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <TagsAdminSection
                 onOrderConflict={(order, existingTitle, onConfirm) =>
                   setOrderConflict({ type: 'featured', order, existingTitle, onConfirm })
                 }
@@ -1563,8 +1644,13 @@ export const AdminDashboardPage: React.FC = () => {
                 form={productForm}
                 setForm={setProductForm}
                 onSubmit={handleProductSubmit}
-                onDelete={deleteProduct}
+                onDelete={(id) => {
+                  setDeleteConfirmation({ type: 'product', id });
+                  return Promise.resolve();
+                }}
                 productTags={productTags}
+                view={productsView}
+                onViewChange={setProductsView}
                 manufacturers={manufacturers}
               />
             </motion.div>
@@ -1747,6 +1833,7 @@ export const AdminDashboardPage: React.FC = () => {
                   {deleteConfirmation.type === 'hero' && 'Are you sure you want to delete this hero slide?'}
                   {deleteConfirmation.type === 'featured' && 'Are you sure you want to delete this featured item?'}
                   {deleteConfirmation.type === 'category' && 'Are you sure you want to delete this category?'}
+                  {deleteConfirmation.type === 'product' && 'Are you sure you want to delete this product?'}
                   {(deleteConfirmation.type === 'menu-section' || deleteConfirmation.type === 'menu-link') && 'Remove this item from navigation?'}
                 </p>
                 <p className="mt-2 text-sm font-semibold text-red-600">⚠️ This is a hard delete and cannot be recovered.</p>
@@ -1770,6 +1857,8 @@ export const AdminDashboardPage: React.FC = () => {
                     void deleteFeaturedItem(deleteConfirmation.id);
                   } else if (t === 'category') {
                     void deleteCategory(deleteConfirmation.id);
+                  } else if (t === 'product') {
+                    void deleteProduct(deleteConfirmation.id);
                   } else if (t === 'menu-section') {
                     const index = Number(deleteConfirmation.id);
                     setMenuSectionsDraft((current) => current.filter((_, i) => i !== index));
