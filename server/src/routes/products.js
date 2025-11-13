@@ -1,18 +1,47 @@
 const express = require('express');
+const multer = require('multer');
 const {
   listProducts,
   getProduct,
   createProduct,
   updateProduct,
   deleteProduct,
+  uploadProductImage,
 } = require('../controllers/productController');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { productImageUpload } = require('../middleware/upload');
+const { badRequest } = require('../utils/appError');
+
+const productImageLimitMb = Number(process.env.PRODUCT_IMAGE_UPLOAD_MAX_MB || 5);
 
 const router = express.Router();
+
+const handleProductImageUpload = (req, res, next) => {
+  productImageUpload.single('image')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return next(
+          badRequest('Product images are too large', [{ limitMb: productImageLimitMb }])
+        );
+      }
+      return next(badRequest('Product image upload failed', [{ code: err.code }]));
+    }
+    if (err) {
+      return next(err);
+    }
+    return uploadProductImage(req, res, next);
+  });
+};
 
 router.get('/', listProducts);
 router.get('/:id', getProduct);
 router.post('/', requireAuth, requireRole(['super_admin', 'admin', 'staff']), createProduct);
+router.post(
+  '/upload-image',
+  requireAuth,
+  requireRole(['super_admin', 'admin', 'staff']),
+  handleProductImageUpload
+);
 router.put('/:id', requireAuth, requireRole(['super_admin', 'admin', 'staff']), updateProduct);
 router.delete('/:id', requireAuth, requireRole(['super_admin', 'admin']), deleteProduct);
 

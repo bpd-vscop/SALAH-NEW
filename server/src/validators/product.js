@@ -1,4 +1,4 @@
-﻿const { z } = require('zod');
+const { z } = require('zod');
 const mongoose = require('mongoose');
 const { parseWithSchema } = require('./index');
 const Product = require('../models/Product');
@@ -14,6 +14,13 @@ const objectId = z
   .refine((val) => mongoose.Types.ObjectId.isValid(val), 'Invalid identifier');
 
 const urlSchema = z.string().url();
+const uploadsPathSchema = z
+  .string()
+  .min(1)
+  .refine((value) => value.startsWith('/uploads/'), {
+    message: 'Upload paths must start with /uploads/',
+  });
+const imageUrlSchema = z.union([urlSchema, uploadsPathSchema]);
 const isYouTubeUrl = (value) => {
   try {
     const parsed = new URL(value);
@@ -69,7 +76,7 @@ const variationSchema = z.object({
   salePrice: z.number().min(0).nullable().optional(),
   stockQuantity: z.number().int().min(0).optional(),
   allowBackorder: z.boolean().optional(),
-  image: urlSchema.optional(),
+  image: imageUrlSchema.optional(),
   weight: z.number().min(0).optional(),
 });
 
@@ -129,7 +136,7 @@ const seoSchema = z
     metaTitle: z.string().min(1).max(150).optional(),
     metaDescription: z.string().min(1).max(320).optional(),
     canonicalUrl: urlSchema.optional(),
-    openGraphImage: urlSchema.optional(),
+    openGraphImage: imageUrlSchema.optional(),
   })
   .strict();
 
@@ -155,7 +162,7 @@ const baseFields = {
   shortDescription: z.string().max(1200).optional(),
   description: z.string().max(10000).optional(),
   featureHighlights: z.array(optionalString(200)).max(20).optional(),
-  images: z.array(urlSchema).max(20).optional(),
+  images: z.array(imageUrlSchema).max(20).optional(),
   videoUrls: z.array(youtubeUrlSchema).max(10).optional(),
   price: z.number().min(0).optional(),
   salePrice: z.number().min(0).nullable().optional(),

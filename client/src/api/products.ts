@@ -1,4 +1,4 @@
-﻿import { http } from './http';
+import { http } from './http';
 import type {
   Product,
   ProductBadge,
@@ -83,5 +83,11 @@ export const productsApi = {
   get: (id: string) => http.get<{ product: Product }>(`/products/${id}`),
   create: (payload: ProductInput) => http.post<{ product: Product }>('/products', payload),
   update: (id: string, payload: UpdateProductInput) => http.put<{ product: Product }>(`/products/${id}`, payload),
+  uploadImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await http.post<{ data: { path: string } }>('/products/upload-image', formData);
+    return response.data.path;
+  },
   delete: (id: string) => http.delete<void>(`/products/${id}`),
 };

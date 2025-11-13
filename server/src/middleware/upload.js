@@ -1,4 +1,4 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { badRequest } = require('../utils/appError');
@@ -16,6 +16,7 @@ if (!fs.existsSync(profileDir)) {
 
 const verificationAllowedMimeTypes = ['application/pdf', 'image/png', 'image/jpeg'];
 const profileAllowedMimeTypes = ['image/png', 'image/jpeg', 'image/webp'];
+const productImageAllowedMimeTypes = ['image/png', 'image/jpeg', 'image/webp'];
 
 const verificationStorage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -53,8 +54,16 @@ const profileFileFilter = (_req, file, cb) => {
   cb(null, true);
 };
 
+const productImageFileFilter = (_req, file, cb) => {
+  if (!productImageAllowedMimeTypes.includes(file.mimetype)) {
+    return cb(badRequest('Invalid product image type', [{ allowed: productImageAllowedMimeTypes }]));
+  }
+  cb(null, true);
+};
+
 const verificationMaxFileSize = Number(process.env.UPLOAD_MAX_MB || 10) * 1024 * 1024;
 const profileMaxFileSize = Number(process.env.PROFILE_UPLOAD_MAX_MB || 5) * 1024 * 1024;
+const productImageMaxFileSize = Number(process.env.PRODUCT_IMAGE_UPLOAD_MAX_MB || 5) * 1024 * 1024;
 
 const verificationUpload = multer({
   storage: verificationStorage,
@@ -68,7 +77,14 @@ const profileUpload = multer({
   limits: { fileSize: profileMaxFileSize },
 });
 
+const productImageUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: productImageFileFilter,
+  limits: { fileSize: productImageMaxFileSize },
+});
+
 module.exports = {
   verificationUpload,
   profileUpload,
+  productImageUpload,
 };

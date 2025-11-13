@@ -1,8 +1,9 @@
-﻿const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const { validateCreateProduct, validateUpdateProduct } = require('../validators/product');
 const { notFound, badRequest } = require('../utils/appError');
+const { saveProductImage, ImageOptimizationError } = require('../services/productImageService');
 
 const sanitizeVariations = (variations) =>
   Array.isArray(variations)
@@ -202,10 +203,29 @@ const deleteProduct = async (req, res, next) => {
   }
 };
 
+const uploadProductImage = async (req, res, next) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      throw badRequest('No product image provided');
+    }
+
+    const relativePath = await saveProductImage(req.file.buffer);
+
+    res.status(201).json({ data: { path: relativePath } });
+  } catch (error) {
+    if (error instanceof ImageOptimizationError) {
+      next(badRequest(error.message));
+      return;
+    }
+    next(error);
+  }
+};
+
 module.exports = {
   listProducts,
   getProduct,
   createProduct,
   updateProduct,
   deleteProduct,
+  uploadProductImage,
 };

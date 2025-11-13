@@ -1,6 +1,7 @@
-import { useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
+import { useState, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import { formatCurrency } from '../../utils/format';
 import { cn } from '../../utils/cn';
+import { productsApi } from '../../api/products';
 import type {
   Category,
   Product,
@@ -40,6 +41,27 @@ const visibilityOptions: ProductVisibility[] = ['catalog', 'search', 'hidden', '
 const inventoryStatuses: ProductInventoryStatus[] = ['in_stock', 'low_stock', 'out_of_stock', 'backorder', 'preorder'];
 const reviewRatingDefaults = ['5', '4', '3', '2', '1'];
 
+const PRODUCT_IMAGE_ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const MAX_PRODUCT_IMAGE_SIZE_BYTES = 3 * 1024 * 1024;
+const MAX_PRODUCT_IMAGE_SIZE_MB = 3;
+const MAX_PRODUCT_IMAGES = 5;
+
+const normalizeImageSrc = (value: string) => {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('data:')
+  ) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/uploads')) {
+    return trimmed;
+  }
+  return `/uploads/${trimmed.replace(/^\/+/, '')}`;
+};
+
 const makeId = () => Math.random().toString(36).slice(2, 10);
 
 const FormPanel: React.FC<{ title: string; description?: string; children: React.ReactNode }> = ({
@@ -75,6 +97,9 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'oldest' | 'a-z' | 'z-a' | 'price-low' | 'price-high'>('recent');
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const [imageUploadWarnings, setImageUploadWarnings] = useState<string[]>([]);
 
   const toggleProductSelection = (productId: string) => {
     setSelectedProducts((prev) => {
@@ -86,6 +111,97 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
       }
       return next;
     });
+  };
+
+  const handleProductImagesSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    if (!files.length) {
+      return;
+    }
+
+    const warnings: string[] = [];
+    const currentCount = form.images.length;
+    const remainingSlots = Math.max(0, MAX_PRODUCT_IMAGES - currentCount);
+
+    if (remainingSlots <= 0) {
+      setImageUploadWarnings([
+        `You can upload up to ${MAX_PRODUCT_IMAGES} images. Remove one to add a new image.`,
+      ]);
+      setImageUploadError(null);
+      return;
+    }
+
+    const acceptedFiles: File[] = [];
+    files.forEach((file) => {
+      if (acceptedFiles.length >= remainingSlots) {
+        warnings.push(`${file.name} was skipped. Only ${MAX_PRODUCT_IMAGES} images are allowed per product.`);
+        return;
+      }
+      if (!PRODUCT_IMAGE_ALLOWED_TYPES.includes(file.type)) {
+        warnings.push(`${file.name} must be a JPEG, PNG, or WebP image.`);
+        return;
+      }
+      if (file.size > MAX_PRODUCT_IMAGE_SIZE_BYTES) {
+        warnings.push(`${file.name} must be ${MAX_PRODUCT_IMAGE_SIZE_MB} MB or smaller.`);
+        return;
+      }
+      acceptedFiles.push(file);
+    });
+
+    if (!acceptedFiles.length) {
+      setImageUploadWarnings(warnings.length ? warnings : ['No valid images selected.']);
+      setImageUploadError(null);
+      return;
+    }
+
+    setIsUploadingImages(true);
+    setImageUploadError(null);
+    setImageUploadWarnings(warnings);
+
+    try {
+      const uploadedPaths: string[] = [];
+      for (const file of acceptedFiles) {
+        const path = await productsApi.uploadImage(file);
+        uploadedPaths.push(path);
+      }
+
+      if (uploadedPaths.length) {
+        setForm((state) => {
+          const next = [...state.images, ...uploadedPaths]
+            .map((value) => value.trim())
+            .filter(Boolean);
+          const deduped: string[] = [];
+          const seen = new Set<string>();
+          next.forEach((value) => {
+            if (seen.has(value)) {
+              return;
+            }
+            seen.add(value);
+            deduped.push(value);
+          });
+          return { ...state, images: deduped.slice(0, MAX_PRODUCT_IMAGES) };
+        });
+      }
+    } catch (error) {
+      console.error('Failed to upload product images', error);
+      setImageUploadError('Unable to upload product images. Please try again.');
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
+
+  const removeImageAtIndex = (index: number) => {
+    setForm((state) => ({
+      ...state,
+      images: state.images.filter((_, idx) => idx !== index),
+    }));
+  };
+
+  const clearAllImages = () => {
+    setForm((state) => ({ ...state, images: [] }));
+    setImageUploadWarnings([]);
+    setImageUploadError(null);
   };
 
   const toggleSelectAll = () => {
@@ -1253,24 +1369,71 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
                 </div>
               ))}
             </div>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Images (one per line)
-              <textarea
-                value={form.images.join('\n')}
-                onChange={(event) =>
-                  setForm((state) => ({
-                    ...state,
-                    images: event.target.value
-                      .split(/\n+/)
-                      .map((url) => url.trim())
-                      .filter(Boolean),
-                  }))
-                }
-                rows={3}
-                placeholder="https://example.com/image.jpg"
-                className="rounded-xl border border-border bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
+            <div className="space-y-2 text-sm text-slate-600">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>Product images</span>
+                {form.images.length ? (
+                  <button
+                    type="button"
+                    onClick={clearAllImages}
+                    disabled={isUploadingImages}
+                    className="text-xs font-semibold text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-slate-400"
+                  >
+                    Remove all
+                  </button>
+                ) : null}
+              </div>
+              <p className="text-xs text-muted">
+                Upload JPEG, PNG, or WebP files up to {MAX_PRODUCT_IMAGE_SIZE_MB} MB each (max {MAX_PRODUCT_IMAGES} images).
+                Images are optimized and converted to WebP automatically.
+              </p>
+              <label className="flex flex-col gap-2">
+                <input
+                  type="file"
+                  accept={PRODUCT_IMAGE_ALLOWED_TYPES.join(',')}
+                  multiple
+                  onChange={handleProductImagesSelect}
+                  disabled={isUploadingImages || form.images.length >= MAX_PRODUCT_IMAGES}
+                  className="cursor-pointer rounded-xl border border-dashed border-border bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-75"
+                />
+              </label>
+              {isUploadingImages && <p className="text-xs text-primary">Uploading images...</p>}
+              {imageUploadError && <p className="text-xs text-red-600">{imageUploadError}</p>}
+              {imageUploadWarnings.length > 0 && (
+                <ul className="list-disc space-y-1 pl-4 text-xs text-amber-600">
+                  {imageUploadWarnings.map((warning, index) => (
+                    <li key={`${warning}-${index}`}>{warning}</li>
+                  ))}
+                </ul>
+              )}
+              {form.images.length ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {form.images.map((image, index) => (
+                    <div
+                      key={`${image}-${index}`}
+                      className="group relative overflow-hidden rounded-xl border border-border bg-white shadow-sm"
+                    >
+                      <img
+                        src={normalizeImageSrc(image)}
+                        alt={`Product image ${index + 1}`}
+                        className="h-40 w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImageAtIndex(index)}
+                        className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-white"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted">
+                  No images uploaded yet. Add at least one image so the product listing has a thumbnail.
+                </p>
+              )}
+            </div>
             <label className="flex flex-col gap-2 text-sm text-slate-600">
               Video URLs
               <textarea
