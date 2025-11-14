@@ -196,7 +196,8 @@ const createEmptyProductForm = (): ProductFormState => ({
   taxClass: '',
   featureHighlights: [],
   tags: new Set<ProductTag>(),
-  images: [],
+  primaryImage: '',
+  galleryImages: [],
   videoUrls: [],
   packageContents: [],
   specifications: [],
@@ -273,7 +274,8 @@ const mapProductToForm = (product: Product): ProductFormState => ({
   taxClass: product.taxClass ?? '',
   featureHighlights: [...(product.featureHighlights ?? [])],
   tags: new Set(product.tags ?? []),
-  images: [...(product.images ?? [])],
+  primaryImage: product.images?.[0] ?? '',
+  galleryImages: [...(product.images?.slice(1) ?? [])],
   videoUrls: [...(product.videoUrls ?? [])],
   packageContents: [...(product.packageContents ?? [])],
   specifications: (product.specifications ?? []).map((spec) => ({
@@ -921,6 +923,22 @@ export const AdminDashboardPage: React.FC = () => {
         normalizedVideoUrls.push(normalized);
       }
 
+      const normalizedPrimaryImage = productForm.primaryImage.trim();
+      const normalizedGalleryImages = cleanStringArray(productForm.galleryImages);
+      const imageSet = new Set<string>();
+      const imagesPayload: string[] = [];
+      if (normalizedPrimaryImage) {
+        imageSet.add(normalizedPrimaryImage);
+        imagesPayload.push(normalizedPrimaryImage);
+      }
+      normalizedGalleryImages.forEach((image) => {
+        if (imageSet.has(image)) {
+          return;
+        }
+        imageSet.add(image);
+        imagesPayload.push(image);
+      });
+
       const payload = {
         name: productForm.name.trim(),
         slug: productForm.slug.trim() || undefined,
@@ -957,7 +975,7 @@ export const AdminDashboardPage: React.FC = () => {
         taxClass: productForm.taxClass.trim() || undefined,
         tags: Array.from(productForm.tags),
         featureHighlights: cleanStringArray(productForm.featureHighlights),
-        images: cleanStringArray(productForm.images),
+        images: imagesPayload,
         packageContents: cleanStringArray(productForm.packageContents),
         specifications: specificationPayload,
         attributes: rowsToRecord(productForm.attributes),

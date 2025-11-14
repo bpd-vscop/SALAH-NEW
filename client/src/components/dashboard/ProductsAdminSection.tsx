@@ -100,6 +100,34 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [imageUploadWarnings, setImageUploadWarnings] = useState<string[]>([]);
+  const [uploadingTarget, setUploadingTarget] = useState<'main' | 'thumbnails' | null>(null);
+  const UploadingIndicator: React.FC<{ target: 'main' | 'thumbnails' }> = ({ target }) =>
+    uploadingTarget === target ? (
+      <span
+        role="status"
+        className="pointer-events-none absolute right-4 top-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-2 py-1 text-xs font-semibold text-primary shadow-sm"
+      >
+        <svg
+          className="h-4 w-4 animate-spin text-primary"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+          <path
+            className="opacity-80"
+            d="M4 12a8 8 0 0 1 8-8"
+            stroke="currentColor"
+            strokeWidth="4"
+            strokeLinecap="round"
+            fill="none"
+          />
+        </svg>
+        Uploading...
+      </span>
+    ) : null;
+  const mainProductImage = form.primaryImage?.trim() ?? '';
+  const thumbnailImages = form.galleryImages ?? [];
+  const totalImagesCount = (mainProductImage ? 1 : 0) + thumbnailImages.length;
 
   const toggleProductSelection = (productId: string) => {
     setSelectedProducts((prev) => {
@@ -113,7 +141,64 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     });
   };
 
-  const handleProductImagesSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleMainImageSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    if (!files.length) {
+      return;
+    }
+
+    const file = files[0];
+    const warnings: string[] = [];
+
+    if (files.length > 1) {
+      warnings.push('Only the first selected file was used for the main image.');
+    }
+    if (!PRODUCT_IMAGE_ALLOWED_TYPES.includes(file.type)) {
+      warnings.push(`${file.name} must be a JPEG, PNG, or WebP image.`);
+    }
+    if (file.size > MAX_PRODUCT_IMAGE_SIZE_BYTES) {
+      warnings.push(`${file.name} must be ${MAX_PRODUCT_IMAGE_SIZE_MB} MB or smaller.`);
+    }
+
+    const hasBlockingWarning = warnings.some((message) => message.includes('must be'));
+    if (hasBlockingWarning) {
+      setImageUploadWarnings(warnings);
+      setImageUploadError(null);
+      return;
+    }
+
+    setIsUploadingImages(true);
+    setUploadingTarget('main');
+    setImageUploadError(null);
+    setImageUploadWarnings(warnings);
+
+    try {
+      const path = await productsApi.uploadImage(file);
+      const normalizedPath = path.trim();
+      if (!normalizedPath) {
+        return;
+      }
+
+      setForm((state) => {
+        const filteredGallery = state.galleryImages.filter((value) => value !== normalizedPath);
+        const maxThumbnails = Math.max(0, MAX_PRODUCT_IMAGES - 1);
+        return {
+          ...state,
+          primaryImage: normalizedPath,
+          galleryImages: filteredGallery.slice(0, maxThumbnails),
+        };
+      });
+    } catch (error) {
+      console.error('Failed to upload main product image', error);
+      setImageUploadError('Unable to upload product images. Please try again.');
+    } finally {
+      setIsUploadingImages(false);
+      setUploadingTarget(null);
+    }
+  };
+
+  const handleThumbnailImagesSelect = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
     if (!files.length) {
@@ -121,7 +206,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     }
 
     const warnings: string[] = [];
-    const currentCount = form.images.length;
+    const currentCount = totalImagesCount;
     const remainingSlots = Math.max(0, MAX_PRODUCT_IMAGES - currentCount);
 
     if (remainingSlots <= 0) {
@@ -156,6 +241,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     }
 
     setIsUploadingImages(true);
+    setUploadingTarget('thumbnails');
     setImageUploadError(null);
     setImageUploadWarnings(warnings);
 
@@ -168,19 +254,21 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
 
       if (uploadedPaths.length) {
         setForm((state) => {
-          const next = [...state.images, ...uploadedPaths]
+          const normalizedPrimary = state.primaryImage.trim();
+          const maxThumbnails = MAX_PRODUCT_IMAGES - (normalizedPrimary ? 1 : 0);
+          const combined = [...state.galleryImages, ...uploadedPaths]
             .map((value) => value.trim())
             .filter(Boolean);
           const deduped: string[] = [];
-          const seen = new Set<string>();
-          next.forEach((value) => {
+          const seen = new Set<string>(normalizedPrimary ? [normalizedPrimary] : []);
+          combined.forEach((value) => {
             if (seen.has(value)) {
               return;
             }
             seen.add(value);
             deduped.push(value);
           });
-          return { ...state, images: deduped.slice(0, MAX_PRODUCT_IMAGES) };
+          return { ...state, galleryImages: deduped.slice(0, Math.max(0, maxThumbnails)) };
         });
       }
     } catch (error) {
@@ -188,18 +276,31 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
       setImageUploadError('Unable to upload product images. Please try again.');
     } finally {
       setIsUploadingImages(false);
+      setUploadingTarget(null);
     }
   };
 
-  const removeImageAtIndex = (index: number) => {
+  const removeThumbnailAtIndex = (index: number) => {
     setForm((state) => ({
       ...state,
-      images: state.images.filter((_, idx) => idx !== index),
+      galleryImages: state.galleryImages.filter((_, idx) => idx !== index),
     }));
   };
 
   const clearAllImages = () => {
-    setForm((state) => ({ ...state, images: [] }));
+    setForm((state) => ({ ...state, primaryImage: '', galleryImages: [] }));
+    setImageUploadWarnings([]);
+    setImageUploadError(null);
+  };
+
+  const removeMainImage = () => {
+    setForm((state) => ({ ...state, primaryImage: '' }));
+    setImageUploadWarnings([]);
+    setImageUploadError(null);
+  };
+
+  const clearThumbnailImages = () => {
+    setForm((state) => ({ ...state, galleryImages: [] }));
     setImageUploadWarnings([]);
     setImageUploadError(null);
   };
@@ -1369,10 +1470,10 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
                 </div>
               ))}
             </div>
-            <div className="space-y-2 text-sm text-slate-600">
+            <div className="space-y-4 text-sm text-slate-600">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>Product images</span>
-                {form.images.length ? (
+                {totalImagesCount ? (
                   <button
                     type="button"
                     onClick={clearAllImages}
@@ -1383,20 +1484,100 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
                   </button>
                 ) : null}
               </div>
-              <p className="text-xs text-muted">
-                Upload JPEG, PNG, or WebP files up to {MAX_PRODUCT_IMAGE_SIZE_MB} MB each (max {MAX_PRODUCT_IMAGES} images).
-                Images are optimized and converted to WebP automatically.
-              </p>
-              <label className="flex flex-col gap-2">
-                <input
-                  type="file"
-                  accept={PRODUCT_IMAGE_ALLOWED_TYPES.join(',')}
-                  multiple
-                  onChange={handleProductImagesSelect}
-                  disabled={isUploadingImages || form.images.length >= MAX_PRODUCT_IMAGES}
-                  className="cursor-pointer rounded-xl border border-dashed border-border bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-75"
-                />
-              </label>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="space-y-3 rounded-2xl border border-border bg-white/70 p-4">
+                  <div className="flex items-center justify-between text-sm font-medium text-slate-700">
+                    <span>Main image</span>
+                    {mainProductImage ? (
+                      <button
+                        type="button"
+                        onClick={removeMainImage}
+                        disabled={isUploadingImages}
+                        className="text-xs font-semibold text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-slate-400"
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                  <label className="relative flex flex-col gap-2">
+                    <input
+                      type="file"
+                      accept={PRODUCT_IMAGE_ALLOWED_TYPES.join(',')}
+                      onChange={handleMainImageSelect}
+                      disabled={isUploadingImages}
+                      className="cursor-pointer rounded-xl border border-dashed border-border bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-75"
+                    />
+                    <UploadingIndicator target="main" />
+                  </label>
+                  {mainProductImage ? (
+                    <div className="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
+                      <img
+                        src={normalizeImageSrc(mainProductImage)}
+                        alt="Main product image"
+                        className="h-44 w-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted">
+                      Choose a primary image that will be used for listings and featured placements.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span>Thumbnail images</span>
+                    {thumbnailImages.length ? (
+                      <button
+                        type="button"
+                        onClick={clearThumbnailImages}
+                        disabled={isUploadingImages}
+                        className="text-xs font-semibold text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-slate-400"
+                      >
+                        Remove thumbnails
+                      </button>
+                    ) : null}
+                  </div>
+                  <label className="relative flex flex-col gap-2">
+                    <input
+                      type="file"
+                      accept={PRODUCT_IMAGE_ALLOWED_TYPES.join(',')}
+                      multiple
+                      onChange={handleThumbnailImagesSelect}
+                      disabled={isUploadingImages || totalImagesCount >= MAX_PRODUCT_IMAGES}
+                      className="cursor-pointer rounded-xl border border-dashed border-border bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-75"
+                    />
+                    <UploadingIndicator target="thumbnails" />
+                  </label>
+                  {thumbnailImages.length ? (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {thumbnailImages.map((image, index) => (
+                        <div
+                          key={`${image}-${index}`}
+                          className="group relative overflow-hidden rounded-xl border border-border bg-white shadow-sm"
+                        >
+                          <img
+                            src={normalizeImageSrc(image)}
+                            alt={`Thumbnail image ${index + 1}`}
+                            className="h-36 w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeThumbnailAtIndex(index)}
+                            className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-white"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted">Add supporting images for the gallery and marketing placements.</p>
+                  )}
+                </div>
+              </div>
+
               {isUploadingImages && <p className="text-xs text-primary">Uploading images...</p>}
               {imageUploadError && <p className="text-xs text-red-600">{imageUploadError}</p>}
               {imageUploadWarnings.length > 0 && (
@@ -1405,33 +1586,6 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
                     <li key={`${warning}-${index}`}>{warning}</li>
                   ))}
                 </ul>
-              )}
-              {form.images.length ? (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {form.images.map((image, index) => (
-                    <div
-                      key={`${image}-${index}`}
-                      className="group relative overflow-hidden rounded-xl border border-border bg-white shadow-sm"
-                    >
-                      <img
-                        src={normalizeImageSrc(image)}
-                        alt={`Product image ${index + 1}`}
-                        className="h-40 w-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeImageAtIndex(index)}
-                        className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-white"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted">
-                  No images uploaded yet. Add at least one image so the product listing has a thumbnail.
-                </p>
               )}
             </div>
             <label className="flex flex-col gap-2 text-sm text-slate-600">

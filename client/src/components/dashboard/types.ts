@@ -101,7 +101,8 @@ export interface ProductFormState {
   taxClass: string;
   featureHighlights: string[];
   tags: Set<ProductTag>;
-  images: string[];
+  primaryImage: string;
+  galleryImages: string[];
   videoUrls: string[];
   packageContents: string[];
   specifications: ProductKeyValueRow[];
