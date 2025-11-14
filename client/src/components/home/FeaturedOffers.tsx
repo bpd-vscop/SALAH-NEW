@@ -19,7 +19,7 @@ export const FeaturedOffers: React.FC = () => {
           setProducts(data.slice(0, 4));
         }
       } catch (error) {
-        console.error('Failed to load featured offers', error);
+        console.error('Failed to load featured products', error);
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -39,10 +39,7 @@ export const FeaturedOffers: React.FC = () => {
       <section className="mx-auto mb-12 w-[88%]">
         <div className="space-y-6">
           <div className="space-y-2">
-            <h2 className="text-3xl font-bold text-slate-900">Featured Offers</h2>
-            <p className="text-sm text-muted">
-              Take advantage of current promotions and bundle pricing.
-            </p>
+            <h2 className="text-3xl font-bold text-slate-900">Featured Products</h2>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
@@ -65,10 +62,7 @@ export const FeaturedOffers: React.FC = () => {
     <section className="mx-auto mb-12 w-[88%]">
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="text-3xl font-bold text-slate-900">Featured Offers</h2>
-          <p className="text-sm text-muted">
-            Take advantage of current promotions and bundle pricing.
-          </p>
+          <h2 className="text-3xl font-bold text-slate-900">Featured Products</h2>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {products.map((product) => (
