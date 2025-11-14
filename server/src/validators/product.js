@@ -156,7 +156,7 @@ const baseFields = {
   status: productStatusEnum.optional(),
   visibility: visibilityEnum.optional(),
   categoryId: objectId,
-  manufacturerId: objectId.optional(),
+  manufacturerId: objectId.nullable().optional(),
   manufacturerName: z.string().min(1).max(200).optional(),
   tags: z.array(tagsEnum).optional(),
   shortDescription: z.string().max(1200).optional(),

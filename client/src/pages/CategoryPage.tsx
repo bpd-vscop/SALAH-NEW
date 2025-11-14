@@ -4,9 +4,8 @@ import { categoriesApi } from '../api/categories';
 import { productsApi } from '../api/products';
 import type { Category, Product } from '../types/api';
 import { SiteLayout } from '../components/layout/SiteLayout';
-import { useCart } from '../context/CartContext';
-import { formatCurrency } from '../utils/format';
 import { CategoryGrid } from '../components/home/CategoryGrid';
+import { ProductCard } from '../components/product/ProductCard';
 
 export const CategoryPage: React.FC = () => {
   const { categoryId } = useParams<{ categoryId: string }>();
@@ -16,7 +15,6 @@ export const CategoryPage: React.FC = () => {
   const [childCategories, setChildCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { addItem } = useCart();
 
   useEffect(() => {
     if (!categoryId) {
@@ -177,42 +175,9 @@ export const CategoryPage: React.FC = () => {
             {error}
           </div>
         ) : products.length ? (
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {products.map((product) => (
-              <article
-                key={product.id}
-                className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
-              >
-                <div className="relative aspect-[4/3] w-full overflow-hidden">
-                  <img
-                    src={product.images[0] ?? 'https://placehold.co/400x300?text=Product'}
-                    alt={product.name}
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="flex flex-1 flex-col gap-3 p-5">
-                  <div className="space-y-1">
-                    <h3 className="text-base font-semibold text-slate-900">{product.name}</h3>
-                    <p className="text-sm font-semibold text-primary">{formatCurrency(product.price ?? 0)}</p>
-                  </div>
-                  <div className="mt-auto flex flex-wrap gap-2">
-                    <Link
-                      to={`/products/${product.id}`}
-                      className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                    >
-                      View details
-                    </Link>
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20"
-                      onClick={() => addItem({ productId: product.id, quantity: 1 }, product)}
-                    >
-                      Add to cart
-                    </button>
-                  </div>
-                </div>
-              </article>
+              <ProductCard key={product.id} product={product} className="w-full" />
             ))}
           </div>
         ) : (

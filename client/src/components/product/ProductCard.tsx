@@ -2,12 +2,14 @@ import { Link } from 'react-router-dom';
 import type { Product } from '../../types/api';
 import { formatCurrency } from '../../utils/format';
 import { useCart } from '../../context/CartContext';
+import { cn } from '../../utils/cn';
 
 interface ProductCardProps {
   product: Product;
+  className?: string;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, className }) => {
   const { addItem } = useCart();
 
   const handleAddToCart = (event: React.MouseEvent) => {
@@ -22,7 +24,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   return (
     <Link
       to={`/products/${product.id}`}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all duration-300 hover:shadow-lg hover:border-primary"
+      className={cn(
+        'group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all duration-300 hover:shadow-lg hover:border-primary',
+        className
+      )}
     >
       {/* Add to Cart Icon - Top Right */}
       <button
