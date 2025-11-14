@@ -59,7 +59,11 @@ const rotatingIcons = [
   <Mail className="h-5 w-5" key="email" />
 ];
 
-export function ContactWidget() {
+interface ContactWidgetProps {
+  showBackToTop?: boolean;
+}
+
+export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeView, setActiveView] = useState<'none' | 'whatsapp' | 'email' | 'email-select'>('none');
   const [whatsappMessage, setWhatsappMessage] = useState('');
@@ -171,7 +175,18 @@ export function ContactWidget() {
   ];
 
   return (
-    <div className="fixed bottom-20 right-6 z-50" ref={widgetRef}>
+    <motion.div
+      className="fixed right-6 z-50"
+      ref={widgetRef}
+      initial={{ bottom: 24 }}
+      animate={{
+        bottom: showBackToTop ? 80 : 24
+      }}
+      transition={{
+        duration: 0.3,
+        ease: [0.25, 0.1, 0.25, 1]
+      }}
+    >
       <div className="relative flex items-center justify-end h-12">
         
         <motion.div
@@ -449,6 +464,6 @@ export function ContactWidget() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

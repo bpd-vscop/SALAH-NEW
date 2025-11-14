@@ -1,4 +1,4 @@
-import { useMemo, type FC, type ReactNode } from 'react';
+import { useMemo, useState, useEffect, type FC, type ReactNode } from 'react';
 import { ContactWidget } from '../common/ContactWidget';
 
 const corporateLinks = [
@@ -68,6 +68,27 @@ const MapPinIcon = ({ className }: { className?: string }) => (
 
 export const Footer: FC = () => {
   const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Show button when user scrolls down more than 300px
+      if (window.scrollY > 300) {
+        setShowBackToTop(true);
+      } else {
+        setShowBackToTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+
+    // Check initial scroll position
+    handleScroll();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   const handleBackToTop = () => {
     if (typeof window === 'undefined') {
@@ -258,26 +279,28 @@ export const Footer: FC = () => {
       </div>
 
       {/* Contact Widget */}
-      <ContactWidget />
+      <ContactWidget showBackToTop={showBackToTop} />
 
-      <button
-        type="button"
-        onClick={handleBackToTop}
-        className="fixed bottom-6 right-6 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-red-700 text-white shadow-lg transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-transparent"
-        aria-label="Back to top"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-5 w-5"
+      {showBackToTop && (
+        <button
+          type="button"
+          onClick={handleBackToTop}
+          className="fixed bottom-6 right-6 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-red-700 text-white shadow-lg transition-all duration-300 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-transparent animate-in fade-in slide-in-from-bottom-4"
+          aria-label="Back to top"
         >
-          <path d="M18 15l-6-6-6 6" />
-        </svg>
-      </button>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-5 w-5"
+          >
+            <path d="M18 15l-6-6-6 6" />
+          </svg>
+        </button>
+      )}
     </footer>
   );
 };
