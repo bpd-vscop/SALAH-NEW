@@ -101,6 +101,41 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [imageUploadWarnings, setImageUploadWarnings] = useState<string[]>([]);
   const [uploadingTarget, setUploadingTarget] = useState<'main' | 'thumbnails' | null>(null);
+
+  // Step navigation state
+  const [currentStep, setCurrentStep] = useState(0);
+
+  // Define steps for the form
+  const formSteps = [
+    { id: 'basics', title: 'Basic Info', description: 'Product details' },
+    { id: 'pricing', title: 'Pricing', description: 'Price & stock' },
+    { id: 'media', title: 'Media', description: 'Images & videos' },
+    { id: 'specs', title: 'Specifications', description: 'Technical details' },
+    { id: 'variations', title: 'Variations', description: 'Product variants' },
+    { id: 'compatibility', title: 'Compatibility', description: 'Fitment data' },
+    { id: 'logistics', title: 'Logistics', description: 'Shipping & support' },
+    { id: 'seo', title: 'SEO', description: 'Search optimization' },
+    { id: 'reviews', title: 'Reviews', description: 'Ratings & notes' },
+  ];
+
+  const goToNextStep = () => {
+    if (currentStep < formSteps.length - 1) {
+      setCurrentStep(currentStep + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const goToPreviousStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const goToStep = (stepIndex: number) => {
+    setCurrentStep(stepIndex);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   const UploadingIndicator: React.FC<{ target: 'main' | 'thumbnails' }> = ({ target }) =>
     uploadingTarget === target ? (
       <span
@@ -1081,6 +1116,76 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
       {/* Add Product View */}
       {view === 'add' && (
         <form className="flex flex-col gap-5 rounded-2xl border border-border bg-background p-6 shadow-sm" onSubmit={onSubmit}>
+          {/* Step Indicator */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-800">
+                {selectedProductId ? 'Edit Product' : 'Add New Product'}
+              </h2>
+              <span className="text-sm text-muted">
+                Step {currentStep + 1} of {formSteps.length}
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mb-6 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${((currentStep + 1) / formSteps.length) * 100}%` }}
+              />
+            </div>
+
+            {/* Step tabs */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {formSteps.map((step, index) => (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => goToStep(index)}
+                  className={cn(
+                    'flex min-w-[140px] flex-col items-center gap-1 rounded-lg border px-4 py-3 text-left transition-all',
+                    index === currentStep
+                      ? 'border-primary bg-primary/5 shadow-sm'
+                      : index < currentStep
+                      ? 'border-green-300 bg-green-50 hover:border-green-400'
+                      : 'border-border bg-white hover:border-primary/50'
+                  )}
+                >
+                  <div className="flex w-full items-center gap-2">
+                    <span
+                      className={cn(
+                        'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                        index === currentStep
+                          ? 'bg-primary text-white'
+                          : index < currentStep
+                          ? 'bg-green-500 text-white'
+                          : 'bg-slate-200 text-slate-600'
+                      )}
+                    >
+                      {index < currentStep ? '✓' : index + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className={cn(
+                          'text-sm font-semibold truncate',
+                          index === currentStep
+                            ? 'text-primary'
+                            : index < currentStep
+                            ? 'text-green-700'
+                            : 'text-slate-600'
+                        )}
+                      >
+                        {step.title}
+                      </div>
+                      <div className="text-xs text-muted truncate">{step.description}</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {formSteps[currentStep].id === 'basics' && (
           <FormPanel title="Basic information" description="Control naming, categorisation, and visibility.">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
               Name
@@ -1263,7 +1368,9 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               />
             </label>
           </FormPanel>
+          )}
 
+          {formSteps[currentStep].id === 'pricing' && (
           <FormPanel title="Pricing & availability" description="Manage pricing, promos, and inventory signals.">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -1403,7 +1510,9 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               Allow backorders
             </label>
           </FormPanel>
+          )}
 
+          {formSteps[currentStep].id === 'media' && (
           <FormPanel title="Media & marketing" description="Control imagery, highlights, and downloadable content.">
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm text-slate-600">
@@ -1651,7 +1760,9 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               )}
             </div>
           </FormPanel>
+          )}
 
+          {formSteps[currentStep].id === 'specs' && (
           <FormPanel title="Specifications & attributes" description="Surface technical details and variation rules.">
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm text-slate-600">
@@ -1771,7 +1882,9 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               ))}
             </div>
           </FormPanel>
+          )}
 
+          {formSteps[currentStep].id === 'variations' && (
           <FormPanel title="Variations" description="Define variable configurations like shell colour or button layouts.">
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm text-slate-600">
@@ -1959,7 +2072,9 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               </button>
             </div>
           </FormPanel>
+          )}
 
+          {formSteps[currentStep].id === 'compatibility' && (
           <FormPanel title="Compatibility & recommendations" description="Control fitment data and related merchandising.">
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm text-slate-600">
@@ -2108,7 +2223,9 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               </label>
             </div>
           </FormPanel>
+          )}
 
+          {formSteps[currentStep].id === 'logistics' && (
           <FormPanel title="Logistics & support" description="Capture dimensional data, badges, service and content.">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -2382,7 +2499,9 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               </label>
             </div>
           </FormPanel>
+          )}
 
+          {formSteps[currentStep].id === 'seo' && (
           <FormPanel title="SEO & metadata" description="Craft search snippets and sharing content.">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
               Meta title
@@ -2443,7 +2562,9 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               </label>
             </div>
           </FormPanel>
+          )}
 
+          {formSteps[currentStep].id === 'reviews' && (
           <FormPanel title="Internal notes & reviews" description="Store internal notes and manage review summaries.">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -2563,13 +2684,64 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               )}
             </div>
           </FormPanel>
+          )}
 
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Navigation Buttons */}
+          <div className="flex items-center justify-between border-t border-border pt-6">
             <button
-              type="submit"
-              className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20"
+              type="button"
+              onClick={goToPreviousStep}
+              disabled={currentStep === 0}
+              className={cn(
+                'inline-flex items-center justify-center gap-2 rounded-xl border px-6 py-3 text-sm font-semibold transition',
+                currentStep === 0
+                  ? 'cursor-not-allowed border-border bg-slate-100 text-slate-400'
+                  : 'border-primary bg-white text-primary hover:bg-primary hover:text-white'
+              )}
             >
-              {selectedProductId ? 'Save changes' : 'Create product'}
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Previous
+            </button>
+
+            <div className="flex items-center gap-3">
+              {currentStep === formSteps.length - 1 ? (
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20"
+                >
+                  {selectedProductId ? 'Save changes' : 'Create product'}
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={goToNextStep}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20"
+                >
+                  Next
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Secondary Actions */}
+          <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-xl bg-slate-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 focus:outline-none focus:ring-4 focus:ring-slate-600/20"
+              onClick={(e) => {
+                e.preventDefault();
+                onSubmit(e as any);
+              }}
+            >
+              Save as draft
             </button>
             {selectedProductId && (
               <button
