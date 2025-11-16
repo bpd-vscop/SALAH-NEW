@@ -199,6 +199,7 @@ export type DeleteConfirmationState =
   | { type: 'hero' | 'featured'; id: string }
   | { type: 'category'; id: string }
   | { type: 'product'; id: string }
+  | { type: 'products-bulk'; ids: string[] }
   | { type: 'menu-section'; id: string } // id is index (as string)
   | { type: 'menu-link'; id: string }    // id is index (as string)
   | null;

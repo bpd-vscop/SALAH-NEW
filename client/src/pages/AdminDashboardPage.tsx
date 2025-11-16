@@ -637,6 +637,13 @@ export const AdminDashboardPage: React.FC = () => {
     }
   }, [selectedProductId, products]);
 
+  // Also reset form when switching to 'add' view with no selected product
+  useEffect(() => {
+    if (productsView === 'add' && !selectedProductId) {
+      setProductForm(createEmptyProductForm());
+    }
+  }, [productsView, selectedProductId]);
+
   // Banners no longer used for manufacturers management
 
   useEffect(() => {
@@ -778,6 +785,13 @@ export const AdminDashboardPage: React.FC = () => {
 
   const handleProductSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    // Check HTML5 form validity
+    if (!event.currentTarget.checkValidity()) {
+      event.currentTarget.reportValidity();
+      return;
+    }
+
     try {
       const cleanStringArray = (values: string[]) => {
         const seen = new Set<string>();
@@ -1043,12 +1057,29 @@ export const AdminDashboardPage: React.FC = () => {
         setStatus('Product updated');
       } else {
         await productsApi.create(payload);
-        setStatus('Product created');
+        setStatus('Product created successfully!');
       }
+
+      // Refresh and reset everything
       await refreshProducts();
-      setSelectedProductId('');
+
+      // Important: Reset in the correct order
+      setSelectedProductId(''); // This will trigger form reset in useEffect
+      setProductsView('all'); // Switch to product list view
+
+      // Force form reset to ensure it's clean for next use
+      setTimeout(() => {
+        setProductForm(createEmptyProductForm());
+      }, 0);
     } catch (err) {
-      console.error(err);
+      console.error('Product submission error:', err);
+      if (err instanceof Error) {
+        const errorWithDetails = err as Error & { details?: unknown };
+        console.log('Error details structure:', errorWithDetails.details);
+        if (errorWithDetails.details) {
+          console.error('Validation details:', JSON.stringify(errorWithDetails.details, null, 2));
+        }
+      }
       setStatus(null, err instanceof Error ? err.message : 'Product operation failed');
     }
   };
@@ -1075,6 +1106,19 @@ export const AdminDashboardPage: React.FC = () => {
     } catch (err) {
       console.error(err);
       setStatus(null, err instanceof Error ? err.message : 'Unable to delete product');
+      setDeleteConfirmation(null);
+    }
+  };
+
+  const deleteBulkProducts = async (ids: string[]) => {
+    try {
+      await Promise.all(ids.map(id => productsApi.delete(id)));
+      await refreshProducts();
+      setStatus(`${ids.length} product${ids.length > 1 ? 's' : ''} deleted`);
+      setDeleteConfirmation(null);
+    } catch (err) {
+      console.error(err);
+      setStatus(null, err instanceof Error ? err.message : 'Unable to delete products');
       setDeleteConfirmation(null);
     }
   };
@@ -1742,6 +1786,7 @@ export const AdminDashboardPage: React.FC = () => {
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
               <ProductsAdminSection
+                key={`products-${productsView}-${selectedProductId || 'new'}`}
                 products={products}
                 categories={categories}
                 categoryNameById={categoryNameById}
@@ -1752,6 +1797,10 @@ export const AdminDashboardPage: React.FC = () => {
                 onSubmit={handleProductSubmit}
                 onDelete={(id) => {
                   setDeleteConfirmation({ type: 'product', id });
+                  return Promise.resolve();
+                }}
+                onBulkDelete={(ids) => {
+                  setDeleteConfirmation({ type: 'products-bulk', ids });
                   return Promise.resolve();
                 }}
                 productTags={productTags}
@@ -1940,6 +1989,7 @@ export const AdminDashboardPage: React.FC = () => {
                   {deleteConfirmation.type === 'featured' && 'Are you sure you want to delete this featured item?'}
                   {deleteConfirmation.type === 'category' && 'Are you sure you want to delete this category?'}
                   {deleteConfirmation.type === 'product' && 'Are you sure you want to delete this product?'}
+                  {deleteConfirmation.type === 'products-bulk' && `Are you sure you want to delete ${deleteConfirmation.ids.length} products?`}
                   {(deleteConfirmation.type === 'menu-section' || deleteConfirmation.type === 'menu-link') && 'Remove this item from navigation?'}
                 </p>
                 <p className="mt-2 text-sm font-semibold text-red-600">⚠️ This is a hard delete and cannot be recovered.</p>
@@ -1965,6 +2015,8 @@ export const AdminDashboardPage: React.FC = () => {
                     void deleteCategory(deleteConfirmation.id);
                   } else if (t === 'product') {
                     void deleteProduct(deleteConfirmation.id);
+                  } else if (t === 'products-bulk') {
+                    void deleteBulkProducts(deleteConfirmation.ids);
                   } else if (t === 'menu-section') {
                     const index = Number(deleteConfirmation.id);
                     setMenuSectionsDraft((current) => current.filter((_, i) => i !== index));

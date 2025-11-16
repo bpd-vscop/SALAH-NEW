@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from 'react';
+import { useState, useEffect, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import { formatCurrency } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { productsApi } from '../../api/products';
@@ -30,6 +30,7 @@ interface ProductsAdminSectionProps {
   setForm: Dispatch<SetStateAction<ProductFormState>>;
   onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onBulkDelete: (ids: string[]) => Promise<void>;
   productTags: ProductTag[];
   view: 'all' | 'add';
   onViewChange: (view: 'all' | 'add') => void;
@@ -40,6 +41,19 @@ const productStatuses: ProductStatus[] = ['draft', 'scheduled', 'private', 'publ
 const visibilityOptions: ProductVisibility[] = ['catalog', 'search', 'hidden', 'catalog-and-search'];
 const inventoryStatuses: ProductInventoryStatus[] = ['in_stock', 'low_stock', 'out_of_stock', 'backorder', 'preorder'];
 const reviewRatingDefaults = ['5', '4', '3', '2', '1'];
+
+// Form steps configuration
+const FORM_STEPS = [
+  { id: 'basics', title: 'Basic Info', description: 'Product details' },
+  { id: 'pricing', title: 'Pricing', description: 'Price & stock' },
+  { id: 'media', title: 'Media', description: 'Images & videos' },
+  { id: 'specs', title: 'Specifications', description: 'Technical details' },
+  { id: 'variations', title: 'Variations', description: 'Product variants' },
+  { id: 'compatibility', title: 'Compatibility', description: 'Fitment data' },
+  { id: 'logistics', title: 'Logistics', description: 'Shipping & support' },
+  { id: 'seo', title: 'SEO', description: 'Search optimization' },
+  { id: 'reviews', title: 'Reviews', description: 'Ratings & notes' },
+] as const;
 
 const PRODUCT_IMAGE_ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const MAX_PRODUCT_IMAGE_SIZE_BYTES = 3 * 1024 * 1024;
@@ -89,6 +103,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   setForm,
   onSubmit,
   onDelete,
+  onBulkDelete,
   productTags,
   view,
   onViewChange,
@@ -104,28 +119,59 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
 
   // Step navigation state
   const [currentStep, setCurrentStep] = useState(0);
+  const [stepValidation, setStepValidation] = useState<Record<number, 'valid' | 'warning' | 'incomplete'>>({});
 
-  // Define steps for the form
-  const formSteps = [
-    { id: 'basics', title: 'Basic Info', description: 'Product details' },
-    { id: 'pricing', title: 'Pricing', description: 'Price & stock' },
-    { id: 'media', title: 'Media', description: 'Images & videos' },
-    { id: 'specs', title: 'Specifications', description: 'Technical details' },
-    { id: 'variations', title: 'Variations', description: 'Product variants' },
-    { id: 'compatibility', title: 'Compatibility', description: 'Fitment data' },
-    { id: 'logistics', title: 'Logistics', description: 'Shipping & support' },
-    { id: 'seo', title: 'SEO', description: 'Search optimization' },
-    { id: 'reviews', title: 'Reviews', description: 'Ratings & notes' },
-  ];
+  // Reset to first step when switching between products or returning to list
+  useEffect(() => {
+    setCurrentStep(0);
+    setStepValidation({});
+  }, [selectedProductId]);
 
-  const goToNextStep = () => {
-    if (currentStep < formSteps.length - 1) {
+  // Validate step requirements
+  const validateStep = (stepIndex: number): 'valid' | 'warning' | 'incomplete' => {
+    const step = FORM_STEPS[stepIndex];
+
+    if (step.id === 'basics') {
+      const hasName = form.name.trim().length >= 2;
+      const hasCategory = form.categoryId.trim().length > 0;
+
+      if (hasName && hasCategory) return 'valid';
+      if (!hasName || !hasCategory) return 'warning';
+      return 'warning';
+    }
+
+    if (step.id === 'pricing') {
+      const hasPrice = form.price.trim().length > 0 && parseFloat(form.price) >= 0;
+
+      if (hasPrice) return 'valid';
+      return 'warning';
+    }
+
+    // Other steps are optional
+    return 'valid';
+  };
+
+  const goToNextStep = (event?: React.MouseEvent<HTMLButtonElement>) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    // Validate current step before moving
+    const validation = validateStep(currentStep);
+    setStepValidation(prev => ({ ...prev, [currentStep]: validation }));
+
+    if (currentStep < FORM_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const goToPreviousStep = () => {
+  const goToPreviousStep = (event?: React.MouseEvent<HTMLButtonElement>) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -133,8 +179,25 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   };
 
   const goToStep = (stepIndex: number) => {
+    // Validate current step before navigating away
+    const validation = validateStep(currentStep);
+    setStepValidation(prev => ({ ...prev, [currentStep]: validation }));
+
     setCurrentStep(stepIndex);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Prevent Enter key from submitting form unless on the last step
+  const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    if (event.key === 'Enter' && currentStep < FORM_STEPS.length - 1) {
+      // Allow Enter in textareas
+      if (event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      event.preventDefault();
+      // Optionally move to next step when Enter is pressed
+      goToNextStep();
+    }
   };
   const UploadingIndicator: React.FC<{ target: 'main' | 'thumbnails' }> = ({ target }) =>
     uploadingTarget === target ? (
@@ -348,10 +411,8 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     }
   };
 
-  const handleBulkDelete = () => {
-    selectedProducts.forEach((id) => {
-      void onDelete(id);
-    });
+  const handleBulkDelete = async () => {
+    await onBulkDelete(Array.from(selectedProducts));
     setSelectedProducts(new Set());
   };
 
@@ -1115,7 +1176,40 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
 
       {/* Add Product View */}
       {view === 'add' && (
-        <form className="flex flex-col gap-5 rounded-2xl border border-border bg-background p-6 shadow-sm" onSubmit={onSubmit}>
+        <form
+          className="flex flex-col gap-5 rounded-2xl border border-border bg-background p-6 shadow-sm"
+          onSubmit={(e) => {
+            e.preventDefault();
+
+            // Validate all steps before submission
+            const allValidations: Record<number, 'valid' | 'warning' | 'incomplete'> = {};
+            let hasIncomplete = false;
+            let firstIncompleteStep = -1;
+
+            FORM_STEPS.forEach((_, index) => {
+              const validation = validateStep(index);
+              allValidations[index] = validation;
+
+              if (validation === 'warning' && firstIncompleteStep === -1) {
+                hasIncomplete = true;
+                firstIncompleteStep = index;
+              }
+            });
+
+            setStepValidation(allValidations);
+
+            // If there are incomplete required fields, navigate to first incomplete step
+            if (hasIncomplete) {
+              setCurrentStep(firstIncompleteStep);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              return;
+            }
+
+            // All required fields are filled, submit the form
+            onSubmit(e);
+          }}
+          onKeyDown={handleFormKeyDown}
+        >
           {/* Step Indicator */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
@@ -1123,7 +1217,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
                 {selectedProductId ? 'Edit Product' : 'Add New Product'}
               </h2>
               <span className="text-sm text-muted">
-                Step {currentStep + 1} of {formSteps.length}
+                Step {currentStep + 1} of {FORM_STEPS.length}
               </span>
             </div>
 
@@ -1131,64 +1225,105 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
             <div className="mb-6 h-2 w-full overflow-hidden rounded-full bg-slate-200">
               <div
                 className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${((currentStep + 1) / formSteps.length) * 100}%` }}
+                style={{ width: `${((currentStep + 1) / FORM_STEPS.length) * 100}%` }}
               />
             </div>
 
             {/* Step tabs */}
             <div className="flex gap-2 overflow-x-auto pb-2">
-              {formSteps.map((step, index) => (
-                <button
-                  key={step.id}
-                  type="button"
-                  onClick={() => goToStep(index)}
-                  className={cn(
-                    'flex min-w-[140px] flex-col items-center gap-1 rounded-lg border px-4 py-3 text-left transition-all',
-                    index === currentStep
-                      ? 'border-primary bg-primary/5 shadow-sm'
-                      : index < currentStep
-                      ? 'border-green-300 bg-green-50 hover:border-green-400'
-                      : 'border-border bg-white hover:border-primary/50'
-                  )}
-                >
-                  <div className="flex w-full items-center gap-2">
-                    <span
-                      className={cn(
-                        'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                        index === currentStep
-                          ? 'bg-primary text-white'
-                          : index < currentStep
-                          ? 'bg-green-500 text-white'
-                          : 'bg-slate-200 text-slate-600'
-                      )}
-                    >
-                      {index < currentStep ? '✓' : index + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div
+              {FORM_STEPS.map((step, index) => {
+                const validation = stepValidation[index];
+                const isIncomplete = validation === 'incomplete';
+                const isWarning = validation === 'warning';
+
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => goToStep(index)}
+                    className={cn(
+                      'flex min-w-[140px] flex-col items-center gap-1 rounded-lg border px-4 py-3 text-left transition-all',
+                      index === currentStep
+                        ? 'border-primary bg-primary/5 shadow-sm'
+                        : isIncomplete
+                        ? 'border-red-300 bg-red-50 hover:border-red-400'
+                        : isWarning
+                        ? 'hover:opacity-90'
+                        : index < currentStep
+                        ? 'border-green-300 bg-green-50 hover:border-green-400'
+                        : 'border-border bg-white hover:border-primary/50'
+                    )}
+                    style={isWarning ? {
+                      borderColor: '#ffcc00',
+                      backgroundColor: '#fffbeb',
+                    } : undefined}
+                  >
+                    <div className="flex w-full items-center gap-2">
+                      <span
                         className={cn(
-                          'text-sm font-semibold truncate',
+                          'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold',
                           index === currentStep
-                            ? 'text-primary'
+                            ? 'bg-primary text-white'
+                            : isIncomplete
+                            ? 'bg-red-500 text-white'
+                            : isWarning
+                            ? 'text-white'
                             : index < currentStep
-                            ? 'text-green-700'
-                            : 'text-slate-600'
+                            ? 'bg-green-500 text-white'
+                            : 'bg-slate-200 text-slate-600'
                         )}
+                        style={isWarning ? { backgroundColor: '#ffcc00' } : undefined}
                       >
-                        {step.title}
+                        {isIncomplete ? '!' : isWarning ? '⚠' : index < currentStep ? '✓' : index + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className={cn(
+                            'text-sm font-semibold truncate',
+                            index === currentStep
+                              ? 'text-primary'
+                              : isIncomplete
+                              ? 'text-red-700'
+                              : isWarning
+                              ? ''
+                              : index < currentStep
+                              ? 'text-green-700'
+                              : 'text-slate-600'
+                          )}
+                          style={isWarning ? { color: '#cc9900' } : undefined}
+                        >
+                          {step.title}
+                        </div>
+                        <div className="text-xs text-muted truncate">{step.description}</div>
                       </div>
-                      <div className="text-xs text-muted truncate">{step.description}</div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
+
+            {/* Validation Warning */}
+            {stepValidation[currentStep] === 'warning' && (
+              <div className="mt-4 flex items-start gap-3 rounded-lg border p-4" style={{ borderColor: '#ffcc00', backgroundColor: '#fffbeb' }}>
+                <svg className="h-5 w-5 flex-shrink-0" style={{ color: '#cc9900' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold" style={{ color: '#cc9900' }}>Required Fields Missing</h4>
+                  <p className="mt-1 text-sm" style={{ color: '#996600' }}>
+                    Please fill in all required fields before proceeding. Required fields are marked on this step.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {formSteps[currentStep].id === 'basics' && (
+          {FORM_STEPS[currentStep].id === 'basics' && (
           <FormPanel title="Basic information" description="Control naming, categorisation, and visibility.">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Name
+              <span>
+                Name <span className="text-red-600">*</span>
+              </span>
               <input
                 type="text"
                 value={form.name}
@@ -1228,7 +1363,9 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               </label>
             </div>
             <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Category
+              <span>
+                Category <span className="text-red-600">*</span>
+              </span>
               <select
                 value={form.categoryId}
                 onChange={(event) => setForm((state) => ({ ...state, categoryId: event.target.value }))}
@@ -1370,11 +1507,13 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
           </FormPanel>
           )}
 
-          {formSteps[currentStep].id === 'pricing' && (
+          {FORM_STEPS[currentStep].id === 'pricing' && (
           <FormPanel title="Pricing & availability" description="Manage pricing, promos, and inventory signals.">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Price
+                <span>
+                  Price <span className="text-red-600">*</span>
+                </span>
                 <input
                   type="number"
                   min={0}
@@ -1512,7 +1651,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
           </FormPanel>
           )}
 
-          {formSteps[currentStep].id === 'media' && (
+          {FORM_STEPS[currentStep].id === 'media' && (
           <FormPanel title="Media & marketing" description="Control imagery, highlights, and downloadable content.">
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm text-slate-600">
@@ -1762,7 +1901,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
           </FormPanel>
           )}
 
-          {formSteps[currentStep].id === 'specs' && (
+          {FORM_STEPS[currentStep].id === 'specs' && (
           <FormPanel title="Specifications & attributes" description="Surface technical details and variation rules.">
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm text-slate-600">
@@ -1884,7 +2023,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
           </FormPanel>
           )}
 
-          {formSteps[currentStep].id === 'variations' && (
+          {FORM_STEPS[currentStep].id === 'variations' && (
           <FormPanel title="Variations" description="Define variable configurations like shell colour or button layouts.">
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm text-slate-600">
@@ -2074,7 +2213,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
           </FormPanel>
           )}
 
-          {formSteps[currentStep].id === 'compatibility' && (
+          {FORM_STEPS[currentStep].id === 'compatibility' && (
           <FormPanel title="Compatibility & recommendations" description="Control fitment data and related merchandising.">
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm text-slate-600">
@@ -2225,7 +2364,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
           </FormPanel>
           )}
 
-          {formSteps[currentStep].id === 'logistics' && (
+          {FORM_STEPS[currentStep].id === 'logistics' && (
           <FormPanel title="Logistics & support" description="Capture dimensional data, badges, service and content.">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -2501,7 +2640,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
           </FormPanel>
           )}
 
-          {formSteps[currentStep].id === 'seo' && (
+          {FORM_STEPS[currentStep].id === 'seo' && (
           <FormPanel title="SEO & metadata" description="Craft search snippets and sharing content.">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
               Meta title
@@ -2564,7 +2703,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
           </FormPanel>
           )}
 
-          {formSteps[currentStep].id === 'reviews' && (
+          {FORM_STEPS[currentStep].id === 'reviews' && (
           <FormPanel title="Internal notes & reviews" description="Store internal notes and manage review summaries.">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -2706,7 +2845,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
             </button>
 
             <div className="flex items-center gap-3">
-              {currentStep === formSteps.length - 1 ? (
+              {currentStep === FORM_STEPS.length - 1 ? (
                 <button
                   type="submit"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20"
@@ -2732,36 +2871,29 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
           </div>
 
           {/* Secondary Actions */}
-          <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-xl bg-slate-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 focus:outline-none focus:ring-4 focus:ring-slate-600/20"
-              onClick={(e) => {
-                e.preventDefault();
-                onSubmit(e as any);
-              }}
-            >
-              Save as draft
-            </button>
-            {selectedProductId && (
-              <button
-                type="button"
-                className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted transition hover:border-primary hover:text-primary"
-                onClick={() => {
-                  onSelectProduct('');
-                  onViewChange('all');
-                }}
-              >
-                Cancel
-              </button>
-            )}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
             <button
               type="button"
               className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
               onClick={() => onViewChange('all')}
             >
-              ← Back to All Products
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to All Products
             </button>
+            {selectedProductId && (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
+                onClick={() => {
+                  onSelectProduct('');
+                  onViewChange('all');
+                }}
+              >
+                Cancel Editing
+              </button>
+            )}
           </div>
         </form>
       )}
