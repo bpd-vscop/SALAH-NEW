@@ -1371,9 +1371,9 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     </thead>
                     <tbody>
                       {serialModalRows.map((row) => (
-                        <tr key={row.id} className="border-t border-border/70">
-                          <td className="px-4 py-3 align-top">
-                            <div className="flex flex-col gap-1">
+                        <tr key={row.id} className="border-t border-border/70 align-middle">
+                          <td className="px-4 py-3 align-middle">
+                            <div className="flex items-center gap-3">
                               <button
                                 type="button"
                                 role="switch"
@@ -1392,12 +1392,12 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                                   )}
                                 />
                               </button>
-                              <span className="text-xs font-medium text-muted">
-                                {row.status === 'sold' ? 'Used' : 'Available'}
+                              <span className="text-xs font-medium text-muted min-w-[72px]">
+                                {row.status === 'sold' ? 'Marked used' : 'Available'}
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 align-middle">
                             <input
                               type="text"
                               value={row.serialNumber}
@@ -1406,10 +1406,10 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                               className="h-11 w-full rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                             />
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-700">
+                          <td className="px-4 py-3 text-sm text-slate-700 align-middle whitespace-nowrap">
                             {row.addedAt ? new Date(row.addedAt).toLocaleDateString() : '—'}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 align-top">
                             <textarea
                               value={row.notes}
                               onChange={(event) => updateSerialModalRow(row.id, 'notes', event.target.value)}
@@ -1418,7 +1418,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                               className="w-full rounded-xl border border-border bg-white px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                             />
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 align-middle">
                             <button
                               type="button"
                               onClick={() => removeSerialModalRow(row.id)}
