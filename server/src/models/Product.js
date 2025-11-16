@@ -55,6 +55,21 @@ const variationSchema = new mongoose.Schema(
   { _id: true, timestamps: false }
 );
 
+const serialNumberSchema = new mongoose.Schema(
+  {
+    serialNumber: { type: String, trim: true, required: true },
+    status: {
+      type: String,
+      enum: ['available', 'sold', 'reserved', 'defective', 'returned'],
+      default: 'available'
+    },
+    soldDate: { type: Date },
+    orderId: { type: String, trim: true },
+    notes: { type: String, trim: true },
+  },
+  { _id: true, timestamps: true }
+);
+
 const productSchema = new mongoose.Schema(
   {
     name: {
@@ -203,6 +218,10 @@ const productSchema = new mongoose.Schema(
       type: [variationSchema],
       default: undefined,
     },
+    serialNumbers: {
+      type: [serialNumberSchema],
+      default: [],
+    },
     documents: {
       type: [documentSchema],
       default: [],
@@ -290,6 +309,14 @@ const productSchema = new mongoose.Schema(
         if (Array.isArray(ret.variations)) {
           ret.variations = ret.variations.map((variation) => {
             const plain = variation.toObject ? variation.toObject() : variation;
+            plain.id = plain._id ? plain._id.toString() : undefined;
+            delete plain._id;
+            return plain;
+          });
+        }
+        if (Array.isArray(ret.serialNumbers)) {
+          ret.serialNumbers = ret.serialNumbers.map((serial) => {
+            const plain = serial.toObject ? serial.toObject() : serial;
             plain.id = plain._id ? plain._id.toString() : undefined;
             delete plain._id;
             return plain;

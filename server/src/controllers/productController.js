@@ -15,10 +15,33 @@ const sanitizeVariations = (variations) =>
       })
     : variations;
 
+const sanitizeSerialNumbers = (serialNumbers) =>
+  Array.isArray(serialNumbers)
+    ? serialNumbers.map(({ id, _id, ...rest }) => {
+        if (_id) {
+          return { ...rest, _id };
+        }
+        return rest;
+      })
+    : serialNumbers;
+
+// Remove sensitive admin-only data from public API responses
+const sanitizeProductForPublic = (product) => {
+  const productData = product.toJSON();
+  // Remove serial numbers - this is admin-only inventory tracking data
+  delete productData.serialNumbers;
+  // Remove internal notes
+  if (productData.notes) {
+    delete productData.notes.internal;
+  }
+  return productData;
+};
+
 const listProducts = async (req, res, next) => {
   try {
-    const { categoryId, tags, search } = req.query;
+    const { categoryId, tags, search, includeSerials } = req.query;
     const filter = {};
+    const shouldIncludeSerials = String(includeSerials || '').toLowerCase() === 'true';
 
     if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
       filter.categoryId = categoryId;
@@ -34,7 +57,9 @@ const listProducts = async (req, res, next) => {
     }
 
     const products = await Product.find(filter).sort({ createdAt: -1 });
-    res.json({ products: products.map((p) => p.toJSON()) });
+    res.json({
+      products: products.map((p) => (shouldIncludeSerials ? p.toJSON() : sanitizeProductForPublic(p))),
+    });
   } catch (error) {
     next(error);
   }
@@ -47,7 +72,7 @@ const getProduct = async (req, res, next) => {
     if (!product) {
       throw notFound('Product not found');
     }
-    res.json({ product: product.toJSON() });
+    res.json({ product: sanitizeProductForPublic(product) });
   } catch (error) {
     next(error);
   }
@@ -83,6 +108,10 @@ const createProduct = async (req, res, next) => {
 
     if (data.variations) {
       payload.variations = sanitizeVariations(data.variations);
+    }
+
+    if (data.serialNumbers) {
+      payload.serialNumbers = sanitizeSerialNumbers(data.serialNumbers);
     }
 
     const product = await Product.create(payload);
@@ -176,6 +205,10 @@ const updateProduct = async (req, res, next) => {
 
     if (typeof data.variations !== 'undefined') {
       product.variations = sanitizeVariations(data.variations);
+    }
+
+    if (typeof data.serialNumbers !== 'undefined') {
+      product.serialNumbers = sanitizeSerialNumbers(data.serialNumbers);
     }
 
     if (product.manufacturerName && !product.manufacturerName.trim()) {

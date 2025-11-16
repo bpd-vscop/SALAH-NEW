@@ -75,6 +75,16 @@ export interface ProductVariationRow {
   weight: string;
 }
 
+export interface ProductSerialNumberRow {
+  id: string;
+  existingId?: string;
+  serialNumber: string;
+  status: 'available' | 'sold' | 'reserved' | 'defective' | 'returned';
+  soldDate: string;
+  orderId: string;
+  notes: string;
+}
+
 export interface ProductRatingBreakdownRow {
   id: string;
   rating: string;
@@ -110,6 +120,7 @@ export interface ProductFormState {
   customAttributes: ProductKeyValueRow[];
   variationAttributes: string[];
   variations: ProductVariationRow[];
+  serialNumbers: ProductSerialNumberRow[];
   documents: ProductDocumentRow[];
   compatibility: ProductCompatibilityRow[];
   relatedProductIds: string[];

@@ -8,6 +8,7 @@ import type {
   ProductNotes,
   ProductReviewsSummary,
   ProductSeo,
+  ProductSerialNumber,
   ProductShipping,
   ProductSpecification,
   ProductSupportDetails,
@@ -53,6 +54,14 @@ interface ProductPayload {
   support?: ProductSupportDetails | null;
   reviewsSummary?: ProductReviewsSummary | null;
   notes?: ProductNotes | null;
+  serialNumbers?: Array<{
+    _id?: string;
+    serialNumber: string;
+    status?: ProductSerialNumber['status'];
+    soldDate?: string | null;
+    orderId?: string | null;
+    notes?: string | null;
+  }>;
 }
 
 export interface ProductInput extends ProductPayload {
@@ -66,13 +75,16 @@ export type UpdateProductInput = Partial<ProductPayload> & {
 };
 
 export const productsApi = {
-  list: (params?: { categoryId?: string; tags?: ProductTag[]; search?: string }) => {
+  list: (params?: { categoryId?: string; tags?: ProductTag[]; search?: string; includeSerials?: boolean }) => {
     const query = new URLSearchParams();
     if (params?.categoryId) {
       query.append('categoryId', params.categoryId);
     }
     if (params?.tags?.length) {
       query.append('tags', params.tags.join(','));
+    }
+    if (params?.includeSerials) {
+      query.append('includeSerials', 'true');
     }
     if (params?.search) {
       query.append('search', params.search);

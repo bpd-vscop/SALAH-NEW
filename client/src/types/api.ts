@@ -66,6 +66,17 @@ export interface ProductVariation {
   weight?: number | null;
 }
 
+export interface ProductSerialNumber {
+  id?: string;
+  serialNumber: string;
+  status?: 'available' | 'sold' | 'reserved' | 'defective' | 'returned';
+  soldDate?: string | null;
+  orderId?: string | null;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ProductBadge {
   label: string;
   description?: string;
@@ -178,6 +189,7 @@ export interface Product {
   customAttributes?: Record<string, string> | null;
   variationAttributes?: string[];
   variations?: ProductVariation[];
+  serialNumbers?: ProductSerialNumber[];
   documents?: ProductDocument[];
   compatibility?: ProductCompatibilityEntry[];
   relatedProductIds?: string[];

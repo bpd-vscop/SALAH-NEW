@@ -205,6 +205,7 @@ const createEmptyProductForm = (): ProductFormState => ({
   customAttributes: [],
   variationAttributes: [],
   variations: [],
+  serialNumbers: [],
   documents: [],
   compatibility: [],
   relatedProductIds: [],
@@ -298,6 +299,15 @@ const mapProductToForm = (product: Product): ProductFormState => ({
     allowBackorder: variation.allowBackorder ?? false,
     image: variation.image ?? '',
     weight: variation.weight != null ? String(variation.weight) : '',
+  })),
+  serialNumbers: (product.serialNumbers ?? []).map((serial) => ({
+    id: makeTempId(),
+    existingId: serial.id,
+    serialNumber: serial.serialNumber ?? '',
+    status: serial.status ?? 'available',
+    soldDate: toDateTimeLocal(serial.soldDate ?? null),
+    orderId: serial.orderId ?? '',
+    notes: serial.notes ?? '',
   })),
   documents: (product.documents ?? []).map((doc) => ({
     id: makeTempId(),
@@ -485,7 +495,7 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   const refreshProducts = async () => {
-    const { products: data } = await productsApi.list();
+    const { products: data } = await productsApi.list({ includeSerials: true });
     setProducts(data);
   };
 
@@ -885,6 +895,17 @@ export const AdminDashboardPage: React.FC = () => {
             typeof variation.salePrice === 'number'
         );
 
+      const serialNumbersPayload = productForm.serialNumbers
+        .map((serial) => ({
+          ...(serial.existingId ? { _id: serial.existingId } : {}),
+          serialNumber: serial.serialNumber.trim(),
+          status: serial.status || 'available',
+          soldDate: serial.soldDate ? new Date(serial.soldDate).toISOString() : undefined,
+          orderId: serial.orderId.trim() || undefined,
+          notes: serial.notes.trim() || undefined,
+        }))
+        .filter((serial) => serial.serialNumber);
+
       const badgesPayload = productForm.badges
         .map((badge) => ({
           label: badge.label.trim(),
@@ -996,6 +1017,7 @@ export const AdminDashboardPage: React.FC = () => {
         customAttributes: rowsToRecord(productForm.customAttributes),
         variationAttributes: variationAttributes.length ? variationAttributes : undefined,
         variations: variationsPayload.length ? variationsPayload : undefined,
+        serialNumbers: serialNumbersPayload.length ? serialNumbersPayload : undefined,
         documents: documentsPayload.length ? documentsPayload : undefined,
         compatibility: compatibilityPayload.length ? compatibilityPayload : undefined,
         relatedProductIds: relatedIds.length ? relatedIds : undefined,
@@ -1803,6 +1825,7 @@ export const AdminDashboardPage: React.FC = () => {
                   setDeleteConfirmation({ type: 'products-bulk', ids });
                   return Promise.resolve();
                 }}
+                onRefreshProducts={refreshProducts}
                 productTags={productTags}
                 view={productsView}
                 onViewChange={setProductsView}

@@ -80,6 +80,14 @@ const variationSchema = z.object({
   weight: z.number().min(0).optional(),
 });
 
+const serialNumberSchema = z.object({
+  serialNumber: z.string().min(1).max(200),
+  status: z.enum(['available', 'sold', 'reserved', 'defective', 'returned']).optional(),
+  soldDate: z.string().datetime().nullable().optional(),
+  orderId: z.string().min(1).max(100).optional(),
+  notes: z.string().min(1).max(500).optional(),
+});
+
 const badgesSchema = z.object({
   label: z.string().min(1).max(150),
   description: z.string().min(1).max(300).optional(),
@@ -177,6 +185,7 @@ const baseFields = {
   customAttributes: z.record(z.string()).optional(),
   variationAttributes: z.array(z.string().min(1).max(120)).max(10).optional(),
   variations: z.array(variationSchema).optional(),
+  serialNumbers: z.array(serialNumberSchema).max(1000).optional(),
   documents: z.array(documentSchema).max(50).optional(),
   compatibility: z.array(compatibilitySchema).max(500).optional(),
   relatedProductIds: z.array(objectId).optional(),
@@ -220,6 +229,7 @@ const createProductSchema = z
     customAttributes: baseFields.customAttributes,
     variationAttributes: baseFields.variationAttributes,
     variations: baseFields.variations,
+    serialNumbers: baseFields.serialNumbers,
     documents: baseFields.documents,
     compatibility: baseFields.compatibility,
     relatedProductIds: baseFields.relatedProductIds,
@@ -264,6 +274,7 @@ const updateProductSchema = z
     customAttributes: baseFields.customAttributes,
     variationAttributes: baseFields.variationAttributes,
     variations: baseFields.variations,
+    serialNumbers: baseFields.serialNumbers,
     documents: baseFields.documents,
     compatibility: baseFields.compatibility,
     relatedProductIds: baseFields.relatedProductIds,

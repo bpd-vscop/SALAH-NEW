@@ -16,6 +16,7 @@ import type {
   ProductCompatibilityRow,
   ProductDocumentRow,
   ProductFormState,
+  ProductSerialNumberRow,
   ProductVariationRow,
 } from './types';
 
@@ -31,6 +32,7 @@ interface ProductsAdminSectionProps {
   onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onBulkDelete: (ids: string[]) => Promise<void>;
+  onRefreshProducts: () => Promise<void>;
   productTags: ProductTag[];
   view: 'all' | 'add';
   onViewChange: (view: 'all' | 'add') => void;
@@ -49,6 +51,7 @@ const FORM_STEPS = [
   { id: 'media', title: 'Media', description: 'Images & videos' },
   { id: 'specs', title: 'Specifications', description: 'Technical details' },
   { id: 'variations', title: 'Variations', description: 'Product variants' },
+  { id: 'serialNumbers', title: 'Serial Numbers', description: 'Track inventory' },
   { id: 'compatibility', title: 'Compatibility', description: 'Fitment data' },
   { id: 'logistics', title: 'Logistics', description: 'Shipping & support' },
   { id: 'seo', title: 'SEO', description: 'Search optimization' },
@@ -78,6 +81,15 @@ const normalizeImageSrc = (value: string) => {
 
 const makeId = () => Math.random().toString(36).slice(2, 10);
 
+interface SerialModalRow {
+  id: string;
+  existingId?: string;
+  serialNumber: string;
+  status: ProductSerialNumberRow['status'];
+  notes: string;
+  addedAt?: string | null;
+}
+
 const FormPanel: React.FC<{ title: string; description?: string; children: React.ReactNode }> = ({
   title,
   description,
@@ -104,6 +116,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   onSubmit,
   onDelete,
   onBulkDelete,
+  onRefreshProducts,
   productTags,
   view,
   onViewChange,
@@ -116,6 +129,10 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [imageUploadWarnings, setImageUploadWarnings] = useState<string[]>([]);
   const [uploadingTarget, setUploadingTarget] = useState<'main' | 'thumbnails' | null>(null);
+  const [serialModalProduct, setSerialModalProduct] = useState<Product | null>(null);
+  const [serialModalRows, setSerialModalRows] = useState<SerialModalRow[]>([]);
+  const [serialModalError, setSerialModalError] = useState<string | null>(null);
+  const [serialModalSaving, setSerialModalSaving] = useState(false);
 
   // Step navigation state
   const [currentStep, setCurrentStep] = useState(0);
@@ -179,10 +196,19 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   };
 
   const goToStep = (stepIndex: number) => {
-    // Validate current step before navigating away
-    const validation = validateStep(currentStep);
-    setStepValidation(prev => ({ ...prev, [currentStep]: validation }));
+    // Validate all steps up to the target step when navigating
+    const newValidations: Record<number, 'valid' | 'warning' | 'incomplete'> = {};
 
+    // Determine which steps to validate
+    const minStep = Math.min(currentStep, stepIndex);
+    const maxStep = Math.max(currentStep, stepIndex);
+
+    // Validate all steps from start up to the max of current and target
+    for (let i = 0; i <= maxStep; i++) {
+      newValidations[i] = validateStep(i);
+    }
+
+    setStepValidation(prev => ({ ...prev, ...newValidations }));
     setCurrentStep(stepIndex);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -397,6 +423,87 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     setImageUploadError(null);
   };
 
+const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRow => ({
+  id: makeId(),
+  serialNumber: '',
+  status: 'available',
+  notes: '',
+  addedAt: new Date().toISOString(),
+  ...defaults,
+});
+
+  const openSerialModal = (product: Product) => {
+    const initialRows =
+      product.serialNumbers?.map((serial) =>
+        createSerialModalRow({
+          existingId: serial.id,
+          serialNumber: serial.serialNumber ?? '',
+          status: serial.status ?? 'available',
+          notes: serial.notes ?? '',
+          addedAt: serial.createdAt ?? serial.updatedAt ?? null,
+        })
+      ) ?? [];
+    setSerialModalRows(initialRows.length ? initialRows : [createSerialModalRow()]);
+    setSerialModalProduct(product);
+    setSerialModalError(null);
+  };
+
+  const closeSerialModal = () => {
+    if (serialModalSaving) {
+      return;
+    }
+    setSerialModalProduct(null);
+    setSerialModalRows([]);
+    setSerialModalError(null);
+  };
+
+  const updateSerialModalRow = (
+    id: string,
+    field: keyof Omit<SerialModalRow, 'id' | 'existingId' | 'addedAt'>,
+    value: string | SerialModalRow['status']
+  ) => {
+    setSerialModalRows((rows) =>
+      rows.map((row) => (row.id === id ? { ...row, [field]: value } as SerialModalRow : row))
+    );
+  };
+
+  const addSerialModalRow = () => {
+    setSerialModalRows((rows) => [...rows, createSerialModalRow()]);
+  };
+
+  const removeSerialModalRow = (id: string) => {
+    setSerialModalRows((rows) => rows.filter((row) => row.id !== id));
+  };
+
+  const toggleSerialRowUsed = (id: string, used: boolean) => {
+    updateSerialModalRow(id, 'status', used ? 'sold' : 'available');
+  };
+
+  const handleSerialModalSave = async () => {
+    if (!serialModalProduct) {
+      return;
+    }
+    setSerialModalSaving(true);
+    setSerialModalError(null);
+    try {
+      const payload = serialModalRows
+        .filter((row) => row.serialNumber.trim())
+        .map((row) => ({
+          ...(row.existingId ? { _id: row.existingId } : {}),
+          serialNumber: row.serialNumber.trim(),
+          status: row.status,
+          notes: row.notes.trim() || undefined,
+        }));
+      await productsApi.update(serialModalProduct.id, { serialNumbers: payload });
+      await onRefreshProducts();
+      closeSerialModal();
+    } catch (error) {
+      setSerialModalError(error instanceof Error ? error.message : 'Unable to save serial numbers');
+    } finally {
+      setSerialModalSaving(false);
+    }
+  };
+
   const clearThumbnailImages = () => {
     setForm((state) => ({ ...state, galleryImages: [] }));
     setImageUploadWarnings([]);
@@ -534,6 +641,41 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               attributes: variation.attributes.filter((attribute) => attribute.id !== attributeId),
             }
           : variation
+      ),
+    }));
+  };
+
+  // Serial Number management functions
+  const addSerialNumber = () => {
+    setForm((state) => ({
+      ...state,
+      serialNumbers: [
+        ...state.serialNumbers,
+        {
+          id: makeId(),
+          existingId: undefined,
+          serialNumber: '',
+          status: 'available',
+          soldDate: '',
+          orderId: '',
+          notes: '',
+        },
+      ],
+    }));
+  };
+
+  const removeSerialNumber = (serialId: string) => {
+    setForm((state) => ({
+      ...state,
+      serialNumbers: state.serialNumbers.filter((serial) => serial.id !== serialId),
+    }));
+  };
+
+  const updateSerialNumberField = (serialId: string, field: keyof Omit<ProductSerialNumberRow, 'id' | 'existingId'>, value: string) => {
+    setForm((state) => ({
+      ...state,
+      serialNumbers: state.serialNumbers.map((serial) =>
+        serial.id === serialId ? { ...serial, [field]: value } : serial
       ),
     }));
   };
@@ -946,6 +1088,14 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
                     </button>
                     <button
                       type="button"
+                      onClick={() => openSerialModal(product)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md backdrop-blur-sm transition-all hover:scale-110 hover:bg-primary hover:text-white"
+                      title="Manage serial numbers"
+                    >
+                      SN
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => void onDelete(product.id)}
                       className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-red-600 shadow-md backdrop-blur-sm transition-all hover:scale-110 hover:bg-red-600 hover:text-white"
                       title="Delete product"
@@ -1148,6 +1298,13 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
                             </button>
                             <button
                               type="button"
+                              className="inline-flex items-center justify-center rounded-lg border border-border px-2 py-1 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                              onClick={() => openSerialModal(product)}
+                            >
+                              SN
+                            </button>
+                            <button
+                              type="button"
                               className="inline-flex items-center justify-center rounded-lg border border-red-200 px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
                               onClick={() => void onDelete(product.id)}
                             >
@@ -1171,6 +1328,148 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {serialModalProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-10">
+          <div className="relative w-full max-w-5xl rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-border px-6 py-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-muted">Serial numbers</p>
+                <h3 className="text-xl font-semibold text-slate-900">{serialModalProduct.name}</h3>
+                <p className="text-sm text-muted">
+                  Review every serialised unit. Mark items as used or add new numbers to maintain traceability.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeSerialModal}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-slate-600 transition hover:border-primary hover:text-primary"
+                aria-label="Close serial numbers panel"
+              >
+                ×
+              </button>
+            </div>
+            <div className="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-6">
+              {serialModalError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {serialModalError}
+                </div>
+              )}
+              <div className="flex flex-col gap-4">
+                <div className="overflow-hidden rounded-2xl border border-border">
+                  <table className="w-full table-auto border-collapse text-sm">
+                    <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-[0.25em] text-muted">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Used</th>
+                        <th className="px-4 py-3 text-left">Serial number</th>
+                        <th className="px-4 py-3 text-left">Added date</th>
+                        <th className="px-4 py-3 text-left">Notes</th>
+                        <th className="px-4 py-3 text-left">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {serialModalRows.map((row) => (
+                        <tr key={row.id} className="border-t border-border/70">
+                          <td className="px-4 py-3 align-top">
+                            <div className="flex flex-col gap-1">
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={row.status === 'sold'}
+                                onClick={() => toggleSerialRowUsed(row.id, row.status !== 'sold')}
+                                className={cn(
+                                  'relative inline-flex h-6 w-11 items-center rounded-full transition',
+                                  row.status === 'sold' ? 'bg-emerald-500' : 'bg-slate-300'
+                                )}
+                              >
+                                <span className="sr-only">Mark serial as used</span>
+                                <span
+                                  className={cn(
+                                    'inline-block h-5 w-5 transform rounded-full bg-white transition',
+                                    row.status === 'sold' ? 'translate-x-5' : 'translate-x-1'
+                                  )}
+                                />
+                              </button>
+                              <span className="text-xs font-medium text-muted">
+                                {row.status === 'sold' ? 'Used' : 'Available'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={row.serialNumber}
+                              onChange={(event) => updateSerialModalRow(row.id, 'serialNumber', event.target.value)}
+                              placeholder="e.g. SN-12345"
+                              className="h-11 w-full rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-700">
+                            {row.addedAt ? new Date(row.addedAt).toLocaleDateString() : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <textarea
+                              value={row.notes}
+                              onChange={(event) => updateSerialModalRow(row.id, 'notes', event.target.value)}
+                              rows={2}
+                              placeholder="Optional note"
+                              className="w-full rounded-xl border border-border bg-white px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => removeSerialModalRow(row.id)}
+                              className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-red-200 hover:text-red-600"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {!serialModalRows.length && (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted">
+                            No serial numbers yet. Use the button below to add entries.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <button
+                  type="button"
+                  onClick={addSerialModalRow}
+                  className="inline-flex items-center justify-center rounded-xl border border-dashed border-border px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary"
+                  disabled={serialModalSaving}
+                >
+                  Add serial number
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3 border-t border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={closeSerialModal}
+                className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                disabled={serialModalSaving}
+              >
+                Cancel
+              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handleSerialModalSave}
+                  className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={serialModalSaving}
+                >
+                  {serialModalSaving ? 'Saving...' : 'Save changes'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2208,6 +2507,94 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
                 className="inline-flex items-center justify-center rounded-xl border border-dashed border-border px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary"
               >
                 Add variation
+              </button>
+            </div>
+          </FormPanel>
+          )}
+
+          {FORM_STEPS[currentStep].id === 'serialNumbers' && (
+          <FormPanel title="Serial Numbers" description="Track individual product units by their serial numbers for inventory management.">
+            <div className="space-y-4">
+              {form.serialNumbers.map((serial) => (
+                <div key={serial.id} className="rounded-2xl border border-border bg-white/80 p-4 shadow-sm">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-slate-800">
+                      {serial.serialNumber || 'New Serial Number'}
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => removeSerialNumber(serial.id)}
+                      className="text-xs font-semibold text-red-600 underline-offset-2 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted md:col-span-2">
+                      Serial Number
+                      <input
+                        type="text"
+                        value={serial.serialNumber}
+                        onChange={(event) => updateSerialNumberField(serial.id, 'serialNumber', event.target.value)}
+                        placeholder="e.g. SN123456789"
+                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                      Status
+                      <select
+                        value={serial.status}
+                        onChange={(event) => updateSerialNumberField(serial.id, 'status', event.target.value)}
+                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      >
+                        <option value="available">Available</option>
+                        <option value="sold">Sold</option>
+                        <option value="reserved">Reserved</option>
+                        <option value="defective">Defective</option>
+                        <option value="returned">Returned</option>
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                      Order ID
+                      <input
+                        type="text"
+                        value={serial.orderId}
+                        onChange={(event) => updateSerialNumberField(serial.id, 'orderId', event.target.value)}
+                        placeholder="Optional"
+                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted md:col-span-2">
+                      Sold Date
+                      <input
+                        type="datetime-local"
+                        value={serial.soldDate}
+                        onChange={(event) => updateSerialNumberField(serial.id, 'soldDate', event.target.value)}
+                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted md:col-span-2">
+                      Notes
+                      <textarea
+                        value={serial.notes}
+                        onChange={(event) => updateSerialNumberField(serial.id, 'notes', event.target.value)}
+                        placeholder="Optional notes about this serial number"
+                        rows={2}
+                        className="rounded-xl border border-border bg-white px-3 py-2 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </label>
+                  </div>
+                </div>
+              ))}
+              {!form.serialNumbers.length && (
+                <p className="text-sm text-muted">No serial numbers added yet. Click "Add Serial Number" to track individual product units.</p>
+              )}
+              <button
+                type="button"
+                onClick={addSerialNumber}
+                className="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 py-3 text-sm font-semibold text-slate-600 transition hover:border-primary hover:bg-primary/5 hover:text-primary"
+              >
+                Add Serial Number
               </button>
             </div>
           </FormPanel>
