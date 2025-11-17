@@ -133,6 +133,10 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   const [serialModalRows, setSerialModalRows] = useState<SerialModalRow[]>([]);
   const [serialModalError, setSerialModalError] = useState<string | null>(null);
   const [serialModalSaving, setSerialModalSaving] = useState(false);
+  const [serialModalActiveTab, setSerialModalActiveTab] = useState<'available' | 'marked-used'>('available');
+  const [serialModalEditingRows, setSerialModalEditingRows] = useState<Set<string>>(new Set());
+  const [serialModalAddingNew, setSerialModalAddingNew] = useState(false);
+  const [serialModalNewRow, setSerialModalNewRow] = useState<SerialModalRow | null>(null);
 
   // Step navigation state
   const [currentStep, setCurrentStep] = useState(0);
@@ -453,6 +457,10 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
     setSerialModalProduct(null);
     setSerialModalRows([]);
     setSerialModalError(null);
+    setSerialModalActiveTab('available');
+    setSerialModalEditingRows(new Set());
+    setSerialModalAddingNew(false);
+    setSerialModalNewRow(null);
   };
 
   const updateSerialModalRow = (
@@ -466,15 +474,68 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
   };
 
   const addSerialModalRow = () => {
-    setSerialModalRows((rows) => [...rows, createSerialModalRow()]);
+    // Create new row and set it in the temporary state
+    const newRow = createSerialModalRow();
+    setSerialModalNewRow(newRow);
+    setSerialModalAddingNew(true);
+    setSerialModalError(null);
+  };
+
+  const cancelAddSerial = () => {
+    setSerialModalNewRow(null);
+    setSerialModalAddingNew(false);
+    setSerialModalError(null);
+  };
+
+  const confirmAddSerial = () => {
+    if (!serialModalNewRow || !serialModalNewRow.serialNumber.trim()) {
+      setSerialModalError('Serial number is required');
+      return;
+    }
+    // Add to the main rows list with existingId to mark as saved
+    setSerialModalRows((rows) => [...rows, { ...serialModalNewRow, existingId: serialModalNewRow.id }]);
+    setSerialModalNewRow(null);
+    setSerialModalAddingNew(false);
+    setSerialModalError(null);
+  };
+
+  const updateNewSerialRow = (field: keyof Omit<SerialModalRow, 'id' | 'existingId' | 'addedAt'>, value: string) => {
+    if (serialModalNewRow) {
+      setSerialModalNewRow({ ...serialModalNewRow, [field]: value });
+    }
   };
 
   const removeSerialModalRow = (id: string) => {
     setSerialModalRows((rows) => rows.filter((row) => row.id !== id));
+    setSerialModalEditingRows((editing) => {
+      const newSet = new Set(editing);
+      newSet.delete(id);
+      return newSet;
+    });
   };
 
   const toggleSerialRowUsed = (id: string, used: boolean) => {
     updateSerialModalRow(id, 'status', used ? 'sold' : 'available');
+  };
+
+  const toggleEditMode = (id: string) => {
+    setSerialModalEditingRows((editing) => {
+      const newSet = new Set(editing);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const cancelEditMode = (id: string) => {
+    setSerialModalEditingRows((editing) => {
+      const newSet = new Set(editing);
+      newSet.delete(id);
+      return newSet;
+    });
   };
 
   const handleSerialModalSave = async () => {
@@ -1332,22 +1393,49 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
       {serialModalProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-10">
           <div className="relative w-full max-w-5xl rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between border-b border-border px-6 py-5">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-muted">Serial numbers</p>
-                <h3 className="text-xl font-semibold text-slate-900">{serialModalProduct.name}</h3>
-                <p className="text-sm text-muted">
-                  Review every serialised unit. Mark items as used or add new numbers to maintain traceability.
-                </p>
+            <div className="flex flex-col border-b border-border px-6 py-5">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-muted">Serial numbers</p>
+                  <h3 className="text-xl font-semibold text-slate-900">{serialModalProduct.name}</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeSerialModal}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-slate-600 transition hover:border-primary hover:text-primary"
+                  aria-label="Close serial numbers panel"
+                >
+                  ×
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={closeSerialModal}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-slate-600 transition hover:border-primary hover:text-primary"
-                aria-label="Close serial numbers panel"
-              >
-                ×
-              </button>
+
+              {/* Tabs - centered with less rounded corners */}
+              <div className="flex justify-center gap-1 border-b border-border -mb-px">
+                <button
+                  type="button"
+                  onClick={() => setSerialModalActiveTab('available')}
+                  className={cn(
+                    'px-6 py-2.5 text-sm font-medium transition-all border-b-2',
+                    serialModalActiveTab === 'available'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-slate-600 hover:text-slate-900'
+                  )}
+                >
+                  Available
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSerialModalActiveTab('marked-used')}
+                  className={cn(
+                    'px-6 py-2.5 text-sm font-medium transition-all border-b-2',
+                    serialModalActiveTab === 'marked-used'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-slate-600 hover:text-slate-900'
+                  )}
+                >
+                  Marked Used
+                </button>
+              </div>
             </div>
             <div className="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-6">
               {serialModalError && (
@@ -1356,11 +1444,81 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 </div>
               )}
               <div className="flex flex-col gap-4">
+                {/* Add serial number button - only show when not adding */}
+                {!serialModalAddingNew && (
+                  <button
+                    type="button"
+                    onClick={addSerialModalRow}
+                    className="inline-flex items-center justify-center rounded-xl border border-dashed border-border px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary"
+                    disabled={serialModalSaving}
+                  >
+                    Add serial number
+                  </button>
+                )}
+
+                {/* New serial input row - only show when adding */}
+                {serialModalAddingNew && serialModalNewRow && (
+                  <div className="overflow-hidden rounded-2xl border border-primary bg-blue-50/30">
+                    <table className="w-full table-auto border-collapse text-sm">
+                      <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-[0.25em] text-muted">
+                        <tr>
+                          <th className="px-4 py-3 text-left">Serial number</th>
+                          <th className="px-4 py-3 text-left">Notes</th>
+                          <th className="px-4 py-3 text-left">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-t border-border/70 align-middle">
+                          <td className="px-4 py-3 align-middle">
+                            <input
+                              type="text"
+                              value={serialModalNewRow.serialNumber}
+                              onChange={(event) => updateNewSerialRow('serialNumber', event.target.value)}
+                              placeholder="e.g. SN-12345"
+                              required
+                              autoFocus
+                              className="h-11 w-full rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                          </td>
+                          <td className="px-4 py-3 align-top">
+                            <textarea
+                              value={serialModalNewRow.notes}
+                              onChange={(event) => updateNewSerialRow('notes', event.target.value)}
+                              rows={2}
+                              placeholder="Optional note"
+                              className="w-full rounded-xl border border-border bg-white px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                          </td>
+                          <td className="px-4 py-3 align-middle">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={confirmAddSerial}
+                                className="inline-flex items-center justify-center rounded-xl border border-primary bg-primary px-3 py-1 text-xs font-medium text-white transition hover:bg-primary-dark"
+                              >
+                                Add
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelAddSerial}
+                                className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-slate-400 hover:text-slate-900"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Existing serials table */}
                 <div className="overflow-hidden rounded-2xl border border-border">
                   <table className="w-full table-auto border-collapse text-sm">
                     <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-[0.25em] text-muted">
                       <tr>
-                        <th className="px-4 py-3 text-left">Used</th>
+                        {serialModalActiveTab === 'available' && <th className="px-4 py-3 text-left">Used</th>}
                         <th className="px-4 py-3 text-left">Serial number</th>
                         <th className="px-4 py-3 text-left">Added date</th>
                         <th className="px-4 py-3 text-left">Notes</th>
@@ -1368,83 +1526,167 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       </tr>
                     </thead>
                     <tbody>
-                      {serialModalRows.map((row) => (
-                        <tr key={row.id} className="border-t border-border/70 align-middle">
-                          <td className="px-4 py-3 align-middle">
-                            <div className="flex items-center gap-3">
-                              <button
-                                type="button"
-                                role="switch"
-                                aria-checked={row.status === 'sold'}
-                                onClick={() => toggleSerialRowUsed(row.id, row.status !== 'sold')}
-                                className={cn(
-                                  'relative inline-flex h-6 w-11 items-center rounded-full transition',
-                                  row.status === 'sold' ? 'bg-emerald-500' : 'bg-slate-300'
-                                )}
-                              >
-                                <span className="sr-only">Mark serial as used</span>
-                                <span
+                      {serialModalRows
+                        .filter((row) => {
+                          // Only show rows with serial numbers
+                          if (!row.serialNumber || !row.serialNumber.trim()) {
+                            return false;
+                          }
+                          // Filter by tab
+                          return serialModalActiveTab === 'available'
+                            ? row.status !== 'sold'
+                            : row.status === 'sold';
+                        })
+                        .map((row) => {
+                          const isEditing = serialModalEditingRows.has(row.id);
+                          const isReadOnly = !isEditing;
+
+                          return (
+                            <tr
+                              key={row.id}
+                              className={cn(
+                                "border-t border-border/70 align-middle transition-all duration-300",
+                                row.status === 'sold' && serialModalActiveTab === 'available'
+                                  ? 'opacity-0 translate-x-4'
+                                  : 'opacity-100 translate-x-0'
+                              )}
+                            >
+                              {serialModalActiveTab === 'available' && (
+                                <td className="px-4 py-3 align-middle">
+                                  <div className="flex items-center gap-3">
+                                    <button
+                                      type="button"
+                                      role="switch"
+                                      aria-checked={row.status === 'sold'}
+                                      onClick={() => toggleSerialRowUsed(row.id, row.status !== 'sold')}
+                                      className={cn(
+                                        'relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-300',
+                                        row.status === 'sold' ? 'bg-emerald-500' : 'bg-slate-300'
+                                      )}
+                                    >
+                                      <span className="sr-only">Mark serial as used</span>
+                                      <span
+                                        className={cn(
+                                          'inline-block h-5 w-5 transform rounded-full bg-white transition-all duration-300',
+                                          row.status === 'sold' ? 'translate-x-5' : 'translate-x-1'
+                                        )}
+                                      />
+                                    </button>
+                                    <span className="text-xs font-medium text-muted min-w-[72px]">
+                                      {row.status === 'sold' ? 'Marked used' : 'Available'}
+                                    </span>
+                                  </div>
+                                </td>
+                              )}
+                              <td className="px-4 py-3 align-middle">
+                                <input
+                                  type="text"
+                                  value={row.serialNumber}
+                                  onChange={(event) => updateSerialModalRow(row.id, 'serialNumber', event.target.value)}
+                                  placeholder="e.g. SN-12345"
+                                  required
+                                  disabled={isReadOnly}
                                   className={cn(
-                                    'inline-block h-5 w-5 transform rounded-full bg-white transition',
-                                    row.status === 'sold' ? 'translate-x-5' : 'translate-x-1'
+                                    "h-11 w-full rounded-xl border px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",
+                                    isReadOnly
+                                      ? "border-border bg-slate-50 text-slate-700 cursor-not-allowed"
+                                      : "border-border bg-white"
                                   )}
                                 />
-                              </button>
-                              <span className="text-xs font-medium text-muted min-w-[72px]">
-                                {row.status === 'sold' ? 'Marked used' : 'Available'}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 align-middle">
-                            <input
-                              type="text"
-                              value={row.serialNumber}
-                              onChange={(event) => updateSerialModalRow(row.id, 'serialNumber', event.target.value)}
-                              placeholder="e.g. SN-12345"
-                              className="h-11 w-full rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-700 align-middle whitespace-nowrap">
-                            {row.addedAt ? new Date(row.addedAt).toLocaleDateString() : '—'}
-                          </td>
-                          <td className="px-4 py-3 align-top">
-                            <textarea
-                              value={row.notes}
-                              onChange={(event) => updateSerialModalRow(row.id, 'notes', event.target.value)}
-                              rows={2}
-                              placeholder="Optional note"
-                              className="w-full rounded-xl border border-border bg-white px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                            />
-                          </td>
-                          <td className="px-4 py-3 align-middle">
-                            <button
-                              type="button"
-                              onClick={() => removeSerialModalRow(row.id)}
-                              className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-red-200 hover:text-red-600"
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {!serialModalRows.length && (
+                              </td>
+                              <td className="px-4 py-3 text-sm text-slate-700 align-middle whitespace-nowrap">
+                                {row.addedAt ? new Date(row.addedAt).toLocaleDateString() : '—'}
+                              </td>
+                              <td className="px-4 py-3 align-top">
+                                <textarea
+                                  value={row.notes}
+                                  onChange={(event) => updateSerialModalRow(row.id, 'notes', event.target.value)}
+                                  rows={2}
+                                  placeholder="Optional note"
+                                  disabled={isReadOnly}
+                                  className={cn(
+                                    "w-full rounded-xl border px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",
+                                    isReadOnly
+                                      ? "border-border bg-slate-50 text-slate-700 cursor-not-allowed"
+                                      : "border-border bg-white"
+                                  )}
+                                />
+                              </td>
+                              <td className="px-4 py-3 align-middle">
+                                <div className="flex gap-2">
+                                  {serialModalActiveTab === 'marked-used' ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleSerialRowUsed(row.id, false)}
+                                      className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-emerald-500 hover:text-emerald-600"
+                                    >
+                                      Restore
+                                    </button>
+                                  ) : (
+                                    <>
+                                      {!isEditing ? (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleEditMode(row.id)}
+                                            className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-blue-500 hover:text-blue-600"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => removeSerialModalRow(row.id)}
+                                            className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-red-200 hover:text-red-600"
+                                          >
+                                            Remove
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleEditMode(row.id)}
+                                            className="inline-flex items-center justify-center rounded-xl border border-primary bg-primary px-3 py-1 text-xs font-medium text-white transition hover:bg-primary-dark"
+                                          >
+                                            Save
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => cancelEditMode(row.id)}
+                                            className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-slate-400 hover:text-slate-900"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      {serialModalRows.filter((row) => {
+                        // Only show rows with serial numbers
+                        if (!row.serialNumber || !row.serialNumber.trim()) {
+                          return false;
+                        }
+                        // Filter by tab
+                        return serialModalActiveTab === 'available'
+                          ? row.status !== 'sold'
+                          : row.status === 'sold';
+                      }).length === 0 && !serialModalAddingNew && (
                         <tr>
-                          <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted">
-                            No serial numbers yet. Use the button below to add entries.
+                          <td colSpan={serialModalActiveTab === 'available' ? 5 : 4} className="px-4 py-6 text-center text-sm text-muted">
+                            {serialModalActiveTab === 'available'
+                              ? 'No available serial numbers. Use the button above to add entries.'
+                              : 'No used serial numbers yet.'}
                           </td>
                         </tr>
                       )}
                     </tbody>
                   </table>
                 </div>
-                <button
-                  type="button"
-                  onClick={addSerialModalRow}
-                  className="inline-flex items-center justify-center rounded-xl border border-dashed border-border px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary"
-                  disabled={serialModalSaving}
-                >
-                  Add serial number
-                </button>
               </div>
             </div>
             <div className="flex flex-col gap-3 border-t border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
