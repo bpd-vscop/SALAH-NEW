@@ -199,8 +199,6 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     // Validate all steps up to the target step when navigating
     const newValidations: Record<number, 'valid' | 'warning' | 'incomplete'> = {};
 
-    // Determine which steps to validate
-    const minStep = Math.min(currentStep, stepIndex);
     const maxStep = Math.max(currentStep, stepIndex);
 
     // Validate all steps from start up to the max of current and target
