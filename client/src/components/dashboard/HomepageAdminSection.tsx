@@ -273,9 +273,9 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
                       ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
                       : 'border-red-200 bg-red-100 text-red-700'
                   )}
-                  title="Upload desktop image (AR 21:8, max 5MB)"
+                  title="Upload desktop image (AR 21:6, max 5MB)"
                 >
-                  <span>{heroForm.desktopImage ? 'Replace desktop image' : 'Upload desktop image (AR 21:8 · max 5MB)'}</span>
+                  <span>{heroForm.desktopImage ? 'Replace desktop image' : 'Upload desktop image (AR 21:6 · max 5MB)'}</span>
                   <input
                     type="file"
                     accept="image/*"

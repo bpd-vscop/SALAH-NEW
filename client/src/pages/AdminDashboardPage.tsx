@@ -190,6 +190,7 @@ const createEmptyProductForm = (): ProductFormState => ({
   shortDescription: '',
   description: '',
   price: '',
+  cost: '',
   salePrice: '',
   saleStartDate: '',
   saleEndDate: '',
@@ -269,6 +270,7 @@ const mapProductToForm = (product: Product): ProductFormState => ({
   shortDescription: product.shortDescription ?? '',
   description: product.description ?? '',
   price: typeof product.price === 'number' ? String(product.price) : '',
+  cost: product.cost != null ? String(product.cost) : '',
   salePrice: product.salePrice != null ? String(product.salePrice) : '',
   saleStartDate: toDateTimeLocal(product.saleStartDate ?? null),
   saleEndDate: toDateTimeLocal(product.saleEndDate ?? null),
@@ -935,6 +937,7 @@ export const AdminDashboardPage: React.FC = () => {
       };
 
       const priceValue = parseNumber(productForm.price) ?? 0;
+      const costValue = parseNumber(productForm.cost);
       const salePriceParsed = parseNumber(productForm.salePrice);
       const inventoryQuantity = parseNumber(productForm.inventory.quantity);
       const lowStock = parseNumber(productForm.inventory.lowStockThreshold);
@@ -989,6 +992,7 @@ export const AdminDashboardPage: React.FC = () => {
         description: productForm.description.trim(),
         videoUrls: normalizedVideoUrls.length ? normalizedVideoUrls : undefined,
         price: priceValue,
+        cost: costValue != null ? costValue : selectedProductId ? null : undefined,
         salePrice:
           salePriceParsed != null
             ? Number.isFinite(salePriceParsed)

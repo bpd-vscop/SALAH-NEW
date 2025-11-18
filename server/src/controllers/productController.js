@@ -30,6 +30,8 @@ const sanitizeProductForPublic = (product) => {
   const productData = product.toJSON();
   // Remove serial numbers - this is admin-only inventory tracking data
   delete productData.serialNumbers;
+  // Remove internal pricing data
+  delete productData.cost;
   // Remove internal notes
   if (productData.notes) {
     delete productData.notes.internal;
@@ -94,6 +96,10 @@ const createProduct = async (req, res, next) => {
       saleStartDate: data.saleStartDate ?? undefined,
       saleEndDate: data.saleEndDate ?? undefined,
     };
+
+    if (typeof data.cost !== 'undefined') {
+      payload.cost = data.cost === null ? undefined : data.cost;
+    }
 
     if (typeof data.saleStartDate === 'string' && !data.saleStartDate) {
       payload.saleStartDate = undefined;
@@ -190,6 +196,10 @@ const updateProduct = async (req, res, next) => {
         }
       }
     });
+
+    if (typeof data.cost !== 'undefined') {
+      product.cost = data.cost === null ? undefined : data.cost;
+    }
 
     if (typeof data.manufacturerId !== 'undefined') {
       product.manufacturerId = data.manufacturerId || null;

@@ -105,6 +105,7 @@ export interface ProductFormState {
   shortDescription: string;
   description: string;
   price: string;
+  cost: string;
   salePrice: string;
   saleStartDate: string;
   saleEndDate: string;

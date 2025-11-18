@@ -1092,6 +1092,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
               inventoryStatus === 'preorder' && 'border-indigo-200 bg-indigo-50 text-indigo-700'
             );
             const hasSale = typeof product.salePrice === 'number' && product.salePrice < product.price;
+            const costDisplay = typeof product.cost === 'number' ? formatCurrency(product.cost) : null;
             return (
               <article
                 key={product.id}
@@ -1188,7 +1189,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-[11px] text-muted">
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted">
                     <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -1199,6 +1200,12 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         ? `Created ${new Date(product.createdAt).toLocaleDateString()}`
                         : 'No date'}
                     </span>
+                    {costDisplay && (
+                      <>
+                        <span className="mx-1 text-slate-300">|</span>
+                        <span className="font-medium text-slate-600">Cost {costDisplay}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </article>
@@ -1242,6 +1249,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Image</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Product</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Category</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Cost</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Price</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Stock</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Date</th>
@@ -1318,6 +1326,13 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                           <p className="text-xs text-muted">
                             {categoryNameById.get(product.categoryId) ?? 'Unassigned'}
                           </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          {typeof product.cost === 'number' ? (
+                            <p className="text-xs font-semibold text-slate-700">{formatCurrency(product.cost)}</p>
+                          ) : (
+                            <p className="text-xs text-muted">—</p>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="space-y-0.5">
@@ -2048,7 +2063,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
 
           {FORM_STEPS[currentStep].id === 'pricing' && (
           <FormPanel title="Pricing & availability" description="Manage pricing, promos, and inventory signals.">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
                 <span>
                   Price <span className="text-red-600">*</span>
@@ -2061,6 +2076,20 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                   onChange={(event) => setForm((state) => ({ ...state, price: event.target.value }))}
                   className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   required
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                <span>
+                  Cost <span className="text-xs font-normal text-muted">(internal only)</span>
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={form.cost}
+                  onChange={(event) => setForm((state) => ({ ...state, cost: event.target.value }))}
+                  placeholder="Hidden from storefront"
+                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">

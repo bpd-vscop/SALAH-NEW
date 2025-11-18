@@ -120,7 +120,7 @@ export function HeroSlider() {
     return (
       <div
         ref={sliderRef}
-        className="w-full animate-pulse bg-slate-200 aspect-[4/3] md:aspect-[21/8] mb-6"
+        className="w-full animate-pulse bg-slate-200 aspect-[4/3] md:aspect-[21/6] mb-6"
         style={{ marginTop: `${HERO_SLIDER_TOP_MARGIN}px` }}
       />
     );
@@ -130,7 +130,7 @@ export function HeroSlider() {
     return (
       <div
         ref={sliderRef}
-        className="border border-dashed border-border bg-background px-4 py-6 text-sm text-muted aspect-[4/3] md:aspect-[21/8] flex items-center justify-center mb-6"
+        className="border border-dashed border-border bg-background px-4 py-6 text-sm text-muted aspect-[4/3] md:aspect-[21/6] flex items-center justify-center mb-6"
         style={{ marginTop: `${HERO_SLIDER_TOP_MARGIN}px` }}
       >
         Unable to load hero slider content. Please try again later.
@@ -142,7 +142,7 @@ export function HeroSlider() {
     return (
       <div
         ref={sliderRef}
-        className="w-full animate-pulse bg-slate-200 aspect-[4/3] md:aspect-[21/8] mb-6"
+        className="w-full animate-pulse bg-slate-200 aspect-[4/3] md:aspect-[21/6] mb-6"
         style={{ marginTop: `${HERO_SLIDER_TOP_MARGIN}px` }}
       />
     );
@@ -168,7 +168,7 @@ export function HeroSlider() {
               aria-label={slide.altText || slide.title}
               className="group relative block min-w-full flex-shrink-0 overflow-hidden"
             >
-              <div className="relative w-full overflow-hidden aspect-[4/3] md:aspect-[21/8]">
+              <div className="relative w-full overflow-hidden aspect-[4/3] md:aspect-[21/6]">
                 <img
                   src={slide.mobileImage || slide.desktopImage}
                   alt={slide.altText || slide.title}

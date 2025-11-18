@@ -176,6 +176,7 @@ export interface Product {
   images: string[];
   videoUrls?: string[];
   price: number;
+  cost?: number | null;
   salePrice?: number | null;
   saleStartDate?: string | null;
   saleEndDate?: string | null;
