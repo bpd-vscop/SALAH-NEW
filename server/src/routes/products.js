@@ -7,6 +7,7 @@ const {
   updateProduct,
   deleteProduct,
   uploadProductImage,
+  getVehicleCompatibilityOptions,
 } = require('../controllers/productController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { productImageUpload } = require('../middleware/upload');
@@ -34,6 +35,7 @@ const handleProductImageUpload = (req, res, next) => {
 };
 
 router.get('/', listProducts);
+router.get('/vehicle-compatibility-options', getVehicleCompatibilityOptions);
 router.get('/:id', getProduct);
 router.post('/', requireAuth, requireRole(['super_admin', 'admin', 'staff']), createProduct);
 router.post(

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BatteryFull,
@@ -27,6 +27,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { cn } from '../../utils/cn';
 import { menuApi } from '../../api/menu';
+import { productsApi } from '../../api/products';
 
 const phoneNumbers = ['+1-407-449-6740', '+1-407-452-7149', '+1-407-978-6077'];
 
@@ -116,9 +117,7 @@ const DEFAULT_MENU_SECTIONS: PreparedMenuSection[] = [
   },
 ];
 
-const vehicleYears = ['2024', '2023', '2022', '2021', '2020', '2019'];
-const vehicleMakes = ['Toyota', 'Honda', 'Ford', 'BMW', 'Mercedes-Benz', 'Kia'];
-const vehicleModels = ['Camry', 'Accord', 'F-150', 'RAV4', 'C-Class', 'Telluride'];
+// Vehicle options will be loaded from the database
 
 const PromoBanner: React.FC<{ text: string; visible: boolean; loading?: boolean }> = ({ text, visible, loading = false }) => {
   // Show placeholder while loading
@@ -238,6 +237,11 @@ interface VehicleSearchProps {
   setMake: (value: string) => void;
   model: string;
   setModel: (value: string) => void;
+  onFindParts: () => void;
+  vehicleYears: number[];
+  vehicleMakes: string[];
+  vehicleModels: string[];
+  loading?: boolean;
 }
 
 const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
@@ -249,7 +253,25 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
   setMake,
   model,
   setModel,
+  onFindParts,
+  vehicleYears,
+  vehicleMakes,
+  vehicleModels,
+  loading = false,
 }) => {
+  const handleMakeChange = (newMake: string) => {
+    setMake(newMake);
+    // Reset dependent fields when make changes
+    setModel('');
+    setYear('');
+  };
+
+  const handleModelChange = (newModel: string) => {
+    setModel(newModel);
+    // Reset year when model changes
+    setYear('');
+  };
+
   return (
     <div className="bg-[#1e1817] text-white shadow-lg">
       <div className="mx-auto flex max-w-content flex-col gap-1 px-4 py-1 sm:px-6">
@@ -279,28 +301,13 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
               <div className="grid grid-cols-1 gap-3 pb-3 pt-2 md:grid-cols-[repeat(4,minmax(0,1fr))]">
                 <label>
                   <select
-                    value={year}
-                    onChange={(event) => setYear(event.target.value)}
-                    className="h-10 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40"
-                  >
-                    <option value="" disabled>
-                      Select year
-                    </option>
-                    {vehicleYears.map((option) => (
-                      <option key={option} value={option} className="text-slate-900">
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <select
                     value={make}
-                    onChange={(event) => setMake(event.target.value)}
-                    className="h-10 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                    onChange={(event) => handleMakeChange(event.target.value)}
+                    disabled={loading || vehicleMakes.length === 0}
+                    className="h-10 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="" disabled>
-                      Select brand
+                      {loading ? 'Loading...' : vehicleMakes.length === 0 ? 'No brands available' : 'Select brand'}
                     </option>
                     {vehicleMakes.map((option) => (
                       <option key={option} value={option} className="text-slate-900">
@@ -312,11 +319,12 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
                 <label>
                   <select
                     value={model}
-                    onChange={(event) => setModel(event.target.value)}
-                    className="h-10 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                    onChange={(event) => handleModelChange(event.target.value)}
+                    disabled={loading || !make || vehicleModels.length === 0}
+                    className="h-10 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="" disabled>
-                      Select model
+                      {loading ? 'Loading...' : !make ? 'Select brand first' : vehicleModels.length === 0 ? 'No models available' : 'Select model'}
                     </option>
                     {vehicleModels.map((option) => (
                       <option key={option} value={option} className="text-slate-900">
@@ -325,9 +333,28 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
                     ))}
                   </select>
                 </label>
+                <label>
+                  <select
+                    value={year}
+                    onChange={(event) => setYear(event.target.value)}
+                    disabled={loading || !make || !model || vehicleYears.length === 0}
+                    className="h-10 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="" disabled>
+                      {loading ? 'Loading...' : !make || !model ? 'Select brand & model first' : vehicleYears.length === 0 ? 'No years available' : 'Select year'}
+                    </option>
+                    {vehicleYears.map((option) => (
+                      <option key={option} value={option} className="text-slate-900">
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <button
                   type="button"
-                  className="flex h-10 items-center justify-center rounded-lg bg-red-600 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-red-500"
+                  onClick={onFindParts}
+                  disabled={loading}
+                  className="flex h-10 items-center justify-center rounded-lg bg-red-600 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Search className="mr-2 h-4 w-4" />
                   Find Parts
@@ -342,6 +369,7 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
 };
 
 export const Header: React.FC = () => {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { items } = useCart();
   const cartCount = useMemo(() => items.reduce((sum, line) => sum + line.quantity, 0), [items]);
@@ -352,6 +380,34 @@ export const Header: React.FC = () => {
   const [promoVisible, setPromoVisible] = useState(false);
   const [promoLoading, setPromoLoading] = useState(true); // Start as loading
   const [menuLoading, setMenuLoading] = useState(false);
+  const [vehicleYear, setVehicleYear] = useState('');
+  const [vehicleMake, setVehicleMake] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [vehicleOptions, setVehicleOptions] = useState<{
+    years: number[];
+    makes: string[];
+    models: string[];
+  }>({ years: [], makes: [], models: [] });
+  const [vehicleOptionsLoading, setVehicleOptionsLoading] = useState(false);
+
+  useEffect(() => {
+    const loadVehicleOptions = async () => {
+      setVehicleOptionsLoading(true);
+      try {
+        const { years, makes, models } = await productsApi.getVehicleCompatibilityOptions({
+          make: vehicleMake || undefined,
+          model: vehicleModel || undefined,
+        });
+        setVehicleOptions({ years, makes, models });
+      } catch (error) {
+        console.warn('Failed to load vehicle compatibility options', error);
+        setVehicleOptions({ years: [], makes: [], models: [] });
+      } finally {
+        setVehicleOptionsLoading(false);
+      }
+    };
+    void loadVehicleOptions();
+  }, [vehicleMake, vehicleModel]);
 
   useEffect(() => {
     let active = true;
@@ -444,9 +500,6 @@ export const Header: React.FC = () => {
   const [mobileAccountMenuOpen, setMobileAccountMenuOpen] = useState(false);
   const [vehicleSearchOpen, setVehicleSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [vehicleYear, setVehicleYear] = useState('');
-  const [vehicleMake, setVehicleMake] = useState('');
-  const [vehicleModel, setVehicleModel] = useState('');
 
   const currentSection = useMemo(
     () => (openMegaMenu ? menuSections.find((section) => section.id === openMegaMenu) ?? null : null),
@@ -865,6 +918,17 @@ export const Header: React.FC = () => {
               setMake={setVehicleMake}
               model={vehicleModel}
               setModel={setVehicleModel}
+              vehicleYears={vehicleOptions.years}
+              vehicleMakes={vehicleOptions.makes}
+              vehicleModels={vehicleOptions.models}
+              loading={vehicleOptionsLoading}
+              onFindParts={() => {
+                const params = new URLSearchParams();
+                if (vehicleYear) params.append('vehicleYear', vehicleYear);
+                if (vehicleMake) params.append('vehicleMake', vehicleMake);
+                if (vehicleModel) params.append('vehicleModel', vehicleModel);
+                navigate(`/products?${params.toString()}`);
+              }}
             />
           </div>
         </motion.div>

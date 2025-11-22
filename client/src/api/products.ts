@@ -76,10 +76,28 @@ export type UpdateProductInput = Partial<ProductPayload> & {
 };
 
 export const productsApi = {
-  list: (params?: { categoryId?: string; tags?: ProductTag[]; search?: string; includeSerials?: boolean }) => {
+  list: (params?: {
+    categoryId?: string;
+    manufacturerId?: string;
+    manufacturerIds?: string[];
+    tags?: ProductTag[];
+    search?: string;
+    includeSerials?: boolean;
+    minPrice?: number;
+    maxPrice?: number;
+    vehicleYear?: string;
+    vehicleMake?: string;
+    vehicleModel?: string;
+  }) => {
     const query = new URLSearchParams();
     if (params?.categoryId) {
       query.append('categoryId', params.categoryId);
+    }
+    if (params?.manufacturerId) {
+      query.append('manufacturerId', params.manufacturerId);
+    }
+    if (params?.manufacturerIds?.length) {
+      query.append('manufacturerIds', params.manufacturerIds.join(','));
     }
     if (params?.tags?.length) {
       query.append('tags', params.tags.join(','));
@@ -90,8 +108,36 @@ export const productsApi = {
     if (params?.search) {
       query.append('search', params.search);
     }
+    if (params?.minPrice !== undefined) {
+      query.append('minPrice', params.minPrice.toString());
+    }
+    if (params?.maxPrice !== undefined) {
+      query.append('maxPrice', params.maxPrice.toString());
+    }
+    if (params?.vehicleYear) {
+      query.append('vehicleYear', params.vehicleYear);
+    }
+    if (params?.vehicleMake) {
+      query.append('vehicleMake', params.vehicleMake);
+    }
+    if (params?.vehicleModel) {
+      query.append('vehicleModel', params.vehicleModel);
+    }
     const search = query.toString();
     return http.get<{ products: Product[] }>(`/products${search ? `?${search}` : ''}`);
+  },
+  getVehicleCompatibilityOptions: (params?: { make?: string; model?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.make) {
+      query.append('make', params.make);
+    }
+    if (params?.model) {
+      query.append('model', params.model);
+    }
+    const search = query.toString();
+    return http.get<{ makes: string[]; models: string[]; years: number[] }>(
+      `/products/vehicle-compatibility-options${search ? `?${search}` : ''}`
+    );
   },
   get: (id: string) => http.get<{ product: Product }>(`/products/${id}`),
   create: (payload: ProductInput) => http.post<{ product: Product }>('/products', payload),

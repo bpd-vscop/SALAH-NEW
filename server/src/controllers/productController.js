@@ -41,12 +41,26 @@ const sanitizeProductForPublic = (product) => {
 
 const listProducts = async (req, res, next) => {
   try {
-    const { categoryId, tags, search, includeSerials } = req.query;
+    const { categoryId, manufacturerId, manufacturerIds, tags, search, includeSerials, vehicleYear, vehicleMake, vehicleModel, minPrice, maxPrice } = req.query;
     const filter = {};
     const shouldIncludeSerials = String(includeSerials || '').toLowerCase() === 'true';
 
     if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
       filter.categoryId = categoryId;
+    }
+
+    // Handle single manufacturer (backwards compatibility)
+    if (manufacturerId && mongoose.Types.ObjectId.isValid(manufacturerId)) {
+      filter.manufacturerId = manufacturerId;
+    }
+
+    // Handle multiple manufacturers
+    if (manufacturerIds) {
+      const idList = Array.isArray(manufacturerIds) ? manufacturerIds : String(manufacturerIds).split(',');
+      const validIds = idList.filter(id => mongoose.Types.ObjectId.isValid(id));
+      if (validIds.length > 0) {
+        filter.manufacturerId = { $in: validIds };
+      }
     }
 
     if (tags) {
@@ -56,6 +70,65 @@ const listProducts = async (req, res, next) => {
 
     if (search) {
       filter.name = { $regex: search, $options: 'i' };
+    }
+
+    // Price filtering
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) {
+        const min = parseFloat(minPrice);
+        if (!isNaN(min)) {
+          filter.price.$gte = min;
+        }
+      }
+      if (maxPrice) {
+        const max = parseFloat(maxPrice);
+        if (!isNaN(max)) {
+          filter.price.$lte = max;
+        }
+      }
+    }
+
+    // Vehicle compatibility filtering
+    if (vehicleMake || vehicleModel || vehicleYear) {
+      const compatibilityFilter = {};
+
+      if (vehicleMake) {
+        compatibilityFilter['compatibility.make'] = { $regex: new RegExp(`^${vehicleMake}$`, 'i') };
+      }
+
+      if (vehicleModel) {
+        compatibilityFilter['compatibility.model'] = { $regex: new RegExp(`^${vehicleModel}$`, 'i') };
+      }
+
+      if (vehicleYear) {
+        const year = parseInt(vehicleYear, 10);
+        if (!isNaN(year)) {
+          // Match products where:
+          // 1. Specific year matches, OR
+          // 2. Year falls within yearStart and yearEnd range, OR
+          // 3. Year is >= yearStart (if no yearEnd), OR
+          // 4. Year is <= yearEnd (if no yearStart)
+          compatibilityFilter.$or = [
+            { 'compatibility.year': year },
+            {
+              'compatibility.yearStart': { $lte: year },
+              'compatibility.yearEnd': { $gte: year }
+            },
+            {
+              'compatibility.yearStart': { $lte: year },
+              'compatibility.yearEnd': { $exists: false }
+            },
+            {
+              'compatibility.yearStart': { $exists: false },
+              'compatibility.yearEnd': { $gte: year }
+            }
+          ];
+        }
+      }
+
+      // Merge compatibility filter into main filter
+      Object.assign(filter, compatibilityFilter);
     }
 
     const products = await Product.find(filter).sort({ createdAt: -1 });
@@ -264,6 +337,63 @@ const uploadProductImage = async (req, res, next) => {
   }
 };
 
+const getVehicleCompatibilityOptions = async (req, res, next) => {
+  try {
+    const { make, model } = req.query;
+
+    // Build filter based on selected make/model
+    const filter = { 'compatibility.0': { $exists: true } };
+
+    const products = await Product.find(filter, { compatibility: 1 });
+
+    const makes = new Set();
+    const models = new Set();
+    const years = new Set();
+
+    products.forEach((product) => {
+      if (product.compatibility && Array.isArray(product.compatibility)) {
+        product.compatibility.forEach((compat) => {
+          // Apply filters to determine what to include
+          const makeMatches = !make || (compat.make && compat.make.toLowerCase() === make.toLowerCase());
+          const modelMatches = !model || (compat.model && compat.model.toLowerCase() === model.toLowerCase());
+
+          // Always collect all makes
+          if (compat.make) {
+            makes.add(compat.make);
+          }
+
+          // Only collect models for the selected make (or all if no make selected)
+          if (makeMatches && compat.model) {
+            models.add(compat.model);
+          }
+
+          // Only collect years for the selected make+model (or all if none selected)
+          if (makeMatches && modelMatches) {
+            if (compat.year) years.add(compat.year);
+            if (compat.yearStart && compat.yearEnd) {
+              for (let y = compat.yearStart; y <= compat.yearEnd; y++) {
+                years.add(y);
+              }
+            } else if (compat.yearStart) {
+              years.add(compat.yearStart);
+            } else if (compat.yearEnd) {
+              years.add(compat.yearEnd);
+            }
+          }
+        });
+      }
+    });
+
+    res.json({
+      makes: Array.from(makes).sort(),
+      models: Array.from(models).sort(),
+      years: Array.from(years).sort((a, b) => b - a), // Descending order (newest first)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   listProducts,
   getProduct,
@@ -271,4 +401,5 @@ module.exports = {
   updateProduct,
   deleteProduct,
   uploadProductImage,
+  getVehicleCompatibilityOptions,
 };
