@@ -19,7 +19,14 @@ import {
   Mail,
   KeyRound,
   Eye,
-  EyeOff
+  EyeOff,
+  Package,
+  Calendar,
+  ShoppingBag,
+  Clock,
+  CheckCircle,
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
 import { ClientDashboardLayout } from '../components/layout/ClientDashboardLayout';
 import { ProfileCompletionBar } from '../components/dashboard/ProfileCompletionBar';
@@ -55,13 +62,18 @@ export const ClientDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>('account');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [ordersLastSeenAt, setOrdersLastSeenAt] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0;
+    const stored = Number(localStorage.getItem('ordersLastSeenAt') || '0');
+    return Number.isFinite(stored) ? stored : 0;
+  });
 
   // Profile image states
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
@@ -203,11 +215,14 @@ export const ClientDashboardPage: React.FC = () => {
     return (source.charAt(0) || 'U').toUpperCase();
   }, [user?.name]);
 
-  const ordersBadgeCount = useMemo(
-    () =>
-      orders.filter((order) => order.status === 'pending' || order.status === 'processing').length,
-    [orders]
-  );
+  const ordersBadgeCount = useMemo(() => {
+    const seenAt = ordersLastSeenAt || 0;
+    return orders.filter((order) => {
+      const created = order.createdAt ? new Date(order.createdAt).getTime() : 0;
+      const isActive = order.status === 'pending' || order.status === 'processing';
+      return isActive && created > seenAt;
+    }).length;
+  }, [orders, ordersLastSeenAt]);
 
   const formatOrderDate = (value?: string | null) => {
     if (!value) return 'Just now';
@@ -227,6 +242,27 @@ export const ClientDashboardPage: React.FC = () => {
       setActiveTab(tab as TabType);
     }
   }, [searchParams]);
+
+  // Sync orders last-seen timestamp across tabs/windows
+  useEffect(() => {
+    const syncLastSeen = (event?: Event) => {
+      const stored = Number(localStorage.getItem('ordersLastSeenAt') || '0');
+      const detailTs =
+        event instanceof CustomEvent && event.detail && typeof event.detail.at === 'number'
+          ? event.detail.at
+          : 0;
+      const candidate = Number.isFinite(detailTs) && detailTs > 0 ? detailTs : stored;
+      if (Number.isFinite(candidate) && candidate > ordersLastSeenAt) {
+        setOrdersLastSeenAt(candidate);
+      }
+    };
+    window.addEventListener('storage', syncLastSeen);
+    window.addEventListener('ordersViewed', syncLastSeen as EventListener);
+    return () => {
+      window.removeEventListener('storage', syncLastSeen);
+      window.removeEventListener('ordersViewed', syncLastSeen as EventListener);
+    };
+  }, [ordersLastSeenAt]);
 
   // Initialize profile image
   useEffect(() => {
@@ -273,8 +309,24 @@ export const ClientDashboardPage: React.FC = () => {
   useEffect(() => {
     if (user) {
       void loadOrders();
+      const stored = Number(localStorage.getItem('ordersLastSeenAt') || '0');
+      setOrdersLastSeenAt(Number.isFinite(stored) ? stored : 0);
+    } else {
+      setOrdersLastSeenAt(0);
     }
   }, [user, loadOrders]);
+
+  // Mark orders as seen when viewing the orders tab
+  useEffect(() => {
+    if (activeTab === 'orders') {
+      const now = Date.now();
+      setOrdersLastSeenAt(now);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ordersLastSeenAt', String(now));
+        window.dispatchEvent(new CustomEvent('ordersViewed', { detail: { at: now } }));
+      }
+    }
+  }, [activeTab]);
 
   // Redirect non-clients
   useEffect(() => {
@@ -303,11 +355,6 @@ export const ClientDashboardPage: React.FC = () => {
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     setSearchParams({ tab });
-
-    // Only close sidebar on mobile/tablet (< 1024px)
-    if (window.innerWidth < 1024) {
-      setSidebarOpen(false);
-    }
 
     // Smooth scroll to top when changing tabs
     window.scrollTo({
@@ -752,26 +799,27 @@ export const ClientDashboardPage: React.FC = () => {
                   </button>
 
                   {tabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => handleTabChange(tab.id)}
-                      className={`relative flex h-12 w-12 items-center justify-center rounded-xl transition ${
-                        activeTab === tab.id
-                          ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md'
-                          : 'text-slate-600 hover:bg-slate-100'
-                      }`}
-                      title={tab.label}
-                    >
-                      {getTabIcon(tab.id)}
-                      {tab.id === 'b2b-upgrade' && (
-                        <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-amber-400" />
-                      )}
+                    <div key={tab.id} className="relative">
+                      <button
+                        onClick={() => handleTabChange(tab.id)}
+                        className={`relative flex h-12 w-12 items-center justify-center rounded-xl transition ${
+                          activeTab === tab.id
+                            ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md'
+                            : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                        title={tab.label}
+                      >
+                        {getTabIcon(tab.id)}
+                        {tab.id === 'b2b-upgrade' && (
+                          <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-amber-400" />
+                        )}
+                      </button>
                       {tab.id === 'orders' && ordersBadgeCount > 0 && (
-                        <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
+                        <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-md ring-2 ring-white">
                           {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
                         </span>
                       )}
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -813,31 +861,31 @@ export const ClientDashboardPage: React.FC = () => {
 
                   <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
                     {tabs.map((tab) => (
-                      <button
-                        key={tab.id}
-                        onClick={() => {
-                          handleTabChange(tab.id);
-                          setSidebarOpen(false);
-                        }}
-                        className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition ${
-                          activeTab === tab.id
-                            ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md'
-                            : 'text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        <span className="relative flex h-5 w-5 items-center justify-center">{getTabIcon(tab.id)}</span>
-                        <span className="relative font-medium">
-                          {tab.label}
-                          {tab.id === 'orders' && ordersBadgeCount > 0 && (
-                            <span className="absolute -right-3 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
-                              {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
-                            </span>
+                      <div key={tab.id} className="relative">
+                        <button
+                          onClick={() => {
+                            handleTabChange(tab.id);
+                          }}
+                          className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition ${
+                            activeTab === tab.id
+                              ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md'
+                              : 'text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          <span className="relative flex h-5 w-5 items-center justify-center">{getTabIcon(tab.id)}</span>
+                          <span className="font-medium">
+                            {tab.label}
+                          </span>
+                          {tab.id === 'b2b-upgrade' && (
+                            <span className="ml-auto inline-flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
                           )}
-                        </span>
-                        {tab.id === 'b2b-upgrade' && (
-                          <span className="ml-auto inline-flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                        </button>
+                        {tab.id === 'orders' && ordersBadgeCount > 0 && (
+                          <span className="absolute -right-2 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-md ring-2 ring-white">
+                            {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+                          </span>
                         )}
-                      </button>
+                      </div>
                     ))}
                   </nav>
                 </div>
@@ -846,13 +894,13 @@ export const ClientDashboardPage: React.FC = () => {
           </div>
         </aside>
 
-        {/* Overlay for closing when clicking outside */}
+        {/* Overlay for closing when clicking outside (mobile only) */}
         <AnimatePresence>
           {sidebarOpen && (
             <motion.div
               key="dashboard-overlay"
-              onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 z-20 bg-black/10 lg:bg-transparent"
+              // Overlay kept for dimming; does not auto-close sidebar
+              className="fixed inset-0 z-20 bg-black/10 lg:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -929,34 +977,34 @@ export const ClientDashboardPage: React.FC = () => {
                     >
                       <nav className="space-y-1 p-3">
                         {tabs.map((tab) => (
-                          <button
-                            key={tab.id}
-                            onClick={() => handleTabChange(tab.id)}
-                            className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                              activeTab === tab.id
-                                ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md'
-                                : 'text-slate-700 hover:bg-slate-100'
-                            }`}
-                          >
-                            <span className="relative flex h-5 w-5 items-center justify-center">{getTabIcon(tab.id)}</span>
-                            <span className="relative">
-                              {tab.label}
-                              {tab.id === 'orders' && ordersBadgeCount > 0 && (
-                                <span className="absolute -right-3 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
-                                  {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
-                                </span>
+                          <div key={tab.id} className="relative">
+                            <button
+                              onClick={() => handleTabChange(tab.id)}
+                              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+                                activeTab === tab.id
+                                  ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md'
+                                  : 'text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              <span className="relative flex h-5 w-5 items-center justify-center">{getTabIcon(tab.id)}</span>
+                              <span>
+                                {tab.label}
+                              </span>
+                              {tab.id === 'b2b-upgrade' && (
+                                <span className="ml-auto inline-flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
                               )}
-                            </span>
-                            {tab.id === 'b2b-upgrade' && (
-                              <span className="ml-auto inline-flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                            </button>
+                            {tab.id === 'orders' && ordersBadgeCount > 0 && (
+                              <span className="absolute -right-2 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-md ring-2 ring-white">
+                                {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+                              </span>
                             )}
-                          </button>
+                          </div>
                         ))}
                       </nav>
                       <div className="border-t border-slate-200 bg-slate-50 p-3">
                         <button
                           onClick={() => {
-                            setSidebarOpen(false);
                             navigate('/');
                           }}
                           className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
@@ -971,7 +1019,7 @@ export const ClientDashboardPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Profile Completion Bar */}
+            {/* Profile Completion Bar - Hide after viewing orders */}
             <ProfileCompletionBar user={user} />
 
             {/* Status Messages */}
@@ -995,7 +1043,7 @@ export const ClientDashboardPage: React.FC = () => {
                 className="rounded-2xl border border-border bg-white p-6 shadow-sm"
               >
               {activeTab === 'account' && (
-                <div className="space-y-6">
+                <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-1">
                   {/* Profile Picture Section */}
                   <form onSubmit={handleProfileUpdate} className="space-y-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -1408,110 +1456,190 @@ export const ClientDashboardPage: React.FC = () => {
               )}
 
               {activeTab === 'orders' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                <div className="space-y-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <h2 className="text-xl font-semibold text-slate-900">Orders</h2>
-                      <p className="text-sm text-slate-600">Track your recent purchases</p>
+                      <h2 className="text-2xl font-bold text-slate-900">My Orders</h2>
+                      <p className="text-sm text-slate-600 mt-1">Track and manage your recent purchases</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => navigate('/')}
-                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
+                        onClick={() => navigate('/products')}
+                        className="inline-flex items-center gap-2 rounded-lg border-2 border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-red-600 hover:text-red-600 hover:bg-red-50"
                       >
+                        <ShoppingBag className="h-4 w-4" />
                         Continue Shopping
                       </button>
                       <button
                         onClick={() => loadOrders()}
                         disabled={ordersLoading}
-                        className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-60"
+                        className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
+                        <RefreshCw className={cn("h-4 w-4", ordersLoading && "animate-spin")} />
                         {ordersLoading ? 'Refreshing...' : 'Refresh'}
                       </button>
                     </div>
                   </div>
 
                   {ordersError && (
-                    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                      {ordersError}
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                      <div className="flex items-center gap-3">
+                        <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                        <p className="text-sm text-red-800">{ordersError}</p>
+                      </div>
                     </div>
                   )}
 
                   {ordersLoading && (
-                    <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-                      Loading orders...
+                    <div className="rounded-lg border border-slate-200 bg-white p-8">
+                      <div className="flex items-center justify-center gap-3">
+                        <RefreshCw className="h-5 w-5 text-slate-400 animate-spin" />
+                        <p className="text-sm text-slate-600">Loading your orders...</p>
+                      </div>
                     </div>
                   )}
 
                   {!ordersLoading && orders.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-                        <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                        </svg>
+                    <div className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-12">
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100">
+                          <Package className="h-10 w-10 text-slate-400" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-slate-900">No orders yet</h3>
+                        <p className="mt-2 text-sm text-slate-600 max-w-sm">Start shopping to see your order history here. Browse our products and place your first order!</p>
+                        <button
+                          onClick={() => navigate('/products')}
+                          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
+                        >
+                          <ShoppingBag className="h-4 w-4" />
+                          Browse Products
+                        </button>
                       </div>
-                      <h3 className="text-lg font-medium text-slate-900">No orders yet</h3>
-                      <p className="mt-2 text-sm text-slate-600">Start shopping to see your order history here.</p>
-                      <button
-                        onClick={() => navigate('/')}
-                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-dark"
-                      >
-                        Browse Products
-                      </button>
                     </div>
                   )}
 
                   {orders.length > 0 && (
-                    <div className="space-y-4">
+                    <div className="max-h-[600px] overflow-y-auto pr-2 space-y-4 scrollbar-custom">
                       {orders.map((order) => {
                         const itemCount = order.products.reduce((sum, item) => sum + (item.quantity || 0), 0);
                         const total = order.products.reduce(
                           (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
                           0
                         );
-                        const statusLabel =
-                          order.status === 'pending'
-                            ? 'Processing'
-                            : order.status === 'completed'
-                            ? 'Completed'
-                            : order.status === 'cancelled'
-                            ? 'Cancelled'
-                            : order.status;
+
+                        const getStatusConfig = (status: string) => {
+                          switch (status) {
+                            case 'pending':
+                              return {
+                                label: 'Processing',
+                                icon: Clock,
+                                bgColor: 'bg-amber-50',
+                                textColor: 'text-amber-700',
+                                borderColor: 'border-amber-200',
+                                iconColor: 'text-amber-600'
+                              };
+                            case 'completed':
+                              return {
+                                label: 'Completed',
+                                icon: CheckCircle,
+                                bgColor: 'bg-green-50',
+                                textColor: 'text-green-700',
+                                borderColor: 'border-green-200',
+                                iconColor: 'text-green-600'
+                              };
+                            case 'cancelled':
+                              return {
+                                label: 'Cancelled',
+                                icon: XCircle,
+                                bgColor: 'bg-red-50',
+                                textColor: 'text-red-700',
+                                borderColor: 'border-red-200',
+                                iconColor: 'text-red-600'
+                              };
+                            default:
+                              return {
+                                label: status,
+                                icon: Package,
+                                bgColor: 'bg-slate-50',
+                                textColor: 'text-slate-700',
+                                borderColor: 'border-slate-200',
+                                iconColor: 'text-slate-600'
+                              };
+                          }
+                        };
+
+                        const statusConfig = getStatusConfig(order.status);
+                        const StatusIcon = statusConfig.icon;
 
                         return (
-                          <div key={order.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                              <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-500">Order #{order.id}</p>
-                                <p className="text-lg font-semibold text-slate-900">{statusLabel}</p>
-                                <p className="text-sm text-slate-600">Placed on {formatOrderDate(order.createdAt)}</p>
-                                <p className="text-sm text-slate-600">Your order is processing.</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-xs text-slate-500">Total</p>
-                                <p className="text-2xl font-bold text-slate-900">{formatCurrency(total)}</p>
-                                <p className="text-xs text-slate-500">{itemCount} item{itemCount === 1 ? '' : 's'}</p>
+                          <div key={order.id} className="rounded-lg border border-slate-200 bg-white overflow-hidden hover:shadow-md transition-shadow">
+                            {/* Order Header */}
+                            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
+                              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-start gap-4">
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100">
+                                    <Package className="h-6 w-6 text-red-600" />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Order</p>
+                                      <code className="text-xs font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                        #{order.id.slice(-8)}
+                                      </code>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                      <p className="text-sm text-slate-600">{formatOrderDate(order.createdAt)}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <div className={cn(
+                                    "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 border",
+                                    statusConfig.bgColor,
+                                    statusConfig.textColor,
+                                    statusConfig.borderColor
+                                  )}>
+                                    <StatusIcon className={cn("h-4 w-4", statusConfig.iconColor)} />
+                                    <span className="text-sm font-semibold">{statusConfig.label}</span>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-xs text-slate-500">Total</p>
+                                    <p className="text-2xl font-bold text-slate-900">{formatCurrency(total)}</p>
+                                  </div>
+                                </div>
                               </div>
                             </div>
 
-                            <div className="mt-4 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-slate-50">
-                              {order.products.map((item, index) => (
-                                <div
-                                  key={`${order.id}-line-${index}`}
-                                  className="flex items-center justify-between px-4 py-3 text-sm text-slate-700"
-                                >
-                                  <div className="flex-1">
-                                    <p className="font-medium text-slate-900">{item.name}</p>
-                                    <p className="text-xs text-slate-500">Qty: {item.quantity}</p>
+                            {/* Order Items */}
+                            <div className="p-6">
+                              <div className="flex items-center gap-2 mb-4">
+                                <ShoppingBag className="h-4 w-4 text-slate-400" />
+                                <h3 className="text-sm font-semibold text-slate-700">
+                                  {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
+                                </h3>
+                              </div>
+                              <div className="space-y-3">
+                                {order.products.map((item, index) => (
+                                  <div
+                                    key={`${order.id}-line-${index}`}
+                                    className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-100 hover:bg-slate-100 transition-colors"
+                                  >
+                                    <div className="flex-1">
+                                      <p className="font-semibold text-slate-900">{item.name}</p>
+                                      <p className="text-sm text-slate-500 mt-0.5">Quantity: {item.quantity}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-bold text-slate-900">
+                                        {formatCurrency((item.price || 0) * (item.quantity || 0))}
+                                      </p>
+                                      <p className="text-xs text-slate-500 mt-0.5">
+                                        {formatCurrency(item.price || 0)} each
+                                      </p>
+                                    </div>
                                   </div>
-                                  <div className="text-right">
-                                    <p className="font-semibold text-slate-900">
-                                      {formatCurrency((item.price || 0) * (item.quantity || 0))}
-                                    </p>
-                                    <p className="text-xs text-slate-500">Unit: {formatCurrency(item.price || 0)}</p>
-                                  </div>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
                             </div>
                           </div>
                         );

@@ -28,6 +28,8 @@ import { useCart } from '../../context/CartContext';
 import { cn } from '../../utils/cn';
 import { menuApi } from '../../api/menu';
 import { productsApi } from '../../api/products';
+import { ordersApi } from '../../api/orders';
+import type { Order } from '../../types/api';
 
 const phoneNumbers = ['+1-407-449-6740', '+1-407-452-7149', '+1-407-978-6077'];
 
@@ -120,6 +122,29 @@ const DEFAULT_MENU_SECTIONS: PreparedMenuSection[] = [
 // Vehicle options will be loaded from the database
 
 const PromoBanner: React.FC<{ text: string; visible: boolean; loading?: boolean }> = ({ text, visible, loading = false }) => {
+  // Call all hooks at the top level before any early returns
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    if (document.getElementById('promo-banner-keyframes')) {
+      return;
+    }
+    const style = document.createElement('style');
+    style.id = 'promo-banner-keyframes';
+    style.textContent = `@keyframes promo-banner-shipping {0% {opacity: 0; transform: translateY(12px);} 5% {opacity: 1; transform: translateY(0);} 70% {opacity: 1; transform: translateY(0);} 74% {opacity: 0; transform: translateY(-12px);} 100% {opacity: 0; transform: translateY(-12px);}} @keyframes promo-banner-limited {0% {opacity: 0; transform: translateY(12px);} 74% {opacity: 0; transform: translateY(12px);} 79% {opacity: 1; transform: translateY(0);} 98% {opacity: 1; transform: translateY(0);} 100% {opacity: 0; transform: translateY(-12px);}} @keyframes slideInFromLeft {from {transform: translateX(-100%);} to {transform: translateX(0);}} @keyframes slideOutToLeft {from {transform: translateX(0);} to {transform: translateX(-100%);}} @keyframes fadeIn {from {opacity: 0;} to {opacity: 1;}} @keyframes fadeOut {from {opacity: 1;} to {opacity: 0;}} @keyframes slideDown {from {opacity: 0; max-height: 0; overflow: hidden;} to {opacity: 1; max-height: 500px;}} @keyframes slideUp {from {opacity: 1; max-height: 500px;} to {opacity: 0; max-height: 0; overflow: hidden;}}`;
+
+    document.head.appendChild(style);
+  }, []);
+
+  const selectedNumber = useMemo(() => {
+    return phoneNumbers[Math.floor(Math.random() * phoneNumbers.length)];
+  }, []);
+
+  const telHref = useMemo(() => selectedNumber.replace(/[^+\d]/g, ''), [selectedNumber]);
+
+  const chipClass = 'inline-flex items-center whitespace-nowrap rounded-full border border-white/40 px-4  text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]';
+
   // Show placeholder while loading
   if (loading) {
     return (
@@ -136,27 +161,6 @@ const PromoBanner: React.FC<{ text: string; visible: boolean; loading?: boolean 
       <div className="relative overflow-hidden transition-all duration-500 ease-in-out h-0 opacity-0" style={{ maxHeight: 0 }} />
     );
   }
-  useEffect(() => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-    if (document.getElementById('promo-banner-keyframes')) {
-      return;
-    }
-    const style = document.createElement('style');
-    style.id = 'promo-banner-keyframes';
-    style.textContent = `@keyframes promo-banner-shipping {0% {opacity: 0; transform: translateY(12px);} 5% {opacity: 1; transform: translateY(0);} 70% {opacity: 1; transform: translateY(0);} 74% {opacity: 0; transform: translateY(-12px);} 100% {opacity: 0; transform: translateY(-12px);}} @keyframes promo-banner-limited {0% {opacity: 0; transform: translateY(12px);} 74% {opacity: 0; transform: translateY(12px);} 79% {opacity: 1; transform: translateY(0);} 98% {opacity: 1; transform: translateY(0);} 100% {opacity: 0; transform: translateY(-12px);}} @keyframes slideInFromLeft {from {transform: translateX(-100%);} to {transform: translateX(0);}} @keyframes slideOutToLeft {from {transform: translateX(0);} to {transform: translateX(-100%);}} @keyframes fadeIn {from {opacity: 0;} to {opacity: 1;}} @keyframes fadeOut {from {opacity: 1;} to {opacity: 0;}} @keyframes slideDown {from {opacity: 0; max-height: 0; overflow: hidden;} to {opacity: 1; max-height: 500px;}} @keyframes slideUp {from {opacity: 1; max-height: 500px;} to {opacity: 0; max-height: 0; overflow: hidden;}}`;
-
-    document.head.appendChild(style);
-  }, []);
-
-  const chipClass = 'inline-flex items-center whitespace-nowrap rounded-full border border-white/40 px-4  text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]';
-
-  const selectedNumber = useMemo(() => {
-    return phoneNumbers[Math.floor(Math.random() * phoneNumbers.length)];
-  }, []);
-
-  const telHref = useMemo(() => selectedNumber.replace(/[^+\d]/g, ''), [selectedNumber]);
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-r from-[#f6b210] via-[#dc4f0c] to-[#a00b0b] text-white shadow-[0_12px_24px_rgba(160,11,11,0.25)] transition-all duration-500 ease-in-out animate-[slideDown_0.5s_ease-out]">
@@ -389,6 +393,80 @@ export const Header: React.FC = () => {
     models: string[];
   }>({ years: [], makes: [], models: [] });
   const [vehicleOptionsLoading, setVehicleOptionsLoading] = useState(false);
+
+  // Orders state for notification badge
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLastSeenAt, setOrdersLastSeenAt] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0;
+    const stored = Number(localStorage.getItem('ordersLastSeenAt') || '0');
+    return Number.isFinite(stored) ? stored : 0;
+  });
+
+  const ordersBadgeCount = useMemo(() => {
+    if (!user || user.role !== 'client') return 0;
+    const seenAt = ordersLastSeenAt || 0;
+    return orders.filter((order) => {
+      const created = order.createdAt ? new Date(order.createdAt).getTime() : 0;
+      const isActive = order.status === 'pending' || order.status === 'processing';
+      return isActive && created > seenAt;
+    }).length;
+  }, [orders, ordersLastSeenAt, user]);
+
+  useEffect(() => {
+    const updateViewed = (event?: Event) => {
+      if (typeof window === 'undefined') return;
+      const fromStorage = Number(localStorage.getItem('ordersLastSeenAt') || '0');
+      const detailTs =
+        event instanceof CustomEvent && event.detail && typeof event.detail.at === 'number'
+          ? event.detail.at
+          : 0;
+      const next = Number.isFinite(detailTs) && detailTs > 0 ? detailTs : fromStorage;
+      if (Number.isFinite(next) && next > ordersLastSeenAt) {
+        setOrdersLastSeenAt(next);
+      }
+    };
+    window.addEventListener('ordersViewed', updateViewed);
+    window.addEventListener('storage', updateViewed);
+    window.addEventListener('focus', updateViewed);
+    return () => {
+      window.removeEventListener('ordersViewed', updateViewed);
+      window.removeEventListener('storage', updateViewed);
+      window.removeEventListener('focus', updateViewed);
+    };
+  }, [ordersLastSeenAt]);
+
+  // Load orders for notification badge (initial, on focus, periodic refresh)
+  useEffect(() => {
+    if (!user || user.role !== 'client') {
+      setOrders([]);
+      setOrdersLastSeenAt(0);
+      return;
+    }
+
+    let cancelled = false;
+    const loadOrders = async () => {
+      try {
+        const { orders: ordersList } = await ordersApi.list();
+        if (!cancelled) {
+          setOrders(ordersList);
+        }
+      } catch (error) {
+        console.warn('Failed to load orders for notification badge', error);
+      }
+    };
+
+    void loadOrders();
+
+    const onFocus = () => void loadOrders();
+    const intervalId = window.setInterval(loadOrders, 60000);
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [user]);
 
   useEffect(() => {
     const loadVehicleOptions = async () => {
@@ -753,6 +831,13 @@ export const Header: React.FC = () => {
                   <User className="h-5 w-5" />
                 )}
               </button>
+
+              {/* Orders notification badge */}
+              {ordersBadgeCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-md ring-2 ring-white">
+                  {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+                </span>
+              )}
 
               <AnimatePresence>
                 {accountMenuOpen && (

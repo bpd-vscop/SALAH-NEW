@@ -178,9 +178,9 @@ export const CheckoutPage: React.FC = () => {
         products: items.map((line) => ({ productId: line.productId, quantity: line.quantity })),
       });
       await clearCart();
-      setStatusMessage('Order placed successfully!');
+      setStatusMessage('Order placed successfully! Redirecting to products...');
       setTimeout(() => {
-        navigate('/dashboard?tab=orders');
+        navigate('/products');
       }, 2000);
     } catch (err) {
       console.error(err);

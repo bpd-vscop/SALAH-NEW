@@ -67,8 +67,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setSyncing(true);
       try {
-        const { cart } = await cartApi.update(nextItems);
-        setItemsState(cart);
+        // Send update to server but don't replace local state
+        // to avoid race conditions when adding items quickly
+        await cartApi.update(nextItems);
       } finally {
         setSyncing(false);
       }
