@@ -82,6 +82,18 @@ const isObjectId = (value?: string | null) => Boolean(value && /^[0-9a-fA-F]{24}
 
 const makeTempId = () => Math.random().toString(36).slice(2, 10);
 
+const makeEmptyCompatibilityRow = () => ({
+  id: makeTempId(),
+  yearStart: '',
+  yearEnd: '',
+  year: '',
+  make: '',
+  model: '',
+  subModel: '',
+  engine: '',
+  notes: '',
+});
+
 const toDateTimeLocal = (iso?: string | null) => {
   if (!iso) return '';
   const date = new Date(iso);
@@ -208,7 +220,7 @@ const createEmptyProductForm = (): ProductFormState => ({
   variations: [],
   serialNumbers: [],
   documents: [],
-  compatibility: [],
+  compatibility: [makeEmptyCompatibilityRow()],
   relatedProductIds: [],
   upsellProductIds: [],
   crossSellProductIds: [],
@@ -317,17 +329,20 @@ const mapProductToForm = (product: Product): ProductFormState => ({
     label: doc.label,
     url: doc.url,
   })),
-  compatibility: (product.compatibility ?? []).map((entry) => ({
-    id: makeTempId(),
-    yearStart: entry.yearStart != null ? String(entry.yearStart) : '',
-    yearEnd: entry.yearEnd != null ? String(entry.yearEnd) : '',
-    year: entry.year != null ? String(entry.year) : '',
-    make: entry.make ?? '',
-    model: entry.model ?? '',
-    subModel: entry.subModel ?? '',
-    engine: entry.engine ?? '',
-    notes: entry.notes ?? '',
-  })),
+  compatibility: (() => {
+    const rows = (product.compatibility ?? []).map((entry) => ({
+      id: makeTempId(),
+      yearStart: entry.yearStart != null ? String(entry.yearStart) : '',
+      yearEnd: entry.yearEnd != null ? String(entry.yearEnd) : '',
+      year: entry.year != null ? String(entry.year) : '',
+      make: entry.make ?? '',
+      model: entry.model ?? '',
+      subModel: entry.subModel ?? '',
+      engine: entry.engine ?? '',
+      notes: entry.notes ?? '',
+    }));
+    return rows.length ? rows : [makeEmptyCompatibilityRow()];
+  })(),
   relatedProductIds: [...(product.relatedProductIds ?? [])],
   upsellProductIds: [...(product.upsellProductIds ?? [])],
   crossSellProductIds: [...(product.crossSellProductIds ?? [])],

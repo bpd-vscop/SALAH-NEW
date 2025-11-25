@@ -1,7 +1,9 @@
-import { useState, useEffect, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from 'react';
+import { useState, useEffect, useMemo, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import { formatCurrency } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { productsApi } from '../../api/products';
+import { brandsApi, type Brand } from '../../api/brands';
+import { modelsApi, type Model } from '../../api/models';
 import type {
   Category,
   Product,
@@ -81,6 +83,19 @@ const normalizeImageSrc = (value: string) => {
 
 const makeId = () => Math.random().toString(36).slice(2, 10);
 
+const buildCompatibilityRow = (overrides?: Partial<ProductCompatibilityRow>): ProductCompatibilityRow => ({
+  id: makeId(),
+  yearStart: '',
+  yearEnd: '',
+  year: '',
+  make: '',
+  model: '',
+  subModel: '',
+  engine: '',
+  notes: '',
+  ...overrides,
+});
+
 interface SerialModalRow {
   id: string;
   existingId?: string;
@@ -137,6 +152,11 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   const [serialModalEditingRows, setSerialModalEditingRows] = useState<Set<string>>(new Set());
   const [serialModalAddingNew, setSerialModalAddingNew] = useState(false);
   const [serialModalNewRow, setSerialModalNewRow] = useState<SerialModalRow | null>(null);
+  const [vehicleBrands, setVehicleBrands] = useState<Brand[]>([]);
+  const [vehicleModels, setVehicleModels] = useState<Model[]>([]);
+  const [vehicleOptionsLoading, setVehicleOptionsLoading] = useState(false);
+  const [vehicleOptionsError, setVehicleOptionsError] = useState<string | null>(null);
+  const [allBrandsModelsAdded, setAllBrandsModelsAdded] = useState(false);
 
   // Step navigation state
   const [currentStep, setCurrentStep] = useState(0);
@@ -146,7 +166,85 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   useEffect(() => {
     setCurrentStep(0);
     setStepValidation({});
+    setAllBrandsModelsAdded(false);
   }, [selectedProductId]);
+
+  useEffect(() => {
+    let active = true;
+    const loadVehicleOptions = async () => {
+      setVehicleOptionsLoading(true);
+      setVehicleOptionsError(null);
+      try {
+        const [{ brands }, { models }] = await Promise.all([brandsApi.list(), modelsApi.list()]);
+        if (!active) return;
+        setVehicleBrands(brands);
+        setVehicleModels(models);
+      } catch (error) {
+        console.error('Failed to load vehicle brand/model options', error);
+        if (active) setVehicleOptionsError('Unable to load vehicle options.');
+      } finally {
+        if (active) setVehicleOptionsLoading(false);
+      }
+    };
+    void loadVehicleOptions();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const sortedVehicleBrands = useMemo(
+    () => vehicleBrands.slice().sort((a, b) => a.name.localeCompare(b.name)),
+    [vehicleBrands]
+  );
+
+  const modelsByBrandId = useMemo(() => {
+    const map = new Map<string, Model[]>();
+    vehicleModels.forEach((model) => {
+      if (!model.brandId) return;
+      const existing = map.get(model.brandId) ?? [];
+      map.set(model.brandId, [...existing, model]);
+    });
+    map.forEach((list, key) => {
+      const sorted = list.slice().sort((a, b) => a.name.localeCompare(b.name));
+      map.set(key, sorted);
+    });
+    return map;
+  }, [vehicleModels]);
+
+  const brandByName = useMemo(
+    () => new Map(sortedVehicleBrands.map((brand) => [brand.name.toLowerCase(), brand])),
+    [sortedVehicleBrands]
+  );
+
+  const resetCompatibilityToManual = () => {
+    setAllBrandsModelsAdded(false);
+    setForm((state) => ({ ...state, compatibility: [buildCompatibilityRow()] }));
+  };
+
+  useEffect(() => {
+    if (form.compatibility.length === 0) {
+      setForm((state) => ({
+        ...state,
+        compatibility: [buildCompatibilityRow()],
+      }));
+    }
+  }, [form.compatibility.length, setForm]);
+
+  useEffect(() => {
+    const onlyBlankRow =
+      form.compatibility.length === 1 &&
+      !form.compatibility[0]?.make &&
+      !form.compatibility[0]?.model &&
+      !form.compatibility[0]?.year &&
+      !form.compatibility[0]?.yearStart &&
+      !form.compatibility[0]?.yearEnd &&
+      !form.compatibility[0]?.subModel &&
+      !form.compatibility[0]?.engine &&
+      !form.compatibility[0]?.notes;
+    if (onlyBlankRow) {
+      setAllBrandsModelsAdded(false);
+    }
+  }, [form.compatibility]);
 
   // Validate step requirements
   const validateStep = (stepIndex: number): 'valid' | 'warning' | 'incomplete' => {
@@ -739,24 +837,18 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
     }));
   };
 
+  const getModelsForMake = (make: string) => {
+    const brand = brandByName.get(make.trim().toLowerCase());
+    if (!brand) return [];
+    return modelsByBrandId.get(brand.id) ?? [];
+  };
+
   const addCompatibilityRow = () => {
     setForm((state) => ({
       ...state,
-      compatibility: [
-        ...state.compatibility,
-        {
-          id: makeId(),
-          yearStart: '',
-          yearEnd: '',
-          year: '',
-          make: '',
-          model: '',
-          subModel: '',
-          engine: '',
-          notes: '',
-        },
-      ],
+      compatibility: [...state.compatibility, buildCompatibilityRow()],
     }));
+    setAllBrandsModelsAdded(false);
   };
 
   const updateCompatibilityRow = (
@@ -767,7 +859,23 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
     setForm((state) => ({
       ...state,
       compatibility: state.compatibility.map((entry) =>
-        entry.id === id ? { ...entry, [field]: value } : entry
+        entry.id === id
+          ? field === 'make'
+            ? (() => {
+                const modelsForBrand = getModelsForMake(value);
+                const modelStillValid = modelsForBrand.some(
+                  (model) => model.name.toLowerCase() === entry.model.toLowerCase()
+                );
+                const nextModel =
+                  modelStillValid || !value
+                    ? entry.model
+                    : modelsForBrand.length === 1
+                    ? modelsForBrand[0].name
+                    : '';
+                return { ...entry, make: value, model: nextModel };
+              })()
+            : { ...entry, [field]: value }
+          : entry
       ),
     }));
   };
@@ -777,6 +885,41 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
       ...state,
       compatibility: state.compatibility.filter((entry) => entry.id !== id),
     }));
+    setAllBrandsModelsAdded(false);
+  };
+
+  const addAllBrandModelRows = () => {
+    if (!sortedVehicleBrands.length || !vehicleModels.length) {
+      setVehicleOptionsError('No brands/models available to add yet.');
+      return;
+    }
+    setVehicleOptionsError(null);
+    setForm((state) => {
+      const existingPairs = new Set(
+        state.compatibility.map(
+          (entry) => `${entry.make.trim().toLowerCase()}::${entry.model.trim().toLowerCase()}`
+        )
+      );
+      const next = [...state.compatibility];
+
+      sortedVehicleBrands.forEach((brand) => {
+        const modelsForBrand = modelsByBrandId.get(brand.id) ?? [];
+        modelsForBrand.forEach((model) => {
+          const key = `${brand.name.trim().toLowerCase()}::${model.name.trim().toLowerCase()}`;
+          if (existingPairs.has(key)) return;
+          existingPairs.add(key);
+          next.push(
+            buildCompatibilityRow({
+              make: brand.name,
+              model: model.name,
+            })
+          );
+        });
+      });
+
+      return { ...state, compatibility: next.length ? next : [buildCompatibilityRow()] };
+    });
+    setAllBrandsModelsAdded(true);
   };
 
   const addDocument = () => {
@@ -2886,92 +3029,159 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
           {FORM_STEPS[currentStep].id === 'compatibility' && (
           <FormPanel title="Compatibility & recommendations" description="Control fitment data and related merchandising.">
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm text-slate-600">
+              <div className="flex flex-col gap-2 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
                 <span>Vehicle compatibility</span>
-                <button
-                  type="button"
-                  onClick={addCompatibilityRow}
-                  className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
-                >
-                  Add vehicle
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={addCompatibilityRow}
+                    className="text-xs font-semibold text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-muted"
+                    disabled={allBrandsModelsAdded}
+                  >
+                    Add vehicle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={addAllBrandModelRows}
+                    className="text-xs font-semibold text-slate-600 underline-offset-2 hover:text-primary hover:underline disabled:cursor-not-allowed disabled:text-muted"
+                    disabled={vehicleOptionsLoading || !sortedVehicleBrands.length || !vehicleModels.length}
+                  >
+                    Add all brands &amp; models
+                  </button>
+                </div>
               </div>
-              {form.compatibility.map((entry) => (
-                <div key={entry.id} className="space-y-2 rounded-xl border border-border bg-white/70 p-3">
-                  <div className="grid gap-2 md:grid-cols-3">
-                    <input
-                      type="number"
-                      placeholder="Year start"
-                      value={entry.yearStart}
-                      onChange={(event) => updateCompatibilityRow(entry.id, 'yearStart', event.target.value)}
-                      className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Year end"
-                      value={entry.yearEnd}
-                      onChange={(event) => updateCompatibilityRow(entry.id, 'yearEnd', event.target.value)}
-                      className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Specific year"
-                      value={entry.year}
-                      onChange={(event) => updateCompatibilityRow(entry.id, 'year', event.target.value)}
-                      className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-3">
-                    <input
-                      type="text"
-                      placeholder="Make"
-                      value={entry.make}
-                      onChange={(event) => updateCompatibilityRow(entry.id, 'make', event.target.value)}
-                      className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      required
-                    />
-                    <input
-                      type="text"
-                      placeholder="Model"
-                      value={entry.model}
-                      onChange={(event) => updateCompatibilityRow(entry.id, 'model', event.target.value)}
-                      className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      required
-                    />
-                    <input
-                      type="text"
-                      placeholder="Sub-model"
-                      value={entry.subModel}
-                      onChange={(event) => updateCompatibilityRow(entry.id, 'subModel', event.target.value)}
-                      className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                    <input
-                      type="text"
-                      placeholder="Engine"
-                      value={entry.engine}
-                      onChange={(event) => updateCompatibilityRow(entry.id, 'engine', event.target.value)}
-                      className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Notes"
-                      value={entry.notes}
-                      onChange={(event) => updateCompatibilityRow(entry.id, 'notes', event.target.value)}
-                      className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
+              {vehicleOptionsLoading ? (
+                <p className="text-xs text-muted">Loading brand and model options...</p>
+              ) : null}
+              {vehicleOptionsError ? (
+                <p className="text-xs font-semibold text-red-600">{vehicleOptionsError}</p>
+              ) : null}
+              {!vehicleOptionsLoading && !vehicleOptionsError && (!sortedVehicleBrands.length || !vehicleModels.length) ? (
+                <p className="text-xs text-amber-700">
+                  Create brands and models first to use the dropdowns and bulk add option.
+                </p>
+              ) : null}
+              {allBrandsModelsAdded ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  <p className="font-semibold">All brands and models will be added when you save.</p>
+                  <p className="text-xs text-emerald-700">
+                    We are keeping the list hidden to avoid clutter. {form.compatibility.length} combinations will be sent.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => removeCompatibilityRow(entry.id)}
-                      className="h-10 rounded-lg border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
-                      aria-label="Remove compatibility row"
+                      className="text-xs font-semibold text-emerald-800 underline-offset-2 hover:underline"
+                      onClick={resetCompatibilityToManual}
                     >
-                      Remove
+                      Reset to manual entry
                     </button>
                   </div>
                 </div>
-              ))}
+              ) : null}
+              {!allBrandsModelsAdded && form.compatibility.map((entry) => {
+                const modelsForBrand = getModelsForMake(entry.make);
+                const hasCustomMake =
+                  Boolean(entry.make) &&
+                  !sortedVehicleBrands.some((brand) => brand.name.toLowerCase() === entry.make.toLowerCase());
+                const hasCustomModel =
+                  Boolean(entry.model) &&
+                  !modelsForBrand.some((model) => model.name.toLowerCase() === entry.model.toLowerCase());
+                const modelPlaceholder = !entry.make
+                  ? 'Select a brand first'
+                  : modelsForBrand.length
+                  ? 'Select model'
+                  : 'No models for this brand yet';
+                return (
+                  <div key={entry.id} className="space-y-2 rounded-xl border border-border bg-white/70 p-3">
+                    <div className="grid gap-2 md:grid-cols-3">
+                      <input
+                        type="number"
+                        placeholder="Year start"
+                        value={entry.yearStart}
+                        onChange={(event) => updateCompatibilityRow(entry.id, 'yearStart', event.target.value)}
+                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Year end"
+                        value={entry.yearEnd}
+                        onChange={(event) => updateCompatibilityRow(entry.id, 'yearEnd', event.target.value)}
+                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Specific year"
+                        value={entry.year}
+                        onChange={(event) => updateCompatibilityRow(entry.id, 'year', event.target.value)}
+                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <div className="grid gap-2 md:grid-cols-3">
+                      <select
+                        value={entry.make}
+                        onChange={(event) => updateCompatibilityRow(entry.id, 'make', event.target.value)}
+                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-slate-100"
+                        required
+                        disabled={vehicleOptionsLoading}
+                      >
+                        <option value="">{vehicleOptionsLoading ? 'Loading brands...' : 'Select brand (make)'}</option>
+                        {sortedVehicleBrands.map((brand) => (
+                          <option key={brand.id} value={brand.name}>
+                            {brand.name}
+                          </option>
+                        ))}
+                        {hasCustomMake ? <option value={entry.make}>Custom: {entry.make}</option> : null}
+                      </select>
+                      <select
+                        value={entry.model}
+                        onChange={(event) => updateCompatibilityRow(entry.id, 'model', event.target.value)}
+                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-slate-100"
+                        required
+                        disabled={!entry.make || vehicleOptionsLoading}
+                      >
+                        <option value="">{modelPlaceholder}</option>
+                        {modelsForBrand.map((model) => (
+                          <option key={model.id} value={model.name}>
+                            {model.name}
+                          </option>
+                        ))}
+                        {hasCustomModel ? <option value={entry.model}>Custom: {entry.model}</option> : null}
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Sub-model"
+                        value={entry.subModel}
+                        onChange={(event) => updateCompatibilityRow(entry.id, 'subModel', event.target.value)}
+                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                      <input
+                        type="text"
+                        placeholder="Engine"
+                        value={entry.engine}
+                        onChange={(event) => updateCompatibilityRow(entry.id, 'engine', event.target.value)}
+                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Notes"
+                        value={entry.notes}
+                        onChange={(event) => updateCompatibilityRow(entry.id, 'notes', event.target.value)}
+                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeCompatibilityRow(entry.id)}
+                        className="h-10 rounded-lg border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
+                        aria-label="Remove compatibility row"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
               {!form.compatibility.length && (
                 <p className="text-xs text-muted">
                   Capture supported vehicles to power fitment search experiences and warnings.
