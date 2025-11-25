@@ -11,6 +11,7 @@ import { isBusinessTypeOption, type BusinessTypeOption } from '../../../data/bus
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Search, X } from 'lucide-react';
 import { PASSWORD_COMPLEXITY_MESSAGE, evaluatePasswordStrength, meetsPasswordPolicy } from '../../../utils/password';
+import { Select } from '../../ui/Select';
 
 interface ClientManagementPanelProps {
   role: UserRole;
@@ -594,33 +595,39 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
               </button>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <select
+              <Select
                 value={typeFilter}
-                onChange={(event) => setTypeFilter(event.target.value as TypeFilter)}
-                className="h-10 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="all">Type</option>
-                <option value="B2B">B2B</option>
-                <option value="C2B">C2B</option>
-              </select>
-              <select
+                onChange={(value) => setTypeFilter(value as TypeFilter)}
+                options={[
+                  { value: 'all', label: 'Type' },
+                  { value: 'B2B', label: 'B2B' },
+                  { value: 'C2B', label: 'C2B' },
+                ]}
+                placeholder="Type"
+                className="min-w-[120px]"
+              />
+              <Select
                 value={verificationFilter}
-                onChange={(event) => setVerificationFilter(event.target.value as VerificationFilter)}
-                className="h-10 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="all">Verification</option>
-                <option value="verified">Verified</option>
-                <option value="pending">Awaiting verification</option>
-              </select>
-              <select
+                onChange={(value) => setVerificationFilter(value as VerificationFilter)}
+                options={[
+                  { value: 'all', label: 'Verification' },
+                  { value: 'verified', label: 'Verified' },
+                  { value: 'pending', label: 'Awaiting verification' },
+                ]}
+                placeholder="Verification"
+                className="min-w-[150px]"
+              />
+              <Select
                 value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                className="h-10 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="all">Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+                onChange={(value) => setStatusFilter(value as StatusFilter)}
+                options={[
+                  { value: 'all', label: 'Status' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+                placeholder="Status"
+                className="min-w-[120px]"
+              />
               <div className="relative w-full sm:w-auto">
                 <motion.div
                   animate={{ width: searchOpen ? '100%' : 40 }}

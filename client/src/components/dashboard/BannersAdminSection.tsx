@@ -3,6 +3,7 @@ import { StatusPill } from '../common/StatusPill';
 import { cn } from '../../utils/cn';
 import type { Banner, BannerType } from '../../types/api';
 import type { BannerFormState } from './types';
+import { Select } from '../ui/Select';
 
 interface BannersAdminSectionProps {
   banners: Banner[];
@@ -83,18 +84,16 @@ export const BannersAdminSection: React.FC<BannersAdminSectionProps> = ({
       </div>
       <form className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm" onSubmit={onSubmit}>
         <label className="flex flex-col gap-2 text-sm text-slate-600">
-          Type
-          <select
+          <span className="font-medium">Type</span>
+          <Select
             value={form.type}
-            onChange={(event) => setForm((state) => ({ ...state, type: event.target.value as BannerType }))}
-            className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            {bannerTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setForm((state) => ({ ...state, type: value as BannerType }))}
+            options={bannerTypes.map((type) => ({
+              value: type,
+              label: type,
+            }))}
+            placeholder="Select banner type"
+          />
         </label>
         <label className="flex flex-col gap-2 text-sm text-slate-600">
           Image URL

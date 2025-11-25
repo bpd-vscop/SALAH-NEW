@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { modelsApi, type Model } from '../../api/models';
 import { brandsApi, type Brand } from '../../api/brands';
 import { cn } from '../../utils/cn';
+import { Select } from '../ui/Select';
 
 interface FormState {
   name: string;
@@ -186,20 +187,19 @@ export const ModelsAdminSection: React.FC<ModelsAdminSectionProps> = ({ onOrderC
             <input type="text" value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} required placeholder="e.g. Model S" className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
           </label>
           <label className="flex flex-col gap-2 text-sm text-slate-600">
-            Parent brand
-            <select
+            <span className="font-medium">Parent brand</span>
+            <Select
               value={form.brandId}
-              onChange={(e) => setForm((s) => ({ ...s, brandId: e.target.value }))}
-              className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              required
-            >
-              <option value="">Select a brand</option>
-              {brands.map((brand) => (
-                <option key={brand.id} value={brand.id}>
-                  {brand.name}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setForm((s) => ({ ...s, brandId: value }))}
+              options={[
+                { value: '', label: 'Select a brand' },
+                ...brands.map((brand) => ({
+                  value: brand.id,
+                  label: brand.name,
+                })),
+              ]}
+              placeholder="Select a brand"
+            />
             {!brands.length && (
               <span className="text-xs text-muted">
                 Create a brand first to associate it with models.

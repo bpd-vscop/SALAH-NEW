@@ -4,6 +4,7 @@ import { cn } from '../../utils/cn';
 import { productsApi } from '../../api/products';
 import { brandsApi, type Brand } from '../../api/brands';
 import { modelsApi, type Model } from '../../api/models';
+import { Select } from '../ui/Select';
 import type {
   Category,
   Product,
@@ -2060,30 +2061,28 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
               </label>
             </div>
             <label className="flex flex-col gap-2 text-sm text-slate-600">
-              <span>
+              <span className="font-medium">
                 Category <span className="text-red-600">*</span>
               </span>
-              <select
+              <Select
                 value={form.categoryId}
-                onChange={(event) => setForm((state) => ({ ...state, categoryId: event.target.value }))}
-                required
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="">Select category</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => setForm((state) => ({ ...state, categoryId: value }))}
+                options={[
+                  { value: '', label: 'Select category' },
+                  ...categories.map((category) => ({
+                    value: category.id,
+                    label: category.name,
+                  })),
+                ]}
+                placeholder="Select category"
+              />
             </label>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Manufacturer
-                <select
+                <span className="font-medium">Manufacturer</span>
+                <Select
                   value={form.manufacturerId}
-                  onChange={(event) => {
-                    const nextId = event.target.value;
+                  onChange={(nextId) => {
                     const match = manufacturerOptions.find((option) => option.id === nextId);
                     setForm((state) => ({
                       ...state,
@@ -2091,15 +2090,15 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       manufacturerName: match ? match.name : state.manufacturerName,
                     }));
                   }}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value="">Unassigned</option>
-                  {manufacturerOptions.map((manufacturer) => (
-                    <option key={manufacturer.id} value={manufacturer.id}>
-                      {manufacturer.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: 'Unassigned' },
+                    ...manufacturerOptions.map((manufacturer) => ({
+                      value: manufacturer.id,
+                      label: manufacturer.name,
+                    })),
+                  ]}
+                  placeholder="Select manufacturer"
+                />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
                 Manufacturer name
@@ -2114,64 +2113,74 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Product type
-                <select
+                <span className="font-medium">Product type</span>
+                <Select
                   value={form.productType}
-                  onChange={(event) => setForm((state) => ({ ...state, productType: event.target.value as ProductType | '' }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value="">Default</option>
-                  {productTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type.replace(/_/g, ' ')}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setForm((state) => ({ ...state, productType: value as ProductType | '' }))}
+                  options={[
+                    { value: '', label: 'Default' },
+                    ...productTypes.map((type) => ({
+                      value: type,
+                      label: type.replace(/_/g, ' '),
+                    })),
+                  ]}
+                  placeholder="Select product type"
+                />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Status
-                <select
+                <span className="font-medium">Status</span>
+                <Select
                   value={form.status}
-                  onChange={(event) => setForm((state) => ({ ...state, status: event.target.value as ProductStatus | '' }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  {productStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {status.replace(/_/g, ' ')}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setForm((state) => ({ ...state, status: value as ProductStatus | '' }))}
+                  options={productStatuses.map((status) => ({
+                    value: status,
+                    label: status.replace(/_/g, ' '),
+                  }))}
+                  placeholder="Select status"
+                />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Visibility
-                <select
+                <span className="font-medium">Visibility</span>
+                <Select
                   value={form.visibility}
-                  onChange={(event) =>
-                    setForm((state) => ({ ...state, visibility: event.target.value as ProductVisibility | '' }))
-                  }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  {visibilityOptions.map((visibility) => (
-                    <option key={visibility} value={visibility}>
-                      {visibility.replace(/_/g, ' ')}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setForm((state) => ({ ...state, visibility: value as ProductVisibility | '' }))}
+                  options={visibilityOptions.map((visibility) => ({
+                    value: visibility,
+                    label: visibility.replace(/_/g, ' '),
+                  }))}
+                  placeholder="Select visibility"
+                />
               </label>
             </div>
             <div className="pt-2">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.requiresB2B}
-                  onChange={(event) => setForm((state) => ({ ...state, requiresB2B: event.target.checked }))}
-                  className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-2 focus:ring-red-500/20"
-                />
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-white/70 px-4 py-3">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-slate-900">Requires B2B Account</span>
-                  <span className="text-xs text-slate-500">Only users with verified B2B accounts can purchase this product</span>
+                  <span className="text-sm font-semibold text-slate-900">Do not require B2B account</span>
+                  <span className="text-xs text-slate-500">
+                    Switch on to let all accounts buy this product. Leave off to require B2B verification.
+                  </span>
                 </div>
-              </label>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!form.requiresB2B}
+                  onClick={() => setForm((state) => ({ ...state, requiresB2B: !state.requiresB2B }))}
+                  className={cn(
+                    'relative inline-flex h-8 w-14 items-center rounded-full border transition',
+                    !form.requiresB2B
+                      ? 'border-primary bg-primary'
+                      : 'border-slate-300 bg-slate-200'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'inline-block h-6 w-6 rounded-full bg-white shadow transition',
+                      !form.requiresB2B ? 'translate-x-6' : 'translate-x-1'
+                    )}
+                  />
+                  <span className="sr-only">Toggle B2B requirement</span>
+                </button>
+              </div>
             </div>
             <div className="flex flex-col gap-2 text-sm text-slate-600">
               <span>Tags</span>
@@ -2324,24 +2333,24 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Inventory status
-                <select
+                <span className="font-medium">Inventory status</span>
+                <Select
                   value={form.inventory.status}
-                  onChange={(event) =>
+                  onChange={(value) =>
                     setForm((state) => ({
                       ...state,
-                      inventory: { ...state.inventory, status: event.target.value as ProductInventoryStatus | '' },
+                      inventory: { ...state.inventory, status: value as ProductInventoryStatus | '' },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value="">Automatic</option>
-                  {inventoryStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {status.replace(/_/g, ' ')}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: 'Automatic' },
+                    ...inventoryStatuses.map((status) => ({
+                      value: status,
+                      label: status.replace(/_/g, ' '),
+                    })),
+                  ]}
+                  placeholder="Select inventory status"
+                />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
                 Lead time
@@ -2968,17 +2977,18 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
                       Status
-                      <select
+                      <Select
                         value={serial.status}
-                        onChange={(event) => updateSerialNumberField(serial.id, 'status', event.target.value)}
-                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      >
-                        <option value="available">Available</option>
-                        <option value="sold">Sold</option>
-                        <option value="reserved">Reserved</option>
-                        <option value="defective">Defective</option>
-                        <option value="returned">Returned</option>
-                      </select>
+                        onChange={(value) => updateSerialNumberField(serial.id, 'status', value)}
+                        options={[
+                          { value: 'available', label: 'Available' },
+                          { value: 'sold', label: 'Sold' },
+                          { value: 'reserved', label: 'Reserved' },
+                          { value: 'defective', label: 'Defective' },
+                          { value: 'returned', label: 'Returned' },
+                        ]}
+                        placeholder="Select status"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
                       Order ID
@@ -3117,36 +3127,34 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       />
                     </div>
                     <div className="grid gap-2 md:grid-cols-3">
-                      <select
+                      <Select
                         value={entry.make}
-                        onChange={(event) => updateCompatibilityRow(entry.id, 'make', event.target.value)}
-                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-slate-100"
-                        required
+                        onChange={(value) => updateCompatibilityRow(entry.id, 'make', value)}
                         disabled={vehicleOptionsLoading}
-                      >
-                        <option value="">{vehicleOptionsLoading ? 'Loading brands...' : 'Select brand (make)'}</option>
-                        {sortedVehicleBrands.map((brand) => (
-                          <option key={brand.id} value={brand.name}>
-                            {brand.name}
-                          </option>
-                        ))}
-                        {hasCustomMake ? <option value={entry.make}>Custom: {entry.make}</option> : null}
-                      </select>
-                      <select
+                        options={[
+                          { value: '', label: vehicleOptionsLoading ? 'Loading brands...' : 'Select brand (make)' },
+                          ...sortedVehicleBrands.map((brand) => ({
+                            value: brand.name,
+                            label: brand.name,
+                          })),
+                          ...(hasCustomMake ? [{ value: entry.make, label: `Custom: ${entry.make}` }] : []),
+                        ]}
+                        placeholder="Select brand"
+                      />
+                      <Select
                         value={entry.model}
-                        onChange={(event) => updateCompatibilityRow(entry.id, 'model', event.target.value)}
-                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-slate-100"
-                        required
+                        onChange={(value) => updateCompatibilityRow(entry.id, 'model', value)}
                         disabled={!entry.make || vehicleOptionsLoading}
-                      >
-                        <option value="">{modelPlaceholder}</option>
-                        {modelsForBrand.map((model) => (
-                          <option key={model.id} value={model.name}>
-                            {model.name}
-                          </option>
-                        ))}
-                        {hasCustomModel ? <option value={entry.model}>Custom: {entry.model}</option> : null}
-                      </select>
+                        options={[
+                          { value: '', label: modelPlaceholder },
+                          ...modelsForBrand.map((model) => ({
+                            value: model.name,
+                            label: model.name,
+                          })),
+                          ...(hasCustomModel ? [{ value: entry.model, label: `Custom: ${entry.model}` }] : []),
+                        ]}
+                        placeholder="Select model"
+                      />
                       <input
                         type="text"
                         placeholder="Sub-model"

@@ -261,7 +261,7 @@ const createEmptyProductForm = (): ProductFormState => ({
     sales: '',
     internal: '',
   },
-  requiresB2B: false,
+  requiresB2B: true,
   reviewsSummary: {
     averageRating: '',
     reviewCount: '',
@@ -389,7 +389,7 @@ const mapProductToForm = (product: Product): ProductFormState => ({
     sales: product.notes?.sales ?? '',
     internal: product.notes?.internal ?? '',
   },
-  requiresB2B: product.requiresB2B ?? false,
+  requiresB2B: product.requiresB2B ?? true,
   reviewsSummary: {
     averageRating: product.reviewsSummary?.averageRating != null ? String(product.reviewsSummary.averageRating) : '',
     reviewCount: product.reviewsSummary?.reviewCount != null ? String(product.reviewsSummary.reviewCount) : '',

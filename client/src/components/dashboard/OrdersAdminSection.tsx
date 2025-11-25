@@ -1,6 +1,7 @@
 import { formatCurrency, formatTimestamp } from '../../utils/format';
 import { StatusPill } from '../common/StatusPill';
 import type { Order, OrderStatus } from '../../types/api';
+import { Select } from '../ui/Select';
 
 interface OrdersAdminSectionProps {
   orders: Order[];
@@ -54,17 +55,16 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                 </td>
                 <td className="px-4 py-3 text-right">
                   {canEditOrders ? (
-                    <select
+                    <Select
                       value={order.status}
-                      onChange={(event) => onUpdateStatus(order.id, event.target.value as OrderStatus)}
-                      className="h-10 rounded-lg border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                      {orderStatuses.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => onUpdateStatus(order.id, value as OrderStatus)}
+                      options={orderStatuses.map((status) => ({
+                        value: status,
+                        label: status,
+                      }))}
+                      placeholder="Select status"
+                      className="min-w-[150px]"
+                    />
                   ) : (
                     <span className="text-xs text-muted">No access</span>
                   )}

@@ -9,6 +9,7 @@ import { formatTimestamp } from '../../../utils/format';
 import { cn } from '../../../utils/cn';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../../common/PhoneInput';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Select } from '../../ui/Select';
 
 interface StaffManagementPanelProps {
   role: UserRole;
@@ -460,27 +461,27 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
               </button>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <select
+              <Select
                 value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
-                className="h-10 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="all">Role</option>
-                {roleFilterOptions.filter(option => option !== 'all').map((option) => (
-                  <option key={option} value={option}>
-                    {option.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())}
-                  </option>
-                ))}
-              </select>
-              <select
+                onChange={(value) => setRoleFilter(value as RoleFilter)}
+                options={roleFilterOptions.map(option => ({
+                  value: option,
+                  label: option === 'all' ? 'Role' : option.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+                }))}
+                placeholder="Role"
+                className="min-w-[130px]"
+              />
+              <Select
                 value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                className="h-10 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="all">Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+                onChange={(value) => setStatusFilter(value as StatusFilter)}
+                options={[
+                  { value: 'all', label: 'Status' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+                placeholder="Status"
+                className="min-w-[120px]"
+              />
               <div className="relative w-full sm:w-auto">
                 <motion.div
                   animate={{ width: searchOpen ? '100%' : 40 }}
@@ -676,10 +677,16 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
 
           <label className="flex flex-col gap-2 text-sm text-slate-600">
             Role
-            <select
+            <Select
               value={form.role}
-              onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value as UserRole }))}
-              className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              onChange={(value) => setForm((prev) => ({ ...prev, role: value as UserRole }))}
+              options={[...new Set([...assignableRoles, form.role])]
+                .filter((candidate) => candidate !== 'client')
+                .map((candidate) => ({
+                  value: candidate,
+                  label: candidate.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+                }))}
+              placeholder="Select role"
               disabled={(() => {
                 if (!editingId) {
                   return !canCreate;
@@ -693,15 +700,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
                 }
                 return !(actorRank > (ROLE_RANK[editingTarget.role] ?? 0));
               })()}
-            >
-              {[...new Set([...assignableRoles, form.role])]
-                .filter((candidate) => candidate !== 'client')
-                .map((candidate) => (
-                  <option key={candidate} value={candidate}>
-                    {candidate.replace('_', ' ')}
-                  </option>
-                ))}
-            </select>
+            />
           </label>
 
           <div className="flex flex-col gap-2">

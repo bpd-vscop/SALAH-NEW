@@ -3,6 +3,7 @@ import { StatusPill } from '../common/StatusPill';
 import type { User } from '../../types/api';
 import type { UserFormState } from './types';
 import { PASSWORD_COMPLEXITY_MESSAGE, evaluatePasswordStrength } from '../../utils/password';
+import { Select } from '../ui/Select';
 
 interface UsersAdminSectionProps {
   users: User[];
@@ -115,29 +116,31 @@ export const UsersAdminSection: React.FC<UsersAdminSectionProps> = ({
           />
         </label>
         <label className="flex flex-col gap-2 text-sm text-slate-600">
-          Role
-          <select
+          <span className="font-medium">Role</span>
+          <Select
             value={form.role}
-            onChange={(event) => setForm((state) => ({ ...state, role: event.target.value as UserFormState['role'] }))}
+            onChange={(value) => setForm((state) => ({ ...state, role: value as UserFormState['role'] }))}
             disabled={!canEditUsers}
-            className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <option value="client">Client</option>
-            <option value="staff">Staff</option>
-            <option value="admin">Admin</option>
-            {canManageUsers && <option value="super_admin">Super Admin</option>}
-          </select>
+            options={[
+              { value: 'client', label: 'Client' },
+              { value: 'staff', label: 'Staff' },
+              { value: 'admin', label: 'Admin' },
+              ...(canManageUsers ? [{ value: 'super_admin', label: 'Super Admin' }] : []),
+            ]}
+            placeholder="Select role"
+          />
         </label>
         <label className="flex flex-col gap-2 text-sm text-slate-600">
-          Status
-          <select
+          <span className="font-medium">Status</span>
+          <Select
             value={form.status}
-            onChange={(event) => setForm((state) => ({ ...state, status: event.target.value as User['status'] }))}
-            className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
+            onChange={(value) => setForm((state) => ({ ...state, status: value as User['status'] }))}
+            options={[
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+            ]}
+            placeholder="Select status"
+          />
         </label>
         <label className="flex flex-col gap-2 text-sm text-slate-600">
           Password {selectedUserId ? '(leave blank to keep current)' : ''}

@@ -62,5 +62,140 @@
   .scrollbar-custom::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
   }
+
+  /* Modern admin selects */
+  .admin-main-content select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: #fff;
+    background-image:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.08)),
+      url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 2l4 4 4-4' stroke='%23576a86' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+    background-position: 0 0, right 0.9rem center;
+    background-repeat: no-repeat, no-repeat;
+    background-size: auto, 12px 8px;
+    border-radius: 0.85rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 25px -16px rgba(15, 23, 42, 0.25);
+    color: #0f172a;
+    font-weight: 500;
+    padding-right: 2.75rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  }
+
+  .admin-main-content select:focus {
+    outline: none;
+    border-color: #0ea5e9;
+    box-shadow: 0 12px 30px -18px rgba(14, 165, 233, 0.45), 0 0 0 3px rgba(14, 165, 233, 0.15);
+    background-color: #f8fafc;
+  }
+
+  .admin-main-content select:hover:not(:disabled) {
+    border-color: #cbd5e1;
+    box-shadow: 0 12px 26px -18px rgba(15, 23, 42, 0.35);
+  }
+
+  .admin-main-content select:disabled {
+    background-color: #f8fafc;
+    color: #94a3b8;
+    cursor: not-allowed;
+  }
+
+  .admin-main-content select option {
+    font-weight: 500;
+    color: #0f172a;
+    padding: 0.75rem 1rem;
+    background-color: white;
+  }
+
+  .admin-main-content select option:hover {
+    background-color: #f1f5f9;
+  }
+
+  .admin-main-content select option:checked {
+    background-color: #0ea5e9;
+    color: white;
+    font-weight: 600;
+  }
+
+  /* Hide legacy arrows on IE/Edge */
+  .admin-main-content select::-ms-expand {
+    display: none;
+  }
+
+  /* Global modern select/dropdown styles for dashboard and forms */
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: #fff;
+    background-image:
+      url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 2l4 4 4-4' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 12px 8px;
+    border-radius: 0.75rem;
+    border: 1px solid #e2e8f0;
+    padding-right: 2.5rem;
+    transition: all 0.2s ease;
+  }
+
+  select:focus {
+    outline: none;
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+  }
+
+  select:hover:not(:disabled) {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  select:disabled {
+    background-color: #f8fafc;
+    color: #94a3b8;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  /* Modern dropdown options styling */
+  select option {
+    font-weight: 500;
+    color: #0f172a;
+    padding: 0.75rem 1rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    line-height: 1.5;
+  }
+
+  select option:hover {
+    background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+    color: #dc2626;
+  }
+
+  select option:checked,
+  select option:focus {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    color: white;
+    font-weight: 600;
+  }
+
+  select option:disabled {
+    color: #cbd5e1;
+    font-weight: 400;
+  }
+
+  /* Hide legacy arrows on IE/Edge */
+  select::-ms-expand {
+    display: none;
+  }
+
+  /* Firefox-specific dropdown styling */
+  @-moz-document url-prefix() {
+    select option {
+      padding: 8px 12px;
+    }
+  }
 }
 

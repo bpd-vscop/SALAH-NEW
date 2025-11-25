@@ -3,6 +3,7 @@ import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import type { Category } from '../../types/api';
 import type { CategoryFormState, CategoryDisplayFormState } from './types';
 import { cn } from '../../utils/cn';
+import { Select } from '../ui/Select';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_MB = Math.round(MAX_IMAGE_BYTES / (1024 * 1024));
@@ -309,21 +310,21 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
               />
             </label>
             <label className="flex flex-col gap-2 text-sm text-slate-600">
-              Parent category
-              <select
+              <span className="font-medium">Parent category</span>
+              <Select
                 value={manageForm.parentId}
-                onChange={(event) => setManageForm((state) => ({ ...state, parentId: event.target.value }))}
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="">Top-level</option>
-                {categories
-                  .filter((category) => category.id !== selectedCategoryId)
-                  .map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-              </select>
+                onChange={(value) => setManageForm((state) => ({ ...state, parentId: value }))}
+                options={[
+                  { value: '', label: 'Top-level' },
+                  ...categories
+                    .filter((category) => category.id !== selectedCategoryId)
+                    .map((category) => ({
+                      value: category.id,
+                      label: category.name,
+                    })),
+                ]}
+                placeholder="Select parent category"
+              />
             </label>
 
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">

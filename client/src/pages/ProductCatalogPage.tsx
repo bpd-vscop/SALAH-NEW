@@ -8,6 +8,7 @@ import { SiteLayout } from '../components/layout/SiteLayout';
 import type { Category, Product, ProductTag } from '../types/api';
 import { cn } from '../utils/cn';
 import { ProductCard } from '../components/product/ProductCard';
+import { Select } from '../components/ui/Select';
 
 const tagOptions: ProductTag[] = ['in stock', 'out of stock', 'on sale', 'available to order'];
 
@@ -462,25 +463,33 @@ export const ProductCatalogPage: React.FC = () => {
                     {/* Sort */}
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-slate-600">Sort by:</span>
-                      <select
+                      <Select
                         value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                        className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                      >
-                        <option value="recommended">Recommended</option>
-                        <option value="price-asc">Price: Low to High</option>
-                        <option value="price-desc">Price: High to Low</option>
-                        <option value="newest">Newest</option>
-                      </select>
+                        onChange={(value) => setSortBy(value as typeof sortBy)}
+                        options={[
+                          { value: 'recommended', label: 'Recommended' },
+                          { value: 'price-asc', label: 'Price: Low to High' },
+                          { value: 'price-desc', label: 'Price: High to Low' },
+                          { value: 'newest', label: 'Newest' },
+                        ]}
+                        placeholder="Sort by"
+                        className="min-w-[180px]"
+                      />
                     </div>
 
                     {/* Per page */}
                     <div className="flex items-center gap-2">
-                      <select className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
-                        <option>20</option>
-                        <option>40</option>
-                        <option>60</option>
-                      </select>
+                      <Select
+                        value="20"
+                        onChange={() => {}}
+                        options={[
+                          { value: '20', label: '20' },
+                          { value: '40', label: '40' },
+                          { value: '60', label: '60' },
+                        ]}
+                        placeholder="Items per page"
+                        className="w-20"
+                      />
                       <span className="text-sm text-slate-600">per page</span>
                     </div>
                   </div>
