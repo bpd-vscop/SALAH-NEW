@@ -92,6 +92,7 @@ export const getMenuIcon = (tabId: string) => {
 interface AdminSidebarOptions {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  ordersBadgeCount?: number;
   homepageSection?: 'hero' | 'featured' | 'categorydisplay' | 'manufacturers';
   setHomepageSection?: (section: 'hero' | 'featured' | 'categorydisplay' | 'manufacturers') => void;
   homepageExpanded?: boolean;
@@ -110,6 +111,7 @@ export const createAdminSidebar = (options: AdminSidebarOptions) => {
   const {
     activeTab,
     setActiveTab,
+    ordersBadgeCount = 0,
     homepageSection = 'hero',
     setHomepageSection,
     homepageExpanded = false,
@@ -354,7 +356,16 @@ export const createAdminSidebar = (options: AdminSidebarOptions) => {
             )}
           >
             {getMenuIcon(tab.id)}
-            {sidebarExpanded && <span>{tab.label}</span>}
+            {sidebarExpanded && (
+              <span className="relative">
+                {tab.label}
+                {tab.id === 'orders' && ordersBadgeCount > 0 && (
+                  <span className="absolute -right-3 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
+                    {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+                  </span>
+                )}
+              </span>
+            )}
           </button>
         );
       })}

@@ -2016,6 +2016,20 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 </select>
               </label>
             </div>
+            <div className="pt-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.requiresB2B}
+                  onChange={(event) => setForm((state) => ({ ...state, requiresB2B: event.target.checked }))}
+                  className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-2 focus:ring-red-500/20"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-slate-900">Requires B2B Account</span>
+                  <span className="text-xs text-slate-500">Only users with verified B2B accounts can purchase this product</span>
+                </div>
+              </label>
+            </div>
             <div className="flex flex-col gap-2 text-sm text-slate-600">
               <span>Tags</span>
               <div className="flex flex-wrap gap-2">

@@ -258,6 +258,7 @@ const updateProduct = async (req, res, next) => {
       'support',
       'reviewsSummary',
       'notes',
+      'requiresB2B',
     ];
 
     assignFields.forEach((field) => {

@@ -24,3 +24,4 @@ const shutdown = (signal) => {
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+

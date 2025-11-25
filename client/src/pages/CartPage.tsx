@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Trash2, ShoppingCart, Shield, Headphones, CreditCard, AlertCircle } from 'lucide-react';
 import { productsApi } from '../api/products';
 import { SiteLayout } from '../components/layout/SiteLayout';
 import { useAuth } from '../context/AuthContext';
@@ -8,10 +9,12 @@ import type { Product } from '../types/api';
 import { formatCurrency } from '../utils/format';
 
 export const CartPage: React.FC = () => {
-  const { items, updateItem, removeItem } = useCart();
+  const { items, updateItem, removeItem, clearCart } = useCart();
   const { user } = useAuth();
   const [productMap, setProductMap] = useState<Record<string, Product>>({});
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,7 +45,7 @@ export const CartPage: React.FC = () => {
     void loadProducts();
   }, [items, productMap]);
 
-  const total = useMemo(() => {
+  const subtotal = useMemo(() => {
     return items.reduce((sum, line) => {
       const product = productMap[line.productId];
       const price = product?.price ?? 0;
@@ -50,118 +53,398 @@ export const CartPage: React.FC = () => {
     }, 0);
   }, [items, productMap]);
 
+  const steps = [
+    { label: 'Cart', active: true },
+    { label: 'Address', active: false },
+    { label: 'Shipping', active: false },
+    { label: 'Payment', active: false },
+    { label: 'Confirm', active: false },
+    { label: 'Complete', active: false },
+  ];
+
+  // Check if user has required information
+  const hasShippingAddress = user?.shippingAddresses && user.shippingAddresses.length > 0;
+  const missingInfo: string[] = [];
+
+  if (user) {
+    if (!hasShippingAddress) {
+      missingInfo.push('Shipping Address');
+    }
+    // Note: Shipping method and payment method would typically be selected during checkout
+    // For now, we'll just check for address
+  }
+
+  const handleCheckout = () => {
+    if (!user) {
+      // Redirect to login
+      navigate('/login', { state: { from: '/cart' } });
+      return;
+    }
+
+    if (missingInfo.length > 0) {
+      // Redirect to dashboard to complete profile
+      navigate('/dashboard?tab=account&highlight=address');
+      return;
+    }
+
+    // Proceed to checkout
+    navigate('/checkout');
+  };
+
   return (
     <SiteLayout>
-      <section className="space-y-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-semibold text-slate-900">Your Cart</h1>
-          <p className="text-sm text-muted">
-            Manage items before confirming pickup or delivery.
-          </p>
-        </div>
-
-        {!items.length && (
-          <p className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
-            Your cart is empty. Start exploring our{' '}
-            <Link to="/products" className="font-medium text-primary hover:text-primary-dark">
-              catalog
-            </Link>
-            .
-          </p>
-        )}
-
-        {loadingProducts && (
-          <div className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
-            Loading product details...
+      <div className="bg-slate-50 min-h-screen py-8">
+        <div className="container mx-auto px-4 max-w-[1400px]">
+          {/* Progress Steps */}
+          <div className="bg-white rounded-lg shadow-sm mb-6 p-6">
+            <div className="flex items-center justify-between">
+              {steps.map((step, index) => (
+                <div key={step.label} className="flex items-center">
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`text-sm font-medium ${
+                        step.active ? 'text-slate-900' : 'text-slate-400'
+                      }`}
+                    >
+                      {step.label}
+                    </div>
+                  </div>
+                  {index < steps.length - 1 && (
+                    <div className="mx-4 text-slate-400">›</div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-        )}
 
-        {items.length > 0 && (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="space-y-4">
-              {items.map((line) => {
-                const product = productMap[line.productId];
-                return (
-                  <article
-                    key={line.productId}
-                    className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 shadow-sm transition hover:border-primary hover:shadow-md sm:flex-row"
+          {!items.length && (
+            <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+              <ShoppingCart className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-slate-900 mb-2">Your cart is empty</h2>
+              <p className="text-slate-600 mb-6">
+                Start exploring our catalog to add items to your cart.
+              </p>
+              <Link
+                to="/products"
+                className="inline-block bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
+              >
+                Continue Shopping
+              </Link>
+            </div>
+          )}
+
+          {loadingProducts && (
+            <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+              <p className="text-slate-600">Loading product details...</p>
+            </div>
+          )}
+
+          {items.length > 0 && (
+            <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+              {/* Cart Items Table */}
+              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-900 text-white">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">SKU</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Image</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Product(s)</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Price</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Qty.</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Total</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Remove</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((line) => {
+                        const product = productMap[line.productId];
+                        const itemTotal = (product?.price ?? 0) * line.quantity;
+                        return (
+                          <tr key={line.productId} className="border-b border-slate-200">
+                            <td className="px-4 py-4 text-sm text-slate-700">
+                              {product?.sku || 'N/A'}
+                            </td>
+                            <td className="px-4 py-4">
+                              <img
+                                src={product?.images?.[0] ?? 'https://placehold.co/80x80?text=Item'}
+                                alt={product?.name ?? 'Cart item'}
+                                className="h-16 w-16 rounded-lg object-cover"
+                              />
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="max-w-md">
+                                <h3 className="text-sm font-medium text-slate-900">
+                                  {product?.name ?? 'Loading...'}
+                                </h3>
+                                {product?.description && (
+                                  <p className="text-xs text-slate-600 mt-1 line-clamp-2">
+                                    {product.description}
+                                  </p>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 text-sm font-semibold text-slate-900">
+                              {formatCurrency(product?.price ?? 0)}
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    if (line.quantity > 1) {
+                                      updateItem(line.productId, line.quantity - 1);
+                                    }
+                                  }}
+                                  className="h-8 w-8 rounded border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 transition flex items-center justify-center"
+                                >
+                                  −
+                                </button>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={line.quantity}
+                                  onChange={(event) => {
+                                    const nextQuantity = Number(event.target.value);
+                                    if (!Number.isNaN(nextQuantity) && nextQuantity > 0) {
+                                      updateItem(line.productId, nextQuantity);
+                                    }
+                                  }}
+                                  className="h-8 w-16 rounded border border-slate-300 bg-white px-2 text-center text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                                />
+                                <button
+                                  onClick={() => updateItem(line.productId, line.quantity + 1)}
+                                  className="h-8 w-8 rounded border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 transition flex items-center justify-center"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 text-sm font-semibold text-slate-900">
+                              {formatCurrency(itemTotal)}
+                            </td>
+                            <td className="px-4 py-4">
+                              <button
+                                onClick={() => removeItem(line.productId)}
+                                className="text-slate-400 hover:text-red-600 transition"
+                                title="Remove item"
+                              >
+                                <Trash2 className="h-5 w-5" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="p-4 border-t border-slate-200 flex gap-3 justify-end">
+                  <Link
+                    to="/products"
+                    className="px-6 py-2.5 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
                   >
-                    <img
-                      src={product?.images?.[0] ?? 'https://placehold.co/160x160?text=Item'}
-                      alt={product?.name ?? 'Cart item'}
-                      className="h-32 w-32 rounded-xl object-cover"
+                    Continue shopping
+                  </Link>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to empty your cart?')) {
+                        clearCart();
+                      }
+                    }}
+                    className="px-6 py-2.5 rounded-lg bg-red-600 text-sm font-semibold text-white hover:bg-red-700 transition"
+                  >
+                    Empty Cart
+                  </button>
+                </div>
+              </div>
+
+              {/* Sidebar - Coupon & Summary */}
+              <div className="space-y-6">
+                {/* Coupon Section */}
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Coupon</h3>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter your coupon here"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      className="flex-1 h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
                     />
-                    <div className="flex flex-1 flex-col gap-3">
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-900">{product?.name ?? 'Loading item...'}</h3>
-                        <p className="text-sm text-muted">
-                          {product?.description?.slice(0, 120) ?? 'Fetching product description...'}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-                        <p className="text-lg font-semibold text-slate-900">
-                          {formatCurrency((product?.price ?? 0) * line.quantity)}
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-2 text-sm text-muted">
-                            Qty
-                            <input
-                              type="number"
-                              min={1}
-                              value={line.quantity}
-                              onChange={(event) => {
-                                const nextQuantity = Number(event.target.value);
-                                if (!Number.isNaN(nextQuantity) && nextQuantity > 0) {
-                                  updateItem(line.productId, nextQuantity);
-                                }
-                              }}
-                              className="h-10 w-16 rounded-lg border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted transition hover:border-primary hover:text-primary"
-                            onClick={() => removeItem(line.productId)}
+                    <button
+                      type="button"
+                      className="px-6 h-10 rounded-lg bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800 transition"
+                    >
+                      Apply coupon
+                    </button>
+                  </div>
+                </div>
+
+                {/* Order Summary */}
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600">Sub-Total:</span>
+                      <span className="font-semibold text-slate-900">{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600">Shipping:</span>
+                      <span className="text-xs text-slate-500">Calculated during checkout</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600">Tax:</span>
+                      <span className="font-semibold text-slate-900">$0.00</span>
+                    </div>
+                    <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
+                      <span className="text-base font-semibold text-slate-900">Total:</span>
+                      <span className="text-lg font-bold text-slate-900">
+                        Calculated during checkout
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Missing Info Warning */}
+                  {user && missingInfo.length > 0 && (
+                    <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-amber-900 mb-2">
+                            Complete your profile
+                          </p>
+                          <p className="text-xs text-amber-700 mb-3">
+                            Please add the following information in your dashboard:
+                          </p>
+                          <ul className="text-xs text-amber-700 list-disc list-inside space-y-1 mb-3">
+                            {missingInfo.map((info) => (
+                              <li key={info}>{info}</li>
+                            ))}
+                          </ul>
+                          <Link
+                            to="/dashboard?tab=account"
+                            className="inline-block text-xs font-semibold text-amber-900 hover:text-amber-950 underline"
                           >
-                            Remove
-                          </button>
+                            Go to Dashboard →
+                          </Link>
                         </div>
                       </div>
                     </div>
-                  </article>
-                );
-              })}
+                  )}
+
+                  {/* Not Logged In Warning */}
+                  {!user && (
+                    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-blue-900 mb-2">
+                            Login Required
+                          </p>
+                          <p className="text-xs text-blue-700 mb-3">
+                            You need to login or create an account to proceed with checkout.
+                          </p>
+                          <Link
+                            to="/login"
+                            state={{ from: '/cart' }}
+                            className="inline-block text-xs font-semibold text-blue-900 hover:text-blue-950 underline"
+                          >
+                            Login / Register →
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Terms Checkbox */}
+                  <div className="mt-6">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        className="mt-1 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-1 focus:ring-red-500"
+                      />
+                      <span className="text-xs text-slate-600">
+                        I agree with the{' '}
+                        <Link to="/terms" className="text-red-600 hover:underline">
+                          terms of service
+                        </Link>{' '}
+                        and I adhere to them unconditionally
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Checkout Button */}
+                  <button
+                    type="button"
+                    disabled={!agreedToTerms}
+                    onClick={handleCheckout}
+                    className="mt-6 w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {!user ? 'Login to Checkout' : missingInfo.length > 0 ? 'Complete Profile' : 'Proceed to Checkout'}
+                  </button>
+                </div>
+              </div>
             </div>
-            <aside className="h-full rounded-2xl border border-border bg-surface p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-slate-900">Summary</h2>
-              <dl className="mt-6 space-y-4 text-sm">
-                <div className="flex items-center justify-between">
-                  <dt className="text-muted">Subtotal</dt>
-                  <dd className="font-semibold text-slate-900">{formatCurrency(total)}</dd>
+          )}
+
+          {/* Features Section */}
+          {items.length > 0 && (
+            <div className="mt-8 bg-slate-900 rounded-lg shadow-sm p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="h-12 w-12 rounded-lg bg-slate-800 flex items-center justify-center">
+                      <ShoppingCart className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white mb-1">Free Shipping</h4>
+                    <p className="text-xs text-slate-400">Free Express Shipping</p>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-muted">Taxes &amp; shipping</dt>
-                  <dd className="text-right text-xs text-muted">
-                    Calculated at pickup / checkout
-                  </dd>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="h-12 w-12 rounded-lg bg-slate-800 flex items-center justify-center">
+                      <Shield className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white mb-1">Money Guarantee</h4>
+                    <p className="text-xs text-slate-400">Within our Refund Policy</p>
+                  </div>
                 </div>
-              </dl>
-              <button
-                type="button"
-                className="mt-6 w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20"
-                onClick={() => navigate(user ? '/checkout' : '/login', { state: { from: '/checkout' } })}
-              >
-                Proceed to checkout
-              </button>
-              {!user && (
-                <p className="mt-4 rounded-lg border border-dashed border-border bg-background px-3 py-3 text-xs text-muted">
-                  You need an account before placing orders.
-                </p>
-              )}
-            </aside>
-          </div>
-        )}
-      </section>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="h-12 w-12 rounded-lg bg-slate-800 flex items-center justify-center">
+                      <Headphones className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white mb-1">Online Support</h4>
+                    <p className="text-xs text-slate-400">After-Sales technical support service</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="h-12 w-12 rounded-lg bg-slate-800 flex items-center justify-center">
+                      <CreditCard className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white mb-1">Flexible Payment</h4>
+                    <p className="text-xs text-slate-400">Multiple Secured Payment Methods</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </SiteLayout>
   );
 };

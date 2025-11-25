@@ -83,8 +83,40 @@ const productImageUpload = multer({
   limits: { fileSize: productImageMaxFileSize },
 });
 
+// Combined upload that accepts both profile image and verification file
+const userUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      if (file.fieldname === 'verificationFile') {
+        cb(null, verificationDir);
+      } else {
+        cb(null, profileDir);
+      }
+    },
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      const ext = path.extname(file.originalname) || (file.fieldname === 'verificationFile' ? '.dat' : '.jpg');
+      cb(null, `${uniqueSuffix}${ext}`);
+    },
+  }),
+  fileFilter: (_req, file, cb) => {
+    if (file.fieldname === 'verificationFile') {
+      if (!verificationAllowedMimeTypes.includes(file.mimetype)) {
+        return cb(badRequest('Unsupported file type', [{ allowed: verificationAllowedMimeTypes }]));
+      }
+    } else if (file.fieldname === 'profileImage') {
+      if (!profileAllowedMimeTypes.includes(file.mimetype)) {
+        return cb(badRequest('Unsupported profile image type', [{ allowed: profileAllowedMimeTypes }]));
+      }
+    }
+    cb(null, true);
+  },
+  limits: { fileSize: verificationMaxFileSize }, // Use the larger limit
+});
+
 module.exports = {
   verificationUpload,
   profileUpload,
   productImageUpload,
+  userUpload,
 };

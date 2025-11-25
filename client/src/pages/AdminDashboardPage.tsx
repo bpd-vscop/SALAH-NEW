@@ -249,6 +249,7 @@ const createEmptyProductForm = (): ProductFormState => ({
     sales: '',
     internal: '',
   },
+  requiresB2B: false,
   reviewsSummary: {
     averageRating: '',
     reviewCount: '',
@@ -373,6 +374,7 @@ const mapProductToForm = (product: Product): ProductFormState => ({
     sales: product.notes?.sales ?? '',
     internal: product.notes?.internal ?? '',
   },
+  requiresB2B: product.requiresB2B ?? false,
   reviewsSummary: {
     averageRating: product.reviewsSummary?.averageRating != null ? String(product.reviewsSummary.averageRating) : '',
     reviewCount: product.reviewsSummary?.reviewCount != null ? String(product.reviewsSummary.reviewCount) : '',
@@ -985,6 +987,7 @@ export const AdminDashboardPage: React.FC = () => {
         productType: productForm.productType || undefined,
         status: productForm.status || undefined,
         visibility: productForm.visibility || undefined,
+        requiresB2B: productForm.requiresB2B,
         categoryId: productForm.categoryId,
         manufacturerId: productForm.manufacturerId ? productForm.manufacturerId : null,
         manufacturerName: productForm.manufacturerName.trim() || undefined,
@@ -1609,9 +1612,10 @@ export const AdminDashboardPage: React.FC = () => {
           id: tab.id,
           label: tab.label,
           icon: getMenuIcon(tab.id),
+          badgeCount: tab.id === 'orders' ? orders.filter((o) => o.status === 'pending').length : undefined,
         };
       }),
-    [homepageSection, navigationSection, activeTab, catalogSection, usersSection, productsView]
+    [homepageSection, navigationSection, activeTab, catalogSection, usersSection, productsView, orders]
   );
 
   const handleTopNavSelect = (id: string, dropdownId?: string) => {

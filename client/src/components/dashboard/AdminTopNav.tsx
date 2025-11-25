@@ -13,6 +13,7 @@ export interface AdminTopNavItem {
   id: string;
   label: string;
   icon?: ReactNode;
+  badgeCount?: number;
   dropdown?: {
     items: AdminTopNavDropdownItem[];
     activeId?: string;
@@ -84,6 +85,11 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
               aria-haspopup={showDropdown || undefined}
               aria-expanded={showDropdown ? openDropdown === item.id : undefined}
             >
+              {item.badgeCount && item.badgeCount > 0 && (
+                <span className="absolute -right-1 -top-1 z-30 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
+                  {item.badgeCount > 99 ? '99+' : item.badgeCount}
+                </span>
+              )}
               {shouldHighlight && (
                 <motion.span
                   layoutId="admin-top-nav-highlight"

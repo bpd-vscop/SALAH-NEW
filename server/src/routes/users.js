@@ -13,7 +13,7 @@ const {
   sendClientVerification,
 } = require('../controllers/userController');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { profileUpload, verificationUpload } = require('../middleware/upload');
+const { profileUpload, verificationUpload, userUpload } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -24,7 +24,11 @@ router.post('/', requireRole(['super_admin', 'admin']), createUser);
 router.put(
   '/:id',
   // Allow users to update their own profile, admins can update any
-  profileUpload.single('profileImage'),
+  // Support both profileImage and verificationFile uploads
+  userUpload.fields([
+    { name: 'profileImage', maxCount: 1 },
+    { name: 'verificationFile', maxCount: 1 }
+  ]),
   updateUser
 );
 router.delete('/:id', requireRole(['super_admin']), deleteUser);

@@ -543,6 +543,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
                     title={item.label}
                   >
                     {item.icon}
+                    {item.badgeCount && item.badgeCount > 0 && (
+                      <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
+                        {item.badgeCount > 99 ? '99+' : item.badgeCount}
+                      </span>
+                    )}
                     {/* Dropdown indicator */}
                     {hasDropdown && (
                       <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" />

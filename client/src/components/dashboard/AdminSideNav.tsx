@@ -13,6 +13,7 @@ export interface AdminSideNavItem {
   id: string;
   label: string;
   icon?: ReactNode;
+  badgeCount?: number;
   dropdown?: {
     items: AdminSideNavDropdownItem[];
     activeId?: string;
@@ -82,8 +83,13 @@ export const AdminSideNav: React.FC<AdminSideNavProps> = ({ items, activeId, onS
                 </span>
               )}
 
-              <span className="flex-1 text-left truncate">
+              <span className="flex-1 text-left truncate relative">
                 {isActive && currentActiveLabel ? currentActiveLabel : item.label}
+                {item.badgeCount && item.badgeCount > 0 && (
+                  <span className="absolute -right-2 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
+                    {item.badgeCount > 99 ? '99+' : item.badgeCount}
+                  </span>
+                )}
               </span>
 
               {showDropdown && (

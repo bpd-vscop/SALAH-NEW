@@ -201,6 +201,7 @@ export interface Product {
   support?: ProductSupportDetails | null;
   reviewsSummary?: ProductReviewsSummary | null;
   notes?: ProductNotes | null;
+  requiresB2B?: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
 }

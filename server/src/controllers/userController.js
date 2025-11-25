@@ -216,9 +216,24 @@ const updateUser = async (req, res, next) => {
     const { id } = req.params;
     const payload = { ...(req.body || {}) };
 
+    // Handle file uploads (either single file or multiple fields)
     if (req.file) {
-      payload.profileImage = `profile/${req.file.filename}`;
-      payload.removeProfileImage = false;
+      // Single file upload
+      if (req.file.fieldname === 'profileImage') {
+        payload.profileImage = `profile/${req.file.filename}`;
+        payload.removeProfileImage = false;
+      } else if (req.file.fieldname === 'verificationFile') {
+        payload.verificationFileUrl = `verification/${req.file.filename}`;
+      }
+    } else if (req.files) {
+      // Multiple file fields upload
+      if (req.files.profileImage && req.files.profileImage[0]) {
+        payload.profileImage = `profile/${req.files.profileImage[0].filename}`;
+        payload.removeProfileImage = false;
+      }
+      if (req.files.verificationFile && req.files.verificationFile[0]) {
+        payload.verificationFileUrl = `verification/${req.files.verificationFile[0].filename}`;
+      }
     }
 
     const data = validateUpdateUser(payload);
@@ -432,6 +447,11 @@ const updateUser = async (req, res, next) => {
       user.profileImage = data.profileImage;
     } else if (data.removeProfileImage) {
       user.profileImage = null;
+    }
+
+    // Update verification file URL if provided
+    if (Object.prototype.hasOwnProperty.call(data, 'verificationFileUrl')) {
+      user.verificationFileUrl = data.verificationFileUrl;
     }
 
     await user.save();

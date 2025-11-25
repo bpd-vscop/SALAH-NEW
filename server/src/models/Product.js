@@ -287,6 +287,10 @@ const productSchema = new mongoose.Schema(
       sales: { type: String, trim: true },
       internal: { type: String, trim: true },
     },
+    requiresB2B: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

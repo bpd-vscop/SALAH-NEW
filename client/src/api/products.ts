@@ -31,6 +31,7 @@ interface ProductPayload {
   images?: string[];
   videoUrls?: string[];
   price?: number;
+  requiresB2B?: boolean;
   cost?: number | null;
   salePrice?: number | null;
   saleStartDate?: string | null;

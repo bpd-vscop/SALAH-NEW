@@ -42,12 +42,8 @@ const writeStoredCart = (items: CartLine[]) => {
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, initializing } = useAuth();
-  const [items, setItemsState] = useState<CartLine[]>([]);
+  const [items, setItemsState] = useState<CartLine[]>(() => readStoredCart());
   const [syncing, setSyncing] = useState(false);
-
-  useEffect(() => {
-    setItemsState(readStoredCart());
-  }, []);
 
   useEffect(() => {
     if (initializing) {

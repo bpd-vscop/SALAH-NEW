@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type ChangeEvent, type FormEvent, type ReactNode, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, type ChangeEvent, type FormEvent, type ReactNode, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -25,14 +25,16 @@ import { ClientDashboardLayout } from '../components/layout/ClientDashboardLayou
 import { ProfileCompletionBar } from '../components/dashboard/ProfileCompletionBar';
 import { useAuth } from '../context/AuthContext';
 import { usersApi, type ShippingAddressPayload } from '../api/users';
+import { ordersApi } from '../api/orders';
 import { cn } from '../utils/cn';
-import type { ShippingAddress } from '../types/api';
+import type { ShippingAddress, Order } from '../types/api';
 import { evaluatePasswordStrength, PASSWORD_COMPLEXITY_MESSAGE } from '../utils/password';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
 import { CountrySelect } from '../components/common/CountrySelect';
 import { COUNTRIES } from '../data/countries';
 import { BusinessTypeSelect } from '../components/common/BusinessTypeSelect';
 import { isBusinessTypeOption, type BusinessTypeOption } from '../data/businessTypes';
+import { formatCurrency } from '../utils/format';
 
 type TabType = 'account' | 'orders' | 'reviews' | 'settings' | 'b2b-upgrade';
 
@@ -57,6 +59,9 @@ export const ClientDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
 
   // Profile image states
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
@@ -198,6 +203,23 @@ export const ClientDashboardPage: React.FC = () => {
     return (source.charAt(0) || 'U').toUpperCase();
   }, [user?.name]);
 
+  const ordersBadgeCount = useMemo(
+    () =>
+      orders.filter((order) => order.status === 'pending' || order.status === 'processing').length,
+    [orders]
+  );
+
+  const formatOrderDate = (value?: string | null) => {
+    if (!value) return 'Just now';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Just now';
+    return date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
   // Check URL params for tab
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -217,6 +239,27 @@ export const ClientDashboardPage: React.FC = () => {
     setPreviewObjectUrl(null);
   }, [user]);
 
+  const loadOrders = useCallback(async () => {
+    if (!user) return;
+    setOrdersLoading(true);
+    setOrdersError(null);
+    try {
+      const { orders: orderList } = await ordersApi.list();
+      setOrders(orderList);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to load orders';
+      setOrdersError(message);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (activeTab === 'orders') {
+      void loadOrders();
+    }
+  }, [activeTab, loadOrders]);
+
   // Cleanup preview URL
   useEffect(
     () => () => {
@@ -226,6 +269,12 @@ export const ClientDashboardPage: React.FC = () => {
     },
     [previewObjectUrl]
   );
+
+  useEffect(() => {
+    if (user) {
+      void loadOrders();
+    }
+  }, [user, loadOrders]);
 
   // Redirect non-clients
   useEffect(() => {
@@ -717,6 +766,11 @@ export const ClientDashboardPage: React.FC = () => {
                       {tab.id === 'b2b-upgrade' && (
                         <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-amber-400" />
                       )}
+                      {tab.id === 'orders' && ordersBadgeCount > 0 && (
+                        <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
+                          {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -771,8 +825,15 @@ export const ClientDashboardPage: React.FC = () => {
                             : 'text-slate-700 hover:bg-slate-100'
                         }`}
                       >
-                        {getTabIcon(tab.id)}
-                        <span className="font-medium">{tab.label}</span>
+                        <span className="relative flex h-5 w-5 items-center justify-center">{getTabIcon(tab.id)}</span>
+                        <span className="relative font-medium">
+                          {tab.label}
+                          {tab.id === 'orders' && ordersBadgeCount > 0 && (
+                            <span className="absolute -right-3 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
+                              {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+                            </span>
+                          )}
+                        </span>
                         {tab.id === 'b2b-upgrade' && (
                           <span className="ml-auto inline-flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
                         )}
@@ -877,8 +938,15 @@ export const ClientDashboardPage: React.FC = () => {
                                 : 'text-slate-700 hover:bg-slate-100'
                             }`}
                           >
-                            {getTabIcon(tab.id)}
-                            <span>{tab.label}</span>
+                            <span className="relative flex h-5 w-5 items-center justify-center">{getTabIcon(tab.id)}</span>
+                            <span className="relative">
+                              {tab.label}
+                              {tab.id === 'orders' && ordersBadgeCount > 0 && (
+                                <span className="absolute -right-3 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
+                                  {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+                                </span>
+                              )}
+                            </span>
                             {tab.id === 'b2b-upgrade' && (
                               <span className="ml-auto inline-flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
                             )}
@@ -1340,22 +1408,116 @@ export const ClientDashboardPage: React.FC = () => {
               )}
 
               {activeTab === 'orders' && (
-                <div className="space-y-6">
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-                      <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                      </svg>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-slate-900">Orders</h2>
+                      <p className="text-sm text-slate-600">Track your recent purchases</p>
                     </div>
-                    <h3 className="text-lg font-medium text-slate-900">No orders yet</h3>
-                    <p className="mt-2 text-sm text-slate-600">Start shopping to see your order history here.</p>
-                    <button
-                      onClick={() => navigate('/')}
-                      className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-dark"
-                    >
-                      Browse Products
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => navigate('/')}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
+                      >
+                        Continue Shopping
+                      </button>
+                      <button
+                        onClick={() => loadOrders()}
+                        disabled={ordersLoading}
+                        className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-60"
+                      >
+                        {ordersLoading ? 'Refreshing...' : 'Refresh'}
+                      </button>
+                    </div>
                   </div>
+
+                  {ordersError && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                      {ordersError}
+                    </div>
+                  )}
+
+                  {ordersLoading && (
+                    <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                      Loading orders...
+                    </div>
+                  )}
+
+                  {!ordersLoading && orders.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+                        <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-medium text-slate-900">No orders yet</h3>
+                      <p className="mt-2 text-sm text-slate-600">Start shopping to see your order history here.</p>
+                      <button
+                        onClick={() => navigate('/')}
+                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-dark"
+                      >
+                        Browse Products
+                      </button>
+                    </div>
+                  )}
+
+                  {orders.length > 0 && (
+                    <div className="space-y-4">
+                      {orders.map((order) => {
+                        const itemCount = order.products.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                        const total = order.products.reduce(
+                          (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
+                          0
+                        );
+                        const statusLabel =
+                          order.status === 'pending'
+                            ? 'Processing'
+                            : order.status === 'completed'
+                            ? 'Completed'
+                            : order.status === 'cancelled'
+                            ? 'Cancelled'
+                            : order.status;
+
+                        return (
+                          <div key={order.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-slate-500">Order #{order.id}</p>
+                                <p className="text-lg font-semibold text-slate-900">{statusLabel}</p>
+                                <p className="text-sm text-slate-600">Placed on {formatOrderDate(order.createdAt)}</p>
+                                <p className="text-sm text-slate-600">Your order is processing.</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-slate-500">Total</p>
+                                <p className="text-2xl font-bold text-slate-900">{formatCurrency(total)}</p>
+                                <p className="text-xs text-slate-500">{itemCount} item{itemCount === 1 ? '' : 's'}</p>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-slate-50">
+                              {order.products.map((item, index) => (
+                                <div
+                                  key={`${order.id}-line-${index}`}
+                                  className="flex items-center justify-between px-4 py-3 text-sm text-slate-700"
+                                >
+                                  <div className="flex-1">
+                                    <p className="font-medium text-slate-900">{item.name}</p>
+                                    <p className="text-xs text-slate-500">Qty: {item.quantity}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-semibold text-slate-900">
+                                      {formatCurrency((item.price || 0) * (item.quantity || 0))}
+                                    </p>
+                                    <p className="text-xs text-slate-500">Unit: {formatCurrency(item.price || 0)}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 

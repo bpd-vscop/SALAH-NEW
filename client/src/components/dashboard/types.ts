@@ -164,6 +164,7 @@ export interface ProductFormState {
     sales: string;
     internal: string;
   };
+  requiresB2B: boolean;
   reviewsSummary: {
     averageRating: string;
     reviewCount: string;

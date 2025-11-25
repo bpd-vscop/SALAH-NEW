@@ -11,6 +11,24 @@ const logoSrc = hasLogoFile ? `cid:${LOGO_CID}` : LOGO_FALLBACK_URL;
 
 let transporter;
 
+const parseAdminRecipients = () => {
+  const raw =
+    process.env.ADMIN_NOTIFICATION_EMAILS ||
+    process.env.ADMIN_ORDER_ALERTS ||
+    process.env.ADMIN_EMAILS ||
+    '';
+  const list = raw
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean);
+  if (list.length > 0) {
+    return list;
+  }
+
+  const fallback = process.env.SMTP_FROM || process.env.SMTP_USER;
+  return fallback ? [fallback] : [];
+};
+
 const getTransporter = () => {
   if (transporter) {
     return transporter;
@@ -507,10 +525,68 @@ const sendPasswordChangedConfirmation = async ({ email, fullName }) => {
   });
 };
 
+const formatCurrency = (value) => {
+  const amount = Number(value ?? 0);
+  return `$${amount.toFixed(2)}`;
+};
+
+const sendOrderConfirmationEmail = async ({ to, fullName, orderId, items, status, total }) => {
+  if (!to) return;
+  const subject = `We received your order #${orderId}`;
+  const itemLines = items
+    .map((item) => `- ${item.name} x${item.quantity} (${formatCurrency(item.price)})`)
+    .join('\n');
+  const text = [
+    `Hi ${fullName || 'there'},`,
+    '',
+    `Thanks for your purchase! Your order #${orderId} is now ${status || 'processing'}.`,
+    '',
+    'Order details:',
+    itemLines || '- (no line items found)',
+    '',
+    `Order total: ${formatCurrency(total)}`,
+    '',
+    'We will notify you when it ships.',
+  ].join('\n');
+
+  await sendMail({
+    to,
+    subject,
+    text,
+  });
+};
+
+const sendAdminNewOrderEmail = async ({ clientEmail, clientId, orderId, total, items }) => {
+  const recipients = parseAdminRecipients();
+  if (recipients.length === 0) return;
+
+  const subject = `New order #${orderId} from ${clientEmail || clientId || 'client'}`;
+  const itemLines = items
+    .map((item) => `- ${item.name} x${item.quantity} (${formatCurrency(item.price)})`)
+    .join('\n');
+  const text = [
+    `New order received: #${orderId}`,
+    `Client: ${clientEmail || 'N/A'} (${clientId || 'id unknown'})`,
+    '',
+    'Items:',
+    itemLines || '- (no line items found)',
+    '',
+    `Order total: ${formatCurrency(total)}`,
+  ].join('\n');
+
+  await sendMail({
+    to: recipients,
+    subject,
+    text,
+  });
+};
+
 module.exports = {
   sendMail,
   sendClientVerificationEmail,
   sendPasswordResetEmail,
   sendPasswordChangeEmail,
   sendPasswordChangedConfirmation,
+  sendOrderConfirmationEmail,
+  sendAdminNewOrderEmail,
 };

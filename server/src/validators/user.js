@@ -90,6 +90,7 @@ const updateUserSchema = z
         return val;
       }, z.boolean())
       .optional(),
+    verificationFileUrl: z.union([z.string().min(1), z.null()]).optional(),
     phoneCode: z.string().optional(),
     phoneNumber: z.string().optional(),
     companyTaxId: optionalTrimmed(z.string().max(80)),
