@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState, useMemo } from 'react';
+import { Search, X } from 'lucide-react';
 import { categoriesApi } from '../api/categories';
 import { categoryDisplayApi } from '../api/categoryDisplay';
 import type { Category } from '../types/api';
@@ -11,6 +11,7 @@ export const CategoriesPage: React.FC = () => {
   const [heroImage, setHeroImage] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -35,12 +36,18 @@ export const CategoriesPage: React.FC = () => {
   }, []);
 
   const hasContent = categories.length > 0;
-  const topLevelCategories = categories.filter((category) => !category.parentId);
-  const primaryGridCategories = topLevelCategories.length ? topLevelCategories : categories;
-  const groupedChildren = topLevelCategories.map((top) => ({
-    parent: top,
-    children: categories.filter((category) => category.parentId === top.id),
-  }));
+
+  // Filter categories based on search query
+  const filteredCategories = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return categories;
+    }
+    const query = searchQuery.toLowerCase();
+    return categories.filter((category) =>
+      category.name.toLowerCase().includes(query) ||
+      category.description?.toLowerCase().includes(query)
+    );
+  }, [categories, searchQuery]);
 
   return (
     <SiteLayout>
@@ -63,65 +70,66 @@ export const CategoriesPage: React.FC = () => {
       </section>
 
       <section className="mx-auto w-[88%] pb-16">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-900">Category directory</h2>
-            <p className="text-sm text-muted">Select a category to explore its curated inventory and promotions.</p>
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold text-slate-900">Category directory</h2>
+              <p className="text-sm text-muted">Select a category to explore its curated inventory and promotions.</p>
+            </div>
           </div>
+
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search categories..."
+              className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-12 pr-12 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                aria-label="Clear search"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+
+          {/* Results count */}
+          {searchQuery && (
+            <p className="text-sm text-muted">
+              Found {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'}
+            </p>
+          )}
         </div>
 
         {error && !hasContent ? (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-6 text-sm text-red-700">{error}</div>
+        ) : filteredCategories.length === 0 && searchQuery ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-6 py-12 text-center">
+            <Search className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+            <h3 className="text-lg font-semibold text-slate-900">No categories found</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              No categories match your search for "{searchQuery}"
+            </p>
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
+            >
+              Clear search
+            </button>
+          </div>
         ) : (
-          <>
-            <CategoryGrid
-              categories={primaryGridCategories}
-              loading={loading && !primaryGridCategories.length}
-            />
-
-            {groupedChildren.length > 0 && (
-              <div className="mt-12 space-y-8">
-                {groupedChildren.map(({ parent, children }) => (
-                  <div key={parent.id} className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <Link
-                          to={parent.slug ? `/categories/${parent.slug}` : `/categories/${parent.id}`}
-                          className="text-lg font-semibold text-slate-900 transition hover:text-primary"
-                        >
-                          {parent.name}
-                        </Link>
-                        <p className="text-xs text-muted">
-                          {children.length} {children.length === 1 ? 'subcategory' : 'subcategories'}
-                        </p>
-                      </div>
-                      <Link
-                        to={parent.slug ? `/categories/${parent.slug}` : `/categories/${parent.id}`}
-                        className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                      >
-                        View category
-                      </Link>
-                    </div>
-                    {children.length > 0 ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {children.map((child) => (
-                          <Link
-                            key={child.id}
-                            to={child.slug ? `/categories/${child.slug}` : `/categories/${child.id}`}
-                            className="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-primary hover:text-primary"
-                          >
-                            {child.name}
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-4 text-xs text-muted">No subcategories configured yet.</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
+          <CategoryGrid
+            categories={filteredCategories}
+            loading={loading && !filteredCategories.length}
+          />
         )}
 
         {error && hasContent && (
