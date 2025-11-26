@@ -357,38 +357,38 @@ export const ProductDetailPage: React.FC = () => {
               <span className="mx-2">/</span>
               <span className="font-semibold text-slate-900">{product.name}</span>
             </nav>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-2">
-                <span className="text-xs uppercase tracking-[0.3em] text-primary/80">Product overview</span>
-                <h1 className="text-3xl font-semibold text-slate-900 lg:text-4xl">{product.name}</h1>
-                {product.shortDescription ? (
-                  <p className="max-w-2xl text-sm text-muted">
-                    {product.shortDescription}
-                  </p>
-                ) : null}
+            {product.badges?.length ? (
+              <div className="flex flex-wrap gap-2">
+                {product.badges.map((badge, index) => (
+                  <span
+                    key={`${badge.label}-${index}`}
+                    className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
+                  >
+                    {badge.icon ? (
+                      <span aria-hidden="true" className="text-primary/80">{badge.icon}</span>
+                    ) : null}
+                    {badge.label}
+                  </span>
+                ))}
               </div>
-              {product.badges?.length ? (
-                <div className="flex flex-wrap gap-2">
-                  {product.badges.map((badge, index) => (
-                    <span
-                      key={`${badge.label}-${index}`}
-                      className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
-                    >
-                      {badge.icon ? (
-                        <span aria-hidden="true" className="text-primary/80">{badge.icon}</span>
-                      ) : null}
-                      {badge.label}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+            ) : null}
           </header>
 
           <section className="grid gap-10 rounded-3xl border border-border bg-surface p-6 shadow-sm xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
             <ProductMediaGallery name={product.name} images={product.images} videoUrls={product.videoUrls} />
 
             <div className="flex flex-col gap-6">
+              {/* Product Title Section */}
+              <div className="space-y-2">
+                <span className="text-xs uppercase tracking-[0.3em] text-primary/80">Product overview</span>
+                <h1 className="text-3xl font-semibold text-slate-900 lg:text-4xl">{product.name}</h1>
+                {product.shortDescription ? (
+                  <p className="text-sm text-muted">
+                    {product.shortDescription}
+                  </p>
+                ) : null}
+              </div>
+
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <div className={cn('inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold', inventoryMeta.badge)}>
