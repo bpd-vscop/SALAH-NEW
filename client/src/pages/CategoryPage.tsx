@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Search, X, SlidersHorizontal, ChevronDown, Filter } from 'lucide-react';
+import { Search, X, Filter } from 'lucide-react';
 import { categoriesApi } from '../api/categories';
 import { productsApi } from '../api/products';
 import { manufacturersApi, type Manufacturer } from '../api/manufacturers';

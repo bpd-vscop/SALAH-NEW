@@ -211,6 +211,7 @@ export interface Category {
   name: string;
   parentId: string | null;
   slug?: string | null;
+  description?: string | null;
   imageUrl?: string | null;
   heroImageUrl?: string | null;
   createdAt?: string | null;
