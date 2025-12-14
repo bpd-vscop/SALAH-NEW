@@ -9,7 +9,8 @@
         "dev": "nodemon src/server.js",
         "start": "node src/server.js",
         "build": "echo \"Server build completed - no compilation needed\"",
-        "seed:sample-product": "node scripts/seed-sample-product.js"
+        "seed:sample-product": "node scripts/seed-sample-product.js",
+        "migrate:base64-images": "node scripts/migrate-base64-images-to-uploads.js"
     },
     "keywords": [],
     "author": "",

@@ -8,6 +8,11 @@ const { hashPassword } = require('../utils/password');
 const { badRequest, notFound, forbidden } = require('../utils/appError');
 const { canView, canEdit, rank, ROLE_RANK } = require('../utils/roles');
 const {
+  safeUnlinkUploadsUrlPath,
+  safeRemoveUploadsDir,
+  normalizePosixPath,
+} = require('../services/mediaStorageService');
+const {
   issuePasswordChangeCode,
   verifyPasswordChangeCode,
   issueVerificationCode,
@@ -15,6 +20,23 @@ const {
 const { sendPasswordChangedConfirmation } = require('../services/emailService');
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const resolveUploadsUrlFromStoredPath = (value) => {
+  if (!value) {
+    return null;
+  }
+  const normalized = normalizePosixPath(value);
+  if (!normalized) {
+    return null;
+  }
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+    return null;
+  }
+  if (normalized.startsWith('/uploads/')) {
+    return normalized;
+  }
+  return `/uploads/${normalized.replace(/^\/+/, '')}`;
+};
 const parseCsvParam = (value) =>
   String(value || '')
     .split(',')
@@ -123,6 +145,8 @@ const sendClientVerification = async (req, res, next) => {
       throw notFound('User not found');
     }
 
+    const previousVerificationFileUrl = user.verificationFileUrl;
+
     if (user.role !== 'client') {
       throw badRequest('Verification emails are only available for client accounts');
     }
@@ -220,19 +244,19 @@ const updateUser = async (req, res, next) => {
     if (req.file) {
       // Single file upload
       if (req.file.fieldname === 'profileImage') {
-        payload.profileImage = `profile/${req.file.filename}`;
+        payload.profileImage = `users/${id}/profile/${req.file.filename}`;
         payload.removeProfileImage = false;
       } else if (req.file.fieldname === 'verificationFile') {
-        payload.verificationFileUrl = `verification/${req.file.filename}`;
+        payload.verificationFileUrl = `users/${id}/verification/${req.file.filename}`;
       }
     } else if (req.files) {
       // Multiple file fields upload
       if (req.files.profileImage && req.files.profileImage[0]) {
-        payload.profileImage = `profile/${req.files.profileImage[0].filename}`;
+        payload.profileImage = `users/${id}/profile/${req.files.profileImage[0].filename}`;
         payload.removeProfileImage = false;
       }
       if (req.files.verificationFile && req.files.verificationFile[0]) {
-        payload.verificationFileUrl = `verification/${req.files.verificationFile[0].filename}`;
+        payload.verificationFileUrl = `users/${id}/verification/${req.files.verificationFile[0].filename}`;
       }
     }
 
@@ -242,6 +266,9 @@ const updateUser = async (req, res, next) => {
     if (!user) {
       throw notFound('User not found');
     }
+
+    const previousProfileImage = user.profileImage;
+    const previousVerificationFileUrl = user.verificationFileUrl;
 
     const isSelf = req.user && (req.user.id === id || req.user._id?.toString() === id);
 
@@ -456,6 +483,18 @@ const updateUser = async (req, res, next) => {
 
     await user.save();
 
+    const previousProfileUploadUrl = resolveUploadsUrlFromStoredPath(previousProfileImage);
+    const nextProfileUploadUrl = resolveUploadsUrlFromStoredPath(user.profileImage);
+    if (previousProfileUploadUrl && previousProfileUploadUrl !== nextProfileUploadUrl) {
+      await safeUnlinkUploadsUrlPath(previousProfileUploadUrl);
+    }
+
+    const previousVerificationUploadUrl = resolveUploadsUrlFromStoredPath(previousVerificationFileUrl);
+    const nextVerificationUploadUrl = resolveUploadsUrlFromStoredPath(user.verificationFileUrl);
+    if (previousVerificationUploadUrl && previousVerificationUploadUrl !== nextVerificationUploadUrl) {
+      await safeUnlinkUploadsUrlPath(previousVerificationUploadUrl);
+    }
+
     res.json({ user: user.toJSON() });
   } catch (error) {
     next(error);
@@ -480,6 +519,15 @@ const deleteUser = async (req, res, next) => {
     }
 
     await User.findByIdAndDelete(id);
+
+    const profileUploadUrl = resolveUploadsUrlFromStoredPath(user.profileImage);
+    const verificationUploadUrl = resolveUploadsUrlFromStoredPath(user.verificationFileUrl);
+    await Promise.all([
+      profileUploadUrl ? safeUnlinkUploadsUrlPath(profileUploadUrl) : Promise.resolve(),
+      verificationUploadUrl ? safeUnlinkUploadsUrlPath(verificationUploadUrl) : Promise.resolve(),
+    ]);
+
+    await safeRemoveUploadsDir(path.posix.join('users', id));
 
     res.status(204).send();
   } catch (error) {
@@ -735,7 +783,7 @@ const convertToB2B = async (req, res, next) => {
     }
 
     if (req.file) {
-      const relativePath = path.posix.join('/uploads/verification', req.file.filename);
+      const relativePath = path.posix.join('users', id, 'verification', req.file.filename);
       user.verificationFileUrl = relativePath;
     }
 
@@ -751,6 +799,15 @@ const convertToB2B = async (req, res, next) => {
     };
 
     await user.save();
+
+    const previousVerificationUploadUrl = resolveUploadsUrlFromStoredPath(previousVerificationFileUrl);
+    const nextVerificationUploadUrl = resolveUploadsUrlFromStoredPath(user.verificationFileUrl);
+    if (
+      previousVerificationUploadUrl &&
+      previousVerificationUploadUrl !== nextVerificationUploadUrl
+    ) {
+      await safeUnlinkUploadsUrlPath(previousVerificationUploadUrl);
+    }
 
     res.json({
       message: 'Account converted to B2B successfully',

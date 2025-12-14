@@ -22,4 +22,16 @@ export const categoriesApi = {
   update: (id: string, payload: UpdateCategoryInput) =>
     http.put<{ category: Category }>(`/categories/${id}`, payload),
   delete: (id: string) => http.delete<void>(`/categories/${id}`),
+  uploadImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await http.post<{ data: { path: string } }>('/categories/upload-image', formData);
+    return response.data.path;
+  },
+  uploadHeroImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await http.post<{ data: { path: string } }>('/categories/upload-hero-image', formData);
+    return response.data.path;
+  },
 };

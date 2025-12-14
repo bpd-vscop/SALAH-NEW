@@ -42,8 +42,6 @@ export const BrandsAdminSection: React.FC<BrandsAdminSectionProps> = ({ onOrderC
     }
   }, [selectedId, list]);
 
-  const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = reject; r.readAsDataURL(file); });
-
   const filteredSorted = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     let l = list;
@@ -65,12 +63,19 @@ export const BrandsAdminSection: React.FC<BrandsAdminSectionProps> = ({ onOrderC
     e.preventDefault();
     setLoading(true);
     try {
-      const payload = { name: form.name, logoImage: form.logoImage };
       if (selectedId) {
+        const payload: Partial<Brand> = { name: form.name };
+        if (form.logoImage.startsWith('/uploads/')) {
+          payload.logoImage = form.logoImage;
+        }
         await brandsApi.update(selectedId, payload);
         setStatus('Brand updated');
       } else {
-        await brandsApi.create(payload);
+        if (!form.logoImage.startsWith('/uploads/')) {
+          setStatus(null, 'Please upload a logo image before creating the brand.');
+          return;
+        }
+        await brandsApi.create({ name: form.name, logoImage: form.logoImage });
         setStatus('Brand created');
       }
       await refresh();
@@ -185,19 +190,24 @@ export const BrandsAdminSection: React.FC<BrandsAdminSectionProps> = ({ onOrderC
               )}
             >
               <span>{form.logoImage ? `Replace logo (max ${MAX_IMAGE_MB} MB)` : `Upload logo (max ${MAX_IMAGE_MB} MB)`}</span>
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={async (event) => {
-                  const f = event.target.files?.[0];
-                  if (!f) return;
-                  if (f.size > MAX_IMAGE_BYTES) return alert('File too large');
-                  const data = await fileToDataUrl(f);
-                  setForm((s) => ({ ...s, logoImage: data }));
-                  event.currentTarget.value = '';
-                }}
-              />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={async (event) => {
+                    const f = event.target.files?.[0];
+                    if (!f) return;
+                    if (f.size > MAX_IMAGE_BYTES) return alert('File too large');
+                    try {
+                      const uploadedPath = await brandsApi.uploadLogo(f);
+                      setForm((s) => ({ ...s, logoImage: uploadedPath }));
+                    } catch (error) {
+                      console.error('Failed to upload brand logo', error);
+                      setStatus(null, error instanceof Error ? error.message : 'Unable to upload brand logo');
+                    }
+                    event.currentTarget.value = '';
+                  }}
+                />
             </label>
             {form.logoImage && (
               <div className="flex items-center gap-3">

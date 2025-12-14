@@ -6,47 +6,19 @@ const objectId = z
   .string()
   .refine((val) => mongoose.Types.ObjectId.isValid(val), 'Invalid identifier');
 
-const base64Regex = /^data:image\/(png|jpg|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
-const urlRegex = /^https?:\/\//i;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-
-const bytesFromDataUrl = (dataUrl) => {
-  const [, base64] = dataUrl.split(',');
-  if (!base64) {
-    return 0;
-  }
-  const padding = (base64.match(/=/g) || []).length;
-  return Math.floor((base64.length * 3) / 4) - padding;
-};
-
-const imageSchema = z
+const uploadsPathSchema = z
   .string()
-  .max(MAX_IMAGE_BYTES * 2) // rough guard before detailed check when base64
-  .superRefine((value, ctx) => {
-    if (base64Regex.test(value)) {
-      if (bytesFromDataUrl(value) > MAX_IMAGE_BYTES) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Image must be 5 MB or smaller',
-        });
-      }
-      return;
-    }
-
-    if (!urlRegex.test(value)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Image must be an http(s) URL or a base64 data URL',
-      });
-    }
+  .min(1)
+  .refine((value) => value.startsWith('/uploads/'), {
+    message: 'Image must be an uploaded image path',
   });
 
 const createCategorySchema = z
   .object({
     name: z.string().min(2).max(80),
     parentId: objectId.optional().nullable(),
-    imageUrl: imageSchema.optional().nullable(),
-    heroImageUrl: imageSchema.optional().nullable(),
+    imageUrl: uploadsPathSchema.optional().nullable(),
+    heroImageUrl: uploadsPathSchema.optional().nullable(),
   })
   .strict();
 
@@ -54,8 +26,8 @@ const updateCategorySchema = z
   .object({
     name: z.string().min(2).max(80).optional(),
     parentId: objectId.optional().nullable(),
-    imageUrl: imageSchema.optional().nullable(),
-    heroImageUrl: imageSchema.optional().nullable(),
+    imageUrl: uploadsPathSchema.optional().nullable(),
+    heroImageUrl: uploadsPathSchema.optional().nullable(),
   })
   .strict();
 

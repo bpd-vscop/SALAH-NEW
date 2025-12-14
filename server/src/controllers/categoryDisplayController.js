@@ -1,6 +1,18 @@
 const CategoryDisplayConfig = require('../models/CategoryDisplayConfig');
 const Category = require('../models/Category');
 const { validateUpdateCategoryDisplay } = require('../validators/categoryDisplay');
+const path = require('path');
+const { randomUUID } = require('crypto');
+const { badRequest } = require('../utils/appError');
+const {
+  saveWebpImage,
+  moveUploadsUrlPath,
+  normalizePosixPath,
+  safeUnlinkUploadsUrlPath,
+} = require('../services/mediaStorageService');
+
+const MAX_MARKETING_IMAGE_BYTES = 2 * 1024 * 1024;
+const CATEGORY_DISPLAY_TEMP_DIR = path.posix.join('_tmp', 'category-display');
 
 const ensureConfig = async () => {
   const existing = await CategoryDisplayConfig.findOne();
@@ -38,7 +50,25 @@ const updateCategoryDisplay = async (req, res, next) => {
 
     const config = await ensureConfig();
     config.homepageCategories = normalizedIds;
-    config.allCategoriesHeroImage = payload.allCategoriesHeroImage || null;
+
+    if ('allCategoriesHeroImage' in payload) {
+      const requested = payload.allCategoriesHeroImage;
+      if (!requested) {
+        if (config.allCategoriesHeroImage && normalizePosixPath(config.allCategoriesHeroImage).startsWith('/uploads/')) {
+          await safeUnlinkUploadsUrlPath(config.allCategoriesHeroImage);
+        }
+        config.allCategoriesHeroImage = null;
+      } else if (requested.startsWith('/uploads/_tmp/')) {
+        const configId = String(config._id);
+        config.allCategoriesHeroImage = await moveUploadsUrlPath(requested, {
+          relativeDir: path.posix.join('home', 'category-display', configId, 'images'),
+          filename: 'hero.webp',
+        });
+      } else {
+        config.allCategoriesHeroImage = requested;
+      }
+    }
+
     await config.save();
 
     res.json({ settings: config.toJSON() });
@@ -50,4 +80,22 @@ const updateCategoryDisplay = async (req, res, next) => {
 module.exports = {
   getCategoryDisplay,
   updateCategoryDisplay,
+  uploadCategoryDisplayHeroImage: async (req, res, next) => {
+    try {
+      if (!req.file || !req.file.buffer) {
+        throw badRequest('No hero image provided');
+      }
+
+      const filename = `category-display-hero-${Date.now()}-${randomUUID()}.webp`;
+      const relativePath = await saveWebpImage(req.file.buffer, {
+        relativeDir: CATEGORY_DISPLAY_TEMP_DIR,
+        filename,
+        maxBytes: MAX_MARKETING_IMAGE_BYTES,
+      });
+
+      res.status(201).json({ data: { path: relativePath } });
+    } catch (error) {
+      next(error);
+    }
+  },
 };

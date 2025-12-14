@@ -1,29 +1,14 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
-import type { FeaturedShowcaseItem, FeaturedVariant } from '../../api/featuredShowcase';
-import type { HeroSlide } from '../../api/heroSlides';
+import { featuredShowcaseApi, type FeaturedShowcaseItem, type FeaturedVariant } from '../../api/featuredShowcase';
+import { heroSlidesApi, type HeroSlide } from '../../api/heroSlides';
 import {
   type FeatureFormState,
   type HeroSlideFormState,
   type OrderConflictState,
   type StatusSetter,
 } from './types';
-
-const fileToDataUrl = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === 'string') {
-        resolve(result);
-      } else {
-        reject(new Error('Unsupported file result'));
-      }
-    };
-    reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.readAsDataURL(file);
-  });
 
 interface HomepageAdminSectionProps {
   section: 'hero' | 'featured';
@@ -287,8 +272,15 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
                           event.target.value = '';
                           return;
                         }
-                        const dataUrl = await fileToDataUrl(file);
-                        setHeroForm((state) => ({ ...state, desktopImage: dataUrl }));
+                        try {
+                          const uploadedPath = await heroSlidesApi.uploadDesktopImage(file);
+                          setHeroForm((state) => ({ ...state, desktopImage: uploadedPath }));
+                        } catch (error) {
+                          console.error('Failed to upload desktop hero image', error);
+                          setStatus(null, error instanceof Error ? error.message : 'Unable to upload desktop hero image');
+                        } finally {
+                          event.target.value = '';
+                        }
                       }
                     }}
                     className="sr-only"
@@ -320,8 +312,15 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
                           event.target.value = '';
                           return;
                         }
-                        const dataUrl = await fileToDataUrl(file);
-                        setHeroForm((state) => ({ ...state, mobileImage: dataUrl }));
+                        try {
+                          const uploadedPath = await heroSlidesApi.uploadMobileImage(file);
+                          setHeroForm((state) => ({ ...state, mobileImage: uploadedPath }));
+                        } catch (error) {
+                          console.error('Failed to upload mobile hero image', error);
+                          setStatus(null, error instanceof Error ? error.message : 'Unable to upload mobile hero image');
+                        } finally {
+                          event.target.value = '';
+                        }
                       }
                     }}
                     className="sr-only"
@@ -639,8 +638,15 @@ export const HomepageAdminSection: React.FC<HomepageAdminSectionProps> = ({
                         event.target.value = '';
                         return;
                       }
-                      const dataUrl = await fileToDataUrl(file);
-                      setFeatureForm((state) => ({ ...state, image: dataUrl }));
+                      try {
+                        const uploadedPath = await featuredShowcaseApi.uploadImage(file);
+                        setFeatureForm((state) => ({ ...state, image: uploadedPath }));
+                      } catch (error) {
+                        console.error('Failed to upload featured image', error);
+                        setStatus(null, error instanceof Error ? error.message : 'Unable to upload featured image');
+                      } finally {
+                        event.target.value = '';
+                      }
                     }
                   }}
                   className="sr-only"

@@ -24,5 +24,16 @@ export const heroSlidesApi = {
   update: (id: string, payload: Partial<HeroSlidePayload>) =>
     http.put<{ slide: HeroSlide }>(`/hero-slides/${id}`, payload),
   delete: (id: string) => http.delete<void>(`/hero-slides/${id}`),
+  uploadDesktopImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await http.post<{ data: { path: string } }>('/hero-slides/upload-desktop-image', formData);
+    return response.data.path;
+  },
+  uploadMobileImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await http.post<{ data: { path: string } }>('/hero-slides/upload-mobile-image', formData);
+    return response.data.path;
+  },
 };
-

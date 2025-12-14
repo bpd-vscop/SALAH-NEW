@@ -14,13 +14,19 @@ const objectId = z
   .refine((val) => mongoose.Types.ObjectId.isValid(val), 'Invalid identifier');
 
 const urlSchema = z.string().url();
+const httpUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => value.startsWith('http://') || value.startsWith('https://'), {
+    message: 'URL must start with http:// or https://',
+  });
 const uploadsPathSchema = z
   .string()
   .min(1)
   .refine((value) => value.startsWith('/uploads/'), {
     message: 'Upload paths must start with /uploads/',
   });
-const imageUrlSchema = z.union([urlSchema, uploadsPathSchema]);
+const imageUrlSchema = z.union([httpUrlSchema, uploadsPathSchema]);
 const isYouTubeUrl = (value) => {
   try {
     const parsed = new URL(value);
@@ -54,7 +60,7 @@ const specificationSchema = z.object({
 
 const documentSchema = z.object({
   label: z.string().min(1).max(200),
-  url: urlSchema,
+  url: z.union([httpUrlSchema, uploadsPathSchema]),
 });
 
 const compatibilitySchema = z.object({

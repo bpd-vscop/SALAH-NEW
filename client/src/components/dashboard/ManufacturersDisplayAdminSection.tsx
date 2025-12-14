@@ -1,19 +1,11 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { cn } from '../../utils/cn';
 import { manufacturersApi, type Manufacturer } from '../../api/manufacturers';
-import { manufacturerDisplayApi, type ManufacturerDisplaySettings } from '../../api/manufacturerDisplay';
+import { manufacturerDisplayApi } from '../../api/manufacturerDisplay';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_MB = Math.round(MAX_IMAGE_BYTES / (1024 * 1024));
 const FALLBACK_COLORS = ['#f97316', '#ef4444', '#6366f1', '#0ea5e9', '#10b981', '#facc15'];
-
-const fileToDataUrl = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 
 interface ManufacturersDisplayAdminSectionProps {
   maxHomepageManufacturers: number;
@@ -61,11 +53,11 @@ export const ManufacturersDisplayAdminSection: React.FC<ManufacturersDisplayAdmi
       return;
     }
     try {
-      const dataUrl = await fileToDataUrl(file);
-      setter(dataUrl);
+      const uploadedPath = await manufacturerDisplayApi.uploadHeroImage(file);
+      setter(uploadedPath);
     } catch (e) {
       console.error(e);
-      window.alert('Failed to read image file. Please try a different image.');
+      window.alert('Failed to upload image file. Please try again.');
     }
   };
 
@@ -118,10 +110,15 @@ export const ManufacturersDisplayAdminSection: React.FC<ManufacturersDisplayAdmi
       for (let i = 1; i <= maxHomepageManufacturers; i++) {
         ordered.push(assignments[i] ?? '');
       }
-      const payload: ManufacturerDisplaySettings = {
+      const heroValue = hero.trim();
+      const payload: { homepageManufacturers: string[]; allManufacturersHeroImage?: string | null } = {
         homepageManufacturers: ordered.filter(Boolean),
-        allManufacturersHeroImage: hero || null,
       };
+      if (!heroValue) {
+        payload.allManufacturersHeroImage = null;
+      } else if (heroValue.startsWith('/uploads/')) {
+        payload.allManufacturersHeroImage = heroValue;
+      }
       await manufacturerDisplayApi.update(payload);
       setStatus('Display settings saved');
     } catch (err) {
@@ -279,4 +276,3 @@ export const ManufacturersDisplayAdminSection: React.FC<ManufacturersDisplayAdmi
     </section>
   );
 };
-

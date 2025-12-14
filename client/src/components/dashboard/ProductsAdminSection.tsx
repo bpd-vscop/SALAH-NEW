@@ -66,6 +66,9 @@ const MAX_PRODUCT_IMAGE_SIZE_BYTES = 3 * 1024 * 1024;
 const MAX_PRODUCT_IMAGE_SIZE_MB = 3;
 const MAX_PRODUCT_IMAGES = 5;
 
+const MAX_PRODUCT_DOCUMENT_SIZE_BYTES = 20 * 1024 * 1024;
+const MAX_PRODUCT_DOCUMENT_SIZE_MB = 20;
+
 const normalizeImageSrc = (value: string) => {
   if (!value) return '';
   const trimmed = value.trim();
@@ -928,6 +931,34 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
       ...state,
       documents: [...state.documents, { id: makeId(), label: '', url: '' }],
     }));
+  };
+
+  const handleDocumentUploadSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    if (!files.length) {
+      return;
+    }
+
+    const file = files[0];
+    if (file.size > MAX_PRODUCT_DOCUMENT_SIZE_BYTES) {
+      window.alert(`Document must be ${MAX_PRODUCT_DOCUMENT_SIZE_MB} MB or smaller.`);
+      return;
+    }
+
+    try {
+      const uploadedPath = await productsApi.uploadDocument(file);
+      setForm((state) => ({
+        ...state,
+        documents: [
+          ...state.documents,
+          { id: makeId(), label: file.name.replace(/\.[^/.]+$/, ''), url: uploadedPath },
+        ],
+      }));
+    } catch (error) {
+      console.error('Failed to upload product document', error);
+      window.alert('Unable to upload document. Please try again.');
+    }
   };
 
   const updateDocument = (id: string, field: keyof Omit<ProductDocumentRow, 'id'>, value: string) => {
@@ -2594,13 +2625,23 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm text-slate-600">
                 <span>Documents</span>
-                <button
-                  type="button"
-                  onClick={addDocument}
-                  className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
-                >
-                  Add document
-                </button>
+                <div className="flex items-center gap-3">
+                  <label className="cursor-pointer text-xs font-semibold text-primary underline-offset-2 hover:underline">
+                    Upload document
+                    <input
+                      type="file"
+                      className="sr-only"
+                      onChange={handleDocumentUploadSelect}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addDocument}
+                    className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                  >
+                    Add document
+                  </button>
+                </div>
               </div>
               {form.documents.map((document) => (
                 <div key={document.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
@@ -2612,10 +2653,10 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <input
-                    type="url"
+                    type="text"
                     value={document.url}
                     onChange={(event) => updateDocument(document.id, 'url', event.target.value)}
-                    placeholder="https://example.com/manual.pdf"
+                    placeholder="https://example.com/manual.pdf or /uploads/products/..."
                     className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button

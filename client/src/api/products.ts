@@ -149,5 +149,11 @@ export const productsApi = {
     const response = await http.post<{ data: { path: string } }>('/products/upload-image', formData);
     return response.data.path;
   },
+  uploadDocument: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await http.post<{ data: { path: string } }>('/products/upload-document', formData);
+    return response.data.path;
+  },
   delete: (id: string) => http.delete<void>(`/products/${id}`),
 };

@@ -4,8 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 // import { bannersApi } from '../api/banners';
 import { categoriesApi } from '../api/categories';
 import { categoryDisplayApi } from '../api/categoryDisplay';
-import { featuredShowcaseApi, type FeaturedShowcaseItem, type FeaturedVariant } from '../api/featuredShowcase';
-import { heroSlidesApi, type HeroSlide } from '../api/heroSlides';
+import {
+  featuredShowcaseApi,
+  type FeaturedShowcaseItem,
+  type FeaturedVariant,
+  type FeaturedShowcasePayload,
+} from '../api/featuredShowcase';
+import { heroSlidesApi, type HeroSlide, type HeroSlidePayload } from '../api/heroSlides';
 import { ordersApi } from '../api/orders';
 import { productsApi } from '../api/products';
 import { manufacturersApi, type Manufacturer } from '../api/manufacturers';
@@ -767,12 +772,35 @@ export const AdminDashboardPage: React.FC = () => {
   const handleCategorySubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
-      const payload = {
+      const imageUrlValue = categoryForm.imageUrl.trim();
+      const heroImageUrlValue = categoryForm.heroImageUrl.trim();
+
+      const payload: {
+        name: string;
+        parentId: string | null;
+        imageUrl?: string | null;
+        heroImageUrl?: string | null;
+      } = {
         name: categoryForm.name.trim(),
         parentId: categoryForm.parentId || null,
-        imageUrl: categoryForm.imageUrl.trim() || null,
-        heroImageUrl: categoryForm.heroImageUrl.trim() || null,
       };
+
+      if (!selectedCategoryId) {
+        payload.imageUrl = imageUrlValue || null;
+        payload.heroImageUrl = heroImageUrlValue || null;
+      } else {
+        if (!imageUrlValue) {
+          payload.imageUrl = null;
+        } else if (imageUrlValue.startsWith('/uploads/')) {
+          payload.imageUrl = imageUrlValue;
+        }
+
+        if (!heroImageUrlValue) {
+          payload.heroImageUrl = null;
+        } else if (heroImageUrlValue.startsWith('/uploads/')) {
+          payload.heroImageUrl = heroImageUrlValue;
+        }
+      }
 
       if (selectedCategoryId) {
         await categoriesApi.update(selectedCategoryId, payload);
@@ -798,10 +826,17 @@ export const AdminDashboardPage: React.FC = () => {
         .map(([, id]) => id)
         .slice(0, MAX_HOMEPAGE_CATEGORIES);
 
-      await categoryDisplayApi.update({
+      const heroValue = categoryDisplayForm.allCategoriesHeroImage.trim();
+      const payload: { homepageCategories: string[]; allCategoriesHeroImage?: string | null } = {
         homepageCategories: orderedCategories,
-        allCategoriesHeroImage: categoryDisplayForm.allCategoriesHeroImage || null,
-      });
+      };
+      if (!heroValue) {
+        payload.allCategoriesHeroImage = null;
+      } else if (heroValue.startsWith('/uploads/')) {
+        payload.allCategoriesHeroImage = heroValue;
+      }
+
+      await categoryDisplayApi.update(payload);
       setStatus('Category display updated');
       await refreshCategoryDisplay();
     } catch (err) {
@@ -1177,6 +1212,16 @@ export const AdminDashboardPage: React.FC = () => {
         return;
       }
 
+      const desktopImageValue = heroSlideForm.desktopImage.trim();
+      const mobileImageValue = heroSlideForm.mobileImage.trim();
+      const desktopIsUpload = desktopImageValue.startsWith('/uploads/');
+      const mobileIsUpload = mobileImageValue.startsWith('/uploads/');
+
+      if (!selectedHeroSlideId && (!desktopIsUpload || !mobileIsUpload)) {
+        setStatus(null, 'Please upload desktop and mobile images.');
+        return;
+      }
+
       const existingMaxOrder = heroSlides.reduce((max, s) => Math.max(max, s.order ?? 0), 0);
       const computedOrder = heroSlideForm.order && heroSlideForm.order > 0 ? heroSlideForm.order : existingMaxOrder + 1;
 
@@ -1191,22 +1236,27 @@ export const AdminDashboardPage: React.FC = () => {
           existingTitle: duplicateHero.title,
           onConfirm: async () => {
             setOrderConflict(null);
-            const payload = {
+            const payload: Partial<HeroSlidePayload> = {
               title: heroSlideForm.title,
               subtitle: heroSlideForm.subtitle,
               caption: heroSlideForm.caption,
               ctaText: heroSlideForm.ctaText,
               linkUrl: heroSlideForm.linkUrl,
               order: computedOrder,
-              desktopImage: heroSlideForm.desktopImage,
-              mobileImage: heroSlideForm.mobileImage,
               altText: heroSlideForm.altText,
             };
+
+            if (!selectedHeroSlideId || desktopIsUpload) {
+              payload.desktopImage = desktopImageValue;
+            }
+            if (!selectedHeroSlideId || mobileIsUpload) {
+              payload.mobileImage = mobileImageValue;
+            }
             if (selectedHeroSlideId) {
               await heroSlidesApi.update(selectedHeroSlideId, payload);
               setStatus('Hero slide updated');
             } else {
-              await heroSlidesApi.create(payload);
+              await heroSlidesApi.create(payload as HeroSlidePayload);
               setStatus('Hero slide created');
             }
             // Move displaced hero to next available order
@@ -1222,23 +1272,28 @@ export const AdminDashboardPage: React.FC = () => {
         return;
       }
 
-      const payload = {
+      const payload: Partial<HeroSlidePayload> = {
         title: heroSlideForm.title,
         subtitle: heroSlideForm.subtitle,
         caption: heroSlideForm.caption,
         ctaText: heroSlideForm.ctaText,
         linkUrl: heroSlideForm.linkUrl,
         order: computedOrder,
-        desktopImage: heroSlideForm.desktopImage,
-        mobileImage: heroSlideForm.mobileImage,
         altText: heroSlideForm.altText,
       };
+
+      if (!selectedHeroSlideId || desktopIsUpload) {
+        payload.desktopImage = desktopImageValue;
+      }
+      if (!selectedHeroSlideId || mobileIsUpload) {
+        payload.mobileImage = mobileImageValue;
+      }
 
       if (selectedHeroSlideId) {
         await heroSlidesApi.update(selectedHeroSlideId, payload);
         setStatus('Hero slide updated');
       } else {
-        await heroSlidesApi.create(payload);
+        await heroSlidesApi.create(payload as HeroSlidePayload);
         setStatus('Hero slide created');
       }
 
@@ -1269,7 +1324,10 @@ export const AdminDashboardPage: React.FC = () => {
       const maxOrderInVariant = itemsInVariant.reduce((max, it) => Math.max(max, it.order ?? 0), 0);
       const finalOrder = orderToCheck && orderToCheck > 0 ? orderToCheck : maxOrderInVariant + 1;
 
-      const payload = {
+      const imageValue = featureForm.image.trim();
+      const imageIsUpload = imageValue.startsWith('/uploads/');
+
+      const payload: Partial<FeaturedShowcasePayload> = {
         variant: activeFeatureTab,
         title: featureForm.title,
         subtitle: featureForm.subtitle,
@@ -1280,15 +1338,18 @@ export const AdminDashboardPage: React.FC = () => {
         linkUrl: featureForm.linkUrl,
         price: featureForm.price,
         order: finalOrder,
-        image: featureForm.image,
         altText: featureForm.altText,
       };
+
+      if (!selectedFeatureId || imageIsUpload) {
+        payload.image = imageValue;
+      }
 
       if (selectedFeatureId) {
         await featuredShowcaseApi.update(selectedFeatureId, payload);
         setStatus('Featured showcase updated');
       } else {
-        await featuredShowcaseApi.create(payload);
+        await featuredShowcaseApi.create(payload as FeaturedShowcasePayload);
         setStatus('Featured showcase created');
       }
 
@@ -1303,8 +1364,13 @@ export const AdminDashboardPage: React.FC = () => {
   const handleFeatureSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
-      if (!featureForm.image) {
-        setStatus(null, 'Image is required');
+      const imageValue = featureForm.image.trim();
+      if (!imageValue) {
+        setStatus(null, 'Image is required.');
+        return;
+      }
+      if (!selectedFeatureId && !imageValue.startsWith('/uploads/')) {
+        setStatus(null, 'Please upload an image.');
         return;
       }
 

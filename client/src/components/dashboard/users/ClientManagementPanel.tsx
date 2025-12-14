@@ -72,6 +72,20 @@ const deriveVerificationFilename = (client: User) => {
   return `${base.replace(/\s+/g, '-').toLowerCase()}-verification-${client.id}`;
 };
 
+const resolveUploadsHref = (value?: string | null) => {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  if (!trimmed) {
+    return null;
+  }
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/uploads/')) {
+    return trimmed;
+  }
+  return `/uploads/${trimmed.replace(/^\/+/, '')}`;
+};
+
 export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ role, currentUserId, setStatus }) => {
   void currentUserId;
   const canManageClients = role === 'admin' || role === 'super_admin';
@@ -716,6 +730,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                 {!loading &&
                   records.map((client) => {
                     const isEditing = editingId === client.id;
+                    const verificationHref = resolveUploadsHref(client.verificationFileUrl);
                     return (
                       <tr
                         key={client.id}
@@ -737,9 +752,9 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-500">{formatTimestamp(client.accountCreated)}</td>
                         <td className="px-4 py-3 text-sm text-slate-600">
-                          {client.verificationFileUrl ? (
+                          {verificationHref ? (
                             <a
-                              href={client.verificationFileUrl}
+                              href={verificationHref}
                               download={`${deriveVerificationFilename(client)}`}
                               className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1 text-xs font-semibold text-primary transition hover:bg-primary/5"
                             >

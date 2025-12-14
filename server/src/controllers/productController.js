@@ -4,6 +4,17 @@ const Category = require('../models/Category');
 const { validateCreateProduct, validateUpdateProduct } = require('../validators/product');
 const { notFound, badRequest } = require('../utils/appError');
 const { saveProductImage, ImageOptimizationError } = require('../services/productImageService');
+const path = require('path');
+const fs = require('fs');
+const {
+  uploadsRoot,
+  buildEntityFolderName,
+  normalizePosixPath,
+  moveUploadsUrlPath,
+  pathExists,
+  safeUnlinkUploadsUrlPath,
+  safeRemoveUploadsDir,
+} = require('../services/mediaStorageService');
 
 const sanitizeVariations = (variations) =>
   Array.isArray(variations)
@@ -24,6 +35,166 @@ const sanitizeSerialNumbers = (serialNumbers) =>
         return rest;
       })
     : serialNumbers;
+
+const PRODUCT_UPLOADS_PREFIX = '/uploads/products/';
+const PRODUCT_TMP_IMAGES_PREFIX = '/uploads/products/_tmp/images/';
+const PRODUCT_TMP_DOCUMENTS_PREFIX = '/uploads/products/_tmp/documents/';
+
+const renameUploadsDirIfExists = async (fromRelativeDir, toRelativeDir) => {
+  const fromAbs = path.resolve(uploadsRoot, ...normalizePosixPath(fromRelativeDir).split('/'));
+  const toAbs = path.resolve(uploadsRoot, ...normalizePosixPath(toRelativeDir).split('/'));
+
+  if (!(await pathExists(fromAbs))) {
+    return;
+  }
+
+  await fs.promises.mkdir(path.dirname(toAbs), { recursive: true });
+  if (await pathExists(toAbs)) {
+    return;
+  }
+
+  await fs.promises.rename(fromAbs, toAbs);
+};
+
+const isLegacyProductRootFile = (uploadsUrlPath) => {
+  const normalized = normalizePosixPath(uploadsUrlPath);
+  if (!normalized.startsWith(PRODUCT_UPLOADS_PREFIX)) {
+    return false;
+  }
+  if (normalized.startsWith('/uploads/products/_tmp/')) {
+    return false;
+  }
+  const remainder = normalized.slice(PRODUCT_UPLOADS_PREFIX.length);
+  return remainder.length > 0 && !remainder.includes('/');
+};
+
+const collectProductUploadPaths = (product) => {
+  const collected = new Set();
+  const add = (value) => {
+    if (typeof value !== 'string') return;
+    const normalized = normalizePosixPath(value);
+    if (normalized.startsWith('/uploads/')) {
+      collected.add(normalized);
+    }
+  };
+
+  (product.images || []).forEach(add);
+  (product.documents || []).forEach((doc) => add(doc && doc.url));
+  (product.variations || []).forEach((variation) => add(variation && variation.image));
+
+  if (product.seo && product.seo.openGraphImage) {
+    add(product.seo.openGraphImage);
+  }
+
+  return collected;
+};
+
+const relocateProductUploadPaths = async (product, { previousName } = {}) => {
+  const beforeFolderName = buildEntityFolderName(previousName || product.name, product._id);
+  const folderName = buildEntityFolderName(product.name, product._id);
+
+  if (beforeFolderName !== folderName) {
+    await renameUploadsDirIfExists(
+      path.posix.join('products', beforeFolderName),
+      path.posix.join('products', folderName)
+    );
+
+    const oldPrefix = `/uploads/products/${beforeFolderName}/`;
+    const newPrefix = `/uploads/products/${folderName}/`;
+    const rewrite = (value) => {
+      if (typeof value !== 'string') return value;
+      const normalized = normalizePosixPath(value);
+      if (normalized.startsWith(oldPrefix)) {
+        return normalized.replace(oldPrefix, newPrefix);
+      }
+      return value;
+    };
+
+    product.images = (product.images || []).map(rewrite);
+    product.documents = (product.documents || []).map((doc) =>
+      doc && doc.url ? { ...doc, url: rewrite(doc.url) } : doc
+    );
+    product.variations = (product.variations || []).map((variation) => {
+      if (!variation || typeof variation.image !== 'string') {
+        return variation;
+      }
+      const nextImage = rewrite(variation.image);
+      if (typeof variation.toObject === 'function') {
+        const plain = variation.toObject();
+        plain.image = nextImage;
+        return plain;
+      }
+      return { ...variation, image: nextImage };
+    });
+    if (product.seo && product.seo.openGraphImage) {
+      product.seo.openGraphImage = rewrite(product.seo.openGraphImage);
+    }
+  }
+
+  const moved = new Map();
+  const moveIfNeeded = async (uploadsUrlPath, relativeDir) => {
+    const normalized = normalizePosixPath(uploadsUrlPath);
+    if (moved.has(normalized)) {
+      return moved.get(normalized);
+    }
+
+    const filename = path.posix.basename(normalized);
+    const dest = await moveUploadsUrlPath(normalized, { relativeDir, filename });
+    moved.set(normalized, dest);
+    return dest;
+  };
+
+  const imagesDir = path.posix.join('products', folderName, 'images');
+  const documentsDir = path.posix.join('products', folderName, 'documents');
+
+  product.images = await Promise.all(
+    (product.images || []).map(async (value) => {
+      const normalized = normalizePosixPath(value);
+      if (normalized.startsWith(PRODUCT_TMP_IMAGES_PREFIX) || isLegacyProductRootFile(normalized)) {
+        return moveIfNeeded(normalized, imagesDir);
+      }
+      return value;
+    })
+  );
+
+  product.documents = await Promise.all(
+    (product.documents || []).map(async (doc) => {
+      if (!doc || typeof doc.url !== 'string') return doc;
+      const normalized = normalizePosixPath(doc.url);
+      if (normalized.startsWith(PRODUCT_TMP_DOCUMENTS_PREFIX)) {
+        const movedUrl = await moveIfNeeded(normalized, documentsDir);
+        return { ...doc, url: movedUrl };
+      }
+      return doc;
+    })
+  );
+
+  if (product.variations && Array.isArray(product.variations)) {
+    const variations = [];
+    for (const variation of product.variations) {
+      if (!variation || typeof variation.image !== 'string') {
+        variations.push(variation);
+        continue;
+      }
+      const normalized = normalizePosixPath(variation.image);
+      if (normalized.startsWith(PRODUCT_TMP_IMAGES_PREFIX) || isLegacyProductRootFile(normalized)) {
+        const movedUrl = await moveIfNeeded(normalized, imagesDir);
+        const plain = variation.toObject ? variation.toObject() : variation;
+        variations.push({ ...plain, image: movedUrl });
+        continue;
+      }
+      variations.push(variation);
+    }
+    product.variations = variations;
+  }
+
+  if (product.seo && typeof product.seo.openGraphImage === 'string') {
+    const normalized = normalizePosixPath(product.seo.openGraphImage);
+    if (normalized.startsWith(PRODUCT_TMP_IMAGES_PREFIX) || isLegacyProductRootFile(normalized)) {
+      product.seo.openGraphImage = await moveIfNeeded(normalized, imagesDir);
+    }
+  }
+};
 
 // Remove sensitive admin-only data from public API responses
 const sanitizeProductForPublic = (product) => {
@@ -195,6 +366,13 @@ const createProduct = async (req, res, next) => {
 
     const product = await Product.create(payload);
 
+    await relocateProductUploadPaths(product);
+    product.markModified('images');
+    product.markModified('documents');
+    product.markModified('variations');
+    product.markModified('seo');
+    await product.save();
+
     res.status(201).json({ product: product.toJSON() });
   } catch (error) {
     next(error);
@@ -210,6 +388,9 @@ const updateProduct = async (req, res, next) => {
     if (!product) {
       throw notFound('Product not found');
     }
+
+    const previousName = product.name;
+    const previousUploads = collectProductUploadPaths(product);
 
     if (data.categoryId && data.categoryId !== String(product.categoryId)) {
       const category = await Category.findById(data.categoryId);
@@ -299,7 +480,21 @@ const updateProduct = async (req, res, next) => {
       product.manufacturerName = undefined;
     }
 
+    await relocateProductUploadPaths(product, { previousName });
+    product.markModified('images');
+    product.markModified('documents');
+    product.markModified('variations');
+    product.markModified('seo');
+
     await product.save();
+
+    const nextUploads = collectProductUploadPaths(product);
+    const toRemove = Array.from(previousUploads).filter((uploadsUrlPath) => {
+      const normalized = normalizePosixPath(uploadsUrlPath);
+      return normalized.startsWith(PRODUCT_UPLOADS_PREFIX) && !nextUploads.has(normalized);
+    });
+
+    await Promise.all(toRemove.map((uploadsUrlPath) => safeUnlinkUploadsUrlPath(uploadsUrlPath)));
 
     res.json({ product: product.toJSON() });
   } catch (error) {
@@ -314,6 +509,15 @@ const deleteProduct = async (req, res, next) => {
     if (!product) {
       throw notFound('Product not found');
     }
+
+    const uploads = Array.from(collectProductUploadPaths(product)).filter((uploadsUrlPath) =>
+      normalizePosixPath(uploadsUrlPath).startsWith(PRODUCT_UPLOADS_PREFIX)
+    );
+    await Promise.all(uploads.map((uploadsUrlPath) => safeUnlinkUploadsUrlPath(uploadsUrlPath)));
+
+    const folderName = buildEntityFolderName(product.name, product._id);
+    await safeRemoveUploadsDir(path.posix.join('products', folderName));
+
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -334,6 +538,20 @@ const uploadProductImage = async (req, res, next) => {
       next(badRequest(error.message));
       return;
     }
+    next(error);
+  }
+};
+
+const uploadProductDocument = async (req, res, next) => {
+  try {
+    if (!req.file || !req.file.filename) {
+      throw badRequest('No product document provided');
+    }
+
+    const relativePath = path.posix.join('/uploads', 'products', '_tmp', 'documents', req.file.filename);
+
+    res.status(201).json({ data: { path: relativePath } });
+  } catch (error) {
     next(error);
   }
 };
@@ -402,5 +620,6 @@ module.exports = {
   updateProduct,
   deleteProduct,
   uploadProductImage,
+  uploadProductDocument,
   getVehicleCompatibilityOptions,
 };

@@ -30,5 +30,10 @@ export const featuredShowcaseApi = {
   update: (id: string, payload: Partial<FeaturedShowcasePayload>) =>
     http.put<{ item: FeaturedShowcaseItem }>(`/featured-showcase/${id}`, payload),
   delete: (id: string) => http.delete<void>(`/featured-showcase/${id}`),
+  uploadImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await http.post<{ data: { path: string } }>('/featured-showcase/upload-image', formData);
+    return response.data.path;
+  },
 };
-

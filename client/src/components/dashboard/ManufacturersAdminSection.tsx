@@ -43,8 +43,6 @@ export const ManufacturersAdminSection: React.FC<ManufacturersAdminSectionProps>
     }
   }, [selectedId, list]);
 
-  const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = reject; r.readAsDataURL(file); });
-
   const filteredSorted = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     let l = list;
@@ -66,12 +64,26 @@ export const ManufacturersAdminSection: React.FC<ManufacturersAdminSectionProps>
     e.preventDefault();
     setLoading(true);
     try {
-      const payload = { name: form.name, logoImage: form.logoImage, heroImage: form.heroImage };
       if (selectedId) {
+        const payload: Partial<Manufacturer> = { name: form.name };
+        if (form.logoImage.startsWith('/uploads/')) {
+          payload.logoImage = form.logoImage;
+        }
+        if (form.heroImage === '' || form.heroImage.startsWith('/uploads/')) {
+          payload.heroImage = form.heroImage;
+        }
         await manufacturersApi.update(selectedId, payload);
         setStatus('Manufacturer updated');
       } else {
-        await manufacturersApi.create(payload);
+        if (!form.logoImage.startsWith('/uploads/')) {
+          setStatus(null, 'Please upload a logo image before creating the manufacturer.');
+          return;
+        }
+        await manufacturersApi.create({
+          name: form.name,
+          logoImage: form.logoImage,
+          heroImage: form.heroImage.startsWith('/uploads/') ? form.heroImage : undefined,
+        });
         setStatus('Manufacturer created');
       }
       await refresh();
@@ -203,8 +215,13 @@ export const ManufacturersAdminSection: React.FC<ManufacturersAdminSectionProps>
                     const f = event.target.files?.[0];
                     if (!f) return;
                     if (f.size > MAX_IMAGE_BYTES) return alert('File too large');
-                    const data = await fileToDataUrl(f);
-                    setForm((s) => ({ ...s, logoImage: data }));
+                    try {
+                      const uploadedPath = await manufacturersApi.uploadLogo(f);
+                      setForm((s) => ({ ...s, logoImage: uploadedPath }));
+                    } catch (error) {
+                      console.error('Failed to upload manufacturer logo', error);
+                      setStatus(null, error instanceof Error ? error.message : 'Unable to upload manufacturer logo');
+                    }
                     event.currentTarget.value = '';
                   }}
                 />
@@ -233,8 +250,13 @@ export const ManufacturersAdminSection: React.FC<ManufacturersAdminSectionProps>
                     const f = event.target.files?.[0];
                     if (!f) return;
                     if (f.size > MAX_IMAGE_BYTES) return alert('File too large');
-                    const data = await fileToDataUrl(f);
-                    setForm((s) => ({ ...s, heroImage: data }));
+                    try {
+                      const uploadedPath = await manufacturersApi.uploadHero(f);
+                      setForm((s) => ({ ...s, heroImage: uploadedPath }));
+                    } catch (error) {
+                      console.error('Failed to upload manufacturer hero image', error);
+                      setStatus(null, error instanceof Error ? error.message : 'Unable to upload manufacturer hero image');
+                    }
                     event.currentTarget.value = '';
                   }}
                 />

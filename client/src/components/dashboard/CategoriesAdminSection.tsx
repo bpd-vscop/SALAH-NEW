@@ -4,19 +4,13 @@ import type { Category } from '../../types/api';
 import type { CategoryFormState, CategoryDisplayFormState } from './types';
 import { cn } from '../../utils/cn';
 import { Select } from '../ui/Select';
+import { categoriesApi } from '../../api/categories';
+import { categoryDisplayApi } from '../../api/categoryDisplay';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_MB = Math.round(MAX_IMAGE_BYTES / (1024 * 1024));
 
 const FALLBACK_COLORS = ['#f97316', '#ef4444', '#6366f1', '#0ea5e9', '#10b981', '#facc15'];
-
-const fileToDataUrl = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 
 interface CategoriesAdminSectionProps {
   categories: Category[];
@@ -38,6 +32,7 @@ interface CategoriesAdminSectionProps {
 
 const handleUpload = async (
   file: File | undefined,
+  upload: (file: File) => Promise<string>,
   setter: (value: string) => void
 ) => {
   if (!file) {
@@ -48,11 +43,11 @@ const handleUpload = async (
     return;
   }
   try {
-    const dataUrl = await fileToDataUrl(file);
-    setter(dataUrl);
+    const uploadedPath = await upload(file);
+    setter(uploadedPath);
   } catch (error) {
     console.error('Failed to read file', error);
-    window.alert('Failed to read image file. Please try a different image.');
+    window.alert('Failed to upload image file. Please try again.');
   }
 };
 
@@ -345,7 +340,9 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                     className="sr-only"
                     onChange={async (event) => {
                       const file = event.target.files?.[0];
-                      await handleUpload(file, (value) => setManageForm((state) => ({ ...state, imageUrl: value })));
+                      await handleUpload(file, categoriesApi.uploadImage, (value) =>
+                        setManageForm((state) => ({ ...state, imageUrl: value }))
+                      );
                       event.currentTarget.value = '';
                     }}
                   />
@@ -385,7 +382,9 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                     className="sr-only"
                     onChange={async (event) => {
                       const file = event.target.files?.[0];
-                      await handleUpload(file, (value) => setManageForm((state) => ({ ...state, heroImageUrl: value })));
+                      await handleUpload(file, categoriesApi.uploadHeroImage, (value) =>
+                        setManageForm((state) => ({ ...state, heroImageUrl: value }))
+                      );
                       event.currentTarget.value = '';
                     }}
                   />
@@ -446,7 +445,7 @@ export const CategoriesAdminSection: React.FC<CategoriesAdminSectionProps> = ({
                   className="sr-only"
                   onChange={async (event) => {
                     const file = event.target.files?.[0];
-                    await handleUpload(file, (value) =>
+                    await handleUpload(file, categoryDisplayApi.uploadHeroImage, (value) =>
                       setDisplayForm((state) => ({ ...state, allCategoriesHeroImage: value }))
                     );
                     event.currentTarget.value = '';

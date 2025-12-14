@@ -4,7 +4,7 @@ const manufacturerSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    logoImage: { type: String, required: true }, // base64 data URL or URL
+    logoImage: { type: String, required: true },
     heroImage: { type: String, default: '' },
     order: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
@@ -26,4 +26,3 @@ const manufacturerSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model('Manufacturer', manufacturerSchema);
-

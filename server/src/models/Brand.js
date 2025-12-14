@@ -4,7 +4,7 @@ const brandSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    logoImage: { type: String, required: true }, // base64 data URL or URL
+    logoImage: { type: String, required: true },
     order: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
   },
