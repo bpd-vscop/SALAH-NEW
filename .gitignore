@@ -5,6 +5,7 @@ server/node_modules/
 coverage/
 .vite/
 *.log
+package-lock.json
 
 # Build outputs
 dist/
