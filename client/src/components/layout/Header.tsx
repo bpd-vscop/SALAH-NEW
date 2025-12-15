@@ -27,8 +27,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { cn } from '../../utils/cn';
 import { menuApi } from '../../api/menu';
-import { brandsApi, type Brand } from '../../api/brands';
-import { modelsApi, type Model } from '../../api/models';
+import { productsApi } from '../../api/products';
 import { ordersApi } from '../../api/orders';
 import type { Order } from '../../types/api';
 
@@ -382,31 +381,11 @@ export const Header: React.FC = () => {
   const [vehicleYear, setVehicleYear] = useState('');
   const [vehicleMake, setVehicleMake] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
-  const [vehicleBrands, setVehicleBrands] = useState<Brand[]>([]);
-  const [vehicleModels, setVehicleModels] = useState<Model[]>([]);
+  const [vehicleOptions, setVehicleOptions] = useState<{ makes: string[]; models: string[] }>({
+    makes: [],
+    models: [],
+  });
   const [vehicleOptionsLoading, setVehicleOptionsLoading] = useState(false);
-
-  const vehicleMakeOptions = useMemo(() => {
-    return vehicleBrands
-      .filter((brand) => brand.isActive !== false)
-      .map((brand) => brand.name)
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
-  }, [vehicleBrands]);
-
-  const vehicleModelOptions = useMemo(() => {
-    const make = vehicleMake.trim().toLowerCase();
-    if (!make) return [];
-
-    const brand = vehicleBrands.find((b) => b.name.trim().toLowerCase() === make);
-    if (!brand) return [];
-
-    return vehicleModels
-      .filter((model) => model.brandId === brand.id && model.isActive !== false)
-      .map((model) => model.name)
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
-  }, [vehicleBrands, vehicleMake, vehicleModels]);
 
   // Orders state for notification badge
   const [orders, setOrders] = useState<Order[]>([]);
@@ -487,15 +466,15 @@ export const Header: React.FC = () => {
     const loadVehicleOptions = async () => {
       setVehicleOptionsLoading(true);
       try {
-        const [{ brands }, { models }] = await Promise.all([brandsApi.list(), modelsApi.list()]);
+        const { makes, models } = await productsApi.getVehicleCompatibilityOptions({
+          make: vehicleMake || undefined,
+        });
         if (!active) return;
-        setVehicleBrands(brands);
-        setVehicleModels(models);
+        setVehicleOptions({ makes, models });
       } catch (error) {
         console.warn('Failed to load vehicle compatibility options', error);
         if (active) {
-          setVehicleBrands([]);
-          setVehicleModels([]);
+          setVehicleOptions({ makes: [], models: [] });
         }
       } finally {
         if (active) {
@@ -507,7 +486,7 @@ export const Header: React.FC = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [vehicleMake]);
 
   useEffect(() => {
     let active = true;
@@ -1025,8 +1004,8 @@ export const Header: React.FC = () => {
               setMake={setVehicleMake}
               model={vehicleModel}
               setModel={setVehicleModel}
-              vehicleMakes={vehicleMakeOptions}
-              vehicleModels={vehicleModelOptions}
+              vehicleMakes={vehicleOptions.makes}
+              vehicleModels={vehicleOptions.models}
               loading={vehicleOptionsLoading}
               onFindParts={() => {
                 const params = new URLSearchParams();
