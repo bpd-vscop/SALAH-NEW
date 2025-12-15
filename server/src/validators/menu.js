@@ -60,7 +60,7 @@ const promoSchema = z
 const menuConfigSchema = z
   .object({
     sections: z.array(menuSectionSchema).max(10).default([]),
-    links: z.array(menuLinkSchema).max(3).default([]),
+    links: z.array(menuLinkSchema).max(6).default([]),
     promo: promoSchema.optional(),
   })
   .strict();

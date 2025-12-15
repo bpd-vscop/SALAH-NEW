@@ -87,8 +87,8 @@ const updateMenu = async (req, res, next) => {
   try {
     const config = validateMenuConfig(req.body || {});
 
-    if (config.links.length > 3) {
-      throw badRequest('A maximum of 3 links is supported');
+    if (config.links.length > 6) {
+      throw badRequest('A maximum of 6 links is supported');
     }
 
     const categoryIds = new Set();

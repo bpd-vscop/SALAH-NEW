@@ -59,6 +59,7 @@ import { ClientManagementPanel } from '../components/dashboard/users/ClientManag
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_HOMEPAGE_CATEGORIES = 18;
+const MAX_MENU_QUICK_LINKS = 6;
 
 const emptyFeatureForm = (variant: FeaturedVariant): FeatureFormState => ({
   variant,
@@ -1434,10 +1435,13 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
-  const handleMenuSave = async () => {
+  const handleMenuSave = async (overrides?: { sectionsDraft?: MenuSectionInput[]; linksDraft?: MenuLinkInput[] }) => {
     setSavingMenu(true);
     try {
-      const sanitizedSections = menuSectionsDraft
+      const sectionsDraft = overrides?.sectionsDraft ?? menuSectionsDraft;
+      const linksDraft = overrides?.linksDraft ?? menuLinksDraft;
+
+      const sanitizedSections = sectionsDraft
         .filter((section) => section.name.trim())
         .map((section, sectionIndex) => ({
           id: isObjectId(section.id) ? section.id : undefined,
@@ -1455,9 +1459,9 @@ export const AdminDashboardPage: React.FC = () => {
             })),
         }));
 
-      const sanitizedLinks = menuLinksDraft
+      const sanitizedLinks = linksDraft
         .filter((link) => link.label.trim() && link.href.trim())
-        .slice(0, 3)
+        .slice(0, MAX_MENU_QUICK_LINKS)
         .map((link, linkIndex) => ({
           id: isObjectId(link.id) ? link.id : undefined,
           label: link.label.trim(),
@@ -2131,10 +2135,14 @@ export const AdminDashboardPage: React.FC = () => {
                     void deleteBulkProducts(deleteConfirmation.ids);
                   } else if (t === 'menu-section') {
                     const index = Number(deleteConfirmation.id);
-                    setMenuSectionsDraft((current) => current.filter((_, i) => i !== index));
+                    const nextSectionsDraft = menuSectionsDraft.filter((_, i) => i !== index);
+                    setMenuSectionsDraft(nextSectionsDraft);
+                    void handleMenuSave({ sectionsDraft: nextSectionsDraft });
                   } else if (t === 'menu-link') {
                     const index = Number(deleteConfirmation.id);
-                    setMenuLinksDraft((current) => current.filter((_, i) => i !== index));
+                    const nextLinksDraft = menuLinksDraft.filter((_, i) => i !== index);
+                    setMenuLinksDraft(nextLinksDraft);
+                    void handleMenuSave({ linksDraft: nextLinksDraft });
                   }
                   setDeleteConfirmation(null);
                 }}
