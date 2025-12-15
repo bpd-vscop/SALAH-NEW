@@ -1498,49 +1498,58 @@ const { token: resetTokenParam } = useParams<{ token?: string }>();
                       </div>
                     )}
 
-                    <button
-                      type="submit"
-                      disabled={verificationLoading}
-                      className="w-full py-3.5 rounded-full border-none font-semibold text-white cursor-pointer transition-all duration-200 ease-out disabled:opacity-65 disabled:cursor-not-allowed"
-                      style={{
-                        background: 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)',
-                        boxShadow: '0 20px 30px rgba(160, 11, 11, 0.25)',
-                        transform: 'translateY(0)',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!verificationLoading) {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!verificationLoading) {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 20px 30px rgba(160, 11, 11, 0.25)';
-                        }
-                      }}
-                      onMouseDown={(e) => {
-                        if (!verificationLoading) {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 18px 28px rgba(160, 11, 11, 0.22)';
-                        }
-                      }}
-                      onMouseUp={(e) => {
-                        if (!verificationLoading) {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
-                        }
-                      }}
-                    >
-                      {verificationLoading ? (
-                        <span className="inline-flex items-center justify-center">
-                          Verifying
-                          <LoadingDots />
-                        </span>
-                      ) : (
-                        'Verify and Continue'
-                      )}
-                    </button>
+                    <div className="flex justify-between gap-4 items-center">
+                      <button
+                        type="button"
+                        onClick={() => setSignupStep(isB2B ? 2 : 1)}
+                        className="border-none bg-slate-900/8 text-slate-600 px-5 py-3 rounded-full font-semibold cursor-pointer transition-all duration-200 ease-in-out hover:bg-slate-900/12 hover:-translate-y-0.5 active:translate-y-0"
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={verificationLoading}
+                        className="w-full py-3.5 rounded-full border-none font-semibold text-white cursor-pointer transition-all duration-200 ease-out disabled:opacity-65 disabled:cursor-not-allowed"
+                        style={{
+                          background: 'linear-gradient(135deg, #f6b210 0%, #a00b0b 100%)',
+                          boxShadow: '0 20px 30px rgba(160, 11, 11, 0.25)',
+                          transform: 'translateY(0)',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!verificationLoading) {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!verificationLoading) {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 20px 30px rgba(160, 11, 11, 0.25)';
+                          }
+                        }}
+                        onMouseDown={(e) => {
+                          if (!verificationLoading) {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 18px 28px rgba(160, 11, 11, 0.22)';
+                          }
+                        }}
+                        onMouseUp={(e) => {
+                          if (!verificationLoading) {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 24px 38px rgba(160, 11, 11, 0.3)';
+                          }
+                        }}
+                      >
+                        {verificationLoading ? (
+                          <span className="inline-flex items-center justify-center">
+                            Verifying
+                            <LoadingDots />
+                          </span>
+                        ) : (
+                          'Verify and Continue'
+                        )}
+                      </button>
+                    </div>
 
                     <div className="mt-4 text-center">
                       <button

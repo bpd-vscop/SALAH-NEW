@@ -484,7 +484,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
               />
               <div className="relative w-full sm:w-auto">
                 <motion.div
-                  animate={{ width: searchOpen ? '100%' : 40 }}
+                  animate={{ width: searchOpen ? 300 : 40 }}
                   transition={{ duration: 0.3, ease: 'easeInOut' }}
                   className="overflow-hidden"
                 >
