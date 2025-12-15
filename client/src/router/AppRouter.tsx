@@ -9,6 +9,7 @@ import { ProductCatalogPage } from '../pages/ProductCatalogPage';
 import { ProductDetailPage } from '../pages/ProductDetailPage';
 import { RegisterPage } from '../pages/RegisterPage';
 import { UserSettingsPage } from '../pages/UserSettingsPage';
+import { AdminOrderDetailsPage } from '../pages/AdminOrderDetailsPage';
 import { ManufacturersPage } from '../pages/ManufacturersPage';
 import { ManufacturerDetailPage } from '../pages/ManufacturerDetailPage';
 import { CategoryPage } from '../pages/CategoryPage';
@@ -43,6 +44,7 @@ export const AppRouter: React.FC = () => (
 
       <Route element={<ProtectedRoute allowRoles={['super_admin', 'admin', 'staff']} /> }>
         <Route path="/admin" element={<AdminDashboardPage />} />
+        <Route path="/admin/orders/:id" element={<AdminOrderDetailsPage />} />
         <Route path="/admin/settings" element={<UserSettingsPage />} />
       </Route>
 

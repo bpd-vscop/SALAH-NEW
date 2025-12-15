@@ -9,13 +9,18 @@ const {
   sendAdminNewOrderEmail,
 } = require('../services/emailService');
 
+const ORDER_USER_SELECT =
+  'name email phoneCode phoneNumber clientType status isEmailVerified company verificationFileUrl profileImage shippingAddresses accountCreated accountUpdated';
+
 const listOrders = async (req, res, next) => {
   try {
     const filter = {};
     if (req.user.role === 'client') {
       filter.userId = req.user._id;
     }
-    const orders = await Order.find(filter).sort({ createdAt: -1 });
+    const orders = await Order.find(filter)
+      .sort({ createdAt: -1 })
+      .populate({ path: 'userId', select: ORDER_USER_SELECT });
     res.json({ orders: orders.map((o) => o.toJSON()) });
   } catch (error) {
     next(error);
@@ -29,12 +34,13 @@ const getOrder = async (req, res, next) => {
       throw notFound('Order not found');
     }
 
-    const order = await Order.findById(id);
+    const order = await Order.findById(id).populate({ path: 'userId', select: ORDER_USER_SELECT });
     if (!order) {
       throw notFound('Order not found');
     }
 
-    if (req.user.role === 'client' && String(order.userId) !== String(req.user._id)) {
+    const orderUserId = order.userId && typeof order.userId === 'object' ? order.userId._id : order.userId;
+    if (req.user.role === 'client' && String(orderUserId) !== String(req.user._id)) {
       throw forbidden();
     }
 
@@ -144,7 +150,7 @@ const updateOrder = async (req, res, next) => {
     const { id } = req.params;
     const payload = validateUpdateOrder(req.body || {});
 
-    const order = await Order.findById(id);
+    const order = await Order.findById(id).populate({ path: 'userId', select: ORDER_USER_SELECT });
     if (!order) {
       throw notFound('Order not found');
     }

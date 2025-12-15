@@ -240,9 +240,27 @@ export interface OrderProductItem {
   tagsAtPurchase: ProductTag[];
 }
 
+export interface OrderUserSummary {
+  id: string | null;
+  name: string | null;
+  email: string | null;
+  phoneCode: string | null;
+  phoneNumber: string | null;
+  clientType: ClientType | null;
+  status: UserStatus | null;
+  isEmailVerified: boolean | null;
+  company: CompanyInfo | null;
+  verificationFileUrl: string | null;
+  profileImage: string | null;
+  shippingAddresses: ShippingAddress[];
+  accountCreated: string | null;
+  accountUpdated: string | null;
+}
+
 export interface Order {
   id: string;
   userId: string;
+  user?: OrderUserSummary | null;
   products: OrderProductItem[];
   status: OrderStatus;
   createdAt: string | null;

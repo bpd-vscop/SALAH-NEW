@@ -60,7 +60,73 @@ const orderSchema = new mongoose.Schema(
       virtuals: false,
       transform: (_doc, ret) => {
         ret.id = ret._id.toString();
-        ret.userId = ret.userId ? ret.userId.toString() : null;
+
+        const rawUser = ret.userId;
+        const hasUserDetails =
+          rawUser &&
+          typeof rawUser === 'object' &&
+          (Object.prototype.hasOwnProperty.call(rawUser, 'name') ||
+            Object.prototype.hasOwnProperty.call(rawUser, 'email') ||
+            Object.prototype.hasOwnProperty.call(rawUser, 'clientType') ||
+            Object.prototype.hasOwnProperty.call(rawUser, 'company'));
+
+        if (hasUserDetails) {
+          const resolvedUserId =
+            typeof rawUser.id === 'string'
+              ? rawUser.id
+              : rawUser._id
+                ? rawUser._id.toString()
+                : null;
+
+          const normalizeDate = (value) => {
+            if (!value) return null;
+            try {
+              return new Date(value).toISOString();
+            } catch (_err) {
+              return null;
+            }
+          };
+
+          ret.userId = resolvedUserId;
+          ret.user = {
+            id: resolvedUserId,
+            name: rawUser.name || null,
+            email: rawUser.email ?? null,
+            phoneCode: rawUser.phoneCode ?? null,
+            phoneNumber: rawUser.phoneNumber ?? null,
+            clientType: rawUser.clientType ?? null,
+            status: rawUser.status ?? null,
+            isEmailVerified:
+              typeof rawUser.isEmailVerified === 'boolean' ? rawUser.isEmailVerified : null,
+            company: rawUser.company ?? null,
+            verificationFileUrl: rawUser.verificationFileUrl ?? null,
+            profileImage: rawUser.profileImage ?? null,
+            shippingAddresses: Array.isArray(rawUser.shippingAddresses)
+              ? rawUser.shippingAddresses.map((addr) => ({
+                  id:
+                    typeof addr?.id === 'string'
+                      ? addr.id
+                      : addr?._id
+                        ? addr._id.toString()
+                        : null,
+                  fullName: addr?.fullName ?? null,
+                  phone: addr?.phone ?? null,
+                  addressLine1: addr?.addressLine1 ?? null,
+                  addressLine2: addr?.addressLine2 ?? null,
+                  city: addr?.city ?? null,
+                  state: addr?.state ?? null,
+                  postalCode: addr?.postalCode ?? null,
+                  country: addr?.country ?? 'Morocco',
+                  isDefault: addr?.isDefault || false,
+                }))
+              : [],
+            accountCreated: normalizeDate(rawUser.accountCreated),
+            accountUpdated: normalizeDate(rawUser.accountUpdated),
+          };
+        } else {
+          ret.userId = ret.userId ? ret.userId.toString() : null;
+        }
+
         ret.products = Array.isArray(ret.products)
           ? ret.products.map((item) => ({
               productId: item.productId ? item.productId.toString() : null,
