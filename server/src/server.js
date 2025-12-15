@@ -3,6 +3,7 @@
 const http = require('http');
 const app = require('./app');
 const { startCleanupService } = require('./services/cleanupService');
+const { startTmpUploadsCleanupService } = require('./services/tmpUploadsCleanupService');
 
 const port = Number(process.env.PORT || 5000);
 
@@ -15,6 +16,9 @@ server.listen(port, () => {
 
   // Start the cleanup service for unverified accounts
   startCleanupService(24); // Run every 24 hours
+
+  // Clean up orphaned temp uploads at local midnight + noon
+  startTmpUploadsCleanupService();
 });
 
 const shutdown = (signal) => {
@@ -24,4 +28,3 @@ const shutdown = (signal) => {
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
-

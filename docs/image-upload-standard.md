@@ -12,6 +12,10 @@
 4. Client sends that returned path in the create/update request.
 5. Server “finalizes” by moving the temp file into the entity’s folder and saving the final `/uploads/...` path in the DB.
 
+## Temp cleanup
+- Temp uploads live under `/uploads/_tmp/**` and `/uploads/products/_tmp/**`.
+- Orphaned temp files are cleaned automatically at local **midnight** and **noon**; files older than **12 hours** are deleted.
+
 ## Folder structure
 - **Brands**: `/uploads/brands/<slug-id>/images/logo.webp`
 - **Manufacturers**: `/uploads/manufacturers/<slug-id>/images/logo.webp`, `/uploads/manufacturers/<slug-id>/images/hero.webp`
