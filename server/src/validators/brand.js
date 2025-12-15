@@ -11,7 +11,7 @@ const uploadsPathSchema = z
 const createSchema = z
   .object({
     name: z.string().min(1).max(120),
-    logoImage: uploadsPathSchema,
+    logoImage: uploadsPathSchema.optional().nullable(),
     order: z.number().int().min(0).optional().default(0),
     isActive: z.boolean().optional().default(true),
   })
@@ -20,7 +20,7 @@ const createSchema = z
 const updateSchema = z
   .object({
     name: z.string().min(1).max(120).optional(),
-    logoImage: uploadsPathSchema.optional(),
+    logoImage: uploadsPathSchema.optional().nullable(),
     order: z.number().int().min(0).optional(),
     isActive: z.boolean().optional(),
   })

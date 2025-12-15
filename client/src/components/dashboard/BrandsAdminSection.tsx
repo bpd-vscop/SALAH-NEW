@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { brandsApi, type Brand } from '../../api/brands';
+import { brandsApi, type Brand, type BrandPayload } from '../../api/brands';
 import { cn } from '../../utils/cn';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -38,7 +38,7 @@ export const BrandsAdminSection: React.FC<BrandsAdminSectionProps> = ({ onOrderC
     }
     const existing = list.find((b) => b.id === selectedId);
     if (existing) {
-      setForm({ name: existing.name, logoImage: existing.logoImage });
+      setForm({ name: existing.name, logoImage: existing.logoImage || '' });
     }
   }, [selectedId, list]);
 
@@ -64,18 +64,21 @@ export const BrandsAdminSection: React.FC<BrandsAdminSectionProps> = ({ onOrderC
     setLoading(true);
     try {
       if (selectedId) {
-        const payload: Partial<Brand> = { name: form.name };
+        const existing = list.find((b) => b.id === selectedId);
+        const payload: Partial<BrandPayload> = { name: form.name };
         if (form.logoImage.startsWith('/uploads/')) {
           payload.logoImage = form.logoImage;
+        } else if (existing?.logoImage) {
+          payload.logoImage = null;
         }
         await brandsApi.update(selectedId, payload);
         setStatus('Brand updated');
       } else {
-        if (!form.logoImage.startsWith('/uploads/')) {
-          setStatus(null, 'Please upload a logo image before creating the brand.');
-          return;
+        const payload: BrandPayload = { name: form.name };
+        if (form.logoImage.startsWith('/uploads/')) {
+          payload.logoImage = form.logoImage;
         }
-        await brandsApi.create({ name: form.name, logoImage: form.logoImage });
+        await brandsApi.create(payload);
         setStatus('Brand created');
       }
       await refresh();
@@ -186,10 +189,12 @@ export const BrandsAdminSection: React.FC<BrandsAdminSectionProps> = ({ onOrderC
             <label
               className={cn(
                 'inline-flex w-fit cursor-pointer items-center justify-center rounded-xl border px-4 py-2 text-xs font-semibold transition',
-                form.logoImage ? 'border-emerald-200 bg-emerald-100 text-emerald-700' : 'border-red-200 bg-red-100 text-red-700'
+                form.logoImage ? 'border-emerald-200 bg-emerald-100 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700'
               )}
             >
-              <span>{form.logoImage ? `Replace logo (max ${MAX_IMAGE_MB} MB)` : `Upload logo (max ${MAX_IMAGE_MB} MB)`}</span>
+              <span>
+                {form.logoImage ? `Replace logo (max ${MAX_IMAGE_MB} MB)` : `Upload logo (optional, max ${MAX_IMAGE_MB} MB)`}
+              </span>
                 <input
                   type="file"
                   accept="image/*"

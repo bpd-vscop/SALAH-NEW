@@ -27,7 +27,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { cn } from '../../utils/cn';
 import { menuApi } from '../../api/menu';
-import { productsApi } from '../../api/products';
+import { brandsApi, type Brand } from '../../api/brands';
+import { modelsApi, type Model } from '../../api/models';
 import { ordersApi } from '../../api/orders';
 import type { Order } from '../../types/api';
 
@@ -242,7 +243,6 @@ interface VehicleSearchProps {
   model: string;
   setModel: (value: string) => void;
   onFindParts: () => void;
-  vehicleYears: number[];
   vehicleMakes: string[];
   vehicleModels: string[];
   loading?: boolean;
@@ -258,7 +258,6 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
   model,
   setModel,
   onFindParts,
-  vehicleYears,
   vehicleMakes,
   vehicleModels,
   loading = false,
@@ -338,21 +337,17 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
                   </select>
                 </label>
                 <label>
-                  <select
+                  <input
                     value={year}
                     onChange={(event) => setYear(event.target.value)}
-                    disabled={loading || !make || !model || vehicleYears.length === 0}
+                    disabled={loading || !make || !model}
                     className="h-10 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="" disabled>
-                      {loading ? 'Loading...' : !make || !model ? 'Select brand & model first' : vehicleYears.length === 0 ? 'No years available' : 'Select year'}
-                    </option>
-                    {vehicleYears.map((option) => (
-                      <option key={option} value={option} className="text-slate-900">
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder={loading ? 'Loading...' : !make || !model ? 'Select brand & model first' : 'Enter year'}
+                    type="number"
+                    inputMode="numeric"
+                    min={1900}
+                    max={new Date().getFullYear() + 1}
+                  />
                 </label>
                 <button
                   type="button"
@@ -387,12 +382,31 @@ export const Header: React.FC = () => {
   const [vehicleYear, setVehicleYear] = useState('');
   const [vehicleMake, setVehicleMake] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
-  const [vehicleOptions, setVehicleOptions] = useState<{
-    years: number[];
-    makes: string[];
-    models: string[];
-  }>({ years: [], makes: [], models: [] });
+  const [vehicleBrands, setVehicleBrands] = useState<Brand[]>([]);
+  const [vehicleModels, setVehicleModels] = useState<Model[]>([]);
   const [vehicleOptionsLoading, setVehicleOptionsLoading] = useState(false);
+
+  const vehicleMakeOptions = useMemo(() => {
+    return vehicleBrands
+      .filter((brand) => brand.isActive !== false)
+      .map((brand) => brand.name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  }, [vehicleBrands]);
+
+  const vehicleModelOptions = useMemo(() => {
+    const make = vehicleMake.trim().toLowerCase();
+    if (!make) return [];
+
+    const brand = vehicleBrands.find((b) => b.name.trim().toLowerCase() === make);
+    if (!brand) return [];
+
+    return vehicleModels
+      .filter((model) => model.brandId === brand.id && model.isActive !== false)
+      .map((model) => model.name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  }, [vehicleBrands, vehicleMake, vehicleModels]);
 
   // Orders state for notification badge
   const [orders, setOrders] = useState<Order[]>([]);
@@ -469,23 +483,31 @@ export const Header: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
+    let active = true;
     const loadVehicleOptions = async () => {
       setVehicleOptionsLoading(true);
       try {
-        const { years, makes, models } = await productsApi.getVehicleCompatibilityOptions({
-          make: vehicleMake || undefined,
-          model: vehicleModel || undefined,
-        });
-        setVehicleOptions({ years, makes, models });
+        const [{ brands }, { models }] = await Promise.all([brandsApi.list(), modelsApi.list()]);
+        if (!active) return;
+        setVehicleBrands(brands);
+        setVehicleModels(models);
       } catch (error) {
         console.warn('Failed to load vehicle compatibility options', error);
-        setVehicleOptions({ years: [], makes: [], models: [] });
+        if (active) {
+          setVehicleBrands([]);
+          setVehicleModels([]);
+        }
       } finally {
-        setVehicleOptionsLoading(false);
+        if (active) {
+          setVehicleOptionsLoading(false);
+        }
       }
     };
     void loadVehicleOptions();
-  }, [vehicleMake, vehicleModel]);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -1003,9 +1025,8 @@ export const Header: React.FC = () => {
               setMake={setVehicleMake}
               model={vehicleModel}
               setModel={setVehicleModel}
-              vehicleYears={vehicleOptions.years}
-              vehicleMakes={vehicleOptions.makes}
-              vehicleModels={vehicleOptions.models}
+              vehicleMakes={vehicleMakeOptions}
+              vehicleModels={vehicleModelOptions}
               loading={vehicleOptionsLoading}
               onFindParts={() => {
                 const params = new URLSearchParams();

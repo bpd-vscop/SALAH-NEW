@@ -12,6 +12,7 @@ const {
   saveWebpImage,
   moveUploadsUrlPath,
   normalizePosixPath,
+  safeUnlinkUploadsUrlPath,
   safeRemoveUploadsDir,
 } = require('../services/mediaStorageService');
 
@@ -53,7 +54,7 @@ const listBrands = async (_req, res, next) => {
   }
 };
 
-const createBrand = async (req, res, next) => {
+  const createBrand = async (req, res, next) => {
   try {
     const data = validateCreateBrand(req.body || {});
     const slug = slugify(data.name);
@@ -65,19 +66,21 @@ const createBrand = async (req, res, next) => {
     const brand = new Brand({
       name: data.name,
       slug,
-      logoImage: data.logoImage,
+      logoImage: data.logoImage || '',
       order: data.order || 0,
       isActive: data.isActive !== false,
     });
 
     const folderName = buildEntityFolderName(brand.name, brand._id);
-    if (data.logoImage.startsWith('/uploads/_tmp/')) {
-      brand.logoImage = await moveUploadsUrlPath(data.logoImage, {
-        relativeDir: path.posix.join('brands', folderName, 'images'),
-        filename: 'logo.webp',
-      });
-    } else {
-      brand.logoImage = data.logoImage;
+    if (data.logoImage) {
+      if (data.logoImage.startsWith('/uploads/_tmp/')) {
+        brand.logoImage = await moveUploadsUrlPath(data.logoImage, {
+          relativeDir: path.posix.join('brands', folderName, 'images'),
+          filename: 'logo.webp',
+        });
+      } else {
+        brand.logoImage = data.logoImage;
+      }
     }
 
     await brand.save();
@@ -123,12 +126,17 @@ const updateBrand = async (req, res, next) => {
     }
 
     if (typeof data.logoImage !== 'undefined') {
-      if (data.logoImage && data.logoImage.startsWith('/uploads/_tmp/')) {
+      if (!data.logoImage) {
+        if (brand.logoImage && normalizePosixPath(brand.logoImage).startsWith('/uploads/')) {
+          await safeUnlinkUploadsUrlPath(brand.logoImage);
+        }
+        brand.logoImage = '';
+      } else if (data.logoImage.startsWith('/uploads/_tmp/')) {
         brand.logoImage = await moveUploadsUrlPath(data.logoImage, {
           relativeDir: path.posix.join('brands', nextFolderName, 'images'),
           filename: 'logo.webp',
         });
-      } else if (data.logoImage) {
+      } else {
         brand.logoImage = data.logoImage;
       }
     }

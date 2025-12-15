@@ -2,13 +2,15 @@ import { http } from './http';
 
 export interface BrandPayload {
   name: string;
-  logoImage: string; // /uploads path
+  logoImage?: string | null; // /uploads path (optional)
   order?: number;
   isActive?: boolean;
 }
 
-export interface Brand extends Required<Pick<BrandPayload, 'name' | 'logoImage'>> {
+export interface Brand {
   id: string;
+  name: string;
+  logoImage?: string | null;
   slug: string;
   order?: number;
   isActive?: boolean;
