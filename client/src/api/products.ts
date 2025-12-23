@@ -84,6 +84,7 @@ export const productsApi = {
     tags?: ProductTag[];
     search?: string;
     includeSerials?: boolean;
+    limit?: number;
     minPrice?: number;
     maxPrice?: number;
     vehicleYear?: string;
@@ -108,6 +109,9 @@ export const productsApi = {
     }
     if (params?.search) {
       query.append('search', params.search);
+    }
+    if (typeof params?.limit === 'number' && Number.isFinite(params.limit) && params.limit > 0) {
+      query.append('limit', Math.floor(params.limit).toString());
     }
     if (params?.minPrice !== undefined) {
       query.append('minPrice', params.minPrice.toString());

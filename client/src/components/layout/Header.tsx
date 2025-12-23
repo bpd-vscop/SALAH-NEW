@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BatteryFull,
@@ -368,6 +368,7 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
 
 export const Header: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const { items } = useCart();
   const cartCount = useMemo(() => items.reduce((sum, line) => sum + line.quantity, 0), [items]);
@@ -653,6 +654,19 @@ export const Header: React.FC = () => {
     setOpenMegaMenu((current) => (current === id ? null : id));
   };
 
+  const handleSearchSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const query = searchQuery.trim();
+    if (!query) {
+      return;
+    }
+
+    const params = new URLSearchParams(location.pathname === '/products' ? location.search : '');
+    params.set('search', query);
+    navigate(`/products?${params.toString()}`);
+    setMobileSearchOpen(false);
+  };
+
   return (
     <header id="main-header" className="fixed top-0 left-0 right-0 z-40 overflow-x-clip">
       <PromoBanner text={promoText} visible={promoVisible} loading={promoLoading} />
@@ -743,13 +757,14 @@ export const Header: React.FC = () => {
               >
                 <AnimatePresence mode="wait">
                   {mobileSearchOpen ? (
-                    <motion.div
+                    <motion.form
                       key="search-input"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.2 }}
                       className="relative"
+                      onSubmit={handleSearchSubmit}
                     >
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                       <input
@@ -771,7 +786,7 @@ export const Header: React.FC = () => {
                           <X className="h-4 w-4" />
                         </button>
                       )}
-                    </motion.div>
+                    </motion.form>
                   ) : (
                     <motion.button
                       key="search-icon"
@@ -962,24 +977,26 @@ export const Header: React.FC = () => {
             >
               <div className="relative px-4 py-3">
                 <Search className="pointer-events-none absolute left-7 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="search"
-                  placeholder="Search keyword or product..."
-                  className="h-10 w-full rounded-xl border border-white/20 bg-white/95 pl-9 pr-9 text-sm text-slate-900 shadow-inner placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
-                  aria-label="Search catalog"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-7 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    aria-label="Clear search"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
+                <form className="relative" onSubmit={handleSearchSubmit}>
+                  <input
+                    type="search"
+                    placeholder="Search keyword or product..."
+                    className="h-10 w-full rounded-xl border border-white/20 bg-white/95 pl-9 pr-9 text-sm text-slate-900 shadow-inner placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                    aria-label="Search catalog"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      aria-label="Clear search"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </form>
               </div>
             </motion.div>
           )}

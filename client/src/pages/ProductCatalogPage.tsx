@@ -15,8 +15,10 @@ const tagOptions: ProductTag[] = ['in stock', 'out of stock', 'on sale', 'availa
 export const ProductCatalogPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const urlSearch = searchParams.get('search') || '';
+
   // State
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(urlSearch);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedManufacturers, setSelectedManufacturers] = useState<Set<string>>(new Set());
   const [selectedTags, setSelectedTags] = useState<Set<ProductTag>>(new Set());
@@ -37,6 +39,11 @@ export const ProductCatalogPage: React.FC = () => {
   const vehicleYear = searchParams.get('vehicleYear') || '';
   const vehicleMake = searchParams.get('vehicleMake') || '';
   const vehicleModel = searchParams.get('vehicleModel') || '';
+
+  // Sync search value from URL (used by header search)
+  useEffect(() => {
+    setSearch(urlSearch);
+  }, [urlSearch]);
 
   // Load categories
   useEffect(() => {

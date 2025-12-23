@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const Manufacturer = require('../models/Manufacturer');
 const { validateCreateProduct, validateUpdateProduct } = require('../validators/product');
 const { notFound, badRequest } = require('../utils/appError');
 const { saveProductImage, ImageOptimizationError } = require('../services/productImageService');
@@ -212,8 +213,9 @@ const sanitizeProductForPublic = (product) => {
 
 const listProducts = async (req, res, next) => {
   try {
-    const { categoryId, manufacturerId, manufacturerIds, tags, search, includeSerials, vehicleYear, vehicleMake, vehicleModel, minPrice, maxPrice } = req.query;
+    const { categoryId, manufacturerId, manufacturerIds, tags, search, includeSerials, limit, vehicleYear, vehicleMake, vehicleModel, minPrice, maxPrice } = req.query;
     const filter = {};
+    const andConditions = [];
     const shouldIncludeSerials = String(includeSerials || '').toLowerCase() === 'true';
 
     if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
@@ -239,8 +241,53 @@ const listProducts = async (req, res, next) => {
       filter.tags = { $in: tagList };
     }
 
-    if (search) {
-      filter.name = { $regex: search, $options: 'i' };
+    const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const normalizedSearch = typeof search === 'undefined' ? '' : String(search).trim();
+    if (normalizedSearch) {
+      const safeSearch = normalizedSearch.slice(0, 128);
+      const regex = new RegExp(escapeRegex(safeSearch), 'i');
+
+      const [matchedCategories, matchedManufacturers] = await Promise.all([
+        Category.find({ $or: [{ name: regex }, { slug: regex }] }).select('_id'),
+        Manufacturer.find({ $or: [{ name: regex }, { slug: regex }] }).select('_id'),
+      ]);
+
+      const categoryIdsFromSearch = matchedCategories.map((category) => category._id);
+      const manufacturerIdsFromSearch = matchedManufacturers.map((manufacturer) => manufacturer._id);
+
+      const orConditions = [
+        { name: regex },
+        { sku: regex },
+        { productCode: regex },
+        { slug: regex },
+        { manufacturerName: regex },
+        { tags: regex },
+        { shortDescription: regex },
+        { description: regex },
+        { 'variations.sku': regex },
+        { 'variations.name': regex },
+        { 'specifications.label': regex },
+        { 'specifications.value': regex },
+        { 'compatibility.make': regex },
+        { 'compatibility.model': regex },
+        { 'compatibility.subModel': regex },
+        { 'compatibility.engine': regex },
+        { 'compatibility.notes': regex },
+        { featureHighlights: regex },
+        { packageContents: regex },
+        { 'badges.label': regex },
+        { 'badges.description': regex },
+      ];
+
+      if (categoryIdsFromSearch.length > 0) {
+        orConditions.push({ categoryId: { $in: categoryIdsFromSearch } });
+      }
+      if (manufacturerIdsFromSearch.length > 0) {
+        orConditions.push({ manufacturerId: { $in: manufacturerIdsFromSearch } });
+      }
+
+      andConditions.push({ $or: orConditions });
     }
 
     // Price filtering
@@ -262,14 +309,12 @@ const listProducts = async (req, res, next) => {
 
     // Vehicle compatibility filtering
     if (vehicleMake || vehicleModel || vehicleYear) {
-      const compatibilityFilter = {};
-
       if (vehicleMake) {
-        compatibilityFilter['compatibility.make'] = { $regex: new RegExp(`^${vehicleMake}$`, 'i') };
+        filter['compatibility.make'] = { $regex: new RegExp(`^${escapeRegex(vehicleMake)}$`, 'i') };
       }
 
       if (vehicleModel) {
-        compatibilityFilter['compatibility.model'] = { $regex: new RegExp(`^${vehicleModel}$`, 'i') };
+        filter['compatibility.model'] = { $regex: new RegExp(`^${escapeRegex(vehicleModel)}$`, 'i') };
       }
 
       if (vehicleYear) {
@@ -280,29 +325,43 @@ const listProducts = async (req, res, next) => {
           // 2. Year falls within yearStart and yearEnd range, OR
           // 3. Year is >= yearStart (if no yearEnd), OR
           // 4. Year is <= yearEnd (if no yearStart)
-          compatibilityFilter.$or = [
-            { 'compatibility.year': year },
-            {
-              'compatibility.yearStart': { $lte: year },
-              'compatibility.yearEnd': { $gte: year }
-            },
-            {
-              'compatibility.yearStart': { $lte: year },
-              'compatibility.yearEnd': { $exists: false }
-            },
-            {
-              'compatibility.yearStart': { $exists: false },
-              'compatibility.yearEnd': { $gte: year }
-            }
-          ];
+          andConditions.push({
+            $or: [
+              { 'compatibility.year': year },
+              {
+                'compatibility.yearStart': { $lte: year },
+                'compatibility.yearEnd': { $gte: year }
+              },
+              {
+                'compatibility.yearStart': { $lte: year },
+                'compatibility.yearEnd': { $exists: false }
+              },
+              {
+                'compatibility.yearStart': { $exists: false },
+                'compatibility.yearEnd': { $gte: year }
+              }
+            ],
+          });
         }
       }
-
-      // Merge compatibility filter into main filter
-      Object.assign(filter, compatibilityFilter);
     }
 
-    const products = await Product.find(filter).sort({ createdAt: -1 });
+    if (andConditions.length > 0) {
+      filter.$and = andConditions;
+    }
+
+    const parsedLimit = Number.isFinite(Number(limit)) ? Number.parseInt(limit, 10) : null;
+    const effectiveLimit =
+      typeof parsedLimit === 'number' && Number.isFinite(parsedLimit) && parsedLimit > 0
+        ? Math.min(parsedLimit, 100)
+        : null;
+
+    let query = Product.find(filter).sort({ createdAt: -1 });
+    if (effectiveLimit) {
+      query = query.limit(effectiveLimit);
+    }
+
+    const products = await query;
     res.json({
       products: products.map((p) => (shouldIncludeSerials ? p.toJSON() : sanitizeProductForPublic(p))),
     });

@@ -53,7 +53,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className }) 
       </button>
 
       {/* Image Container with Hover Zoom */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+      <div className="relative aspect-[10/9] w-full overflow-hidden bg-slate-100">
         <img
           src={product.images[0] ?? 'https://placehold.co/400x300?text=Product'}
           alt={product.name}

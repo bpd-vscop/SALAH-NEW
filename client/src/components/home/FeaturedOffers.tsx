@@ -1,22 +1,101 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { productsApi } from '../../api/products';
 import type { Product } from '../../types/api';
 import { ProductCard } from '../product/ProductCard';
 
+const MAX_FEATURED_PRODUCTS = 24;
+
+const getItemsPerPage = () => {
+  if (typeof window === 'undefined') {
+    return 5;
+  }
+
+  const width = window.innerWidth;
+  if (width >= 1024) return 5; // lg
+  if (width >= 768) return 4; // md
+  if (width >= 640) return 3; // sm
+  return 2;
+};
+
+type ArrowDirection = 'left' | 'right';
+
+const CarouselArrow: React.FC<{
+  direction: ArrowDirection;
+  onClick: () => void;
+  disabled?: boolean;
+}> = ({ direction, onClick, disabled = false }) => {
+  const Icon = direction === 'left' ? ChevronLeft : ChevronRight;
+  const label = direction === 'left' ? 'Previous products' : 'Next products';
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onClick();
+      }}
+      disabled={disabled}
+      aria-label={label}
+      className={[
+        'flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-md backdrop-blur transition',
+        'hover:bg-white hover:shadow-lg hover:border-slate-300',
+        'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/90 disabled:hover:shadow-md',
+      ].join(' ')}
+    >
+      <Icon className="h-5 w-5 text-red-600" />
+    </button>
+  );
+};
+
 export const FeaturedOffers: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [itemsPerPage, setItemsPerPage] = useState(() => getItemsPerPage());
+  const [page, setPage] = useState(0);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef({
+    active: false,
+    isHorizontal: false,
+    preventClick: false,
+    startX: 0,
+    startY: 0,
+    deltaX: 0,
+    deltaY: 0,
+    width: 0,
+    startPage: 0,
+    lastPage: 0,
+  });
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadFeaturedProducts = async () => {
       try {
-        // Fetch products with "on sale" tag
-        const { products: data } = await productsApi.list({ tags: ['on sale'] });
+        // Prefer "on sale" products, then top-up with latest products to ensure a full carousel.
+        const [onSaleRes, latestRes] = await Promise.all([
+          productsApi.list({ tags: ['on sale'], limit: MAX_FEATURED_PRODUCTS }),
+          productsApi.list({ limit: MAX_FEATURED_PRODUCTS }),
+        ]);
+
+        const onSale = onSaleRes.products ?? [];
+        const latest = latestRes.products ?? [];
+
+        const byId = new Map<string, Product>();
+        onSale.forEach((product) => byId.set(product.id, product));
+        latest.forEach((product) => {
+          if (!byId.has(product.id)) {
+            byId.set(product.id, product);
+          }
+        });
+        const merged = Array.from(byId.values()).slice(0, MAX_FEATURED_PRODUCTS);
+
         if (isMounted) {
-          // Take first 4 products
-          setProducts(data.slice(0, 4));
+          setProducts(merged);
         }
       } catch (error) {
         console.error('Failed to load featured products', error);
@@ -34,21 +113,124 @@ export const FeaturedOffers: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const handleResize = () => setItemsPerPage(getItemsPerPage());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const pages = useMemo(() => {
+    if (!products.length) return [] as Product[][];
+    const chunked: Product[][] = [];
+    for (let i = 0; i < products.length; i += itemsPerPage) {
+      chunked.push(products.slice(i, i + itemsPerPage));
+    }
+    return chunked;
+  }, [products, itemsPerPage]);
+
+  useEffect(() => {
+    if (page >= pages.length) {
+      setPage(0);
+    }
+  }, [page, pages.length]);
+
+  const canGoPrev = pages.length > 1 && page > 0;
+  const canGoNext = pages.length > 1 && page < pages.length - 1;
+
+  const beginDrag = (x: number, y: number) => {
+    if (pages.length <= 1) return;
+    const viewport = viewportRef.current;
+    const track = trackRef.current;
+    if (!viewport || !track) return;
+
+    dragRef.current.active = true;
+    dragRef.current.isHorizontal = false;
+    dragRef.current.preventClick = false;
+    dragRef.current.startX = x;
+    dragRef.current.startY = y;
+    dragRef.current.deltaX = 0;
+    dragRef.current.deltaY = 0;
+    dragRef.current.width = viewport.clientWidth || 0;
+    dragRef.current.startPage = page;
+    dragRef.current.lastPage = Math.max(0, pages.length - 1);
+
+    track.style.transition = 'none';
+  };
+
+  const updateDrag = (x: number, y: number) => {
+    const track = trackRef.current;
+    if (!dragRef.current.active || !track) return;
+
+    const dx = x - dragRef.current.startX;
+    const dy = y - dragRef.current.startY;
+    dragRef.current.deltaX = dx;
+    dragRef.current.deltaY = dy;
+
+    if (!dragRef.current.isHorizontal) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {
+        return;
+      }
+      if (Math.abs(dy) > Math.abs(dx)) {
+        // Treat as vertical scroll intent; cancel dragging.
+        dragRef.current.active = false;
+        track.style.transition = '';
+        track.style.transform = `translateX(-${dragRef.current.startPage * 100}%)`;
+        setDragging(false);
+        return;
+      }
+      dragRef.current.isHorizontal = true;
+      setDragging(true);
+    }
+
+    dragRef.current.preventClick = Math.abs(dx) > 6;
+
+    let offset = dx;
+    if (dragRef.current.startPage === 0 && offset > 0) {
+      offset *= 0.35;
+    } else if (dragRef.current.startPage === dragRef.current.lastPage && offset < 0) {
+      offset *= 0.35;
+    }
+
+    const base = -(dragRef.current.startPage * dragRef.current.width);
+    track.style.transform = `translateX(${base + offset}px)`;
+  };
+
+  const endDrag = () => {
+    const track = trackRef.current;
+    if (!dragRef.current.active || !track) return;
+
+    dragRef.current.active = false;
+    track.style.transition = '';
+
+    const width = dragRef.current.width || viewportRef.current?.clientWidth || 0;
+    const threshold = Math.min(160, width * 0.2);
+    const dx = dragRef.current.deltaX;
+
+    let nextPage = dragRef.current.startPage;
+    if (dx < -threshold && dragRef.current.startPage < dragRef.current.lastPage) {
+      nextPage = dragRef.current.startPage + 1;
+    } else if (dx > threshold && dragRef.current.startPage > 0) {
+      nextPage = dragRef.current.startPage - 1;
+    }
+
+    track.style.transform = `translateX(-${nextPage * 100}%)`;
+    setDragging(false);
+
+    if (nextPage !== dragRef.current.startPage) {
+      setPage(nextPage);
+    }
+  };
+
   if (loading) {
     return (
-      <section className="mx-auto mb-12 w-[88%]">
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <h2 className="text-3xl font-bold text-slate-900">Featured Products</h2>
-          </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className="aspect-[3/4] animate-pulse rounded-2xl bg-slate-200"
-              />
-            ))}
-          </div>
+      <section className="mb-12 w-[88%] mx-auto py-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
+          <h2 className="text-2xl font-semibold text-slate-900">Featured Products</h2>
+        </div>
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {Array.from({ length: itemsPerPage }).map((_, index) => (
+            <div key={index} className="aspect-[3/4] animate-pulse rounded-2xl bg-slate-200" />
+          ))}
         </div>
       </section>
     );
@@ -59,16 +241,93 @@ export const FeaturedOffers: React.FC = () => {
   }
 
   return (
-    <section className="mx-auto mb-12 w-[88%]">
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h2 className="text-3xl font-bold text-slate-900">Featured Products</h2>
+    <section className="mb-12 w-[88%] mx-auto py-8">
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h2 className="text-2xl font-semibold text-slate-900">Featured Products</h2>
+        <div className="flex items-center gap-3">
+          {pages.length > 1 && (
+            <div className="flex items-center gap-2">
+              <CarouselArrow
+                direction="left"
+                onClick={() => setPage((current) => Math.max(0, current - 1))}
+                disabled={!canGoPrev}
+              />
+              <CarouselArrow
+                direction="right"
+                onClick={() => setPage((current) => Math.min(pages.length - 1, current + 1))}
+                disabled={!canGoNext}
+              />
+            </div>
+          )}
+          <Link
+            to="/products"
+            className="hidden sm:inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+          >
+            See all products
+          </Link>
         </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+      </div>
+
+      <div className="overflow-hidden pb-6">
+        <div
+          ref={viewportRef}
+          className="overflow-hidden select-none"
+          onMouseDown={(event) => {
+            if (event.button !== 0) return;
+            beginDrag(event.clientX, event.clientY);
+          }}
+          onMouseMove={(event) => updateDrag(event.clientX, event.clientY)}
+          onMouseUp={endDrag}
+          onMouseLeave={endDrag}
+          onTouchStart={(event) => {
+            const touch = event.touches[0];
+            if (!touch) return;
+            beginDrag(touch.clientX, touch.clientY);
+          }}
+          onTouchMove={(event) => {
+            const touch = event.touches[0];
+            if (!touch) return;
+            updateDrag(touch.clientX, touch.clientY);
+          }}
+          onTouchEnd={endDrag}
+          onClickCapture={(event) => {
+            if (dragRef.current.preventClick) {
+              event.preventDefault();
+              event.stopPropagation();
+              dragRef.current.preventClick = false;
+            }
+          }}
+          style={{
+            cursor: dragging ? 'grabbing' : pages.length > 1 ? 'grab' : undefined,
+            userSelect: 'none',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          <div
+            ref={trackRef}
+            className="flex w-full transition-transform duration-500 ease-in-out will-change-transform"
+          style={{ transform: `translateX(-${page * 100}%)` }}
+          >
+            {pages.map((pageProducts, index) => (
+              <div key={index} className="min-w-full">
+                <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  {pageProducts.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+      </div>
+
+      <div className="mt-6 flex justify-center sm:hidden">
+        <Link
+          to="/products"
+          className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+        >
+          See all products
+        </Link>
       </div>
     </section>
   );
