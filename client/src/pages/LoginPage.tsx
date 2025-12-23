@@ -432,23 +432,34 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
           navigate('/account', { replace: true });
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
+      const isRecord = (value: unknown): value is Record<string, unknown> =>
+        typeof value === 'object' && value !== null;
+
       // Check if this is an email verification error with verification data
-      if (error?.status === 403 && error?.details) {
+      if (isRecord(error) && typeof error.status === 'number' && error.status === 403 && isRecord(error.details)) {
         const details = error.details;
-        if (details.requiresVerification && details.email) {
+        if (details.requiresVerification === true && typeof details.email === 'string') {
           // Show verification in signup tab
           setActiveTab('signup');
           setVerificationEmail(details.email);
-          setSignupData({ ...signupData, accountType: details.clientType || 'C2B' });
+          const clientType = details.clientType === 'B2B' || details.clientType === 'C2B' ? details.clientType : 'C2B';
+          setSignupData({ ...signupData, accountType: clientType });
           const isUserB2B = details.clientType === 'B2B';
           setSignupStep(isUserB2B ? 3 : 2); // Verification step
           setLoginError(null); // Clear login error as we're showing verification
           return;
         }
       }
-      setLoginError(error instanceof Error ? error.message : 'Login failed');
+
+      if (error instanceof Error) {
+        setLoginError(error.message);
+      } else if (isRecord(error) && typeof error.message === 'string') {
+        setLoginError(error.message);
+      } else {
+        setLoginError('Login failed');
+      }
     } finally {
       setLoginLoading(false);
     }

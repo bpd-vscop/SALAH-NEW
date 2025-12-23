@@ -17,6 +17,7 @@ const brandRoutes = require('./brands');
 const modelRoutes = require('./models');
 const tagRoutes = require('./tags');
 const clientRoutes = require('./clients');
+const contactRoutes = require('./contact');
 
 module.exports = () => {
   const router = express.Router();
@@ -39,6 +40,7 @@ module.exports = () => {
   router.use('/models', modelRoutes);
   router.use('/tags', tagRoutes);
   router.use('/clients', clientRoutes);
+  router.use('/contact', contactRoutes);
 
   return router;
 };

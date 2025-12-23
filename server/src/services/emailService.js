@@ -56,7 +56,7 @@ const getTransporter = () => {
   return transporter;
 };
 
-const sendMail = async ({ to, subject, text, html, from, attachments }) => {
+const sendMail = async ({ to, subject, text, html, from, replyTo, attachments }) => {
   const mailTransporter = getTransporter();
   const sender = from || process.env.SMTP_FROM || process.env.SMTP_USER;
   if (!sender) {
@@ -66,6 +66,7 @@ const sendMail = async ({ to, subject, text, html, from, attachments }) => {
   await mailTransporter.sendMail({
     from: sender,
     to,
+    replyTo,
     subject,
     text,
     html,
