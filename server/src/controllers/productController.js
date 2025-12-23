@@ -211,12 +211,62 @@ const sanitizeProductForPublic = (product) => {
   return productData;
 };
 
+const specialInventoryStatuses = new Set(['backorder', 'preorder']);
+
+const normalizeInventoryStatus = (inventory) => {
+  if (!inventory || typeof inventory !== 'object') {
+    return;
+  }
+
+  const quantity = typeof inventory.quantity === 'number' ? inventory.quantity : 0;
+  const lowStockThreshold = typeof inventory.lowStockThreshold === 'number' ? inventory.lowStockThreshold : 0;
+  const allowBackorder = Boolean(inventory.allowBackorder);
+
+  if (specialInventoryStatuses.has(inventory.status)) {
+    inventory.allowBackorder = true;
+    if (quantity <= 0) {
+      return;
+    }
+  }
+
+  if (allowBackorder && quantity <= 0) {
+    inventory.status = 'backorder';
+    return;
+  }
+
+  if (quantity <= 0) {
+    inventory.status = 'out_of_stock';
+  } else if (quantity <= lowStockThreshold) {
+    inventory.status = 'low_stock';
+  } else {
+    inventory.status = 'in_stock';
+  }
+};
+
 const listProducts = async (req, res, next) => {
   try {
-    const { categoryId, manufacturerId, manufacturerIds, tags, search, includeSerials, limit, vehicleYear, vehicleMake, vehicleModel, minPrice, maxPrice } = req.query;
+    const {
+      categoryId,
+      manufacturerId,
+      manufacturerIds,
+      tags,
+      search,
+      includeSerials,
+      limit,
+      backInStock,
+      onSale,
+      sort,
+      vehicleYear,
+      vehicleMake,
+      vehicleModel,
+      minPrice,
+      maxPrice,
+    } = req.query;
     const filter = {};
     const andConditions = [];
     const shouldIncludeSerials = String(includeSerials || '').toLowerCase() === 'true';
+    const wantsBackInStock = ['true', '1', 'yes'].includes(String(backInStock || '').toLowerCase());
+    const wantsOnSale = ['true', '1', 'yes'].includes(String(onSale || '').toLowerCase());
 
     if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
       filter.categoryId = categoryId;
@@ -242,6 +292,40 @@ const listProducts = async (req, res, next) => {
     }
 
     const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    if (wantsBackInStock) {
+      andConditions.push(
+        { restockedAt: { $ne: null } },
+        { 'inventory.quantity': { $gt: 0 }, 'inventory.status': { $ne: 'out_of_stock' } }
+      );
+    }
+
+    if (wantsOnSale) {
+      const now = new Date();
+      andConditions.push(
+        {
+          $and: [
+            { salePrice: { $ne: null } },
+            { $expr: { $lt: ['$salePrice', '$price'] } },
+            {
+              $or: [
+                { saleStartDate: { $exists: false } },
+                { saleStartDate: null },
+                { saleStartDate: { $lte: now } },
+              ],
+            },
+            {
+              $or: [
+                { saleEndDate: { $exists: false } },
+                { saleEndDate: null },
+                { saleEndDate: { $gte: now } },
+              ],
+            },
+          ],
+        },
+        { 'inventory.quantity': { $gt: 0 }, 'inventory.status': { $ne: 'out_of_stock' } }
+      );
+    }
 
     const normalizedSearch = typeof search === 'undefined' ? '' : String(search).trim();
     if (normalizedSearch) {
@@ -356,7 +440,23 @@ const listProducts = async (req, res, next) => {
         ? Math.min(parsedLimit, 100)
         : null;
 
-    let query = Product.find(filter).sort({ createdAt: -1 });
+    const normalizedSort = typeof sort === 'undefined' ? '' : String(sort).trim().toLowerCase();
+    let sortSpec = { createdAt: -1 };
+    if (wantsBackInStock) {
+      sortSpec = { restockedAt: -1, createdAt: -1 };
+    } else if (normalizedSort === 'price-asc') {
+      sortSpec = { price: 1, createdAt: -1 };
+    } else if (normalizedSort === 'price-desc') {
+      sortSpec = { price: -1, createdAt: -1 };
+    } else if (normalizedSort === 'newest') {
+      sortSpec = { createdAt: -1 };
+    } else if (normalizedSort === 'oldest') {
+      sortSpec = { createdAt: 1 };
+    } else if (normalizedSort === 'restocked') {
+      sortSpec = { restockedAt: -1, createdAt: -1 };
+    }
+
+    let query = Product.find(filter).sort(sortSpec);
     if (effectiveLimit) {
       query = query.limit(effectiveLimit);
     }
@@ -425,6 +525,9 @@ const createProduct = async (req, res, next) => {
 
     const product = await Product.create(payload);
 
+    normalizeInventoryStatus(product.inventory);
+    product.markModified('inventory');
+
     await relocateProductUploadPaths(product);
     product.markModified('images');
     product.markModified('documents');
@@ -448,6 +551,8 @@ const updateProduct = async (req, res, next) => {
       throw notFound('Product not found');
     }
 
+    const previousQuantity =
+      product.inventory && typeof product.inventory.quantity === 'number' ? product.inventory.quantity : 0;
     const previousName = product.name;
     const previousUploads = collectProductUploadPaths(product);
 
@@ -537,6 +642,15 @@ const updateProduct = async (req, res, next) => {
 
     if (product.manufacturerName && !product.manufacturerName.trim()) {
       product.manufacturerName = undefined;
+    }
+
+    normalizeInventoryStatus(product.inventory);
+    product.markModified('inventory');
+
+    const nextQuantity =
+      product.inventory && typeof product.inventory.quantity === 'number' ? product.inventory.quantity : 0;
+    if (previousQuantity <= 0 && nextQuantity > 0) {
+      product.restockedAt = new Date();
     }
 
     await relocateProductUploadPaths(product, { previousName });

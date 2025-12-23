@@ -32,6 +32,7 @@ import type {
 import { adminTabs, homepageTabs, navigationTabs } from '../utils/adminSidebar';
 import { CategoriesAdminSection } from '../components/dashboard/CategoriesAdminSection';
 import { ProductsAdminSection } from '../components/dashboard/ProductsAdminSection';
+import { ProductInventoryAdminSection } from '../components/dashboard/ProductInventoryAdminSection';
 // import { BannersAdminSection } from '../components/dashboard/BannersAdminSection';
 import { ManufacturersAdminSection } from '../components/dashboard/ManufacturersAdminSection';
 import { ManufacturersDisplayAdminSection } from '../components/dashboard/ManufacturersDisplayAdminSection';
@@ -476,7 +477,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [homepageSection, setHomepageSection] = useState<'hero' | 'featured' | 'categorydisplay' | 'manufacturers'>('hero');
   const [catalogSection, setCatalogSection] = useState<'categories' | 'manufacturers' | 'brands' | 'models' | 'tags'>('categories');
   const [navigationSection, setNavigationSection] = useState<'topnav' | 'sections' | 'quicklinks' | 'visible'>('topnav');
-  const [productsView, setProductsView] = useState<'all' | 'add'>('all');
+  const [productsView, setProductsView] = useState<'all' | 'add' | 'inventory'>('all');
   const [activeFeatureTab, setActiveFeatureTab] = useState<'feature' | 'tile'>('feature');
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>(null);
   const [orderConflict, setOrderConflict] = useState<OrderConflictState>(null);
@@ -1678,7 +1679,8 @@ export const AdminDashboardPage: React.FC = () => {
           };
         }
         if (tab.id === 'products') {
-          const activeProductsLabel = productsView === 'add' ? 'Add Product' : 'All Products';
+          const activeProductsLabel =
+            productsView === 'add' ? 'Add Product' : productsView === 'inventory' ? 'Inventory' : 'All Products';
           return {
             id: tab.id,
             label: tab.label,
@@ -1687,6 +1689,7 @@ export const AdminDashboardPage: React.FC = () => {
               items: [
                 { id: 'all', label: 'All Products' },
                 { id: 'add', label: 'Add Product' },
+                { id: 'inventory', label: 'Inventory' },
               ],
               activeId: activeTab === 'products' ? productsView : undefined,
             },
@@ -1736,7 +1739,7 @@ export const AdminDashboardPage: React.FC = () => {
     }
 
     if (id === 'products') {
-      if (dropdownId === 'all' || dropdownId === 'add') {
+      if (dropdownId === 'all' || dropdownId === 'add' || dropdownId === 'inventory') {
         setProductsView(dropdownId);
       }
       setActiveTab('products');
@@ -1894,36 +1897,48 @@ export const AdminDashboardPage: React.FC = () => {
 
           {activeTab === 'products' && (
             <motion.div
-              key="products"
+              key={`products-${productsView}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
-              <ProductsAdminSection
-                key={`products-${productsView}-${selectedProductId || 'new'}`}
-                products={products}
-                categories={categories}
-                categoryNameById={categoryNameById}
-                selectedProductId={selectedProductId}
-                onSelectProduct={setSelectedProductId}
-                form={productForm}
-                setForm={setProductForm}
-                onSubmit={handleProductSubmit}
-                onDelete={(id) => {
-                  setDeleteConfirmation({ type: 'product', id });
-                  return Promise.resolve();
-                }}
-                onBulkDelete={(ids) => {
-                  setDeleteConfirmation({ type: 'products-bulk', ids });
-                  return Promise.resolve();
-                }}
-                onRefreshProducts={refreshProducts}
-                productTags={productTags}
-                view={productsView}
-                onViewChange={setProductsView}
-                manufacturers={manufacturers}
-              />
+              {productsView === 'inventory' ? (
+                <ProductInventoryAdminSection
+                  products={products}
+                  onRefresh={refreshProducts}
+                  setStatus={setStatus}
+                  onOpenProduct={(id) => {
+                    setSelectedProductId(id);
+                    setProductsView('all');
+                  }}
+                />
+              ) : (
+                <ProductsAdminSection
+                  key={`products-${productsView}-${selectedProductId || 'new'}`}
+                  products={products}
+                  categories={categories}
+                  categoryNameById={categoryNameById}
+                  selectedProductId={selectedProductId}
+                  onSelectProduct={setSelectedProductId}
+                  form={productForm}
+                  setForm={setProductForm}
+                  onSubmit={handleProductSubmit}
+                  onDelete={(id) => {
+                    setDeleteConfirmation({ type: 'product', id });
+                    return Promise.resolve();
+                  }}
+                  onBulkDelete={(ids) => {
+                    setDeleteConfirmation({ type: 'products-bulk', ids });
+                    return Promise.resolve();
+                  }}
+                  onRefreshProducts={refreshProducts}
+                  productTags={productTags}
+                  view={productsView}
+                  onViewChange={setProductsView}
+                  manufacturers={manufacturers}
+                />
+              )}
             </motion.div>
           )}
 

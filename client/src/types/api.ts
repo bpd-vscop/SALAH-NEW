@@ -183,6 +183,7 @@ export interface Product {
   taxClass?: string | null;
   featureHighlights?: string[];
   inventory?: ProductInventory | null;
+  restockedAt?: string | null;
   shipping?: ProductShipping | null;
   packageContents?: string[];
   specifications?: ProductSpecification[];

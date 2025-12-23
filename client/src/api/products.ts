@@ -85,6 +85,9 @@ export const productsApi = {
     search?: string;
     includeSerials?: boolean;
     limit?: number;
+    backInStock?: boolean;
+    onSale?: boolean;
+    sort?: 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'restocked';
     minPrice?: number;
     maxPrice?: number;
     vehicleYear?: string;
@@ -112,6 +115,15 @@ export const productsApi = {
     }
     if (typeof params?.limit === 'number' && Number.isFinite(params.limit) && params.limit > 0) {
       query.append('limit', Math.floor(params.limit).toString());
+    }
+    if (params?.backInStock) {
+      query.append('backInStock', 'true');
+    }
+    if (params?.onSale) {
+      query.append('onSale', 'true');
+    }
+    if (params?.sort) {
+      query.append('sort', params.sort);
     }
     if (params?.minPrice !== undefined) {
       query.append('minPrice', params.minPrice.toString());

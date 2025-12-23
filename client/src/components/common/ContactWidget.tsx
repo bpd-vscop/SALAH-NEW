@@ -4,7 +4,6 @@ import { X, Send, ArrowLeft, Phone, Video, Mail } from 'lucide-react';
 
 // Contact data from footer
 const contactPhones = ['+1-407-449-6740', '+1-407-452-7149', '+1-407-978-6077'];
-const contactEmails = ['sales@ulk-supply.com', 'ulksupply@hotmail.com'];
 
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -54,9 +53,9 @@ const PhoneIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 // Array of icons for rotation
 const rotatingIcons = [
-  <PhoneIcon className="h-5 w-5" key="phone" />,
-  <WhatsAppIcon className="h-5 w-5" key="whatsapp" />,
-  <Mail className="h-5 w-5" key="email" />
+  <PhoneIcon className="h-6 w-6" key="phone" />,
+  <WhatsAppIcon className="h-6 w-6" key="whatsapp" />,
+  <Mail className="h-6 w-6" key="email" />
 ];
 
 interface ContactWidgetProps {
@@ -72,7 +71,38 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
   const [showTyping, setShowTyping] = useState(false);
   const [currentIconIndex, setCurrentIconIndex] = useState(0);
 
+  // Email form state
+  const [emailForm, setEmailForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    recipient: '',
+    message: ''
+  });
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [emailSuggestion, setEmailSuggestion] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({
+    name: '',
+    email: '',
+    message: ''
+  });
+
   const widgetRef = useRef<HTMLDivElement>(null);
+
+  // Email domains for autocomplete
+  const emailDomains = [
+    '@gmail.com',
+    '@yahoo.com',
+    '@outlook.com',
+    '@hotmail.com',
+    '@icloud.com',
+    '@aol.com',
+    '@protonmail.com',
+    '@zoho.com',
+    '@mail.com',
+    '@yandex.com',
+  ];
 
   // Icon rotation effect
   useEffect(() => {
@@ -116,11 +146,121 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
     resetState();
   };
 
-  const handleEmailSend = (email: string) => {
-    const subject = encodeURIComponent('Contact from ULK Supply Website');
-    const body = encodeURIComponent('Hello, I would like to get in touch with you.');
-    window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
-    resetState();
+  const handleEmailChange = (value: string) => {
+    setEmailForm(prev => ({ ...prev, email: value }));
+    if (fieldErrors.email) {
+      setFieldErrors(prev => ({ ...prev, email: '' }));
+    }
+
+    // Show suggestion as user types
+    if (!value) {
+      setEmailSuggestion('');
+    } else if (!value.includes('@')) {
+      // Before @, suggest first domain
+      setEmailSuggestion(value + '@gmail.com');
+    } else if (!value.includes('.')) {
+      // After @, suggest matching domain
+      const afterAt = value.split('@')[1] || '';
+      const suggestion = emailDomains.find(domain =>
+        domain.toLowerCase().startsWith('@' + afterAt.toLowerCase())
+      );
+      if (suggestion) {
+        setEmailSuggestion(value.split('@')[0] + suggestion);
+      } else {
+        setEmailSuggestion('');
+      }
+    } else {
+      setEmailSuggestion('');
+    }
+  };
+
+  const handleEmailKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Tab' && emailSuggestion) {
+      e.preventDefault();
+      setEmailForm(prev => ({ ...prev, email: emailSuggestion }));
+      setEmailSuggestion('');
+    }
+  };
+
+  const handlePhoneChange = (value: string) => {
+    const cleaned = value.replace(/[^\d\s\-()+]/g, '');
+    const formatted = cleaned.startsWith('+')
+      ? '+' + cleaned.slice(1).replace(/\+/g, '')
+      : cleaned.replace(/\+/g, '');
+    setEmailForm(prev => ({ ...prev, phone: formatted }));
+  };
+
+  const clearFieldError = (field: 'name' | 'email' | 'message') => {
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const handleEmailSubmit = async () => {
+    setFieldErrors({ name: '', email: '', message: '' });
+    let hasErrors = false;
+    const newErrors = { name: '', email: '', message: '' };
+
+    if (!emailForm.name.trim()) {
+      newErrors.name = 'Name is required';
+      hasErrors = true;
+    }
+
+    if (!emailForm.email.trim()) {
+      newErrors.email = 'Email is required';
+      hasErrors = true;
+    } else if (!emailForm.email.includes('@') || !emailForm.email.includes('.')) {
+      newErrors.email = 'Please enter a valid email address';
+      hasErrors = true;
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailForm.email)) {
+        newErrors.email = 'Please enter a valid email address';
+        hasErrors = true;
+      }
+    }
+
+    if (!emailForm.message.trim()) {
+      newErrors.message = 'Message is required';
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
+      setFieldErrors(newErrors);
+      return;
+    }
+
+    setEmailSending(true);
+    setEmailStatus('idle');
+
+    try {
+      const response = await fetch('/api/contact/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailForm),
+      });
+
+      if (response.ok) {
+        setEmailStatus('success');
+        setTimeout(() => {
+          setEmailStatus('idle');
+          setEmailForm({ name: '', email: '', phone: '', recipient: '', message: '' });
+          resetState();
+        }, 3000);
+      } else {
+        setEmailStatus('error');
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      setEmailStatus('error');
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
+  const handleRecipientSelect = (recipient: string) => {
+    setEmailForm(prev => ({ ...prev, recipient }));
+    setActiveView('email');
   };
 
   const resetState = (e?: React.MouseEvent) => {
@@ -169,9 +309,9 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
   };
 
   const options = [
-    { icon: <Mail className="h-4 w-4 text-white" />, action: () => setActiveView('email-select'), key: 'email', label: "Email" },
-    { icon: <WhatsAppIcon className="h-4 w-4 text-white" />, action: handleWhatsAppOpen, key: 'whatsapp', label: "WhatsApp" },
-    { icon: <PhoneIcon className="h-4 w-4 text-white" />, action: handleRandomPhoneCall, key: 'call', label: "Call" },
+    { icon: <Mail className="h-6 w-6 text-white" />, action: () => setActiveView('email-select'), key: 'email', label: "Email" },
+    { icon: <WhatsAppIcon className="h-6 w-6 text-white" />, action: handleWhatsAppOpen, key: 'whatsapp', label: "WhatsApp" },
+    { icon: <PhoneIcon className="h-6 w-6 text-white" />, action: handleRandomPhoneCall, key: 'call', label: "Call" },
   ];
 
   return (
@@ -187,12 +327,12 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
         ease: [0.25, 0.1, 0.25, 1]
       }}
     >
-      <div className="relative flex items-center justify-end h-12">
-        
+      <div className="relative flex items-center justify-end h-16">
+
         <motion.div
           className="flex items-center justify-end rounded-full absolute right-0 overflow-hidden"
           initial={false}
-          animate={{ width: isOpen ? 200 : 48, height: 48 }}
+          animate={{ width: isOpen ? 200 : 48, height: isOpen ? 64 : 48 }}
           transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
           style={{
             background: 'rgba(220, 38, 38, 0.15)',
@@ -226,7 +366,7 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.5, y: 10 }}
                     >
-                      <div className="w-4 h-4">{option.icon}</div>
+                      <div className="w-6 h-6">{option.icon}</div>
                       <span className="text-[10px] font-medium text-white">{option.label}</span>
                     </motion.button>
                   ))}
@@ -291,22 +431,182 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
                 <button onClick={backToMenu} className="p-1 hover:bg-red-600 rounded">
                   <ArrowLeft className="h-5 w-5"/>
                 </button>
-                <h3 className="font-semibold">Select Email</h3>
+                <h3 className="font-semibold">Select Recipient</h3>
                 <button onClick={resetState} className="p-1 hover:bg-red-600 rounded">
                   <X className="h-5 w-5"/>
                 </button>
               </div>
               <div className="p-4 space-y-3">
-                {contactEmails.map((email) => (
+                {['sales@ulk-supply.com', 'ulksupply@hotmail.com', 'bprod.digital@gmail.com'].map((email) => (
                   <button
                     key={email}
-                    onClick={() => handleEmailSend(email)}
+                    onClick={() => handleRecipientSelect(email)}
                     className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors flex items-center gap-3"
                   >
                     <Mail className="h-5 w-5 text-red-600" />
                     <span className="font-medium text-gray-800">{email}</span>
                   </button>
                 ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Email Compose View */}
+        {activeView === 'email' && (
+          <motion.div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={resetState}
+          >
+            <motion.div
+              className="w-[380px] flex flex-col fixed bottom-5 right-5 rounded-2xl overflow-hidden shadow-2xl bg-white max-h-[600px]"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-red-700 text-white">
+                <div className="flex items-center justify-between p-2">
+                  <button onClick={() => setActiveView('email-select')} className="p-1 hover:bg-red-600 rounded">
+                    <ArrowLeft className="h-5 w-5"/>
+                  </button>
+                  <h3 className="font-semibold">Send Email</h3>
+                  <button onClick={resetState} className="p-1 hover:bg-red-600 rounded">
+                    <X className="h-5 w-5"/>
+                  </button>
+                </div>
+                {/* CENTERED HEADER CONTENT */}
+                <div className="px-12 pb-2">
+                  <div className="bg-red-800/50 border border-red-600/50 rounded-lg p-2 flex items-center justify-center gap-2">
+                    <Mail className="h-4 w-4 text-white" />
+                    <span className="text-sm font-medium text-white">
+                      To: {emailForm.recipient}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-4 overflow-y-auto">
+
+                {/* Name field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <input
+                    type="text"
+                    value={emailForm.name}
+                    onChange={(e) => {
+                      setEmailForm(prev => ({ ...prev, name: e.target.value }));
+                      clearFieldError('name');
+                    }}
+                    className={`w-full px-3.5 py-2.5 rounded-lg border ${fieldErrors.name ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900`}
+                    placeholder="Your name"
+                  />
+                  {fieldErrors.name && (
+                    <p className="mt-1 text-sm text-red-600">{fieldErrors.name}</p>
+                  )}
+                </div>
+
+                {/* Email field with CORRECTED Ghost Text Alignment */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <div className="relative bg-white rounded-lg group">
+                    
+                    {/* GHOST SUGGESTION LAYER */}
+                    {emailSuggestion && emailForm.email && (
+                      <div 
+                        className="absolute inset-0 px-3.5 py-2.5 pointer-events-none flex items-center overflow-hidden whitespace-nowrap"
+                        aria-hidden="true"
+                      >
+                        {/* Invisible spacer matching input text exactly */}
+                        <span className="opacity-0 text-gray-900">
+                          {emailForm.email}
+                        </span>
+                        
+                        {/* Visible faint red suggestion */}
+                        <span className="text-red-300/70">
+                          {emailSuggestion.slice(emailForm.email.length)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* ACTUAL INPUT LAYER */}
+                    <input
+                      type="text"
+                      value={emailForm.email}
+                      onChange={(e) => handleEmailChange(e.target.value)}
+                      onKeyDown={handleEmailKeyDown}
+                      className={`w-full px-3.5 py-2.5 rounded-lg border ${
+                        fieldErrors.email ? 'border-red-500' : 'border-gray-300'
+                      } focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 bg-transparent relative z-10 placeholder-gray-400`}
+                      placeholder="your@email.com"
+                      style={{ caretColor: 'black' }}
+                      autoComplete="off"
+                    />
+                  </div>
+                  
+                  {emailSuggestion && (
+                    <p className="text-xs text-gray-400 mt-1 pl-1">Press <span className="font-medium text-gray-600">Tab</span> to complete</p>
+                  )}
+                  {fieldErrors.email && (
+                    <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
+                  )}
+                </div>
+
+                {/* Phone field (optional) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone (optional)</label>
+                  <input
+                    type="text"
+                    value={emailForm.phone}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900"
+                    placeholder="+1 234 567 8900"
+                  />
+                </div>
+
+                {/* Message field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Message *</label>
+                  <textarea
+                    value={emailForm.message}
+                    onChange={(e) => {
+                      setEmailForm(prev => ({ ...prev, message: e.target.value }));
+                      clearFieldError('message');
+                    }}
+                    rows={4}
+                    className={`w-full px-3.5 py-2.5 rounded-lg border ${fieldErrors.message ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-red-500 resize-none text-gray-900`}
+                    placeholder="Your message..."
+                  />
+                  {fieldErrors.message && (
+                    <p className="mt-1 text-sm text-red-600">{fieldErrors.message}</p>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleEmailSubmit}
+                  disabled={emailSending}
+                  className="w-full bg-red-700 hover:bg-red-800 disabled:bg-gray-400 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  {emailSending ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-5 w-5" />
+                      Send Email
+                    </>
+                  )}
+                </button>
+
+                {emailStatus === 'error' && (
+                  <p className="text-sm text-red-600 text-center">Failed to send email. Please try again.</p>
+                )}
               </div>
             </motion.div>
           </motion.div>
@@ -460,6 +760,98 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
                   <Send className="h-5 w-5"/>
                 </button>
               </footer>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Success Popup */}
+        {emailStatus === 'success' && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-3xl shadow-2xl p-8 max-w-md mx-4 text-center"
+              initial={{ scale: 0.5, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            >
+              <motion.div
+                className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+              >
+                <motion.svg
+                  className="w-10 h-10 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+                >
+                  <motion.path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={3}
+                    d="M5 13l4 4L19 7"
+                  />
+                </motion.svg>
+              </motion.div>
+
+              <motion.h3
+                className="text-2xl font-bold text-gray-900 mb-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                Email Sent Successfully!
+              </motion.h3>
+
+              <motion.p
+                className="text-gray-600 mb-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                Thank you for contacting us. We'll get back to you shortly.
+              </motion.p>
+
+              <motion.div
+                className="flex justify-center gap-1"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+              >
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    className="w-2 h-2 bg-red-600 rounded-full"
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      opacity: [0.5, 1, 0.5],
+                    }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      delay: i * 0.2,
+                    }}
+                  />
+                ))}
+              </motion.div>
+
+              <motion.p
+                className="text-xs text-gray-500 mt-2"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 }}
+              >
+                Closing automatically...
+              </motion.p>
             </motion.div>
           </motion.div>
         )}

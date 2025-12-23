@@ -39,6 +39,8 @@ export const ProductCatalogPage: React.FC = () => {
   const vehicleYear = searchParams.get('vehicleYear') || '';
   const vehicleMake = searchParams.get('vehicleMake') || '';
   const vehicleModel = searchParams.get('vehicleModel') || '';
+  const urlOnSale = ['true', '1', 'yes'].includes((searchParams.get('onSale') || '').toLowerCase());
+  const urlBackInStock = ['true', '1', 'yes'].includes((searchParams.get('backInStock') || '').toLowerCase());
 
   // Sync search value from URL (used by header search)
   useEffect(() => {
@@ -79,6 +81,8 @@ export const ProductCatalogPage: React.FC = () => {
         manufacturerIds?: string[];
         tags?: ProductTag[];
         search?: string;
+        onSale?: boolean;
+        backInStock?: boolean;
         minPrice?: number;
         maxPrice?: number;
         vehicleYear?: string;
@@ -106,6 +110,8 @@ export const ProductCatalogPage: React.FC = () => {
       manufacturerIds: selectedManufacturers.size ? Array.from(selectedManufacturers) : undefined,
       tags: selectedTags.size ? Array.from(selectedTags) : undefined,
       search: search || undefined,
+      onSale: urlOnSale || undefined,
+      backInStock: urlBackInStock || undefined,
       minPrice: minPrice > 0 ? minPrice : undefined,
       maxPrice: maxPrice < 1000 ? maxPrice : undefined,
       vehicleYear: vehicleYear || undefined,
@@ -121,13 +127,28 @@ export const ProductCatalogPage: React.FC = () => {
       manufacturerIds: selectedManufacturers.size ? Array.from(selectedManufacturers) : undefined,
       tags: selectedTags.size ? Array.from(selectedTags) : undefined,
       search: search || undefined,
+      onSale: urlOnSale || undefined,
+      backInStock: urlBackInStock || undefined,
       minPrice: minPrice > 0 ? minPrice : undefined,
       maxPrice: maxPrice < 1000 ? maxPrice : undefined,
       vehicleYear: vehicleYear || undefined,
       vehicleMake: vehicleMake || undefined,
       vehicleModel: vehicleModel || undefined,
     });
-  }, [selectedCategory, selectedManufacturers, selectedTags, minPrice, maxPrice, loadProducts, vehicleYear, vehicleMake, vehicleModel, search]);
+  }, [
+    selectedCategory,
+    selectedManufacturers,
+    selectedTags,
+    minPrice,
+    maxPrice,
+    loadProducts,
+    vehicleYear,
+    vehicleMake,
+    vehicleModel,
+    search,
+    urlOnSale,
+    urlBackInStock,
+  ]);
 
   const clearAllFilters = () => {
     setSearch('');
@@ -140,6 +161,8 @@ export const ProductCatalogPage: React.FC = () => {
     newParams.delete('vehicleYear');
     newParams.delete('vehicleMake');
     newParams.delete('vehicleModel');
+    newParams.delete('onSale');
+    newParams.delete('backInStock');
     setSearchParams(newParams);
     // Products will auto-refresh via useEffect
   };
@@ -169,7 +192,16 @@ export const ProductCatalogPage: React.FC = () => {
   };
 
   const hasVehicleFilters = vehicleYear || vehicleMake || vehicleModel;
-  const hasActiveFilters = search || selectedCategory || selectedManufacturers.size > 0 || selectedTags.size > 0 || minPrice > 0 || maxPrice < 1000 || hasVehicleFilters;
+  const hasActiveFilters =
+    search ||
+    selectedCategory ||
+    selectedManufacturers.size > 0 ||
+    selectedTags.size > 0 ||
+    minPrice > 0 ||
+    maxPrice < 1000 ||
+    hasVehicleFilters ||
+    urlOnSale ||
+    urlBackInStock;
 
   // Sort products based on selected sort option
   const sortedProducts = useMemo(() => {

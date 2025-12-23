@@ -184,6 +184,10 @@ const productSchema = new mongoose.Schema(
       allowBackorder: { type: Boolean, default: false },
       leadTime: { type: String, trim: true },
     },
+    restockedAt: {
+      type: Date,
+      default: null,
+    },
     shipping: {
       weight: { type: Number, min: 0 },
       weightUnit: { type: String, trim: true, default: 'lb' },
@@ -331,6 +335,7 @@ const productSchema = new mongoose.Schema(
             return plain;
           });
         }
+        ret.restockedAt = ret.restockedAt ? new Date(ret.restockedAt).toISOString() : null;
         ret.createdAt = ret.createdAt ? new Date(ret.createdAt).toISOString() : null;
         ret.updatedAt = ret.updatedAt ? new Date(ret.updatedAt).toISOString() : null;
         delete ret._id;

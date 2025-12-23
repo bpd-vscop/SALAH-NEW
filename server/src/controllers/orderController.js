@@ -12,6 +12,45 @@ const {
 const ORDER_USER_SELECT =
   'name email phoneCode phoneNumber clientType status isEmailVerified company verificationFileUrl profileImage shippingAddresses accountCreated accountUpdated';
 
+const specialInventoryStatuses = new Set(['backorder', 'preorder']);
+
+const normalizeInventoryStatus = (inventory) => {
+  if (!inventory || typeof inventory !== 'object') {
+    return;
+  }
+
+  const quantity = typeof inventory.quantity === 'number' ? inventory.quantity : 0;
+  const lowStockThreshold = typeof inventory.lowStockThreshold === 'number' ? inventory.lowStockThreshold : 0;
+  const allowBackorder = Boolean(inventory.allowBackorder);
+
+  if (specialInventoryStatuses.has(inventory.status)) {
+    inventory.allowBackorder = true;
+    if (quantity <= 0) {
+      return;
+    }
+  }
+
+  if (allowBackorder && quantity <= 0) {
+    inventory.status = 'backorder';
+    return;
+  }
+
+  if (quantity <= 0) {
+    inventory.status = 'out_of_stock';
+  } else if (quantity <= lowStockThreshold) {
+    inventory.status = 'low_stock';
+  } else {
+    inventory.status = 'in_stock';
+  }
+};
+
+const isInventoryOutOfStock = (inventory) => {
+  const status = inventory?.status ?? 'in_stock';
+  const allowBackorder = inventory?.allowBackorder ?? false;
+  const quantity = typeof inventory?.quantity === 'number' ? inventory.quantity : 0;
+  return status === 'out_of_stock' || (!allowBackorder && quantity <= 0);
+};
+
 const listOrders = async (req, res, next) => {
   try {
     const filter = {};
@@ -54,7 +93,12 @@ const createOrder = async (req, res, next) => {
   try {
     const payload = validateCreateOrder(req.body || {});
 
-    const productIds = payload.products.map((item) => item.productId);
+    const requestedByProductId = new Map();
+    payload.products.forEach((item) => {
+      requestedByProductId.set(item.productId, (requestedByProductId.get(item.productId) || 0) + item.quantity);
+    });
+
+    const productIds = Array.from(requestedByProductId.keys());
     const products = await Product.find({ _id: { $in: productIds } });
     const foundProducts = new Map(products.map((p) => [p._id.toString(), p]));
 
@@ -83,12 +127,70 @@ const createOrder = async (req, res, next) => {
       }
     }
 
-    const orderItems = payload.products.map((item) => {
-      const product = foundProducts.get(item.productId);
+    const stockIssues = [];
+    for (const [productId, requestedQuantity] of requestedByProductId.entries()) {
+      const product = foundProducts.get(productId);
+      const inventory = product.inventory ?? {};
+      const availableQuantity = typeof inventory.quantity === 'number' ? inventory.quantity : 0;
+
+      if (isInventoryOutOfStock(inventory)) {
+        stockIssues.push({ code: 'out_of_stock', productId, availableQuantity });
+        continue;
+      }
+
+      if (!inventory.allowBackorder && availableQuantity < requestedQuantity) {
+        stockIssues.push({ code: 'insufficient_stock', productId, availableQuantity, requestedQuantity });
+      }
+    }
+
+    if (stockIssues.length > 0) {
+      throw badRequest('Some products are out of stock or have insufficient stock', stockIssues);
+    }
+
+    // Decrement inventory quantities for in-stock products (best-effort atomicity per product).
+    for (const [productId, requestedQuantity] of requestedByProductId.entries()) {
+      const product = foundProducts.get(productId);
+      if (!product || !product.inventory) {
+        continue;
+      }
+
+      const allowBackorder = Boolean(product.inventory.allowBackorder);
+      if (!allowBackorder) {
+        const updated = await Product.findOneAndUpdate(
+          {
+            _id: product._id,
+            'inventory.status': { $ne: 'out_of_stock' },
+            'inventory.quantity': { $gte: requestedQuantity },
+          },
+          { $inc: { 'inventory.quantity': -requestedQuantity } },
+          { new: true }
+        );
+
+        if (!updated) {
+          throw badRequest('Some products are no longer available in the requested quantity', [
+            { code: 'insufficient_stock', productId },
+          ]);
+        }
+
+        normalizeInventoryStatus(updated.inventory);
+        updated.markModified('inventory');
+        await updated.save();
+        continue;
+      }
+
+      const currentQuantity = typeof product.inventory.quantity === 'number' ? product.inventory.quantity : 0;
+      product.inventory.quantity = Math.max(0, currentQuantity - requestedQuantity);
+      normalizeInventoryStatus(product.inventory);
+      product.markModified('inventory');
+      await product.save();
+    }
+
+    const orderItems = Array.from(requestedByProductId.entries()).map(([productId, quantity]) => {
+      const product = foundProducts.get(productId);
       return {
         productId: product._id,
         name: product.name,
-        quantity: item.quantity,
+        quantity,
         price: product.price || 0,
         tagsAtPurchase: product.tags,
       };
