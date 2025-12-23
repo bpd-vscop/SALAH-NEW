@@ -287,7 +287,7 @@ export const FeaturedProducts: React.FC = () => {
 
   if (loading) {
     return (
-      <section aria-label="Featured products" className="mx-auto mb-12 w-[88%]">
+      <section aria-label="Featured products" className="mx-auto mb-8 w-[88%]">
         <div className="relative w-full">
           <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6">
             <div className="w-full">
@@ -306,7 +306,7 @@ export const FeaturedProducts: React.FC = () => {
 
   if (hasError) {
     return (
-      <section aria-label="Featured products unavailable" className="mx-auto mb-12 w-[88%]">
+      <section aria-label="Featured products unavailable" className="mx-auto mb-8 w-[88%]">
         <div className="rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted">
           Featured products are temporarily unavailable. Please try again later.
         </div>
@@ -316,7 +316,7 @@ export const FeaturedProducts: React.FC = () => {
 
   if (!featureSlides.length && !tileItems.length) {
     return (
-      <section aria-label="Featured products" className="mx-auto mb-12 w-[88%]">
+      <section aria-label="Featured products" className="mx-auto mb-8 w-[88%]">
         <div className="relative w-full">
           <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6">
             <div className="w-full">
@@ -334,7 +334,7 @@ export const FeaturedProducts: React.FC = () => {
   }
 
   return (
-    <section aria-label="Featured products" className="mx-auto mb-12 w-[88%]">
+    <section aria-label="Featured products" className="mx-auto mb-8 w-[88%]">
       <div className="relative w-full">
         <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6">
           {renderFeatureColumn()}

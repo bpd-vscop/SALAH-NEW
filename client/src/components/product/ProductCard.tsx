@@ -4,7 +4,7 @@ import { formatCurrency } from '../../utils/format';
 import { useCart } from '../../context/CartContext';
 import { cn } from '../../utils/cn';
 
-type ProductCardBadgeVariant = 'inStock' | 'onSale' | 'backInStock' | 'outOfStock';
+type ProductCardBadgeVariant = 'inStock' | 'onSale' | 'backInStock' | 'newArrival' | 'outOfStock';
 
 type ProductCardBadge = {
   label: string;
@@ -30,6 +30,12 @@ const badgeStyles: Record<
   },
   backInStock: {
     container: 'bg-gradient-to-r from-sky-600 via-indigo-600 to-violet-600 shadow-[0_10px_30px_rgba(79,70,229,0.25)]',
+    dot: 'bg-white',
+    ping: 'bg-white/70',
+    text: 'text-white',
+  },
+  newArrival: {
+    container: 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 shadow-[0_10px_30px_rgba(245,158,11,0.25)]',
     dot: 'bg-white',
     ping: 'bg-white/70',
     text: 'text-white',

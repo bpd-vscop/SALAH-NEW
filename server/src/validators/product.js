@@ -203,6 +203,8 @@ const baseFields = {
   support: supportSchema.optional(),
   reviewsSummary: reviewsSummarySchema.optional(),
   notes: notesSchema.optional(),
+  featured: z.boolean().optional(),
+  newArrival: z.boolean().optional(),
   requiresB2B: z.boolean().optional(),
 };
 
@@ -249,6 +251,8 @@ const createProductSchema = z
     support: baseFields.support,
     reviewsSummary: baseFields.reviewsSummary,
     notes: baseFields.notes,
+    featured: baseFields.featured,
+    newArrival: baseFields.newArrival,
     requiresB2B: baseFields.requiresB2B,
   })
   .strict();
@@ -296,6 +300,8 @@ const updateProductSchema = z
     support: baseFields.support,
     reviewsSummary: baseFields.reviewsSummary,
     notes: baseFields.notes,
+    featured: baseFields.featured,
+    newArrival: baseFields.newArrival,
     requiresB2B: baseFields.requiresB2B,
   })
   .strict();

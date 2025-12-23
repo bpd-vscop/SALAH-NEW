@@ -222,6 +222,17 @@ const normalizeInventoryStatus = (inventory) => {
   const lowStockThreshold = typeof inventory.lowStockThreshold === 'number' ? inventory.lowStockThreshold : 0;
   const allowBackorder = Boolean(inventory.allowBackorder);
 
+  // Manual overrides (admin-controlled)
+  if (inventory.status === 'out_of_stock') {
+    inventory.allowBackorder = false;
+    return;
+  }
+
+  if (inventory.status === 'preorder') {
+    inventory.allowBackorder = true;
+    return;
+  }
+
   if (specialInventoryStatuses.has(inventory.status)) {
     inventory.allowBackorder = true;
     if (quantity <= 0) {
@@ -255,6 +266,8 @@ const listProducts = async (req, res, next) => {
       limit,
       backInStock,
       onSale,
+      featured,
+      newArrival,
       sort,
       vehicleYear,
       vehicleMake,
@@ -267,6 +280,13 @@ const listProducts = async (req, res, next) => {
     const shouldIncludeSerials = String(includeSerials || '').toLowerCase() === 'true';
     const wantsBackInStock = ['true', '1', 'yes'].includes(String(backInStock || '').toLowerCase());
     const wantsOnSale = ['true', '1', 'yes'].includes(String(onSale || '').toLowerCase());
+    const wantsFeatured = ['true', '1', 'yes'].includes(String(featured || '').toLowerCase());
+    const wantsNewArrival = ['true', '1', 'yes'].includes(String(newArrival || '').toLowerCase());
+    const isPrivilegedRequest = Boolean(req.user && ['super_admin', 'admin', 'staff'].includes(req.user.role));
+
+    if (!isPrivilegedRequest) {
+      filter.visibility = { $ne: 'hidden' };
+    }
 
     if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
       filter.categoryId = categoryId;
@@ -289,6 +309,14 @@ const listProducts = async (req, res, next) => {
     if (tags) {
       const tagList = Array.isArray(tags) ? tags : String(tags).split(',');
       filter.tags = { $in: tagList };
+    }
+
+    if (wantsFeatured) {
+      filter.featured = true;
+    }
+
+    if (wantsNewArrival) {
+      filter.newArrival = true;
     }
 
     const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -477,6 +505,11 @@ const getProduct = async (req, res, next) => {
     if (!product) {
       throw notFound('Product not found');
     }
+
+    const isPrivilegedRequest = Boolean(req.user && ['super_admin', 'admin', 'staff'].includes(req.user.role));
+    if (product.visibility === 'hidden' && !isPrivilegedRequest) {
+      throw notFound('Product not found');
+    }
     res.json({ product: sanitizeProductForPublic(product) });
   } catch (error) {
     next(error);
@@ -603,6 +636,8 @@ const updateProduct = async (req, res, next) => {
       'support',
       'reviewsSummary',
       'notes',
+      'featured',
+      'newArrival',
       'requiresB2B',
     ];
 

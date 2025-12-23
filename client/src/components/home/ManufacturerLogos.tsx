@@ -203,7 +203,7 @@ export function ManufacturerLogos() {
   if (!items.length) return null;
 
   return (
-    <section className="mb-12 w-[88%] mx-auto py-8">
+    <section className="mb-8 w-[88%] mx-auto py-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
         <h2 className="text-2xl font-semibold text-slate-900">Manufacturers</h2>
         <Link

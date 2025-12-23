@@ -9,6 +9,7 @@ import { HeroSlider } from '../components/home/HeroSlider';
 import { FeaturedProducts } from '../components/home/FeaturedProducts';
 import { NewProductsSection } from '../components/home/NewProductsSection';
 import { FeaturedOffers } from '../components/home/FeaturedOffers';
+import { NewArrivalOffers } from '../components/home/NewArrivalOffers';
 import { BackInStockOffers } from '../components/home/BackInStockOffers';
 import { OnSaleOffers } from '../components/home/OnSaleOffers';
 import { ManufacturerLogos } from '../components/home/ManufacturerLogos';
@@ -66,7 +67,7 @@ export const HomePage: React.FC = () => {
       <HeroSlider />
       <FeaturedProducts />
 
-      <section className="mb-12 w-[88%] mx-auto py-8">
+      <section className="mb-8 w-[88%] mx-auto py-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
           <h2 className="text-2xl font-semibold text-slate-900">Popular Categories</h2>
           <Link
@@ -95,6 +96,7 @@ export const HomePage: React.FC = () => {
 
       <NewProductsSection />
       <FeaturedOffers />
+      <NewArrivalOffers />
       <BackInStockOffers />
       <OnSaleOffers />
 

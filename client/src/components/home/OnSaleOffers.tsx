@@ -214,7 +214,7 @@ export const OnSaleOffers: React.FC = () => {
 
   if (loading) {
     return (
-      <section className="mb-12 w-[88%] mx-auto py-8">
+      <section className="mb-8 w-[88%] mx-auto py-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
           <h2 className="text-2xl font-semibold text-slate-900">On sale</h2>
         </div>
@@ -232,7 +232,7 @@ export const OnSaleOffers: React.FC = () => {
   }
 
   return (
-    <section className="mb-12 w-[88%] mx-auto py-8">
+    <section className="mb-8 w-[88%] mx-auto py-6">
       <div className="mb-6 flex items-center justify-between gap-3">
         <h2 className="text-2xl font-semibold text-slate-900">On sale</h2>
         <div className="flex items-center gap-3">
@@ -257,7 +257,7 @@ export const OnSaleOffers: React.FC = () => {
 
       <div
         ref={viewportRef}
-        className="overflow-hidden select-none pb-10"
+        className="overflow-hidden select-none pb-8"
         onMouseDown={(event) => {
           if (event.button !== 0) return;
           beginDrag(event.clientX, event.clientY);
@@ -317,4 +317,3 @@ export const OnSaleOffers: React.FC = () => {
     </section>
   );
 };
-

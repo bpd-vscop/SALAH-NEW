@@ -41,6 +41,8 @@ export const ProductCatalogPage: React.FC = () => {
   const vehicleModel = searchParams.get('vehicleModel') || '';
   const urlOnSale = ['true', '1', 'yes'].includes((searchParams.get('onSale') || '').toLowerCase());
   const urlBackInStock = ['true', '1', 'yes'].includes((searchParams.get('backInStock') || '').toLowerCase());
+  const urlFeatured = ['true', '1', 'yes'].includes((searchParams.get('featured') || '').toLowerCase());
+  const urlNewArrival = ['true', '1', 'yes'].includes((searchParams.get('newArrival') || '').toLowerCase());
 
   // Sync search value from URL (used by header search)
   useEffect(() => {
@@ -83,6 +85,8 @@ export const ProductCatalogPage: React.FC = () => {
         search?: string;
         onSale?: boolean;
         backInStock?: boolean;
+        featured?: boolean;
+        newArrival?: boolean;
         minPrice?: number;
         maxPrice?: number;
         vehicleYear?: string;
@@ -112,6 +116,8 @@ export const ProductCatalogPage: React.FC = () => {
       search: search || undefined,
       onSale: urlOnSale || undefined,
       backInStock: urlBackInStock || undefined,
+      featured: urlFeatured || undefined,
+      newArrival: urlNewArrival || undefined,
       minPrice: minPrice > 0 ? minPrice : undefined,
       maxPrice: maxPrice < 1000 ? maxPrice : undefined,
       vehicleYear: vehicleYear || undefined,
@@ -129,6 +135,8 @@ export const ProductCatalogPage: React.FC = () => {
       search: search || undefined,
       onSale: urlOnSale || undefined,
       backInStock: urlBackInStock || undefined,
+      featured: urlFeatured || undefined,
+      newArrival: urlNewArrival || undefined,
       minPrice: minPrice > 0 ? minPrice : undefined,
       maxPrice: maxPrice < 1000 ? maxPrice : undefined,
       vehicleYear: vehicleYear || undefined,
@@ -148,6 +156,8 @@ export const ProductCatalogPage: React.FC = () => {
     search,
     urlOnSale,
     urlBackInStock,
+    urlFeatured,
+    urlNewArrival,
   ]);
 
   const clearAllFilters = () => {
@@ -163,6 +173,8 @@ export const ProductCatalogPage: React.FC = () => {
     newParams.delete('vehicleModel');
     newParams.delete('onSale');
     newParams.delete('backInStock');
+    newParams.delete('featured');
+    newParams.delete('newArrival');
     setSearchParams(newParams);
     // Products will auto-refresh via useEffect
   };
@@ -201,7 +213,9 @@ export const ProductCatalogPage: React.FC = () => {
     maxPrice < 1000 ||
     hasVehicleFilters ||
     urlOnSale ||
-    urlBackInStock;
+    urlBackInStock ||
+    urlFeatured ||
+    urlNewArrival;
 
   // Sort products based on selected sort option
   const sortedProducts = useMemo(() => {

@@ -17,8 +17,20 @@ export const NewProductsSection: React.FC = () => {
     const loadNewProducts = async () => {
       try {
         const response = await productsApi.list({ limit: DESKTOP_LIMIT, sort: 'newest' });
+
+        const isAvailable = (product: Product) => {
+          const allowBackorder = product.inventory?.allowBackorder ?? false;
+          const availableQuantity = product.inventory?.quantity ?? null;
+          const inventoryStatus = product.inventory?.status ?? 'in_stock';
+          const outOfStock =
+            inventoryStatus === 'out_of_stock' ||
+            (!allowBackorder && typeof availableQuantity === 'number' && availableQuantity <= 0);
+          return !outOfStock;
+        };
+
+        const list = (response.products ?? []).filter(isAvailable).slice(0, DESKTOP_LIMIT);
         if (isMounted) {
-          setProducts(response.products ?? []);
+          setProducts(list);
         }
       } catch (error) {
         console.error('Failed to load new products', error);
@@ -38,7 +50,7 @@ export const NewProductsSection: React.FC = () => {
 
   if (loading) {
     return (
-      <section className="mb-12 w-[88%] mx-auto py-8">
+      <section className="mb-8 w-[88%] mx-auto py-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
           <h2 className="text-2xl font-semibold text-slate-900">New Products</h2>
         </div>
@@ -56,7 +68,7 @@ export const NewProductsSection: React.FC = () => {
   }
 
   return (
-    <section className="mb-12 w-[88%] mx-auto py-8">
+      <section className="mb-8 w-[88%] mx-auto py-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
         <h2 className="text-2xl font-semibold text-slate-900">New Products</h2>
         <Link
@@ -89,4 +101,3 @@ export const NewProductsSection: React.FC = () => {
     </section>
   );
 };
-

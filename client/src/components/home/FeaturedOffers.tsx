@@ -76,35 +76,22 @@ export const FeaturedOffers: React.FC = () => {
 
     const loadFeaturedProducts = async () => {
       try {
-        // Prefer "on sale" products, then top-up with latest products to ensure a full carousel.
-        const [onSaleRes, latestRes] = await Promise.all([
-          productsApi.list({ onSale: true, limit: MAX_FEATURED_PRODUCTS }),
-          productsApi.list({ limit: MAX_FEATURED_PRODUCTS, sort: 'newest' }),
-        ]);
-
-        const onSale = onSaleRes.products ?? [];
-        const latest = latestRes.products ?? [];
-
-        const byId = new Map<string, Product>();
-        onSale.forEach((product) => byId.set(product.id, product));
-        latest.forEach((product) => {
-          if (!byId.has(product.id)) {
-            byId.set(product.id, product);
-          }
-        });
-
         const isInStock = (product: Product) => {
           const quantity = product.inventory?.quantity ?? null;
           const status = product.inventory?.status ?? 'in_stock';
           return status !== 'out_of_stock' && typeof quantity === 'number' && quantity > 0;
         };
 
-        const merged = Array.from(byId.values())
-          .filter(isInStock)
-          .slice(0, MAX_FEATURED_PRODUCTS);
+        const response = await productsApi.list({
+          featured: true,
+          sort: 'newest',
+          limit: MAX_FEATURED_PRODUCTS,
+        });
+
+        const list = (response.products ?? []).filter(isInStock).slice(0, MAX_FEATURED_PRODUCTS);
 
         if (isMounted) {
-          setProducts(merged);
+          setProducts(list);
         }
       } catch (error) {
         console.error('Failed to load featured products', error);
@@ -232,7 +219,7 @@ export const FeaturedOffers: React.FC = () => {
 
   if (loading) {
     return (
-      <section className="mb-12 w-[88%] mx-auto py-8">
+      <section className="mb-8 w-[88%] mx-auto py-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
           <h2 className="text-2xl font-semibold text-slate-900">Featured Products</h2>
         </div>
@@ -250,7 +237,7 @@ export const FeaturedOffers: React.FC = () => {
   }
 
   return (
-    <section className="mb-12 w-[88%] mx-auto py-8">
+    <section className="mb-8 w-[88%] mx-auto py-6">
       <div className="mb-6 flex items-center justify-between gap-3">
         <h2 className="text-2xl font-semibold text-slate-900">Featured Products</h2>
         <div className="flex items-center gap-3">
@@ -269,7 +256,7 @@ export const FeaturedOffers: React.FC = () => {
             </div>
           )}
           <Link
-            to="/products"
+            to="/products?featured=true"
             className="hidden sm:inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
           >
             See all products
@@ -280,7 +267,7 @@ export const FeaturedOffers: React.FC = () => {
       <div>
         <div
           ref={viewportRef}
-          className="overflow-hidden select-none pb-10"
+          className="overflow-hidden select-none pb-8"
           onMouseDown={(event) => {
             if (event.button !== 0) return;
             beginDrag(event.clientX, event.clientY);
@@ -337,7 +324,7 @@ export const FeaturedOffers: React.FC = () => {
 
       <div className="mt-6 flex justify-center sm:hidden">
         <Link
-          to="/products"
+          to="/products?featured=true"
           className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
         >
           See all products

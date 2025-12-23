@@ -23,6 +23,17 @@ const normalizeInventoryStatus = (inventory) => {
   const lowStockThreshold = typeof inventory.lowStockThreshold === 'number' ? inventory.lowStockThreshold : 0;
   const allowBackorder = Boolean(inventory.allowBackorder);
 
+  // Manual overrides (admin-controlled)
+  if (inventory.status === 'out_of_stock') {
+    inventory.allowBackorder = false;
+    return;
+  }
+
+  if (inventory.status === 'preorder') {
+    inventory.allowBackorder = true;
+    return;
+  }
+
   if (specialInventoryStatuses.has(inventory.status)) {
     inventory.allowBackorder = true;
     if (quantity <= 0) {

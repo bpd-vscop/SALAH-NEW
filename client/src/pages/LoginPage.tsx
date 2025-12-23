@@ -91,14 +91,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
   const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const [handledResetToken, setHandledResetToken] = useState<string | null>(null);
 
-const [signupStep, setSignupStep] = useState<SignupStep>(0);
-const [signupData, setSignupData] = useState<SignupData>(defaultSignup);
-const [signupBusinessTypeCustom, setSignupBusinessTypeCustom] = useState(false);
-const [signupError, setSignupError] = useState<string | null>(null);
-const [signupLoading, setSignupLoading] = useState(false);
-const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCode: '+1', number: '' }); // Default to United States
+  const [signupStep, setSignupStep] = useState<SignupStep>(0);
+  const [signupData, setSignupData] = useState<SignupData>(defaultSignup);
+  const [signupBusinessTypeCustom, setSignupBusinessTypeCustom] = useState(false);
+  const [signupError, setSignupError] = useState<string | null>(null);
+  const [signupLoading, setSignupLoading] = useState(false);
+  const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCode: '+1', number: '' }); // Default to United States
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Email autocomplete state
+  const [loginEmailSuggestion, setLoginEmailSuggestion] = useState('');
+  const [resetEmailSuggestion, setResetEmailSuggestion] = useState('');
+  const [signupEmailSuggestion, setSignupEmailSuggestion] = useState('');
+
+  const emailDomains = [
+    '@gmail.com',
+    '@yahoo.com',
+    '@outlook.com',
+    '@hotmail.com',
+    '@icloud.com',
+    '@aol.com',
+    '@protonmail.com',
+    '@zoho.com',
+    '@mail.com',
+    '@yandex.com',
+  ];
 
   // Verification step state
   const [verificationEmail, setVerificationEmail] = useState('');
@@ -111,6 +129,7 @@ const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCod
   const resetPasswordStrength = evaluatePasswordStrength(newPassword);
   const signupConfirmMismatch =
     signupData.confirmPassword.length > 0 && signupData.password !== signupData.confirmPassword;
+  
   const signupPasswordInputClasses = [
     'rounded-xl',
     'border',
@@ -127,6 +146,7 @@ const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCod
     'w-full',
     signupPasswordStrength.focusClass,
   ].join(' ');
+  
   const resetPasswordInputClasses = [
     'rounded-xl',
     'border',
@@ -143,6 +163,7 @@ const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCod
     'w-full',
     resetPasswordStrength.focusClass,
   ].join(' ');
+  
   const signupConfirmInputClasses = [
     'rounded-xl',
     'border',
@@ -159,11 +180,12 @@ const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCod
     'w-full',
     signupConfirmMismatch ? 'focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600' : 'focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12',
   ].join(' ');
+  
   const resetConfirmMismatch = confirmNewPassword.length > 0 && newPassword !== confirmNewPassword;
-const resetConfirmInputClasses = [
-  'rounded-xl',
-  'border',
-  resetConfirmMismatch ? 'border-rose-500' : 'border-slate-400/45',
+  const resetConfirmInputClasses = [
+    'rounded-xl',
+    'border',
+    resetConfirmMismatch ? 'border-rose-500' : 'border-slate-400/45',
     'bg-white/95',
     'px-3.5',
     'py-3',
@@ -174,25 +196,25 @@ const resetConfirmInputClasses = [
     'ease-in-out',
     'focus:outline-none',
     'w-full',
-  resetConfirmMismatch ? 'focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600' : 'focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12',
-].join(' ');
+    resetConfirmMismatch ? 'focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600' : 'focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12',
+  ].join(' ');
 
-useEffect(() => {
-  if (!signupData.businessType) {
-    return;
-  }
-  if (!isBusinessTypeOption(signupData.businessType) && !signupBusinessTypeCustom) {
-    setSignupBusinessTypeCustom(true);
-  }
-}, [signupData.businessType, signupBusinessTypeCustom]);
+  useEffect(() => {
+    if (!signupData.businessType) {
+      return;
+    }
+    if (!isBusinessTypeOption(signupData.businessType) && !signupBusinessTypeCustom) {
+      setSignupBusinessTypeCustom(true);
+    }
+  }, [signupData.businessType, signupBusinessTypeCustom]);
 
-useEffect(() => {
-  if (signupData.accountType !== 'B2B') {
-    setSignupBusinessTypeCustom(false);
-  }
-}, [signupData.accountType]);
+  useEffect(() => {
+    if (signupData.accountType !== 'B2B') {
+      setSignupBusinessTypeCustom(false);
+    }
+  }, [signupData.accountType]);
 
-const { token: resetTokenParam } = useParams<{ token?: string }>();
+  const { token: resetTokenParam } = useParams<{ token?: string }>();
 
   useEffect(() => {
     if (!resetTokenParam || handledResetToken === resetTokenParam) {
@@ -278,6 +300,108 @@ const { token: resetTokenParam } = useParams<{ token?: string }>();
     const timer = window.setTimeout(() => setResendCooldown((value) => Math.max(0, value - 1)), 1000);
     return () => window.clearTimeout(timer);
   }, [resendCooldown]);
+
+  // Email autocomplete handlers
+  const handleLoginEmailChange = (value: string) => {
+    setLoginUsername(value.toLowerCase());
+    const lowerValue = value.toLowerCase();
+
+    // Show suggestion as user types
+    if (!lowerValue) {
+      setLoginEmailSuggestion('');
+    } else if (!lowerValue.includes('@')) {
+      // Before @, suggest first domain
+      setLoginEmailSuggestion(lowerValue + '@gmail.com');
+    } else if (!lowerValue.includes('.')) {
+      // After @, suggest matching domain
+      const afterAt = lowerValue.split('@')[1] || '';
+      const suggestion = emailDomains.find(domain =>
+        domain.toLowerCase().startsWith('@' + afterAt.toLowerCase())
+      );
+      if (suggestion) {
+        setLoginEmailSuggestion(lowerValue.split('@')[0] + suggestion);
+      } else {
+        setLoginEmailSuggestion('');
+      }
+    } else {
+      setLoginEmailSuggestion('');
+    }
+  };
+
+  const handleLoginEmailKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Tab' && loginEmailSuggestion) {
+      e.preventDefault();
+      setLoginUsername(loginEmailSuggestion);
+      setLoginEmailSuggestion('');
+    }
+  };
+
+  const handleResetEmailChange = (value: string) => {
+    setResetEmail(value.toLowerCase());
+    const lowerValue = value.toLowerCase();
+
+    // Show suggestion as user types
+    if (!lowerValue) {
+      setResetEmailSuggestion('');
+    } else if (!lowerValue.includes('@')) {
+      // Before @, suggest first domain
+      setResetEmailSuggestion(lowerValue + '@gmail.com');
+    } else if (!lowerValue.includes('.')) {
+      // After @, suggest matching domain
+      const afterAt = lowerValue.split('@')[1] || '';
+      const suggestion = emailDomains.find(domain =>
+        domain.toLowerCase().startsWith('@' + afterAt.toLowerCase())
+      );
+      if (suggestion) {
+        setResetEmailSuggestion(lowerValue.split('@')[0] + suggestion);
+      } else {
+        setResetEmailSuggestion('');
+      }
+    } else {
+      setResetEmailSuggestion('');
+    }
+  };
+
+  const handleResetEmailKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Tab' && resetEmailSuggestion) {
+      e.preventDefault();
+      setResetEmail(resetEmailSuggestion);
+      setResetEmailSuggestion('');
+    }
+  };
+
+  const handleSignupEmailChange = (value: string) => {
+    setSignupData((prev) => ({ ...prev, username: value }));
+
+    // Show suggestion as user types
+    if (!value) {
+      setSignupEmailSuggestion('');
+    } else if (!value.includes('@')) {
+      // Before @, suggest first domain
+      setSignupEmailSuggestion(value + '@gmail.com');
+    } else if (!value.includes('.')) {
+      // After @, suggest matching domain
+      const afterAt = value.split('@')[1] || '';
+      const suggestion = emailDomains.find(domain =>
+        domain.toLowerCase().startsWith('@' + afterAt.toLowerCase())
+      );
+      if (suggestion) {
+        setSignupEmailSuggestion(value.split('@')[0] + suggestion);
+      } else {
+        setSignupEmailSuggestion('');
+      }
+    } else {
+      setSignupEmailSuggestion('');
+    }
+  };
+
+  const handleSignupEmailKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Tab' && signupEmailSuggestion) {
+      e.preventDefault();
+      setSignupData((prev) => ({ ...prev, username: signupEmailSuggestion }));
+      setSignupEmailSuggestion('');
+    }
+  };
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -650,15 +774,34 @@ const { token: resetTokenParam } = useParams<{ token?: string }>();
               <form className="w-full self-center grid gap-[1.1rem]" onSubmit={handleLogin}>
                 <label className="grid gap-2 text-sm text-slate-600">
                   <span>Email Address</span>
-                  <input
-                    type="text"
-                    value={loginUsername}
-                    onChange={(e) => setLoginUsername(e.target.value.toLowerCase())}
-                    placeholder="you@example.com"
-                    autoComplete="username"
-                    required
-                    className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
-                  />
+                  {/* MODIFIED: Ghost Text Wrapper for Login */}
+                  <div className="relative bg-white/95 rounded-xl">
+                    {loginEmailSuggestion && loginUsername && (
+                      <div 
+                        className="absolute inset-0 px-3.5 py-3 pointer-events-none flex items-center overflow-hidden whitespace-nowrap"
+                        aria-hidden="true"
+                      >
+                        <span className="opacity-0 text-[0.95rem]">{loginUsername}</span>
+                        <span className="text-red-300/70 text-[0.95rem]">
+                          {loginEmailSuggestion.slice(loginUsername.length)}
+                        </span>
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      value={loginUsername}
+                      onChange={(e) => handleLoginEmailChange(e.target.value)}
+                      onKeyDown={handleLoginEmailKeyDown}
+                      placeholder="you@example.com"
+                      autoComplete="username"
+                      required
+                      className="rounded-xl border border-slate-400/45 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full bg-transparent relative z-10"
+                      style={{ caretColor: 'auto' }}
+                    />
+                  </div>
+                  {loginEmailSuggestion && (
+                    <p className="text-xs text-gray-500 mt-1">Press Tab to complete</p>
+                  )}
                 </label>
 
                 <label className="grid gap-2 text-sm text-slate-600">
@@ -768,14 +911,33 @@ const { token: resetTokenParam } = useParams<{ token?: string }>();
                   <form className="flex-1 flex flex-col gap-4" onSubmit={handleForgotPassword}>
                     <label className="grid gap-2 text-sm text-slate-600">
                       <span>Email Address</span>
-                      <input
-                        type="email"
-                        value={resetEmail}
-                        onChange={(e) => setResetEmail(e.target.value.toLowerCase())}
-                        placeholder="you@example.com"
-                        required
-                        className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
-                      />
+                      {/* MODIFIED: Ghost Text Wrapper for Reset Password */}
+                      <div className="relative bg-white/95 rounded-xl">
+                        {resetEmailSuggestion && resetEmail && (
+                          <div 
+                            className="absolute inset-0 px-3.5 py-3 pointer-events-none flex items-center overflow-hidden whitespace-nowrap"
+                            aria-hidden="true"
+                          >
+                            <span className="opacity-0 text-[0.95rem]">{resetEmail}</span>
+                            <span className="text-red-300/70 text-[0.95rem]">
+                              {resetEmailSuggestion.slice(resetEmail.length)}
+                            </span>
+                          </div>
+                        )}
+                        <input
+                          type="email"
+                          value={resetEmail}
+                          onChange={(e) => handleResetEmailChange(e.target.value)}
+                          onKeyDown={handleResetEmailKeyDown}
+                          placeholder="you@example.com"
+                          required
+                          className="rounded-xl border border-slate-400/45 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full bg-transparent relative z-10"
+                          style={{ caretColor: 'auto' }}
+                        />
+                      </div>
+                      {resetEmailSuggestion && (
+                        <p className="text-xs text-gray-500 mt-1">Press Tab to complete</p>
+                      )}
                     </label>
 
                     {resetError && (
@@ -1232,14 +1394,33 @@ const { token: resetTokenParam } = useParams<{ token?: string }>();
                     <form className="w-full self-center grid gap-[1.1rem]" onSubmit={handleSignupCredentials}>
                       <label className="grid gap-2 text-sm text-slate-600">
                         <span>Email Address <span className="text-red-600">*</span></span>
-                        <input
-                          type="email"
-                          value={signupData.username}
-                          onChange={(e) => setSignupData((prev) => ({ ...prev, username: e.target.value }))}
-                          placeholder="you@example.com"
-                          required
-                          className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
-                        />
+                        {/* MODIFIED: Ghost Text Wrapper for Signup C2B */}
+                        <div className="relative bg-white/95 rounded-xl">
+                          {signupEmailSuggestion && signupData.username && (
+                            <div 
+                              className="absolute inset-0 px-3.5 py-3 pointer-events-none flex items-center overflow-hidden whitespace-nowrap"
+                              aria-hidden="true"
+                            >
+                              <span className="opacity-0 text-[0.95rem]">{signupData.username}</span>
+                              <span className="text-red-300/70 text-[0.95rem]">
+                                {signupEmailSuggestion.slice(signupData.username.length)}
+                              </span>
+                            </div>
+                          )}
+                          <input
+                            type="email"
+                            value={signupData.username}
+                            onChange={(e) => handleSignupEmailChange(e.target.value)}
+                            onKeyDown={handleSignupEmailKeyDown}
+                            placeholder="you@example.com"
+                            required
+                            className="rounded-xl border border-slate-400/45 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full bg-transparent relative z-10"
+                            style={{ caretColor: 'auto' }}
+                          />
+                        </div>
+                        {signupEmailSuggestion && (
+                          <p className="text-xs text-gray-500 mt-1">Press Tab to complete</p>
+                        )}
                       </label>
 
                       <label className="grid gap-2 text-sm text-slate-600">
@@ -1353,14 +1534,33 @@ const { token: resetTokenParam } = useParams<{ token?: string }>();
                   <form className="w-full self-center grid gap-[1.1rem]" onSubmit={handleSignupCredentials}>
                     <label className="grid gap-2 text-sm text-slate-600">
                       <span>Email Address</span>
-                      <input
-                        type="email"
-                        value={signupData.username}
-                        onChange={(e) => setSignupData((prev) => ({ ...prev, username: e.target.value }))}
-                        placeholder="you@example.com"
-                        required
-                        className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
-                      />
+                      {/* MODIFIED: Ghost Text Wrapper for Signup B2B */}
+                      <div className="relative bg-white/95 rounded-xl">
+                        {signupEmailSuggestion && signupData.username && (
+                          <div 
+                            className="absolute inset-0 px-3.5 py-3 pointer-events-none flex items-center overflow-hidden whitespace-nowrap"
+                            aria-hidden="true"
+                          >
+                            <span className="opacity-0 text-[0.95rem]">{signupData.username}</span>
+                            <span className="text-red-300/70 text-[0.95rem]">
+                              {signupEmailSuggestion.slice(signupData.username.length)}
+                            </span>
+                          </div>
+                        )}
+                        <input
+                          type="email"
+                          value={signupData.username}
+                          onChange={(e) => handleSignupEmailChange(e.target.value)}
+                          onKeyDown={handleSignupEmailKeyDown}
+                          placeholder="you@example.com"
+                          required
+                          className="rounded-xl border border-slate-400/45 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full bg-transparent relative z-10"
+                          style={{ caretColor: 'auto' }}
+                        />
+                      </div>
+                      {signupEmailSuggestion && (
+                        <p className="text-xs text-gray-500 mt-1">Press Tab to complete</p>
+                      )}
                     </label>
 
                     <label className="grid gap-2 text-sm text-slate-600">
@@ -1399,7 +1599,7 @@ const { token: resetTokenParam } = useParams<{ token?: string }>();
                           onChange={(e) => setSignupData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                           placeholder="Confirm your password"
                           required
-                          className="rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 pr-11 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 w-full"
+                          className={signupConfirmInputClasses}
                         />
                         <button
                           type="button"
@@ -1409,6 +1609,9 @@ const { token: resetTokenParam } = useParams<{ token?: string }>();
                           <EyeIcon show={showConfirmPassword} />
                         </button>
                       </div>
+                      {signupConfirmMismatch && (
+                        <p className="text-xs font-semibold text-rose-600">Passwords do not match.</p>
+                      )}
                     </label>
 
                     <div className="flex justify-between gap-4 items-center">

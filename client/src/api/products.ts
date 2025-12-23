@@ -56,6 +56,8 @@ interface ProductPayload {
   support?: ProductSupportDetails | null;
   reviewsSummary?: ProductReviewsSummary | null;
   notes?: ProductNotes | null;
+  featured?: boolean;
+  newArrival?: boolean;
   serialNumbers?: Array<{
     _id?: string;
     serialNumber: string;
@@ -87,6 +89,8 @@ export const productsApi = {
     limit?: number;
     backInStock?: boolean;
     onSale?: boolean;
+    featured?: boolean;
+    newArrival?: boolean;
     sort?: 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'restocked';
     minPrice?: number;
     maxPrice?: number;
@@ -121,6 +125,12 @@ export const productsApi = {
     }
     if (params?.onSale) {
       query.append('onSale', 'true');
+    }
+    if (params?.featured) {
+      query.append('featured', 'true');
+    }
+    if (params?.newArrival) {
+      query.append('newArrival', 'true');
     }
     if (params?.sort) {
       query.append('sort', params.sort);
