@@ -7,6 +7,40 @@ export type ProductInventoryStatus = 'in_stock' | 'low_stock' | 'out_of_stock' |
 export type ProductType = 'simple' | 'variable' | 'grouped';
 export type ProductStatus = 'draft' | 'scheduled' | 'private' | 'published';
 export type ProductVisibility = 'catalog' | 'search' | 'hidden' | 'catalog-and-search';
+export type ConversationStatus = 'open' | 'closed';
+export type MessageSenderRole = 'client' | 'admin';
+
+export interface ConversationClientSummary {
+  id: string;
+  name: string;
+  email: string | null;
+  clientType: ClientType | null;
+  lastActiveAt?: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  clientId: string;
+  recipientEmail: string;
+  status: ConversationStatus;
+  lastMessageAt: string | null;
+  lastMessagePreview: string;
+  lastMessageSenderRole: MessageSenderRole | null;
+  lastReadAtClient: string | null;
+  lastReadAtAdmin: string | null;
+  clientOnlineAt?: string | null;
+  unreadCount?: number;
+  client?: ConversationClientSummary | null;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderRole: MessageSenderRole;
+  senderUserId: string | null;
+  body: string;
+  createdAt: string | null;
+}
 
 export interface ProductInventory {
   quantity?: number;

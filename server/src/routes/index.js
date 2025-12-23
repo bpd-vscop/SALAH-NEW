@@ -18,6 +18,8 @@ const modelRoutes = require('./models');
 const tagRoutes = require('./tags');
 const clientRoutes = require('./clients');
 const contactRoutes = require('./contact');
+const messageRoutes = require('./messages');
+const adminMessageRoutes = require('./adminMessages');
 
 module.exports = () => {
   const router = express.Router();
@@ -41,6 +43,8 @@ module.exports = () => {
   router.use('/tags', tagRoutes);
   router.use('/clients', clientRoutes);
   router.use('/contact', contactRoutes);
+  router.use('/messages', messageRoutes);
+  router.use('/admin/messages', adminMessageRoutes);
 
   return router;
 };

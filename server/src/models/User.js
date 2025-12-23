@@ -112,6 +112,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    lastActiveAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
     company: {
       type: companyInfoSchema,
       default: undefined,
@@ -139,6 +144,7 @@ const userSchema = new mongoose.Schema(
         ret.id = ret._id.toString();
         ret.accountCreated = ret.accountCreated ? new Date(ret.accountCreated).toISOString() : null;
         ret.accountUpdated = ret.accountUpdated ? new Date(ret.accountUpdated).toISOString() : null;
+        ret.lastActiveAt = ret.lastActiveAt ? new Date(ret.lastActiveAt).toISOString() : null;
         ret.cart = Array.isArray(ret.cart)
           ? ret.cart.map((item) => ({
               productId: item.productId ? item.productId.toString() : null,

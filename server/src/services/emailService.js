@@ -582,6 +582,183 @@ const sendAdminNewOrderEmail = async ({ clientEmail, clientId, orderId, total, i
   });
 };
 
+const buildSupportMessageHtml = ({ title, subtitle, metaRows, message, ctaLabel, ctaUrl }) => {
+  const metaHtml = (metaRows || [])
+    .map(
+      ({ label, value }) =>
+        `<tr>
+          <td style="padding: 6px 0; font-size: 13px; color: #64748b; width: 130px; vertical-align: top;"><strong>${label}</strong></td>
+          <td style="padding: 6px 0; font-size: 13px; color: #0f172a;">${value || '-'}</td>
+        </tr>`
+    )
+    .join('');
+
+  const ctaHtml = ctaUrl
+    ? `<div style="text-align: center; margin-top: 24px;">
+        <a href="${ctaUrl}" style="display: inline-block; background: #a00b0b; color: #ffffff; text-decoration: none; font-weight: 700; padding: 12px 18px; border-radius: 12px;">
+          ${ctaLabel || 'Open dashboard'}
+        </a>
+      </div>`
+    : '';
+
+  const safeMessage = String(message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f3f4f6;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f3f4f6; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08); overflow: hidden;">
+          <tr>
+            <td style="padding: 36px 40px 30px 40px;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <img src="${logoSrc}" alt="ULK Supply" style="height: 80px; width: auto; display: inline-block;" />
+              </div>
+
+              <h2 style="margin: 0 0 10px; font-size: 26px; font-weight: 800; color: #0f172a; text-align: center;">
+                ${title}
+              </h2>
+              <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.6; color: #475569; text-align: center;">
+                ${subtitle || ''}
+              </p>
+
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px 18px; margin: 0 0 18px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                  ${metaHtml}
+                </table>
+              </div>
+
+               <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px 18px; margin: 0 0 14px;">
+                 <div style="font-size: 12px; font-weight: 800; color: #64748b; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 10px; text-align: left;">
+                   Message
+                 </div>
+                <div style="font-size: 15px; color: #0f172a; line-height: 1.7; white-space: pre-wrap; text-align: left;">${safeMessage}</div>
+               </div>
+
+               ${ctaHtml}
+
+              <div style="border-top: 1px solid #e2e8f0; padding-top: 24px; margin-top: 26px;">
+                <p style="margin: 0 0 10px; font-size: 14px; color: #94a3b8; text-align: center;">
+                  Need help? Contact us at <a href="mailto:support@ulksupply.com" style="color: #f6b210; text-decoration: none; font-weight: 700;">support@ulksupply.com</a>
+                </p>
+                <p style="margin: 0; font-size: 12px; color: #cbd5e1; text-align: center;">
+                  ЖИ ${new Date().getFullYear()} ULK Supply LLC. All rights reserved.
+                </p>
+                <p style="margin: 10px 0 0; font-size: 11px; color: #cbd5e1; text-align: center;">
+                  Powered by <a href="https://www.bpd.ma" style="color: #f6b210; text-decoration: none; font-weight: 700;">BP. Digital</a>
+                </p>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+};
+
+const sendSupportClientMessageEmailToAdmin = async ({ to, clientName, clientEmail, clientType, message, attachments }) => {
+  const subject = `New client message: ${clientName || clientEmail || 'Client'}`;
+  const text = [
+    'New client message received.',
+    '',
+    `Client: ${clientName || 'N/A'}`,
+    `Email: ${clientEmail || 'N/A'}`,
+    `Type: ${clientType || 'N/A'}`,
+    '',
+    'Message:',
+    message || '',
+  ].join('\n');
+
+  const appUrl = process.env.APP_URL || process.env.CLIENT_URL || '';
+  const ctaUrl = appUrl ? `${appUrl.replace(/\/$/, '')}/admin` : '';
+  const html = buildSupportMessageHtml({
+    title: 'New Client Message',
+    subtitle: 'A client sent you a new message in the ULK Supply support chat.',
+    metaRows: [
+      { label: 'Client name', value: clientName || '-' },
+      { label: 'Client email', value: clientEmail || '-' },
+      { label: 'Client type', value: clientType || '-' },
+    ],
+    message,
+    ctaLabel: 'Open Admin Messages',
+    ctaUrl: ctaUrl || null,
+  });
+
+  await sendMail({
+    to,
+    subject,
+    text,
+    html,
+    replyTo: clientEmail || undefined,
+    attachments: [
+      ...(hasLogoFile
+        ? [
+            {
+              filename: LOGO_FILENAME,
+              path: logoPath,
+              cid: LOGO_CID,
+            },
+          ]
+        : []),
+      ...(Array.isArray(attachments) ? attachments : []),
+    ],
+  });
+};
+
+const sendSupportAdminReplyEmailToClient = async ({ to, clientName, recipientEmail, message, attachments }) => {
+  const subject = 'ULK Supply: New reply to your message';
+  const text = [
+    `Hi ${clientName || 'there'},`,
+    '',
+    'We replied to your message in the ULK Supply support chat:',
+    '',
+    message || '',
+    '',
+    'You can also view this reply in your account messages.',
+  ].join('\n');
+
+  const appUrl = process.env.APP_URL || process.env.CLIENT_URL || '';
+  const ctaUrl = appUrl ? `${appUrl.replace(/\/$/, '')}/account` : '';
+  const html = buildSupportMessageHtml({
+    title: 'Support Reply',
+    subtitle: 'We replied to your message. You can reply directly from your account.',
+    metaRows: [
+      { label: 'Support', value: recipientEmail || 'ULK Supply' },
+    ],
+    message,
+    ctaLabel: 'Open Messages',
+    ctaUrl: ctaUrl || null,
+  });
+
+  await sendMail({
+    to,
+    subject,
+    text,
+    html,
+    replyTo: recipientEmail || undefined,
+    attachments: [
+      ...(hasLogoFile
+        ? [
+            {
+              filename: LOGO_FILENAME,
+              path: logoPath,
+              cid: LOGO_CID,
+            },
+          ]
+        : []),
+      ...(Array.isArray(attachments) ? attachments : []),
+    ],
+  });
+};
+
 module.exports = {
   sendMail,
   sendClientVerificationEmail,
@@ -590,4 +767,6 @@ module.exports = {
   sendPasswordChangedConfirmation,
   sendOrderConfirmationEmail,
   sendAdminNewOrderEmail,
+  sendSupportClientMessageEmailToAdmin,
+  sendSupportAdminReplyEmailToClient,
 };

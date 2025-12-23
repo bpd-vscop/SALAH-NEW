@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Send, ArrowLeft, Phone, Video, Mail } from 'lucide-react';
+import { X, Send, ArrowLeft, Phone, Video, Mail, MessageCircle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { adminMessagesApi, messagesApi } from '../../api/messages';
+import type { Conversation, Message } from '../../types/api';
+import { cn } from '../../utils/cn';
 
 // Contact data from footer
 const contactPhones = ['+1-407-449-6740', '+1-407-452-7149', '+1-407-978-6077'];
@@ -63,8 +67,13 @@ interface ContactWidgetProps {
 }
 
 export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
+  const { user } = useAuth();
+  const isSignedInClient = user?.role === 'client';
+  const isStaffUser = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'staff';
   const [isOpen, setIsOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'none' | 'whatsapp' | 'email' | 'email-select'>('none');
+  const [activeView, setActiveView] = useState<
+    'none' | 'whatsapp' | 'email' | 'email-select' | 'chat' | 'chat-select' | 'staff-inbox'
+  >('none');
   const [whatsappMessage, setWhatsappMessage] = useState('');
   const [whatsappOpenTime, setWhatsappOpenTime] = useState<string>('');
   const [hasAnimatedMessage, setHasAnimatedMessage] = useState(false);
@@ -90,6 +99,156 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
 
   const widgetRef = useRef<HTMLDivElement>(null);
 
+  const recipients = useRef(['sales@ulk-supply.com', 'ulksupply@hotmail.com', 'bprod.digital@gmail.com']).current;
+
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [chatUnreadByRecipient, setChatUnreadByRecipient] = useState<Record<string, number>>({});
+  const [chatConversation, setChatConversation] = useState<Conversation | null>(null);
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [chatDraft, setChatDraft] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatSending, setChatSending] = useState(false);
+
+  const [staffUnreadCount, setStaffUnreadCount] = useState(0);
+  const [staffConversations, setStaffConversations] = useState<Conversation[]>([]);
+  const [staffSearch, setStaffSearch] = useState('');
+  const [staffUnreadOnly, setStaffUnreadOnly] = useState(false);
+  const [staffConversation, setStaffConversation] = useState<Conversation | null>(null);
+  const [staffMessages, setStaffMessages] = useState<Message[]>([]);
+  const [staffDraft, setStaffDraft] = useState('');
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffSending, setStaffSending] = useState(false);
+  const staffScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const refreshChatUnread = async () => {
+    if (!isSignedInClient) return;
+    try {
+      const { conversations } = await messagesApi.listConversations();
+      const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
+      setChatUnreadCount(totalUnread);
+      const map: Record<string, number> = {};
+      conversations.forEach((c) => {
+        const email = (c.recipientEmail || '').toLowerCase();
+        if (!email) return;
+        map[email] = (map[email] || 0) + (c.unreadCount ?? 0);
+      });
+      setChatUnreadByRecipient(map);
+    } catch (error) {
+      console.error('Failed to refresh chat unread count', error);
+    }
+  };
+
+  const refreshStaffConversations = async () => {
+    if (!isStaffUser) return;
+    try {
+      const { conversations } = await adminMessagesApi.listConversations();
+      setStaffConversations(conversations);
+      const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
+      setStaffUnreadCount(totalUnread);
+    } catch (error) {
+      console.error('Failed to refresh staff conversations', error);
+    }
+  };
+
+  const openChatForRecipient = async (recipientEmail: string) => {
+    if (!isSignedInClient) return;
+    setChatLoading(true);
+    try {
+      const { conversation } = await messagesApi.createConversation(recipientEmail);
+      setChatConversation(conversation);
+      const { messages } = await messagesApi.listMessages(conversation.id, { limit: 120 });
+      setChatMessages(messages.slice().reverse());
+      await messagesApi.markRead(conversation.id);
+      await messagesApi.pingPresence(conversation.id);
+      setChatUnreadCount((prev) => Math.max(0, prev - (conversation.unreadCount ?? 0)));
+    } catch (error) {
+      console.error(error);
+      setEmailStatus('error');
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const openStaffConversation = async (conversationId: string) => {
+    if (!isStaffUser) return;
+    setStaffLoading(true);
+    try {
+      const { conversation, messages } = await adminMessagesApi.listMessages(conversationId, { limit: 150 });
+      setStaffConversation(conversation);
+      setStaffMessages(messages.slice().reverse());
+      await adminMessagesApi.markRead(conversationId);
+      void refreshStaffConversations();
+      requestAnimationFrame(() => {
+        const el = staffScrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    } catch (error) {
+      console.error('Failed to open staff conversation', error);
+    } finally {
+      setStaffLoading(false);
+    }
+  };
+
+  const refreshChatMessages = async (conversationId: string) => {
+    try {
+      const { messages } = await messagesApi.listMessages(conversationId, { limit: 120 });
+      setChatMessages(messages.slice().reverse());
+      await messagesApi.markRead(conversationId);
+    } catch (error) {
+      console.error('Failed to refresh chat messages', error);
+    }
+  };
+
+  const refreshStaffMessages = async (conversationId: string) => {
+    try {
+      const { messages } = await adminMessagesApi.listMessages(conversationId, { limit: 150 });
+      setStaffMessages(messages.slice().reverse());
+      await adminMessagesApi.markRead(conversationId);
+      void refreshStaffConversations();
+    } catch (error) {
+      console.error('Failed to refresh staff messages', error);
+    }
+  };
+
+  const handleChatSend = async () => {
+    if (!isSignedInClient || !chatConversation) return;
+    const body = chatDraft.trim();
+    if (!body) return;
+    try {
+      setChatSending(true);
+      const { message } = await messagesApi.sendMessage(chatConversation.id, body);
+      setChatMessages((prev) => [...prev, message]);
+      setChatDraft('');
+      await refreshChatUnread();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  const handleStaffSend = async () => {
+    if (!isStaffUser || !staffConversation) return;
+    const body = staffDraft.trim();
+    if (!body) return;
+    try {
+      setStaffSending(true);
+      const { message, conversation } = await adminMessagesApi.sendMessage(staffConversation.id, body);
+      setStaffMessages((prev) => [...prev, message]);
+      setStaffConversation(conversation);
+      setStaffDraft('');
+      void refreshStaffConversations();
+      requestAnimationFrame(() => {
+        const el = staffScrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    } catch (error) {
+      console.error('Failed to send staff message', error);
+    } finally {
+      setStaffSending(false);
+    }
+  };
+
   // Email domains for autocomplete
   const emailDomains = [
     '@gmail.com',
@@ -112,6 +271,59 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
 
     return () => clearInterval(iconInterval);
   }, []);
+
+  useEffect(() => {
+    if (!isSignedInClient) return;
+    setEmailForm((prev) => ({
+      ...prev,
+      name: user?.name ?? prev.name,
+      email: user?.email ?? prev.email,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedInClient, user?.id]);
+
+  useEffect(() => {
+    void refreshChatUnread();
+    if (!isSignedInClient) return;
+    const interval = setInterval(() => void refreshChatUnread(), 15000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedInClient]);
+
+  useEffect(() => {
+    void refreshStaffConversations();
+    if (!isStaffUser) return;
+    const interval = setInterval(() => void refreshStaffConversations(), 12000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStaffUser]);
+
+  useEffect(() => {
+    if (activeView !== 'chat' || !isSignedInClient || !chatConversation?.id) return;
+    const conversationId = chatConversation.id;
+    void refreshChatMessages(conversationId);
+    void messagesApi.pingPresence(conversationId);
+    const interval = setInterval(() => void refreshChatMessages(conversationId), 5000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView, isSignedInClient, chatConversation?.id]);
+
+  useEffect(() => {
+    if (activeView !== 'chat' || !isSignedInClient || !chatConversation?.id) return;
+    const conversationId = chatConversation.id;
+    const interval = setInterval(() => void messagesApi.pingPresence(conversationId), 15000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView, isSignedInClient, chatConversation?.id]);
+
+  useEffect(() => {
+    if (activeView !== 'staff-inbox' || !isStaffUser || !staffConversation?.id) return;
+    const conversationId = staffConversation.id;
+    void refreshStaffMessages(conversationId);
+    const interval = setInterval(() => void refreshStaffMessages(conversationId), 5000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView, isStaffUser, staffConversation?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -234,21 +446,39 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
     setEmailStatus('idle');
 
     try {
-      const response = await fetch('/api/contact/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(emailForm),
-      });
-
-      if (response.ok) {
+      if (isSignedInClient) {
+        const recipient = emailForm.recipient.trim();
+        if (!recipient) {
+          setEmailStatus('error');
+          return;
+        }
+        const { conversation } = await messagesApi.createConversation(recipient);
+        setChatConversation(conversation);
+        await messagesApi.sendMessage(conversation.id, emailForm.message);
+        await refreshChatUnread();
         setEmailStatus('success');
         setTimeout(() => {
           setEmailStatus('idle');
-          setEmailForm({ name: '', email: '', phone: '', recipient: '', message: '' });
+          setEmailForm((prev) => ({ ...prev, phone: '', recipient: '', message: '' }));
           resetState();
-        }, 3000);
+        }, 1800);
       } else {
-        setEmailStatus('error');
+        const response = await fetch('/api/contact/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(emailForm),
+        });
+
+        if (response.ok) {
+          setEmailStatus('success');
+          setTimeout(() => {
+            setEmailStatus('idle');
+            setEmailForm({ name: '', email: '', phone: '', recipient: '', message: '' });
+            resetState();
+          }, 3000);
+        } else {
+          setEmailStatus('error');
+        }
       }
     } catch (error) {
       console.error('Error sending email:', error);
@@ -261,6 +491,12 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
   const handleRecipientSelect = (recipient: string) => {
     setEmailForm(prev => ({ ...prev, recipient }));
     setActiveView('email');
+  };
+
+  const handleChatRecipientSelect = (recipient: string) => {
+    setEmailForm((prev) => ({ ...prev, recipient }));
+    setActiveView('chat');
+    void openChatForRecipient(recipient);
   };
 
   const resetState = (e?: React.MouseEvent) => {
@@ -309,7 +545,7 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
   };
 
   const options = [
-    { icon: <Mail className="h-6 w-6 text-white" />, action: () => setActiveView('email-select'), key: 'email', label: "Email" },
+    { icon: <Mail className="h-6 w-6 text-white" />, action: () => setActiveView('email-select'), key: 'email', label: isSignedInClient ? "Message" : "Email" },
     { icon: <WhatsAppIcon className="h-6 w-6 text-white" />, action: handleWhatsAppOpen, key: 'whatsapp', label: "WhatsApp" },
     { icon: <PhoneIcon className="h-6 w-6 text-white" />, action: handleRandomPhoneCall, key: 'call', label: "Call" },
   ];
@@ -327,7 +563,82 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
         ease: [0.25, 0.1, 0.25, 1]
       }}
     >
-      <div className="relative flex items-center justify-end h-16">
+      <div className="flex flex-col items-end gap-3">
+        {isSignedInClient && (
+          <button
+            type="button"
+            onClick={() => {
+              if (activeView === 'chat' || activeView === 'chat-select') {
+                resetState();
+                return;
+              }
+              const unreadEntries = Object.entries(chatUnreadByRecipient).filter(([, count]) => count > 0);
+              if (unreadEntries.length === 1) {
+                const [recipientEmail] = unreadEntries[0];
+                setActiveView('chat');
+                void openChatForRecipient(recipientEmail);
+                return;
+              }
+              if (unreadEntries.length > 1) {
+                setActiveView('chat-select');
+                return;
+              }
+              if (chatConversation?.recipientEmail) {
+                setActiveView('chat');
+                void openChatForRecipient(chatConversation.recipientEmail);
+              } else {
+                setActiveView('chat-select');
+              }
+            }}
+            className="relative flex h-12 w-12 items-center justify-center rounded-full text-white shadow-2xl transition hover:scale-110"
+            aria-label="Messages"
+            style={{
+              background: 'rgba(220, 38, 38, 0.15)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(220, 38, 38, 0.4)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
+            }}
+          >
+            <MessageCircle className="h-6 w-6 text-white" />
+            {chatUnreadCount > 0 ? (
+              <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-700 px-1.5 text-[0.7rem] font-bold text-white">
+                {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+              </span>
+            ) : null}
+          </button>
+        )}
+
+        {isStaffUser && (
+          <button
+            type="button"
+            onClick={() => {
+              if (activeView === 'staff-inbox') {
+                resetState();
+                return;
+              }
+              setActiveView('staff-inbox');
+              setStaffConversation(null);
+              void refreshStaffConversations();
+            }}
+            className="relative flex h-12 w-12 items-center justify-center rounded-full text-white shadow-2xl transition hover:scale-110"
+            aria-label="Client messages"
+            style={{
+              background: 'rgba(220, 38, 38, 0.15)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(220, 38, 38, 0.4)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
+            }}
+          >
+            <MessageCircle className="h-6 w-6 text-white" />
+            {staffUnreadCount > 0 ? (
+              <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-700 px-1.5 text-[0.7rem] font-bold text-white">
+                {staffUnreadCount > 99 ? '99+' : staffUnreadCount}
+              </span>
+            ) : null}
+          </button>
+        )}
+
+        <div className="relative flex h-16 items-center justify-end">
 
         <motion.div
           className="flex items-center justify-end rounded-full absolute right-0 overflow-hidden"
@@ -407,11 +718,12 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
             </motion.button>
           )}
         </AnimatePresence>
+        </div>
       </div>
 
       <AnimatePresence>
-        {/* Email Selection View */}
-        {activeView === 'email-select' && (
+        {/* Recipient Selection View */}
+        {(activeView === 'email-select' || activeView === 'chat-select') && (
           <motion.div
             className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
             initial={{ opacity: 0 }}
@@ -437,14 +749,27 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
                 </button>
               </div>
               <div className="p-4 space-y-3">
-                {['sales@ulk-supply.com', 'ulksupply@hotmail.com', 'bprod.digital@gmail.com'].map((email) => (
+                {recipients.map((email) => (
                   <button
                     key={email}
-                    onClick={() => handleRecipientSelect(email)}
-                    className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors flex items-center gap-3"
+                    onClick={() =>
+                      activeView === 'chat-select' ? handleChatRecipientSelect(email) : handleRecipientSelect(email)
+                    }
+                    className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors flex items-center justify-between gap-3"
                   >
-                    <Mail className="h-5 w-5 text-red-600" />
-                    <span className="font-medium text-gray-800">{email}</span>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Mail className="h-5 w-5 text-red-600" />
+                      <span className="font-medium text-gray-800 truncate">{email}</span>
+                    </div>
+                    {chatUnreadByRecipient[email.toLowerCase()] ? (
+                      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-red-700 px-2 text-[0.75rem] font-bold text-white">
+                        {chatUnreadByRecipient[email.toLowerCase()] > 99 ? '99+' : chatUnreadByRecipient[email.toLowerCase()]}
+                      </span>
+                    ) : (
+                      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-gray-200 bg-white text-[0.75rem] text-gray-300">
+                        &nbsp;
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -462,19 +787,24 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
             onClick={resetState}
           >
             <motion.div
-              className="w-[380px] flex flex-col fixed bottom-5 right-5 rounded-2xl overflow-hidden shadow-2xl bg-white max-h-[600px]"
+              className="w-[380px] flex flex-col fixed bottom-5 right-5 rounded-2xl overflow-hidden shadow-2xl max-h-[600px]"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
               onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'rgba(255, 255, 255, 0.82)',
+                backdropFilter: 'blur(14px)',
+                border: '1px solid rgba(220, 38, 38, 0.25)',
+              }}
             >
               <div className="bg-red-700 text-white">
                 <div className="flex items-center justify-between p-2">
                   <button onClick={() => setActiveView('email-select')} className="p-1 hover:bg-red-600 rounded">
                     <ArrowLeft className="h-5 w-5"/>
                   </button>
-                  <h3 className="font-semibold">Send Email</h3>
+                  <h3 className="font-semibold">{isSignedInClient ? 'Send Message' : 'Send Email'}</h3>
                   <button onClick={resetState} className="p-1 hover:bg-red-600 rounded">
                     <X className="h-5 w-5"/>
                   </button>
@@ -502,6 +832,7 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
                       setEmailForm(prev => ({ ...prev, name: e.target.value }));
                       clearFieldError('name');
                     }}
+                    disabled={isSignedInClient && Boolean(user?.name)}
                     className={`w-full px-3.5 py-2.5 rounded-lg border ${fieldErrors.name ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900`}
                     placeholder="Your name"
                   />
@@ -539,6 +870,7 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
                       value={emailForm.email}
                       onChange={(e) => handleEmailChange(e.target.value)}
                       onKeyDown={handleEmailKeyDown}
+                      disabled={isSignedInClient && Boolean(user?.email)}
                       className={`w-full px-3.5 py-2.5 rounded-lg border ${
                         fieldErrors.email ? 'border-red-500' : 'border-gray-300'
                       } focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 bg-transparent relative z-10 placeholder-gray-400`}
@@ -599,15 +931,374 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
                   ) : (
                     <>
                       <Send className="h-5 w-5" />
-                      Send Email
+                      {isSignedInClient ? 'Send Message' : 'Send Email'}
                     </>
                   )}
                 </button>
 
                 {emailStatus === 'error' && (
-                  <p className="text-sm text-red-600 text-center">Failed to send email. Please try again.</p>
+                  <p className="text-sm text-red-600 text-center">
+                    {isSignedInClient ? 'Failed to send message. Please try again.' : 'Failed to send email. Please try again.'}
+                  </p>
                 )}
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Chat View (Signed-in clients) */}
+        {activeView === 'chat' && isSignedInClient && (
+          <motion.div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={resetState}
+          >
+            <motion.div
+              className="w-[380px] flex flex-col fixed bottom-5 right-5 rounded-2xl overflow-hidden shadow-2xl max-h-[600px]"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'rgba(255, 255, 255, 0.82)',
+                backdropFilter: 'blur(14px)',
+                border: '1px solid rgba(220, 38, 38, 0.25)',
+              }}
+            >
+              <div className="bg-red-700 text-white">
+                <div className="flex items-center justify-between p-2">
+                  <button onClick={() => setActiveView('chat-select')} className="p-1 hover:bg-red-600 rounded">
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
+                  <h3 className="font-semibold">Messages</h3>
+                  <button onClick={resetState} className="p-1 hover:bg-red-600 rounded">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="px-12 pb-2">
+                  <div className="bg-red-800/50 border border-red-600/50 rounded-lg p-2 flex items-center justify-center gap-2">
+                    <Mail className="h-4 w-4 text-white" />
+                    <span className="text-sm font-medium text-white">
+                      To: {chatConversation?.recipientEmail ?? emailForm.recipient}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white/20">
+                {chatLoading ? (
+                  <div className="flex items-center justify-center py-10 text-sm text-gray-500">
+                    <div className="w-5 h-5 border-2 border-red-700 border-t-transparent rounded-full animate-spin mr-2" />
+                    Loading…
+                  </div>
+                ) : chatMessages.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-gray-500">No messages yet. Say hi!</div>
+                ) : (
+                  chatMessages.map((msg) => {
+                    const mine = msg.senderRole === 'client';
+                    return (
+                      <div key={msg.id} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
+                        <div
+                          className={cn(
+                            'max-w-[85%] rounded-2xl border px-3 py-2 text-sm shadow-sm whitespace-pre-wrap backdrop-blur',
+                            mine
+                              ? 'border-red-200/60 bg-white/70 text-gray-900'
+                              : 'border-white/60 bg-red-50/70 text-gray-900'
+                          )}
+                        >
+                          {msg.body}
+                          <div className="mt-1 text-right text-[0.7rem] text-gray-600">
+                            {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="border-t border-white/50 bg-white/55 p-3 backdrop-blur-xl">
+                <div className="flex gap-2">
+                  <textarea
+                    value={chatDraft}
+                    onChange={(e) => setChatDraft(e.target.value)}
+                    rows={2}
+                    placeholder="Type a message…"
+                    className="flex-1 resize-none rounded-xl border border-white/70 bg-white/60 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    disabled={chatSending || chatLoading}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        void handleChatSend();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleChatSend()}
+                    disabled={chatSending || chatLoading || !chatDraft.trim()}
+                    className="h-11 w-11 rounded-xl bg-red-700 text-white flex items-center justify-center disabled:bg-gray-300 transition-colors hover:bg-red-800"
+                    aria-label="Send message"
+                  >
+                    <Send className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="mt-2 text-[11px] text-gray-600">Enter to send • Shift+Enter for new line</div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Staff/Admin Inbox */}
+        {activeView === 'staff-inbox' && isStaffUser && (
+          <motion.div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={resetState}
+          >
+            <motion.div
+              className="w-[420px] flex flex-col fixed bottom-5 right-5 rounded-2xl overflow-hidden shadow-2xl max-h-[650px]"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'rgba(255, 255, 255, 0.82)',
+                backdropFilter: 'blur(14px)',
+                border: '1px solid rgba(220, 38, 38, 0.25)',
+              }}
+            >
+              <div className="bg-red-700 text-white">
+                <div className="flex items-center justify-between p-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (staffConversation) {
+                        setStaffConversation(null);
+                        return;
+                      }
+                      backToMenu(e);
+                    }}
+                    className="p-1 hover:bg-red-600 rounded"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
+                  <h3 className="font-semibold">{staffConversation ? 'Conversation' : 'Messages'}</h3>
+                  <button onClick={resetState} className="p-1 hover:bg-red-600 rounded">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                {staffConversation ? (
+                  <div className="px-4 pb-3">
+                    <div className="flex items-center justify-between rounded-lg bg-red-800/40 px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">
+                          {staffConversation.client?.name || staffConversation.client?.email || 'Client'}
+                        </div>
+                        <div className="truncate text-[12px] text-white/80">
+                          {staffConversation.client?.email ? staffConversation.client.email : staffConversation.clientId} • To:{' '}
+                          {staffConversation.recipientEmail}
+                        </div>
+                      </div>
+                      <span className="ml-3 inline-flex items-center rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold">
+                        {staffConversation.status}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="px-4 pb-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={staffSearch}
+                        onChange={(e) => setStaffSearch(e.target.value)}
+                        placeholder="Search clients, email…"
+                        className="h-10 flex-1 rounded-lg border border-white/20 bg-white/15 px-3 text-sm text-white placeholder:text-white/70 focus:outline-none focus:ring-2 focus:ring-white/40"
+                      />
+                      <div className="flex items-center gap-2 text-sm text-white/90">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={staffUnreadOnly}
+                          onClick={() => setStaffUnreadOnly((prev) => !prev)}
+                          className={cn(
+                            'relative inline-flex h-6 w-11 items-center rounded-full border transition',
+                            staffUnreadOnly ? 'border-white/60 bg-white/40' : 'border-white/30 bg-white/15'
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition',
+                              staffUnreadOnly ? 'translate-x-5' : 'translate-x-1'
+                            )}
+                          />
+                        </button>
+                        <span>Unread</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {!staffConversation ? (
+                <div className="flex-1 overflow-y-auto bg-white/20">
+                  {staffLoading ? (
+                    <div className="flex items-center justify-center py-10 text-sm text-gray-500">
+                      <div className="w-5 h-5 border-2 border-red-700 border-t-transparent rounded-full animate-spin mr-2" />
+                      Loading…
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-white/40">
+                      {staffConversations
+                        .slice()
+                        .sort((a, b) => {
+                          const at = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+                          const bt = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+                          return bt - at;
+                        })
+                        .filter((c) => {
+                          if (staffUnreadOnly && !(c.unreadCount && c.unreadCount > 0)) return false;
+                          const q = staffSearch.trim().toLowerCase();
+                          if (!q) return true;
+                          const hay = [
+                            c.client?.name,
+                            c.client?.email,
+                            c.recipientEmail,
+                            c.lastMessagePreview,
+                          ]
+                            .filter(Boolean)
+                            .join(' ')
+                            .toLowerCase();
+                          return hay.includes(q);
+                        })
+                        .map((c) => {
+                          const clientName = c.client?.name || c.client?.email || 'Client';
+                          const fromEmail = c.client?.email || '—';
+                          const lastFromClient = c.lastMessageSenderRole === 'client';
+                          const timeLabel = c.lastMessageAt
+                            ? new Date(c.lastMessageAt).toLocaleString([], {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            : '';
+
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => void openStaffConversation(c.id)}
+                              className="relative w-full px-4 py-3 text-left hover:bg-red-50/60 transition-colors"
+                            >
+                              <div className="pr-20">
+                                <div className="truncate text-[11px] text-gray-500">
+                                  Email: <span className="text-gray-700">{fromEmail}</span>{' '}
+                                  <span className="mx-1 text-gray-300">→</span>{' '}
+                                  <span className="text-gray-700">{c.recipientEmail}</span>
+                                </div>
+
+                                <div className="mt-0.5 flex items-center gap-2">
+                                  <div className="truncate font-semibold text-gray-900">{clientName}</div>
+                                  {c.unreadCount && c.unreadCount > 0 ? (
+                                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-semibold text-white">
+                                      {c.unreadCount > 99 ? '99+' : c.unreadCount}
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                <div className="mt-1 flex min-w-0 items-start gap-2">
+                                  <span
+                                    className={cn(
+                                      'shrink-0 text-xs font-semibold',
+                                      lastFromClient ? 'text-emerald-700' : 'text-violet-700'
+                                    )}
+                                  >
+                                    {lastFromClient ? 'Received' : 'Sent'}
+                                  </span>
+                                  <span className="truncate text-sm text-gray-700">{c.lastMessagePreview || '—'}</span>
+                                </div>
+                              </div>
+
+                              <div className="absolute bottom-3 right-4 text-right text-xs text-gray-400">{timeLabel}</div>
+                            </button>
+                          );
+                        })}
+                      {staffConversations.length === 0 ? (
+                        <div className="py-10 text-center text-sm text-gray-500">No conversations yet.</div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div ref={staffScrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-white/20">
+                    {staffLoading ? (
+                      <div className="flex items-center justify-center py-10 text-sm text-gray-500">
+                        <div className="w-5 h-5 border-2 border-red-700 border-t-transparent rounded-full animate-spin mr-2" />
+                        Loading…
+                      </div>
+                    ) : staffMessages.length === 0 ? (
+                      <div className="py-10 text-center text-sm text-gray-500">No messages yet.</div>
+                    ) : (
+                      staffMessages.map((msg) => {
+                        const mine = msg.senderRole === 'admin';
+                        return (
+                          <div key={msg.id} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
+                            <div
+                              className={cn(
+                                'max-w-[85%] rounded-2xl border px-3 py-2 text-sm shadow-sm whitespace-pre-wrap backdrop-blur',
+                                mine
+                                  ? 'border-red-200/60 bg-red-50/70 text-gray-900'
+                                  : 'border-white/70 bg-white/65 text-gray-900'
+                              )}
+                            >
+                              {msg.body}
+                              <div className="mt-1 text-right text-[0.7rem] text-gray-500">
+                                {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="border-t border-white/50 bg-white/55 p-3 backdrop-blur-xl">
+                    <div className="flex gap-2">
+                      <textarea
+                        value={staffDraft}
+                        onChange={(e) => setStaffDraft(e.target.value)}
+                        rows={2}
+                        placeholder="Reply…"
+                        className="flex-1 resize-none rounded-xl border border-white/70 bg-white/60 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        disabled={staffSending || staffLoading}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            void handleStaffSend();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleStaffSend()}
+                        disabled={staffSending || staffLoading || !staffDraft.trim()}
+                        className="h-11 w-11 rounded-xl bg-red-700 text-white flex items-center justify-center disabled:bg-gray-300 transition-colors hover:bg-red-800"
+                        aria-label="Send reply"
+                      >
+                        <Send className="h-5 w-5" />
+                      </button>
+                    </div>
+                    <div className="mt-2 text-[11px] text-gray-600">Enter to send • Shift+Enter for new line</div>
+                  </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}

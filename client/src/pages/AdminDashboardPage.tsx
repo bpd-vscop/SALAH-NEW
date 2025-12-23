@@ -15,6 +15,7 @@ import { ordersApi } from '../api/orders';
 import { productsApi } from '../api/products';
 import { manufacturersApi, type Manufacturer } from '../api/manufacturers';
 import { menuApi, type MenuSectionInput, type MenuLinkInput } from '../api/menu';
+import { adminMessagesApi } from '../api/messages';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { SiteLayout } from '../components/layout/SiteLayout';
 import { useAuth } from '../context/AuthContext';
@@ -41,6 +42,7 @@ import { ModelsAdminSection } from '../components/dashboard/ModelsAdminSection';
 import { TagsAdminSection } from '../components/dashboard/TagsAdminSection';
 import { HomepageAdminSection } from '../components/dashboard/HomepageAdminSection';
 import { OrdersAdminSection } from '../components/dashboard/OrdersAdminSection';
+import { MessagesAdminSection } from '../components/dashboard/MessagesAdminSection';
 import { NavigationAdminSection } from '../components/dashboard/NavigationAdminSection';
 import type {
   // BannerFormState,
@@ -421,6 +423,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
   // const [banners] = useState<Banner[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [messagesUnreadCount, setMessagesUnreadCount] = useState(0);
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
   const [featuredItems, setFeaturedItems] = useState<FeaturedShowcaseItem[]>([]);
   const [menuSectionsDraft, setMenuSectionsDraft] = useState<MenuSectionInput[]>([]);
@@ -547,6 +550,16 @@ export const AdminDashboardPage: React.FC = () => {
     setOrders(data);
   };
 
+  const refreshMessagesUnread = async () => {
+    try {
+      const { conversations } = await adminMessagesApi.listConversations();
+      const total = conversations.reduce((sum, conv) => sum + (conv.unreadCount ?? 0), 0);
+      setMessagesUnreadCount(total);
+    } catch (error) {
+      console.error('Failed to refresh messages unread count', error);
+    }
+  };
+
   const refreshMenu = async () => {
     const { menu } = await menuApi.get();
     const sections = menu.sections ?? [];
@@ -608,6 +621,7 @@ export const AdminDashboardPage: React.FC = () => {
           refreshHeroSlider(),
           refreshFeaturedShowcase(),
           refreshOrders(),
+          refreshMessagesUnread(),
           refreshMenu(),
           refreshCategoryDisplay(),
         ]);
@@ -619,6 +633,13 @@ export const AdminDashboardPage: React.FC = () => {
 
     void loadAll();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => void refreshMessagesUnread(), 10000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Kick off an extra early refresh for homepage content to avoid perceived delays.
   useEffect(() => {
@@ -1533,6 +1554,17 @@ export const AdminDashboardPage: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
           </svg>
         );
+      case 'messages':
+        return (
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 10h8m-8 4h5m-8 8l4-4h10a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v14z"
+            />
+          </svg>
+        );
       default:
         return null;
     }
@@ -1700,10 +1732,15 @@ export const AdminDashboardPage: React.FC = () => {
           id: tab.id,
           label: tab.label,
           icon: getMenuIcon(tab.id),
-          badgeCount: tab.id === 'orders' ? orders.filter((o) => o.status === 'pending').length : undefined,
+          badgeCount:
+            tab.id === 'orders'
+              ? orders.filter((o) => o.status === 'pending').length
+              : tab.id === 'messages'
+                ? messagesUnreadCount
+                : undefined,
         };
       }),
-    [homepageSection, navigationSection, activeTab, catalogSection, usersSection, productsView, orders]
+    [homepageSection, navigationSection, activeTab, catalogSection, usersSection, productsView, orders, messagesUnreadCount]
   );
 
   const handleTopNavSelect = (id: string, dropdownId?: string) => {
@@ -1939,6 +1976,18 @@ export const AdminDashboardPage: React.FC = () => {
                   manufacturers={manufacturers}
                 />
               )}
+            </motion.div>
+          )}
+
+          {activeTab === 'messages' && (
+            <motion.div
+              key="messages"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <MessagesAdminSection setStatus={setStatus} />
             </motion.div>
           )}
 

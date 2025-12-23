@@ -42,6 +42,21 @@ const attachCurrentUser = async (req, _res, next) => {
     }
 
     req.user = user;
+
+    // Presence: treat recent activity as "online" (throttled DB update).
+    try {
+      const now = new Date();
+      const last = user.lastActiveAt instanceof Date ? user.lastActiveAt : null;
+      if (!last || now.getTime() - last.getTime() > 30_000) {
+        void User.updateOne({ _id: user._id }, { $set: { lastActiveAt: now } }).catch((err) =>
+          console.error('Failed to update lastActiveAt', err)
+        );
+        user.lastActiveAt = now;
+      }
+    } catch (presenceError) {
+      console.error('Presence update error', presenceError);
+    }
+
     if (user.role === 'client' && user.isEmailVerified === false) {
       req.requiresEmailVerification = true;
     } else {
@@ -75,4 +90,3 @@ module.exports = {
   requireAuth,
   requireRole,
 };
-
