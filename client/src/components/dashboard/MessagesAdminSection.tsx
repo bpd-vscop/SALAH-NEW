@@ -245,15 +245,9 @@ export const MessagesAdminSection: React.FC<MessagesAdminSectionProps> = ({ setS
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Messages</h2>
-          <p className="text-sm text-slate-600">Reply to client support chats (in-app + email).</p>
-        </div>
-      </div>
+    <div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="h-[80vh] grid grid-cols-1 lg:grid-cols-[360px_1fr] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {/* Sidebar */}
         <div className="bg-white lg:border-r lg:border-slate-100">
           <div className="border-b border-slate-100 p-4">
