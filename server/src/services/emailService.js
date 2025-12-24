@@ -74,6 +74,36 @@ const sendMail = async ({ to, subject, text, html, from, replyTo, attachments })
   });
 };
 
+const WEB_CONFIG_PATH = path.resolve(__dirname, '../../../client/public/web.config');
+
+const extractDomainFromHostPattern = (pattern) => {
+  if (!pattern) return null;
+  const trimmed = pattern.trim();
+  const match =
+    trimmed.match(/([a-z0-9-]+(?:\\\.[a-z0-9-]+)+)/i) ||
+    trimmed.match(/([a-z0-9-]+(?:\.[a-z0-9-]+)+)/i);
+  if (!match) return null;
+  const domain = match[1].replace(/\\\./g, '.').replace(/\.$/, '');
+  const normalized = domain.replace(/^www\./i, '');
+  return normalized || null;
+};
+
+const getWebConfigBaseUrl = () => {
+  try {
+    const raw = fs.readFileSync(WEB_CONFIG_PATH, 'utf8');
+    const match = raw.match(/<add[^>]*input="\{HTTP_HOST\}"[^>]*pattern="([^"]+)"/i);
+    if (!match) return null;
+    const domain = extractDomainFromHostPattern(match[1]);
+    if (!domain) return null;
+    if (/^https?:\/\//i.test(domain)) {
+      return domain.replace(/\/$/, '');
+    }
+    return `https://${domain}`;
+  } catch {
+    return null;
+  }
+};
+
 const sendClientVerificationEmail = async ({ to, code, fullName, clientType, expiresInMinutes }) => {
   const displayName = fullName || 'there';
   const minutes = expiresInMinutes ?? Number(process.env.VERIFICATION_CODE_TTL_MINUTES || 15);
@@ -648,7 +678,7 @@ const buildSupportMessageHtml = ({ title, subtitle, metaRows, message, ctaLabel,
                   Need help? Contact us at <a href="mailto:support@ulksupply.com" style="color: #f6b210; text-decoration: none; font-weight: 700;">support@ulksupply.com</a>
                 </p>
                 <p style="margin: 0; font-size: 12px; color: #cbd5e1; text-align: center;">
-                  ЖИ ${new Date().getFullYear()} ULK Supply LLC. All rights reserved.
+                  ${new Date().getFullYear()} ULK Supply LLC. All rights reserved.
                 </p>
                 <p style="margin: 10px 0 0; font-size: 11px; color: #cbd5e1; text-align: center;">
                   Powered by <a href="https://www.bpd.ma" style="color: #f6b210; text-decoration: none; font-weight: 700;">BP. Digital</a>
@@ -677,8 +707,8 @@ const sendSupportClientMessageEmailToAdmin = async ({ to, clientName, clientEmai
     message || '',
   ].join('\n');
 
-  const appUrl = process.env.APP_URL || process.env.CLIENT_URL || '';
-  const ctaUrl = appUrl ? `${appUrl.replace(/\/$/, '')}/admin` : '';
+  const baseUrl = getWebConfigBaseUrl();
+  const ctaUrl = baseUrl ? `${baseUrl}/login` : null;
   const html = buildSupportMessageHtml({
     title: 'New Client Message',
     subtitle: 'A client sent you a new message in the ULK Supply support chat.',
@@ -688,8 +718,8 @@ const sendSupportClientMessageEmailToAdmin = async ({ to, clientName, clientEmai
       { label: 'Client type', value: clientType || '-' },
     ],
     message,
-    ctaLabel: 'Open Admin Messages',
-    ctaUrl: ctaUrl || null,
+    ctaLabel: 'Reply',
+    ctaUrl,
   });
 
   await sendMail({
@@ -725,8 +755,8 @@ const sendSupportAdminReplyEmailToClient = async ({ to, clientName, recipientEma
     'You can also view this reply in your account messages.',
   ].join('\n');
 
-  const appUrl = process.env.APP_URL || process.env.CLIENT_URL || '';
-  const ctaUrl = appUrl ? `${appUrl.replace(/\/$/, '')}/account` : '';
+  const baseUrl = getWebConfigBaseUrl();
+  const ctaUrl = baseUrl ? `${baseUrl}/login` : null;
   const html = buildSupportMessageHtml({
     title: 'Support Reply',
     subtitle: 'We replied to your message. You can reply directly from your account.',
@@ -734,8 +764,8 @@ const sendSupportAdminReplyEmailToClient = async ({ to, clientName, recipientEma
       { label: 'Support', value: recipientEmail || 'ULK Supply' },
     ],
     message,
-    ctaLabel: 'Open Messages',
-    ctaUrl: ctaUrl || null,
+    ctaLabel: 'Reply',
+    ctaUrl,
   });
 
   await sendMail({

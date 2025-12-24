@@ -3,11 +3,14 @@ import { Paperclip, PenSquare, Search, Send, X } from 'lucide-react';
 import { adminMessagesApi } from '../../api/messages';
 import type { Conversation, Message } from '../../types/api';
 import { cn } from '../../utils/cn';
+import type { ComposeClientRef } from './types';
 
 type StatusSetter = (msg: string | null, err?: string | null) => void;
 
 type MessagesAdminSectionProps = {
   setStatus: StatusSetter;
+  composeRequest?: { clients: ComposeClientRef[] } | null;
+  onComposeRequestHandled?: () => void;
 };
 
 const formatTime = (iso?: string | null) => {
@@ -33,7 +36,11 @@ const getInitials = (name?: string | null) => {
   return (first + second).toUpperCase();
 };
 
-export const MessagesAdminSection: React.FC<MessagesAdminSectionProps> = ({ setStatus }) => {
+export const MessagesAdminSection: React.FC<MessagesAdminSectionProps> = ({
+  setStatus,
+  composeRequest,
+  onComposeRequestHandled,
+}) => {
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -46,7 +53,8 @@ export const MessagesAdminSection: React.FC<MessagesAdminSectionProps> = ({ setS
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeSearch, setComposeSearch] = useState('');
   const [composeLoading, setComposeLoading] = useState(false);
-  const [composeClients, setComposeClients] = useState<Array<{ id: string; name: string; email: string | null; clientType: string | null }>>([]);
+  const [composeApiClients, setComposeApiClients] = useState<ComposeClientRef[]>([]);
+  const [composePinnedClients, setComposePinnedClients] = useState<ComposeClientRef[]>([]);
   const [composeSelected, setComposeSelected] = useState<string[]>([]);
   const [composeRecipientEmail, setComposeRecipientEmail] = useState('sales@ulk-supply.com');
   const [composeBody, setComposeBody] = useState('');
@@ -57,6 +65,19 @@ export const MessagesAdminSection: React.FC<MessagesAdminSectionProps> = ({ setS
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const composeFileInputRef = useRef<HTMLInputElement>(null);
   const messageFileInputRef = useRef<HTMLInputElement>(null);
+
+  const composeClients = useMemo(() => {
+    if (composePinnedClients.length === 0) return composeApiClients;
+    if (composeApiClients.length === 0) return composePinnedClients;
+    const merged = new Map<string, ComposeClientRef>();
+    composePinnedClients.forEach((client) => merged.set(client.id, client));
+    composeApiClients.forEach((client) => {
+      if (!merged.has(client.id)) {
+        merged.set(client.id, client);
+      }
+    });
+    return Array.from(merged.values());
+  }, [composePinnedClients, composeApiClients]);
 
   const composeVisibleIds = useMemo(() => composeClients.map((c) => c.id), [composeClients]);
   const composeAllVisibleSelected = useMemo(() => {
@@ -131,7 +152,7 @@ export const MessagesAdminSection: React.FC<MessagesAdminSectionProps> = ({ setS
         setComposeLoading(true);
         const { clients } = await adminMessagesApi.listClients({ q: composeSearch, limit: 50 });
         if (!mounted) return;
-        setComposeClients(clients);
+        setComposeApiClients(clients);
       } catch (error) {
         console.error(error);
       } finally {
@@ -143,6 +164,15 @@ export const MessagesAdminSection: React.FC<MessagesAdminSectionProps> = ({ setS
       mounted = false;
     };
   }, [composeOpen, composeSearch]);
+
+  useEffect(() => {
+    if (!composeRequest) return;
+    const eligibleClients = composeRequest.clients.filter((client) => Boolean(client.email));
+    setComposePinnedClients(eligibleClients);
+    setComposeSelected(eligibleClients.map((client) => client.id));
+    setComposeOpen(true);
+    onComposeRequestHandled?.();
+  }, [composeRequest, onComposeRequestHandled]);
 
   const filteredConversations = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -227,6 +257,7 @@ export const MessagesAdminSection: React.FC<MessagesAdminSectionProps> = ({ setS
           : await adminMessagesApi.compose({ clientIds, recipientEmail, body });
       setComposeOpen(false);
       setComposeSelected([]);
+      setComposePinnedClients([]);
       setComposeBody('');
       setComposeAttachments([]);
       setComposeSearch('');

@@ -70,6 +70,8 @@ export const OnSaleOffers: React.FC = () => {
     lastPage: 0,
   });
   const [dragging, setDragging] = useState(false);
+  const [autoPaused, setAutoPaused] = useState(false);
+  const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -111,6 +113,30 @@ export const OnSaleOffers: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const clearResumeTimeout = () => {
+    if (resumeTimeoutRef.current) {
+      clearTimeout(resumeTimeoutRef.current);
+      resumeTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleResume = (delay = 2200) => {
+    clearResumeTimeout();
+    resumeTimeoutRef.current = setTimeout(() => {
+      setAutoPaused(false);
+      resumeTimeoutRef.current = null;
+    }, delay);
+  };
+
+  const pauseAuto = (delay = 2200) => {
+    setAutoPaused(true);
+    scheduleResume(delay);
+  };
+
+  useEffect(() => {
+    return () => clearResumeTimeout();
+  }, []);
+
   const pages = useMemo(() => {
     if (!products.length) return [] as Product[][];
     const chunked: Product[][] = [];
@@ -126,8 +152,18 @@ export const OnSaleOffers: React.FC = () => {
     }
   }, [page, pages.length]);
 
-  const canGoPrev = pages.length > 1 && page > 0;
-  const canGoNext = pages.length > 1 && page < pages.length - 1;
+  const shouldLoop = products.length > 5;
+
+  useEffect(() => {
+    if (!shouldLoop || autoPaused || pages.length <= 1) return;
+    const interval = setInterval(() => {
+      setPage((current) => (current <= 0 ? pages.length - 1 : current - 1));
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [autoPaused, pages.length, shouldLoop]);
+
+  const canGoPrev = shouldLoop ? pages.length > 1 : pages.length > 1 && page > 0;
+  const canGoNext = shouldLoop ? pages.length > 1 : pages.length > 1 && page < pages.length - 1;
 
   const beginDrag = (x: number, y: number) => {
     if (pages.length <= 1) return;
@@ -135,6 +171,8 @@ export const OnSaleOffers: React.FC = () => {
     const track = trackRef.current;
     if (!viewport || !track) return;
 
+    clearResumeTimeout();
+    setAutoPaused(true);
     dragRef.current.active = true;
     dragRef.current.isHorizontal = false;
     dragRef.current.preventClick = false;
@@ -210,6 +248,7 @@ export const OnSaleOffers: React.FC = () => {
     if (nextPage !== dragRef.current.startPage) {
       setPage(nextPage);
     }
+    scheduleResume();
   };
 
   if (loading) {
@@ -238,10 +277,24 @@ export const OnSaleOffers: React.FC = () => {
         <div className="flex items-center gap-3">
           {pages.length > 1 && (
             <div className="flex items-center gap-2">
-              <CarouselArrow direction="left" onClick={() => setPage((current) => Math.max(0, current - 1))} disabled={!canGoPrev} />
+              <CarouselArrow
+                direction="left"
+                onClick={() => {
+                  pauseAuto();
+                  setPage((current) =>
+                    shouldLoop ? (current <= 0 ? pages.length - 1 : current - 1) : Math.max(0, current - 1)
+                  );
+                }}
+                disabled={!canGoPrev}
+              />
               <CarouselArrow
                 direction="right"
-                onClick={() => setPage((current) => Math.min(pages.length - 1, current + 1))}
+                onClick={() => {
+                  pauseAuto();
+                  setPage((current) =>
+                    shouldLoop ? (current >= pages.length - 1 ? 0 : current + 1) : Math.min(pages.length - 1, current + 1)
+                  );
+                }}
                 disabled={!canGoNext}
               />
             </div>
@@ -258,13 +311,20 @@ export const OnSaleOffers: React.FC = () => {
       <div
         ref={viewportRef}
         className="overflow-hidden select-none pb-8"
+        onMouseEnter={() => {
+          clearResumeTimeout();
+          setAutoPaused(true);
+        }}
         onMouseDown={(event) => {
           if (event.button !== 0) return;
           beginDrag(event.clientX, event.clientY);
         }}
         onMouseMove={(event) => updateDrag(event.clientX, event.clientY)}
         onMouseUp={endDrag}
-        onMouseLeave={endDrag}
+        onMouseLeave={() => {
+          endDrag();
+          setAutoPaused(false);
+        }}
         onTouchStart={(event) => {
           const touch = event.touches[0];
           if (!touch) return;

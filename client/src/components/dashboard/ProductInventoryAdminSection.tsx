@@ -149,7 +149,9 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
   const [badgeFilter, setBadgeFilter] = useState<BadgeFilter>('all');
   const [edits, setEdits] = useState<Record<string, ProductInventoryEditState>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [activeReplenishId, setActiveReplenishId] = useState<string | null>(null);
+  const [selectedHiddenIds, setSelectedHiddenIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setEdits((current) => {
@@ -234,6 +236,26 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
       });
   }, [products, search, stockFilter, badgeFilter]);
 
+  const hasActiveFilters = stockFilter !== 'all' || badgeFilter !== 'all';
+  const hiddenFilterActive = badgeFilter === 'hidden';
+
+  useEffect(() => {
+    if (!hiddenFilterActive) {
+      setSelectedHiddenIds(new Set());
+      return;
+    }
+    const visibleIds = new Set(filteredProducts.map((product) => product.id));
+    setSelectedHiddenIds((current) => {
+      const next = new Set<string>();
+      current.forEach((id) => {
+        if (visibleIds.has(id)) {
+          next.add(id);
+        }
+      });
+      return next;
+    });
+  }, [hiddenFilterActive, filteredProducts]);
+
   const hasEdits = (product: Product) => {
     const edit = edits[product.id];
     if (!edit) return false;
@@ -296,6 +318,11 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
     );
   };
 
+  const hasBulkEdits = useMemo(
+    () => filteredProducts.some((product) => hasEdits(product)),
+    [filteredProducts, edits]
+  );
+
   const updateFieldForProduct = <K extends keyof ProductInventoryEditState>(
     product: Product,
     key: K,
@@ -325,25 +352,20 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
     }
   };
 
-  const saveProduct = async (product: Product) => {
-    const edit = edits[product.id] ?? getDefaultEditState(product);
-
+  const buildInventoryUpdate = (product: Product, edit: ProductInventoryEditState) => {
     const quantity = Number.parseInt(edit.quantity, 10);
     if (!Number.isFinite(quantity) || quantity < 0) {
-      setStatus(null, 'Stock quantity must be a number (0 or higher).');
-      return;
+      return { error: 'Stock quantity must be a number (0 or higher).' };
     }
 
     const lowStockThreshold = Number.parseInt(edit.lowStockThreshold, 10);
     if (!Number.isFinite(lowStockThreshold) || lowStockThreshold < 0) {
-      setStatus(null, 'Low-stock threshold must be a number (0 or higher).');
-      return;
+      return { error: 'Low-stock threshold must be a number (0 or higher).' };
     }
 
     const price = Number.parseFloat(edit.price);
     if (!Number.isFinite(price) || price < 0) {
-      setStatus(null, 'Price must be a number (0 or higher).');
-      return;
+      return { error: 'Price must be a number (0 or higher).' };
     }
 
     let salePrice: number | null = null;
@@ -352,12 +374,10 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
       if (percentRaw) {
         const percent = Number.parseFloat(percentRaw);
         if (!Number.isFinite(percent) || percent <= 0 || percent >= 100) {
-          setStatus(null, 'Sale percentage must be between 0 and 100.');
-          return;
+          return { error: 'Sale percentage must be between 0 and 100.' };
         }
         if (price <= 0) {
-          setStatus(null, 'Price must be set before applying a percentage sale.');
-          return;
+          return { error: 'Price must be set before applying a percentage sale.' };
         }
         salePrice = Math.round(price * (1 - percent / 100) * 100) / 100;
       }
@@ -366,16 +386,14 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
       if (salePriceRaw) {
         const parsed = Number.parseFloat(salePriceRaw);
         if (!Number.isFinite(parsed) || parsed < 0) {
-          setStatus(null, 'Sale price must be a number (0 or higher).');
-          return;
+          return { error: 'Sale price must be a number (0 or higher).' };
         }
         salePrice = parsed;
       }
     }
 
     if (salePrice != null && salePrice > price) {
-      setStatus(null, 'Sale must be less than (or equal to) the regular price.');
-      return;
+      return { error: 'Sale must be less than (or equal to) the regular price.' };
     }
 
     const parseDateOnlyLocal = (value: string, endOfDay = false): string | null => {
@@ -397,12 +415,10 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
     const saleStartDate = parseDateOnlyLocal(edit.saleStartDate, false);
     const saleEndDate = parseDateOnlyLocal(edit.saleEndDate, true);
     if (edit.saleStartDate.trim() && !saleStartDate) {
-      setStatus(null, 'Sale start date is invalid.');
-      return;
+      return { error: 'Sale start date is invalid.' };
     }
     if (edit.saleEndDate.trim() && !saleEndDate) {
-      setStatus(null, 'Sale end date is invalid.');
-      return;
+      return { error: 'Sale end date is invalid.' };
     }
 
     const baseInventory = product.inventory ?? {
@@ -426,9 +442,8 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
           ? true
           : edit.allowBackorder;
 
-    setSavingId(product.id);
-    try {
-      await productsApi.update(product.id, {
+    return {
+      payload: {
         price,
         salePrice,
         saleStartDate,
@@ -443,7 +458,21 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
           allowBackorder,
           status: inventoryStatusOverride,
         },
-      });
+      },
+    };
+  };
+
+  const saveProduct = async (product: Product) => {
+    const edit = edits[product.id] ?? getDefaultEditState(product);
+    const result = buildInventoryUpdate(product, edit);
+    if ('error' in result) {
+      setStatus(null, result.error);
+      return;
+    }
+
+    setSavingId(product.id);
+    try {
+      await productsApi.update(product.id, result.payload);
       await onRefresh();
       setStatus('Inventory updated');
     } catch (error) {
@@ -454,12 +483,76 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
     }
   };
 
+  const handleSaveAll = async () => {
+    const targets = filteredProducts.filter((product) => hasEdits(product));
+    if (targets.length === 0) {
+      setStatus('No changes to save');
+      return;
+    }
+    setBulkSaving(true);
+    try {
+      for (const product of targets) {
+        const edit = edits[product.id] ?? getDefaultEditState(product);
+        const result = buildInventoryUpdate(product, edit);
+        if ('error' in result) {
+          setStatus(null, result.error);
+          return;
+        }
+        setSavingId(product.id);
+        await productsApi.update(product.id, result.payload);
+      }
+      await onRefresh();
+      setStatus('Inventory updated');
+    } catch (error) {
+      console.error(error);
+      setStatus(null, error instanceof Error ? error.message : 'Failed to update inventory');
+    } finally {
+      setSavingId(null);
+      setBulkSaving(false);
+    }
+  };
+
+  const handleUnhideAll = async () => {
+    const targets =
+      selectedHiddenIds.size > 0
+        ? filteredProducts.filter((product) => selectedHiddenIds.has(product.id))
+        : filteredProducts;
+    if (targets.length === 0) return;
+
+    setBulkSaving(true);
+    setEdits((current) => {
+      const next = { ...current };
+      targets.forEach((product) => {
+        next[product.id] = {
+          ...(next[product.id] ?? getDefaultEditState(product)),
+          visibility: DEFAULT_VISIBILITY,
+        };
+      });
+      return next;
+    });
+
+    try {
+      for (const product of targets) {
+        setSavingId(product.id);
+        await productsApi.update(product.id, { visibility: DEFAULT_VISIBILITY });
+      }
+      await onRefresh();
+      setStatus(targets.length === 1 ? 'Product visible' : 'Products visible');
+      setSelectedHiddenIds(new Set());
+    } catch (error) {
+      console.error(error);
+      setStatus(null, error instanceof Error ? error.message : 'Failed to update product visibility');
+    } finally {
+      setSavingId(null);
+      setBulkSaving(false);
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-background p-6 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-slate-900">Inventory</h2>
-          <p className="text-sm text-slate-600">Restock products, adjust pricing, and schedule sales.</p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -509,6 +602,36 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
           >
             Refresh
           </button>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => void handleSaveAll()}
+              disabled={bulkSaving || !hasBulkEdits}
+              className={cn(
+                'h-11 rounded-xl px-4 text-sm font-semibold text-white transition',
+                bulkSaving || !hasBulkEdits
+                  ? 'cursor-not-allowed bg-rose-200 text-white/80'
+                  : 'bg-rose-600 hover:bg-rose-700'
+              )}
+            >
+              Save all
+            </button>
+          )}
+          {hiddenFilterActive && (
+            <button
+              type="button"
+              onClick={() => void handleUnhideAll()}
+              disabled={bulkSaving || filteredProducts.length === 0}
+              className={cn(
+                'h-11 rounded-xl border px-4 text-sm font-semibold transition',
+                bulkSaving || filteredProducts.length === 0
+                  ? 'cursor-not-allowed border-rose-200 bg-rose-50 text-rose-300'
+                  : 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
+              )}
+            >
+              Unhide all
+            </button>
+          )}
         </div>
       </div>
 
@@ -546,6 +669,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                   const showBackorderBadge = Boolean(product.inventory?.allowBackorder) && status !== 'preorder';
                   const rowHasEdits = hasEdits(product);
                   const isSaving = savingId === product.id;
+                  const isHiddenSelected = selectedHiddenIds.has(product.id);
                   const currentQuantity = product.inventory?.quantity ?? 0;
                   const parsedNextQuantity = Number.parseInt(edit.quantity, 10);
                   const hasPendingQuantity =
@@ -583,6 +707,28 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                       <td className="px-2 py-3 align-top min-w-0">
                         <div className="flex flex-col gap-2">
                           <div className="flex gap-3">
+                            {hiddenFilterActive && (
+                              <label className="mt-1 flex h-5 w-5 items-center justify-center">
+                                <input
+                                  type="checkbox"
+                                  checked={isHiddenSelected}
+                                  onChange={(event) => {
+                                    const checked = event.target.checked;
+                                    setSelectedHiddenIds((current) => {
+                                      const next = new Set(current);
+                                      if (checked) {
+                                        next.add(product.id);
+                                      } else {
+                                        next.delete(product.id);
+                                      }
+                                      return next;
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500/30"
+                                  aria-label="Select product to unhide"
+                                />
+                              </label>
+                            )}
                             <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
                               <img
                                 src={product.images?.[0] ?? 'https://placehold.co/80x80?text=Product'}

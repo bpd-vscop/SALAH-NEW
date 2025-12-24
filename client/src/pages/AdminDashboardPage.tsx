@@ -48,6 +48,7 @@ import type {
   // BannerFormState,
   CategoryFormState,
   CategoryDisplayFormState,
+  ComposeClientRef,
   DeleteConfirmationState,
   FeatureFormState,
   HeroSlideFormState,
@@ -90,6 +91,37 @@ const canDeleteHomepage = (role: UserRole) => role === 'super_admin' || role ===
 const isObjectId = (value?: string | null) => Boolean(value && /^[0-9a-fA-F]{24}$/.test(value));
 
 const makeTempId = () => Math.random().toString(36).slice(2, 10);
+
+const normalizeComposeClients = (input: unknown): ComposeClientRef[] => {
+  if (!Array.isArray(input)) return [];
+  const map = new Map<string, ComposeClientRef>();
+  input.forEach((entry) => {
+    if (typeof entry === 'string') {
+      if (!entry) return;
+      if (!map.has(entry)) {
+        map.set(entry, { id: entry, name: null, email: null, clientType: null });
+      }
+      return;
+    }
+    if (!entry || typeof entry !== 'object') return;
+    const record = entry as { id?: unknown; userId?: unknown; name?: unknown; email?: unknown; clientType?: unknown };
+    const id =
+      typeof record.id === 'string'
+        ? record.id
+        : typeof record.userId === 'string'
+          ? record.userId
+          : null;
+    if (!id) return;
+    if (map.has(id)) return;
+    map.set(id, {
+      id,
+      name: typeof record.name === 'string' ? record.name : null,
+      email: typeof record.email === 'string' ? record.email : null,
+      clientType: typeof record.clientType === 'string' ? record.clientType : null,
+    });
+  });
+  return Array.from(map.values());
+};
 
 const makeEmptyCompatibilityRow = () => ({
   id: makeTempId(),
@@ -424,6 +456,7 @@ export const AdminDashboardPage: React.FC = () => {
   // const [banners] = useState<Banner[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [messagesUnreadCount, setMessagesUnreadCount] = useState(0);
+  const [composeRequest, setComposeRequest] = useState<{ clients: ComposeClientRef[] } | null>(null);
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
   const [featuredItems, setFeaturedItems] = useState<FeaturedShowcaseItem[]>([]);
   const [menuSectionsDraft, setMenuSectionsDraft] = useState<MenuSectionInput[]>([]);
@@ -491,8 +524,13 @@ export const AdminDashboardPage: React.FC = () => {
           active?: string;
           homepageSection?: 'hero' | 'featured';
           usersSection?: 'staff' | 'clients';
+          openCompose?: boolean;
+          preselectedClients?: unknown;
         }
       | null;
+
+    const preselectedClients = normalizeComposeClients(state?.preselectedClients);
+    const shouldOpenCompose = Boolean(state?.openCompose) || preselectedClients.length > 0;
 
     if (state?.active) {
       if (state.active === 'homepage') {
@@ -513,7 +551,12 @@ export const AdminDashboardPage: React.FC = () => {
       setActiveTab('users');
     }
 
-    if (state?.active || state?.homepageSection || state?.usersSection) {
+    if (shouldOpenCompose) {
+      setComposeRequest({ clients: preselectedClients });
+      setActiveTab('messages');
+    }
+
+    if (state?.active || state?.homepageSection || state?.usersSection || state?.openCompose || state?.preselectedClients) {
       navigate('/admin', { replace: true, state: null });
     }
   }, [location.state, navigate]);
@@ -1987,7 +2030,11 @@ export const AdminDashboardPage: React.FC = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
-              <MessagesAdminSection setStatus={setStatus} />
+              <MessagesAdminSection
+                setStatus={setStatus}
+                composeRequest={composeRequest}
+                onComposeRequestHandled={() => setComposeRequest(null)}
+              />
             </motion.div>
           )}
 
@@ -2106,6 +2153,7 @@ export const AdminDashboardPage: React.FC = () => {
                 canEditOrders={canEditOrders(role)}
                 orderStatuses={orderStatuses}
                 onUpdateStatus={updateOrderStatus}
+                onRefresh={refreshOrders}
               />
             </motion.div>
           )}

@@ -1,36 +1,46 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Package, MessageSquare, Download, MapPin, Building2, Mail, Phone, CheckCircle } from 'lucide-react';
 import { ordersApi } from '../api/orders';
 import type { Order, OrderStatus } from '../types/api';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { AdminTopNav } from '../components/dashboard/AdminTopNav';
 import { StatusPill } from '../components/common/StatusPill';
-import { Select } from '../components/ui/Select';
-import { formatCurrency, formatTimestamp } from '../utils/format';
+import { formatCurrency } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
 import { adminTabs, getMenuIcon } from '../utils/adminSidebar';
+import { cn } from '../utils/cn';
 
 const ORDER_STATUSES: OrderStatus[] = ['pending', 'processing', 'completed', 'cancelled'];
 
 const resolveUploadsHref = (value?: string | null) => {
   const trimmed = typeof value === 'string' ? value.trim() : '';
-  if (!trimmed) {
-    return null;
-  }
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return trimmed;
-  }
-  if (trimmed.startsWith('/uploads/')) {
-    return trimmed;
-  }
+  if (!trimmed) return null;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('/uploads/')) return trimmed;
   return `/uploads/${trimmed.replace(/^\/+/, '')}`;
 };
 
-const getOrderTone = (status: OrderStatus) => {
+const getStatusTone = (status: OrderStatus) => {
   if (status === 'completed') return 'positive';
   if (status === 'cancelled') return 'critical';
   if (status === 'processing') return 'warning';
   return 'warning';
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) return '—';
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
 };
 
 export const AdminOrderDetailsPage: React.FC = () => {
@@ -93,6 +103,12 @@ export const AdminOrderDetailsPage: React.FC = () => {
     }
   };
 
+  const handleChatClick = () => {
+    if (order?.userId) {
+      navigate('/admin', { state: { active: 'messages', clientId: order.userId } });
+    }
+  };
+
   const customer = order?.user ?? null;
   const profileImageUrl = resolveUploadsHref(customer?.profileImage ?? null);
   const verificationHref = resolveUploadsHref(customer?.verificationFileUrl ?? null);
@@ -122,46 +138,51 @@ export const AdminOrderDetailsPage: React.FC = () => {
       contentKey={id ? `order-${id}` : 'order'}
     >
       <div className="space-y-6">
-        <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => navigate('/admin', { state: { active: 'orders' } })}
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                Back to Orders
-              </button>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">
-                  {order ? `Order #${order.id.slice(-6)}` : 'Order'}
-                </h1>
-                <p className="text-sm text-slate-600">
-                  {order ? `Created ${formatTimestamp(order.createdAt)} • Updated ${formatTimestamp(order.updatedAt)}` : '—'}
-                </p>
-              </div>
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => navigate('/admin', { state: { active: 'orders' } })}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">
+                {order ? `Order #${order.id.slice(-6)}` : 'Order'}
+              </h1>
+              <p className="text-sm text-muted">
+                {order ? `Created ${formatDate(order.createdAt)}` : '—'}
+              </p>
             </div>
-
-            {order && (
-              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-                <StatusPill label={order.status} tone={getOrderTone(order.status)} />
-                {canEdit ? (
-                  <Select
-                    value={order.status}
-                    onChange={(value) => handleStatusChange(value as OrderStatus)}
-                    options={ORDER_STATUSES.map((status) => ({ value: status, label: status }))}
-                    placeholder="Select status"
-                    className="min-w-[180px]"
-                  />
-                ) : (
-                  <span className="text-xs text-muted">No access to edit status</span>
-                )}
-              </div>
-            )}
           </div>
+
+          {order && (
+            <div className="flex items-center gap-3">
+              <StatusPill label={order.status} tone={getStatusTone(order.status)} />
+              {canEdit && (
+                <div className="flex items-center gap-1 rounded-xl border border-border bg-white p-1">
+                  {ORDER_STATUSES.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => handleStatusChange(status)}
+                      disabled={saving}
+                      className={cn(
+                        'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                        order.status === status
+                          ? 'bg-primary text-white'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      )}
+                    >
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {error && (
@@ -171,200 +192,247 @@ export const AdminOrderDetailsPage: React.FC = () => {
         )}
 
         {loading && (
-          <div className="rounded-2xl border border-dashed border-border bg-background px-4 py-10 text-center text-sm text-muted">
-            Loading order…
+          <div className="rounded-2xl border border-dashed border-border bg-surface px-4 py-16 text-center">
+            <Package className="mx-auto h-10 w-10 text-slate-300" />
+            <p className="mt-2 text-sm text-muted">Loading order...</p>
           </div>
         )}
 
         {!loading && order && (
           <div className="grid gap-6 lg:grid-cols-3">
+            {/* Main Content */}
             <div className="space-y-6 lg:col-span-2">
-              <section className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-                <div className="mb-4 flex items-center justify-between">
+              {/* Items */}
+              <section className="rounded-2xl border border-border bg-surface shadow-sm">
+                <div className="flex items-center justify-between border-b border-border px-6 py-4">
                   <h2 className="text-lg font-semibold text-slate-900">Items</h2>
-                  <div className="text-sm text-slate-600">
-                    {order.products.length} lines • {totalQty} qty
-                  </div>
+                  <span className="text-sm text-muted">
+                    {order.products.length} line{order.products.length !== 1 ? 's' : ''} · {totalQty} item{totalQty !== 1 ? 's' : ''}
+                  </span>
                 </div>
-
-                <div className="overflow-x-auto rounded-xl border border-border">
+                <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-border text-left text-sm">
-                    <thead className="bg-background/80 text-xs uppercase tracking-wide text-muted">
+                    <thead className="bg-slate-50/80 text-xs uppercase tracking-wide text-muted">
                       <tr>
-                        <th className="px-4 py-3 font-semibold">Product</th>
-                        <th className="px-4 py-3 font-semibold text-right">Qty</th>
-                        <th className="px-4 py-3 font-semibold text-right">Price</th>
-                        <th className="px-4 py-3 font-semibold text-right">Line total</th>
-                        <th className="px-4 py-3 font-semibold">Tags</th>
+                        <th className="px-6 py-3 font-semibold">Product</th>
+                        <th className="px-6 py-3 font-semibold text-center">Qty</th>
+                        <th className="px-6 py-3 font-semibold text-right">Price</th>
+                        <th className="px-6 py-3 font-semibold text-right">Total</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border bg-surface">
+                    <tbody className="divide-y divide-border">
                       {order.products.map((item) => (
-                        <tr key={`${order.id}-${item.productId}`} className="hover:bg-primary/5">
-                          <td className="px-4 py-3">
-                            <div className="font-medium text-slate-900">{item.name}</div>
-                            <div className="font-mono text-xs text-slate-400">{item.productId}</div>
-                          </td>
-                          <td className="px-4 py-3 text-right text-sm text-slate-700">{item.quantity}</td>
-                          <td className="px-4 py-3 text-right text-sm text-slate-700">
-                            {formatCurrency(item.price)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-sm font-semibold text-slate-900">
-                            {formatCurrency(item.price * item.quantity)}
-                          </td>
-                          <td className="px-4 py-3">
-                            {item.tagsAtPurchase?.length ? (
-                              <div className="flex flex-wrap gap-2">
-                                {item.tagsAtPurchase.map((tag) => (
-                                  <span
-                                    key={`${item.productId}-${tag}`}
-                                    className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
+                        <tr key={`${order.id}-${item.productId}`} className="hover:bg-slate-50/50">
+                          <td className="px-6 py-4">
+                            <div className="flex items-start gap-3">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100">
+                                <Package className="h-5 w-5 text-slate-400" />
                               </div>
-                            ) : (
-                              <span className="text-xs text-slate-400">—</span>
-                            )}
+                              <div className="min-w-0">
+                                <p className="font-medium text-slate-900">{item.name}</p>
+                                <p className="font-mono text-xs text-muted">{item.productId.slice(-12)}</p>
+                                {item.tagsAtPurchase?.length > 0 && (
+                                  <div className="mt-1.5 flex flex-wrap gap-1">
+                                    {item.tagsAtPurchase.map((tag) => (
+                                      <span
+                                        key={`${item.productId}-${tag}`}
+                                        className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center text-slate-700">{item.quantity}</td>
+                          <td className="px-6 py-4 text-right text-slate-700">{formatCurrency(item.price)}</td>
+                          <td className="px-6 py-4 text-right font-semibold text-slate-900">
+                            {formatCurrency(item.price * item.quantity)}
                           </td>
                         </tr>
                       ))}
                       {!order.products.length && (
                         <tr>
-                          <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted">
-                            No items found for this order.
+                          <td colSpan={4} className="px-6 py-12 text-center text-sm text-muted">
+                            No items in this order.
                           </td>
                         </tr>
                       )}
                     </tbody>
                   </table>
                 </div>
+                <div className="border-t border-border bg-slate-50/50 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-600">Total</span>
+                    <span className="text-xl font-bold text-slate-900">{formatCurrency(total)}</span>
+                  </div>
+                </div>
               </section>
             </div>
 
+            {/* Sidebar */}
             <aside className="space-y-6">
-              <section className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-slate-900">Summary</h2>
-                <div className="mt-4 space-y-3 text-sm">
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span>Order ID</span>
-                    <span className="font-mono text-xs text-slate-600">{order.id}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span>Status</span>
-                    <span className="font-semibold text-slate-900">{order.status}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span>Lines</span>
-                    <span className="font-semibold text-slate-900">{order.products.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span>Total qty</span>
-                    <span className="font-semibold text-slate-900">{totalQty}</span>
-                  </div>
-                  <div className="h-px bg-border" />
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span>Total</span>
-                    <span className="text-lg font-bold text-slate-900">{formatCurrency(total)}</span>
-                  </div>
+              {/* Customer */}
+              <section className="rounded-2xl border border-border bg-surface shadow-sm">
+                <div className="border-b border-border px-6 py-4">
+                  <h2 className="text-lg font-semibold text-slate-900">Customer</h2>
                 </div>
-              </section>
+                <div className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+                      {profileImageUrl ? (
+                        <img src={profileImageUrl} alt="Profile" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-lg font-bold text-slate-500">
+                          {(customer?.name || order.userId || 'U')[0]?.toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate font-semibold text-slate-900">
+                          {customer?.name || 'Unknown customer'}
+                        </p>
+                        {customer?.clientType && (
+                          <span className={cn(
+                            'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase',
+                            customer.clientType === 'B2B'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-purple-100 text-purple-700'
+                          )}>
+                            {customer.clientType}
+                          </span>
+                        )}
+                      </div>
+                      {customer?.email && (
+                        <p className="truncate text-sm text-muted">{customer.email}</p>
+                      )}
+                    </div>
+                  </div>
 
-              <section className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-slate-900">Customer</h2>
-
-                <div className="mt-4 flex items-center gap-4">
-                  <div className="h-12 w-12 overflow-hidden rounded-2xl bg-slate-100">
-                    {profileImageUrl ? (
-                      <img src={profileImageUrl} alt="Profile" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm font-bold text-slate-600">
-                        {(customer?.name || order.userId || 'U')[0]?.toUpperCase()}
+                  <div className="mt-4 space-y-2">
+                    {customer?.email && (
+                      <div className="flex items-center gap-3 text-sm text-slate-600">
+                        <Mail className="h-4 w-4 text-muted" />
+                        <span className="truncate">{customer.email}</span>
+                      </div>
+                    )}
+                    {phone && (
+                      <div className="flex items-center gap-3 text-sm text-slate-600">
+                        <Phone className="h-4 w-4 text-muted" />
+                        <span>{phone}</span>
+                      </div>
+                    )}
+                    {customer?.isEmailVerified && (
+                      <div className="flex items-center gap-3 text-sm text-emerald-600">
+                        <CheckCircle className="h-4 w-4" />
+                        <span>Email verified</span>
                       </div>
                     )}
                   </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-slate-900">
-                      {customer?.name || 'Unknown customer'}
-                    </div>
-                    <div className="truncate text-xs text-slate-500">{customer?.email || '—'}</div>
-                    <div className="truncate text-xs text-slate-500">{phone || '—'}</div>
-                  </div>
-                </div>
 
-                <div className="mt-4 grid gap-3">
-                  <div className="flex items-center justify-between text-sm text-slate-700">
-                    <span>Client type</span>
-                    <span className="font-semibold text-slate-900">{customer?.clientType || '—'}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-700">
-                    <span>Email verified</span>
-                    <span className="font-semibold text-slate-900">
-                      {customer?.isEmailVerified == null ? '—' : customer.isEmailVerified ? 'Yes' : 'No'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-700">
-                    <span>Account status</span>
-                    <span className="font-semibold text-slate-900">{customer?.status || '—'}</span>
-                  </div>
                   {customer?.company?.name && (
-                    <div className="rounded-xl border border-border bg-background px-4 py-3">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Company</div>
-                      <div className="mt-1 text-sm font-semibold text-slate-900">{customer.company.name}</div>
-                      {customer.company.address && (
-                        <div className="mt-1 text-xs text-slate-600">{customer.company.address}</div>
-                      )}
-                      {customer.company.phone && (
-                        <div className="mt-1 text-xs text-slate-600">{customer.company.phone}</div>
-                      )}
+                    <div className="mt-4 rounded-xl bg-slate-50 p-4">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                        <Building2 className="h-3.5 w-3.5" />
+                        Company
+                      </div>
+                      <p className="mt-1 font-semibold text-slate-900">{customer.company.name}</p>
                       {customer.company.website && (
-                        <div className="mt-1 text-xs text-slate-600">{customer.company.website}</div>
+                        <p className="mt-0.5 text-sm text-muted">{customer.company.website}</p>
                       )}
                     </div>
                   )}
-                  {verificationHref && (
-                    <a
-                      href={verificationHref}
-                      download
-                      className="inline-flex items-center justify-center rounded-xl border border-border bg-white px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/5"
+
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleChatClick}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                     >
-                      Download verification document
-                    </a>
-                  )}
+                      <MessageSquare className="h-4 w-4" />
+                      Message
+                    </button>
+                    {verificationHref && (
+                      <a
+                        href={verificationHref}
+                        download
+                        className="flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <Download className="h-4 w-4" />
+                      </a>
+                    )}
+                  </div>
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-slate-900">Shipping addresses</h2>
-                <div className="mt-4 space-y-3">
-                  {customer?.shippingAddresses?.length ? (
-                    customer.shippingAddresses.map((addr, index) => (
+              {/* Shipping */}
+              {customer?.shippingAddresses && customer.shippingAddresses.length > 0 && (
+                <section className="rounded-2xl border border-border bg-surface shadow-sm">
+                  <div className="border-b border-border px-6 py-4">
+                    <h2 className="text-lg font-semibold text-slate-900">Shipping</h2>
+                  </div>
+                  <div className="p-6 space-y-3">
+                    {customer.shippingAddresses.map((addr, index) => (
                       <div
                         key={addr.id || `${order.id}-shipping-${index}`}
-                        className="rounded-xl border border-border bg-background px-4 py-3 text-sm text-slate-700"
+                        className={cn(
+                          'rounded-xl p-4',
+                          addr.isDefault ? 'bg-primary/5 border border-primary/20' : 'bg-slate-50'
+                        )}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="font-semibold text-slate-900">{addr.fullName || '—'}</div>
-                          {addr.isDefault && (
-                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                              Default
-                            </span>
-                          )}
+                        <div className="flex items-start gap-3">
+                          <MapPin className={cn(
+                            'h-4 w-4 mt-0.5 flex-shrink-0',
+                            addr.isDefault ? 'text-primary' : 'text-muted'
+                          )} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-slate-900">{addr.fullName || '—'}</p>
+                              {addr.isDefault && (
+                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-sm text-slate-600">
+                              {[addr.addressLine1, addr.addressLine2].filter(Boolean).join(', ')}
+                            </p>
+                            <p className="text-sm text-slate-600">
+                              {[addr.city, addr.state, addr.postalCode].filter(Boolean).join(', ')}
+                            </p>
+                            <p className="text-sm text-slate-600">{addr.country}</p>
+                            {addr.phone && (
+                              <p className="mt-1 text-sm text-muted">{addr.phone}</p>
+                            )}
+                          </div>
                         </div>
-                        <div className="mt-1 text-xs text-slate-600">
-                          {[addr.addressLine1, addr.addressLine2, addr.city, addr.state, addr.postalCode, addr.country]
-                            .filter(Boolean)
-                            .join(', ') || '—'}
-                        </div>
-                        <div className="mt-1 text-xs text-slate-600">{addr.phone || '—'}</div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-center text-sm text-muted">
-                      No saved shipping addresses.
-                    </div>
-                  )}
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Order Info */}
+              <section className="rounded-2xl border border-border bg-surface shadow-sm">
+                <div className="border-b border-border px-6 py-4">
+                  <h2 className="text-lg font-semibold text-slate-900">Order Info</h2>
+                </div>
+                <div className="p-6 space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted">Order ID</span>
+                    <span className="font-mono text-xs text-slate-600">{order.id}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted">Created</span>
+                    <span className="text-slate-900">{formatDate(order.createdAt)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted">Updated</span>
+                    <span className="text-slate-900">{formatDate(order.updatedAt)}</span>
+                  </div>
                 </div>
               </section>
             </aside>

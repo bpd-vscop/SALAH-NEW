@@ -226,4 +226,11 @@ export type OrderConflictState =
     }
   | null;
 
+export interface ComposeClientRef {
+  id: string;
+  name: string | null;
+  email: string | null;
+  clientType: string | null;
+}
+
 export type StatusSetter = (message: string | null, errorMessage?: string | null) => void;

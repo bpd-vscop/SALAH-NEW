@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { productsApi } from '../../api/products';
@@ -165,6 +166,9 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   // Step navigation state
   const [currentStep, setCurrentStep] = useState(0);
   const [stepValidation, setStepValidation] = useState<Record<number, 'valid' | 'warning' | 'incomplete'>>({});
+  const stepTabsRef = useRef<HTMLDivElement>(null);
+  const [canScrollStepsLeft, setCanScrollStepsLeft] = useState(false);
+  const [canScrollStepsRight, setCanScrollStepsRight] = useState(false);
 
   // Reset to first step when switching between products or returning to list
   useEffect(() => {
@@ -172,6 +176,20 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     setStepValidation({});
     setAllBrandsModelsAdded(false);
   }, [selectedProductId]);
+
+  const updateStepScrollState = useCallback(() => {
+    const container = stepTabsRef.current;
+    if (!container) return;
+    const maxScrollLeft = container.scrollWidth - container.clientWidth;
+    setCanScrollStepsLeft(container.scrollLeft > 4);
+    setCanScrollStepsRight(container.scrollLeft < maxScrollLeft - 4);
+  }, []);
+
+  useEffect(() => {
+    updateStepScrollState();
+    window.addEventListener('resize', updateStepScrollState);
+    return () => window.removeEventListener('resize', updateStepScrollState);
+  }, [updateStepScrollState]);
 
   useEffect(() => {
     let active = true;
@@ -315,6 +333,16 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     setStepValidation(prev => ({ ...prev, ...newValidations }));
     setCurrentStep(stepIndex);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const scrollStepTabs = (direction: 'left' | 'right') => {
+    const container = stepTabsRef.current;
+    if (!container) return;
+    const distance = Math.max(220, container.clientWidth * 0.6);
+    container.scrollBy({
+      left: direction === 'left' ? -distance : distance,
+      behavior: 'smooth',
+    });
   };
 
   // Prevent Enter key from submitting form unless on the last step
@@ -1941,10 +1969,18 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
         >
           {/* Step Indicator */}
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-slate-800">
-                {selectedProductId ? 'Edit Product' : 'Add New Product'}
-              </h2>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-xl font-bold text-slate-800">
+                  {selectedProductId ? 'Edit Product' : 'Add New Product'}
+                </h2>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20"
+                >
+                  Save changes
+                </button>
+              </div>
               <span className="text-sm text-muted">
                 Step {currentStep + 1} of {FORM_STEPS.length}
               </span>
@@ -1959,11 +1995,30 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
             </div>
 
             {/* Step tabs */}
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {FORM_STEPS.map((step, index) => {
-                const validation = stepValidation[index];
-                const isIncomplete = validation === 'incomplete';
-                const isWarning = validation === 'warning';
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => scrollStepTabs('left')}
+                disabled={!canScrollStepsLeft}
+                aria-label="Scroll steps left"
+                className={cn(
+                  'absolute left-0 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border transition',
+                  canScrollStepsLeft
+                    ? 'border-primary bg-primary text-white shadow-md'
+                    : 'cursor-not-allowed border-slate-200 bg-white text-slate-300'
+                )}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <div
+                ref={stepTabsRef}
+                onScroll={updateStepScrollState}
+                className="flex gap-2 overflow-x-auto pb-2 pl-12 pr-12 scroll-smooth scrollbar-hide"
+              >
+                {FORM_STEPS.map((step, index) => {
+                  const validation = stepValidation[index];
+                  const isIncomplete = validation === 'incomplete';
+                  const isWarning = validation === 'warning';
 
                 return (
                   <button
@@ -2029,6 +2084,21 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                   </button>
                 );
               })}
+              </div>
+              <button
+                type="button"
+                onClick={() => scrollStepTabs('right')}
+                disabled={!canScrollStepsRight}
+                aria-label="Scroll steps right"
+                className={cn(
+                  'absolute right-0 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border transition',
+                  canScrollStepsRight
+                    ? 'border-primary bg-primary text-white shadow-md'
+                    : 'cursor-not-allowed border-slate-200 bg-white text-slate-300'
+                )}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
 
             {/* Validation Warning */}
