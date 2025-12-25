@@ -16,6 +16,7 @@ import { CategoryPage } from '../pages/CategoryPage';
 import { CategoriesPage } from '../pages/CategoriesPage';
 import { ClientRegistrationPage } from '../pages/ClientRegistrationPage';
 import { ClientDashboardPage } from '../pages/ClientDashboardPage';
+import { WishlistPage } from '../pages/WishlistPage';
 
 export const AppRouter: React.FC = () => (
   <BrowserRouter>
@@ -40,6 +41,7 @@ export const AppRouter: React.FC = () => (
       <Route element={<ProtectedRoute allowRoles={['client']} /> }>
         <Route path="/dashboard" element={<ClientDashboardPage />} />
         <Route path="/account" element={<ClientDashboardPage />} />
+        <Route path="/wishlist" element={<WishlistPage />} />
       </Route>
 
       <Route element={<ProtectedRoute allowRoles={['super_admin', 'admin', 'staff']} /> }>

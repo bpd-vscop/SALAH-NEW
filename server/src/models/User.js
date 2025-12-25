@@ -16,6 +16,22 @@ const cartItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const wishlistItemSchema = new mongoose.Schema(
+  {
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
+      required: true,
+    },
+    quantity: {
+      type: Number,
+      min: 1,
+      default: 1,
+    },
+  },
+  { _id: false }
+);
+
 const companyInfoSchema = new mongoose.Schema(
   {
     name: {
@@ -144,6 +160,10 @@ const userSchema = new mongoose.Schema(
       type: [cartItemSchema],
       default: [],
     },
+    wishlist: {
+      type: [wishlistItemSchema],
+      default: [],
+    },
     orderHistory: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -165,6 +185,12 @@ const userSchema = new mongoose.Schema(
         ret.lastActiveAt = ret.lastActiveAt ? new Date(ret.lastActiveAt).toISOString() : null;
         ret.cart = Array.isArray(ret.cart)
           ? ret.cart.map((item) => ({
+              productId: item.productId ? item.productId.toString() : null,
+              quantity: item.quantity,
+            }))
+          : [];
+        ret.wishlist = Array.isArray(ret.wishlist)
+          ? ret.wishlist.map((item) => ({
               productId: item.productId ? item.productId.toString() : null,
               quantity: item.quantity,
             }))

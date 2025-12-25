@@ -1,7 +1,10 @@
+import { Heart, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Product } from '../../types/api';
 import { formatCurrency } from '../../utils/format';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
+import { useWishlist } from '../../context/WishlistContext';
 import { cn } from '../../utils/cn';
 
 type ProductCardBadgeVariant = 'inStock' | 'onSale' | 'backInStock' | 'newArrival' | 'outOfStock';
@@ -87,7 +90,9 @@ const isSaleActive = (product: Product) => {
 };
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, className, badge, hideTags = false }) => {
+  const { user } = useAuth();
   const { addItem } = useCart();
+  const { items: wishlistItems, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
 
   const allowBackorder = product.inventory?.allowBackorder ?? false;
   const availableQuantity = product.inventory?.quantity ?? null;
@@ -105,10 +110,28 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
     addItem({ productId: product.id, quantity: 1 }, product);
   };
 
+  const canWishlist = user?.role === 'client';
+  const isInWishlist = wishlistItems.some((line) => line.productId === product.id);
+
+  const handleToggleWishlist = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!canWishlist) {
+      return;
+    }
+    if (isInWishlist) {
+      await removeWishlistItem(product.id);
+    } else {
+      await addWishlistItem({ productId: product.id, quantity: 1 }, product);
+    }
+  };
+
   const saleActive = isSaleActive(product);
   const displayPrice = saleActive ? (product.salePrice as number) : product.price;
   const effectiveBadge: ProductCardBadge | null =
     badge ?? (outOfStock ? { label: 'Out of stock', variant: 'outOfStock' } : null);
+  const ratingValue = product.reviewsSummary?.averageRating ?? 0;
+  const ratingCount = product.reviewsSummary?.reviewCount ?? 0;
 
   return (
     <Link
@@ -118,30 +141,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
         className
       )}
     >
-      {/* Add to Cart Icon - Top Right */}
-      <button
-        type="button"
-        onClick={handleAddToCart}
-        disabled={outOfStock}
-        className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-primary shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-primary hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:bg-white/90 disabled:hover:text-primary"
-        aria-label="Add to cart"
-      >
-        <svg
-          className="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-          />
-        </svg>
-      </button>
-
       {/* Image Container with Hover Zoom */}
       <div className="relative aspect-[10/9] w-full overflow-hidden bg-slate-100">
         <img
@@ -168,6 +167,39 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
             ))}
           </div>
         ) : null}
+
+        {canWishlist ? (
+          <button
+            type="button"
+            onClick={handleToggleWishlist}
+            className={cn(
+              'absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/90 text-slate-600 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110',
+              isInWishlist ? 'text-rose-500' : 'hover:text-rose-500'
+            )}
+            aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+          >
+            <Heart className={cn('h-5 w-5', isInWishlist ? 'fill-current' : '')} />
+          </button>
+        ) : null}
+
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/45 opacity-0 transition-all duration-300 group-hover:opacity-100">
+          <div className="flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={outOfStock}
+              className={cn(
+                'rounded-full px-6 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-md transition',
+                outOfStock ? 'cursor-not-allowed bg-slate-400' : 'bg-primary hover:bg-primary-dark'
+              )}
+            >
+              {outOfStock ? 'Out of stock' : 'Add to cart'}
+            </button>
+            <span className="rounded-full border border-white/70 px-6 py-2 text-xs font-semibold uppercase tracking-wide text-white">
+              View details
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Product Info */}
@@ -184,6 +216,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
         >
           {product.name}
         </h3>
+
+        {ratingCount > 0 ? (
+          <div className="flex items-center gap-1 text-xs text-slate-600">
+            <Star className="h-3.5 w-3.5 text-amber-500" />
+            <span className="font-semibold text-slate-700">{ratingValue.toFixed(1)}</span>
+            <span>({ratingCount})</span>
+          </div>
+        ) : null}
 
         {/* Price - Right to Left Alignment */}
         <div className="flex items-baseline justify-end gap-2">

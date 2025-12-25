@@ -149,6 +149,11 @@ export interface CartItem {
   quantity: number;
 }
 
+export interface WishlistItem {
+  productId: string;
+  quantity: number;
+}
+
 export interface CompanyInfo {
   name: string | null;
   address: string | null;
@@ -187,6 +192,7 @@ export interface User {
   isEmailVerified?: boolean;
   shippingAddresses?: ShippingAddress[];
   cart: CartItem[];
+  wishlist: WishlistItem[];
   orderHistory: string[];
   accountCreated?: string | null;
   accountUpdated?: string | null;

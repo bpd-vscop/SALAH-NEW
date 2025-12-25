@@ -283,6 +283,23 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
   }, [isSignedInClient, user?.id]);
 
   useEffect(() => {
+    const handleOpen = (event: Event) => {
+      const detail = event instanceof CustomEvent ? event.detail : null;
+      setIsOpen(false);
+      if (detail?.view === 'chat') {
+        setActiveView('chat-select');
+      } else {
+        setActiveView('email-select');
+      }
+    };
+
+    window.addEventListener('openContactWidget', handleOpen as EventListener);
+    return () => {
+      window.removeEventListener('openContactWidget', handleOpen as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
     void refreshChatUnread();
     if (!isSignedInClient) return;
     const interval = setInterval(() => void refreshChatUnread(), 15000);

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { CreditCard, Headphones, Heart, Shield, ShoppingCart } from 'lucide-react';
 import { categoriesApi } from '../api/categories';
 import { manufacturersApi, type Manufacturer } from '../api/manufacturers';
 import { productsApi } from '../api/products';
@@ -8,6 +9,7 @@ import { ProductMediaGallery } from '../components/product/ProductMediaGallery';
 import { ProductDetailTabs } from '../components/product/ProductDetailTabs';
 import { ProductRecommendationRail } from '../components/product/ProductRecommendationRail';
 import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 import type { Category, Product, ProductInventoryStatus, ProductVariation } from '../types/api';
 import { formatCurrency } from '../utils/format';
 import { cn } from '../utils/cn';
@@ -117,11 +119,6 @@ const formatDate = (iso?: string | null): string | null => {
   });
 };
 
-const getCurrentUrl = () => {
-  if (typeof window === 'undefined') return '';
-  return window.location.href;
-};
-
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [product, setProduct] = useState<Product | null>(null);
@@ -136,6 +133,7 @@ export const ProductDetailPage: React.FC = () => {
   const [quantity, setQuantity] = useState<number>(1);
 
   const { addItem } = useCart();
+  const { items: wishlistItems, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
 
   useEffect(() => {
     if (!id) return;
@@ -306,24 +304,22 @@ export const ProductDetailPage: React.FC = () => {
     addItem({ productId: product.id, quantity }, product);
   };
 
-  const handleShare = (platform: 'facebook' | 'x' | 'whatsapp') => {
+  const isInWishlist = Boolean(product && wishlistItems.some((line) => line.productId === product.id));
+
+  const handleToggleWishlist = async () => {
     if (!product) return;
-    const shareUrl = encodeURIComponent(getCurrentUrl());
-    const shareText = encodeURIComponent(`${product.name} • ${formatCurrency(displayPrice)}`);
-
-    let url = '';
-    if (platform === 'facebook') {
-      url = `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`;
-    } else if (platform === 'x') {
-      url = `https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareText}`;
-    } else if (platform === 'whatsapp') {
-      url = `https://api.whatsapp.com/send?text=${shareText}%20${shareUrl}`;
-    }
-
-    if (url) {
-      window?.open(url, '_blank', 'noopener,noreferrer,width=600,height=500');
+    if (isInWishlist) {
+      await removeWishlistItem(product.id);
+    } else {
+      await addWishlistItem({ productId: product.id, quantity: 1 }, product);
     }
   };
+
+  const handleReportIncorrectInfo = () => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('openContactWidget', { detail: { view: 'email' } }));
+  };
+
 
   return (
     <SiteLayout>
@@ -531,38 +527,12 @@ export const ProductDetailPage: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => alert('Wishlist is coming soon!')}
+                  onClick={() => void handleToggleWishlist()}
                   className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
                 >
-                  <span aria-hidden="true">♡</span> Add to wishlist
+                  <Heart className={cn('h-4 w-4', isInWishlist ? 'text-rose-500' : 'text-slate-500')} />
+                  {isInWishlist ? 'Saved to wishlist' : 'Add to wishlist'}
                 </button>
-                <div className="ml-auto flex items-center gap-2">
-                  <span className="text-xs uppercase tracking-wide text-muted">Share</span>
-                  <button
-                    type="button"
-                    onClick={() => handleShare('facebook')}
-                    className="rounded-full border border-border p-2 text-slate-500 transition hover:border-primary hover:text-primary"
-                    aria-label="Share on Facebook"
-                  >
-                    f
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleShare('x')}
-                    className="rounded-full border border-border p-2 text-slate-500 transition hover:border-primary hover:text-primary"
-                    aria-label="Share on X"
-                  >
-                    x
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleShare('whatsapp')}
-                    className="rounded-full border border-border p-2 text-slate-500 transition hover:border-primary hover:text-primary"
-                    aria-label="Share on WhatsApp"
-                  >
-                    wa
-                  </button>
-                </div>
               </div>
 
               <dl className="grid gap-3 rounded-2xl border border-border bg-background p-4 text-xs text-muted">
@@ -638,12 +608,13 @@ export const ProductDetailPage: React.FC = () => {
               ) : null}
 
               <div className="flex flex-wrap gap-3 text-xs text-muted">
-                <a
-                  href={product.support?.supportEmail ? `mailto:${product.support.supportEmail}` : 'mailto:support@example.com'}
+                <button
+                  type="button"
+                  onClick={handleReportIncorrectInfo}
                   className="text-primary underline-offset-4 hover:underline"
                 >
                   Report incorrect product information
-                </a>
+                </button>
                 {product.support?.liveChatUrl ? (
                   <a
                     href={product.support.liveChatUrl}
@@ -673,20 +644,54 @@ export const ProductDetailPage: React.FC = () => {
             seo={product.seo ?? null}
           />
 
-          <section className="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Confidence & buyer assurances</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-background p-4">
-                <p className="text-sm font-semibold text-slate-900">Secure checkout</p>
-                <p className="mt-1 text-xs text-muted">256-bit encryption and PCI-compliant payment processing keep your transactions protected.</p>
+          <section className="rounded-3xl bg-slate-900 p-6 shadow-sm">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
+                    <ShoppingCart className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="mb-1 text-sm font-semibold text-white">Free Shipping</h4>
+                  <p className="text-xs text-slate-400">Free Express Shipping</p>
+                </div>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-background p-4">
-                <p className="text-sm font-semibold text-slate-900">Expert support</p>
-                <p className="mt-1 text-xs text-muted">Locksmith-trained product specialists are available by phone, chat, or email for fitment and programming questions.</p>
+
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
+                    <Shield className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="mb-1 text-sm font-semibold text-white">Money Guarantee</h4>
+                  <p className="text-xs text-slate-400">Within our Refund Policy</p>
+                </div>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-background p-4">
-                <p className="text-sm font-semibold text-slate-900">Fast shipping</p>
-                <p className="mt-1 text-xs text-muted">Orders before 3PM EST ship the same day from strategically placed US warehouses.</p>
+
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
+                    <Headphones className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="mb-1 text-sm font-semibold text-white">Online Support</h4>
+                  <p className="text-xs text-slate-400">After-Sales technical support service</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
+                    <CreditCard className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="mb-1 text-sm font-semibold text-white">Flexible Payment</h4>
+                  <p className="text-xs text-slate-400">Multiple Secured Payment Methods</p>
+                </div>
               </div>
             </div>
           </section>

@@ -6,6 +6,7 @@ const categoryRoutes = require('./categories');
 const productRoutes = require('./products');
 const orderRoutes = require('./orders');
 const cartRoutes = require('./cart');
+const wishlistRoutes = require('./wishlist');
 const uploadRoutes = require('./uploads');
 const heroSlideRoutes = require('./heroSlides');
 const featuredShowcaseRoutes = require('./featuredShowcase');
@@ -31,6 +32,7 @@ module.exports = () => {
   // banners removed
   router.use('/orders', orderRoutes);
   router.use('/cart', cartRoutes);
+  router.use('/wishlist', wishlistRoutes);
   router.use('/uploads', uploadRoutes);
   router.use('/hero-slides', heroSlideRoutes);
   router.use('/featured-showcase', featuredShowcaseRoutes);

@@ -7,15 +7,19 @@ import {
   ChevronDown,
   Link as LinkIcon,
   Cpu,
+  Heart,
   Key,
   MapPin,
   Menu,
+  Minus,
   Package,
+  Plus,
   Search,
   Shield,
   ShoppingBag,
   ShoppingCart,
   Sparkles,
+  Trash2,
   Truck,
   User,
   Wrench,
@@ -25,11 +29,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
 import { cn } from '../../utils/cn';
 import { menuApi } from '../../api/menu';
 import { productsApi } from '../../api/products';
 import { ordersApi } from '../../api/orders';
-import type { Order } from '../../types/api';
+import type { Order, Product } from '../../types/api';
+import { formatCurrency } from '../../utils/format';
 
 const phoneNumbers = ['+1-407-449-6740', '+1-407-452-7149', '+1-407-978-6077'];
 
@@ -118,6 +124,17 @@ const DEFAULT_MENU_SECTIONS: PreparedMenuSection[] = [
     visible: true,
   },
 ];
+
+const isSaleActive = (product: Product) => {
+  if (typeof product.salePrice !== 'number' || product.salePrice >= product.price) {
+    return false;
+  }
+
+  const now = new Date();
+  const startOk = product.saleStartDate ? now >= new Date(product.saleStartDate) : true;
+  const endOk = product.saleEndDate ? now <= new Date(product.saleEndDate) : true;
+  return startOk && endOk;
+};
 
 // Vehicle options will be loaded from the database
 
@@ -370,8 +387,26 @@ export const Header: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { items } = useCart();
+  const { items, addItem: addCartItem, updateItem: updateCartItem, removeItem: removeCartItem } = useCart();
+  const {
+    items: wishlistItems,
+    updateItem: updateWishlistItem,
+    removeItem: removeWishlistItem,
+  } = useWishlist();
   const cartCount = useMemo(() => items.reduce((sum, line) => sum + line.quantity, 0), [items]);
+  const wishlistCount = useMemo(() => wishlistItems.length, [wishlistItems]);
+  const showWishlist = user?.role === 'client';
+  const [cartProducts, setCartProducts] = useState<Record<string, Product>>({});
+  const [wishlistProducts, setWishlistProducts] = useState<Record<string, Product>>({});
+  const cartSubtotal = useMemo(() => {
+    return items.reduce((sum, line) => {
+      const product = cartProducts[line.productId];
+      if (!product) return sum;
+      const saleActive = isSaleActive(product);
+      const price = saleActive ? (product.salePrice as number) : product.price;
+      return sum + price * line.quantity;
+    }, 0);
+  }, [items, cartProducts]);
 
   const [menuSections, setMenuSections] = useState<PreparedMenuSection[]>([]);
   const [menuLinks, setMenuLinks] = useState<PreparedMenuLink[]>([]);
@@ -578,6 +613,10 @@ export const Header: React.FC = () => {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [mobileAccountMenuOpen, setMobileAccountMenuOpen] = useState(false);
+  const [cartMenuOpen, setCartMenuOpen] = useState(false);
+  const [wishlistMenuOpen, setWishlistMenuOpen] = useState(false);
+  const [wishlistSelectMode, setWishlistSelectMode] = useState(false);
+  const [wishlistSelectedIds, setWishlistSelectedIds] = useState<Set<string>>(new Set());
   const [vehicleSearchOpen, setVehicleSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -588,6 +627,8 @@ export const Header: React.FC = () => {
 
   const headerRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const cartMenuRef = useRef<HTMLDivElement>(null);
+  const wishlistMenuRef = useRef<HTMLDivElement>(null);
   const mobileAccountMenuRef = useRef<HTMLDivElement>(null);
   const vehicleSearchRef = useRef<HTMLDivElement>(null);
   const desktopSearchRef = useRef<HTMLDivElement>(null);
@@ -608,6 +649,14 @@ export const Header: React.FC = () => {
       if (headerRef.current && !headerRef.current.contains(target)) {
         setOpenMegaMenu(null);
         setAccountMenuOpen(false);
+        setCartMenuOpen(false);
+        setWishlistMenuOpen(false);
+      }
+      if (cartMenuOpen && cartMenuRef.current && !cartMenuRef.current.contains(target)) {
+        setCartMenuOpen(false);
+      }
+      if (wishlistMenuOpen && wishlistMenuRef.current && !wishlistMenuRef.current.contains(target)) {
+        setWishlistMenuOpen(false);
       }
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
         closeMobileMenu();
@@ -636,10 +685,21 @@ export const Header: React.FC = () => {
         setMobileSearchOpen(false);
         setAccountMenuOpen(false);
         setMobileAccountMenuOpen(false);
+        setCartMenuOpen(false);
+        setWishlistMenuOpen(false);
         setVehicleSearchOpen(false);
       }
     };
-    if (openMegaMenu || mobileMenuOpen || mobileSearchOpen || accountMenuOpen || mobileAccountMenuOpen || vehicleSearchOpen) {
+    if (
+      openMegaMenu ||
+      mobileMenuOpen ||
+      mobileSearchOpen ||
+      accountMenuOpen ||
+      mobileAccountMenuOpen ||
+      cartMenuOpen ||
+      wishlistMenuOpen ||
+      vehicleSearchOpen
+    ) {
       document.addEventListener('mousedown', handleClick);
       document.addEventListener('keydown', handleKey);
       return () => {
@@ -648,7 +708,16 @@ export const Header: React.FC = () => {
       };
     }
     return undefined;
-  }, [openMegaMenu, mobileMenuOpen, mobileSearchOpen, accountMenuOpen, mobileAccountMenuOpen, vehicleSearchOpen]);
+  }, [
+    openMegaMenu,
+    mobileMenuOpen,
+    mobileSearchOpen,
+    accountMenuOpen,
+    mobileAccountMenuOpen,
+    cartMenuOpen,
+    wishlistMenuOpen,
+    vehicleSearchOpen,
+  ]);
 
   const toggleMegaMenu = (id: string) => {
     setOpenMegaMenu((current) => (current === id ? null : id));
@@ -665,6 +734,90 @@ export const Header: React.FC = () => {
     params.set('search', query);
     navigate(`/products?${params.toString()}`);
     setMobileSearchOpen(false);
+  };
+
+  useEffect(() => {
+    const missing = items
+      .filter((line) => !cartProducts[line.productId])
+      .map((line) => line.productId);
+    if (!missing.length) {
+      return;
+    }
+
+    const loadProducts = async () => {
+      const responses = await Promise.allSettled(missing.map((id) => productsApi.get(id)));
+      const nextMap: Record<string, Product> = {};
+      responses.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          const product = result.value.product;
+          nextMap[product.id] = product;
+        }
+      });
+      setCartProducts((current) => ({ ...current, ...nextMap }));
+    };
+
+    void loadProducts();
+  }, [items, cartProducts]);
+
+  useEffect(() => {
+    const missing = wishlistItems
+      .filter((line) => !wishlistProducts[line.productId])
+      .map((line) => line.productId);
+    if (!missing.length) {
+      return;
+    }
+
+    const loadProducts = async () => {
+      const responses = await Promise.allSettled(missing.map((id) => productsApi.get(id)));
+      const nextMap: Record<string, Product> = {};
+      responses.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          const product = result.value.product;
+          nextMap[product.id] = product;
+        }
+      });
+      setWishlistProducts((current) => ({ ...current, ...nextMap }));
+    };
+
+    void loadProducts();
+  }, [wishlistItems, wishlistProducts]);
+
+  useEffect(() => {
+    if (!wishlistMenuOpen) {
+      setWishlistSelectMode(false);
+      setWishlistSelectedIds(new Set());
+    }
+  }, [wishlistMenuOpen]);
+
+  const toggleWishlistSelected = (productId: string) => {
+    setWishlistSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
+  const handleWishlistProceed = async () => {
+    const idsToUse = wishlistSelectMode
+      ? Array.from(wishlistSelectedIds)
+      : wishlistItems.map((line) => line.productId);
+    if (!idsToUse.length) {
+      return;
+    }
+
+    for (const productId of idsToUse) {
+      const line = wishlistItems.find((item) => item.productId === productId);
+      if (!line) continue;
+      const product = wishlistProducts[productId];
+      await addCartItem({ productId, quantity: line.quantity }, product);
+    }
+
+    setWishlistMenuOpen(false);
+    navigate('/checkout');
   };
 
   return (
@@ -929,16 +1082,289 @@ export const Header: React.FC = () => {
                 )}
               </AnimatePresence>
             </div>
-            <Link
-              to="/cart"
-              className="relative rounded-full p-2 transition hover:bg-white/10"
-              aria-label="View cart"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-white text-[10px] font-bold text-red-600">
-                {cartCount}
-              </span>
-            </Link>
+            {showWishlist && (
+              <div className="relative" ref={wishlistMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWishlistMenuOpen((state) => !state);
+                    setCartMenuOpen(false);
+                    setAccountMenuOpen(false);
+                  }}
+                  className="relative rounded-full p-2 transition hover:bg-white/10"
+                  aria-label="Wishlist"
+                  aria-expanded={wishlistMenuOpen}
+                >
+                  <Heart className="h-5 w-5" />
+                  {wishlistCount > 0 && (
+                    <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-white text-[10px] font-bold text-red-600">
+                      {wishlistCount}
+                    </span>
+                  )}
+                </button>
+                <AnimatePresence>
+                  {wishlistMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute right-0 top-full mt-3 w-[360px] rounded-xl border border-slate-200 bg-white shadow-xl z-50"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                          <Heart className="h-4 w-4 text-rose-500" />
+                          Wishlist
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setWishlistSelectMode((prev) => !prev)}
+                          className={cn(
+                            'rounded-full border px-3 py-1 text-xs font-semibold transition',
+                            wishlistSelectMode
+                              ? 'border-rose-200 bg-rose-50 text-rose-700'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                          )}
+                        >
+                          {wishlistSelectMode ? 'Selecting' : 'Select'}
+                        </button>
+                      </div>
+                      <div className="max-h-80 overflow-y-auto">
+                        {wishlistItems.length === 0 && (
+                          <div className="px-4 py-6 text-sm text-slate-600">No saved products yet.</div>
+                        )}
+                        {wishlistItems.map((line) => {
+                          const product = wishlistProducts[line.productId];
+                          const saleActive = product ? isSaleActive(product) : false;
+                          const price = product
+                            ? saleActive
+                              ? (product.salePrice as number)
+                              : product.price
+                            : 0;
+                          const isSelected = wishlistSelectedIds.has(line.productId);
+                          return (
+                            <div
+                              key={line.productId}
+                              className="flex items-center gap-3 px-4 py-3 text-sm transition hover:bg-slate-50"
+                            >
+                              {wishlistSelectMode && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleWishlistSelected(line.productId)}
+                                  className={cn(
+                                    'flex h-5 w-5 items-center justify-center rounded border',
+                                    isSelected
+                                      ? 'border-rose-500 bg-rose-500 text-white'
+                                      : 'border-slate-300 bg-white text-transparent'
+                                  )}
+                                  aria-label="Select item"
+                                >
+                                  <svg
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="h-3 w-3"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 10l4 4 8-8" />
+                                  </svg>
+                                </button>
+                              )}
+                              <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                                <img
+                                  src={product?.images?.[0] ?? 'https://placehold.co/64x64?text=Product'}
+                                  alt={product?.name ?? 'Product'}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-medium text-slate-900">
+                                  {product?.name ?? 'Product'}
+                                </p>
+                                <p className="text-xs text-slate-500">{formatCurrency(price)}</p>
+                              </div>
+                              <div className="flex items-center gap-1 rounded-lg border border-slate-200">
+                                <button
+                                  type="button"
+                                  onClick={() => updateWishlistItem(line.productId, line.quantity - 1)}
+                                  className="flex h-8 w-8 items-center justify-center text-slate-500 transition hover:text-primary"
+                                  aria-label="Decrease quantity"
+                                >
+                                  <Minus className="h-3.5 w-3.5" />
+                                </button>
+                                <span className="w-6 text-center text-xs font-semibold text-slate-700">
+                                  {line.quantity}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => updateWishlistItem(line.productId, line.quantity + 1)}
+                                  className="flex h-8 w-8 items-center justify-center text-slate-500 transition hover:text-primary"
+                                  aria-label="Increase quantity"
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeWishlistItem(line.productId)}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-rose-200 hover:text-rose-600"
+                                aria-label="Remove"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setWishlistMenuOpen(false);
+                            navigate('/wishlist');
+                          }}
+                          className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Open wishlist
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleWishlistProceed()}
+                          disabled={
+                            wishlistItems.length === 0 ||
+                            (wishlistSelectMode && wishlistSelectedIds.size === 0)
+                          }
+                          className="flex-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Proceed
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+            <div className="relative" ref={cartMenuRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setCartMenuOpen((state) => !state);
+                  setWishlistMenuOpen(false);
+                  setAccountMenuOpen(false);
+                }}
+                className="relative rounded-full p-2 transition hover:bg-white/10"
+                aria-label="Cart"
+                aria-expanded={cartMenuOpen}
+              >
+                <ShoppingCart className="h-5 w-5" />
+                <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-white text-[10px] font-bold text-red-600">
+                  {cartCount}
+                </span>
+              </button>
+              <AnimatePresence>
+                {cartMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 top-full mt-3 w-[360px] rounded-xl border border-slate-200 bg-white shadow-xl z-50"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                        <ShoppingCart className="h-4 w-4 text-red-600" />
+                        Cart
+                      </div>
+                      <span className="text-xs text-slate-500">{cartCount} items</span>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {items.length === 0 && (
+                        <div className="px-4 py-6 text-sm text-slate-600">Your cart is empty.</div>
+                      )}
+                      {items.map((line) => {
+                        const product = cartProducts[line.productId];
+                        const saleActive = product ? isSaleActive(product) : false;
+                        const price = product
+                          ? saleActive
+                            ? (product.salePrice as number)
+                            : product.price
+                          : 0;
+                        return (
+                          <div
+                            key={line.productId}
+                            className="flex items-center gap-3 px-4 py-3 text-sm transition hover:bg-slate-50"
+                          >
+                            <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                              <img
+                                src={product?.images?.[0] ?? 'https://placehold.co/64x64?text=Product'}
+                                alt={product?.name ?? 'Product'}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium text-slate-900">
+                                {product?.name ?? 'Product'}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {formatCurrency(price)} x {line.quantity}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 rounded-lg border border-slate-200">
+                              <button
+                                type="button"
+                                onClick={() => updateCartItem(line.productId, line.quantity - 1)}
+                                className="flex h-8 w-8 items-center justify-center text-slate-500 transition hover:text-primary"
+                                aria-label="Decrease quantity"
+                              >
+                                <Minus className="h-3.5 w-3.5" />
+                              </button>
+                              <span className="w-6 text-center text-xs font-semibold text-slate-700">
+                                {line.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateCartItem(line.productId, line.quantity + 1)}
+                                className="flex h-8 w-8 items-center justify-center text-slate-500 transition hover:text-primary"
+                                aria-label="Increase quantity"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeCartItem(line.productId)}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-rose-200 hover:text-rose-600"
+                              aria-label="Remove"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="space-y-3 border-t border-slate-100 px-4 py-3">
+                      <div className="flex items-center justify-between text-xs text-slate-600">
+                        <span>Subtotal</span>
+                        <span className="text-sm font-semibold text-slate-900">{formatCurrency(cartSubtotal)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCartMenuOpen(false);
+                          navigate('/checkout');
+                        }}
+                        disabled={items.length === 0}
+                        className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Proceed to checkout
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
         <AnimatePresence initial={false}>
@@ -1154,17 +1580,40 @@ export const Header: React.FC = () => {
                     )}
                   </AnimatePresence>
                 </div>
-                <Link
-                  to="/cart"
+                {showWishlist && (
+                  <button
+                    type="button"
+                    className="relative rounded-full p-2 text-slate-700 transition hover:bg-slate-100"
+                    onClick={() => {
+                      closeMobileMenu();
+                      setWishlistMenuOpen(true);
+                      setCartMenuOpen(false);
+                    }}
+                    aria-label="Wishlist"
+                  >
+                    <Heart className="h-5 w-5" />
+                    {wishlistCount > 0 && (
+                      <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                        {wishlistCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+                <button
+                  type="button"
                   className="relative rounded-full p-2 text-slate-700 transition hover:bg-slate-100"
-                  onClick={closeMobileMenu}
-                  aria-label="View cart"
+                  onClick={() => {
+                    closeMobileMenu();
+                    setCartMenuOpen(true);
+                    setWishlistMenuOpen(false);
+                  }}
+                  aria-label="Cart"
                 >
                   <ShoppingCart className="h-5 w-5" />
                   <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-red-600 text-[10px] font-bold text-white">
                     {cartCount}
                   </span>
-                </Link>
+                </button>
                 <button
                   type="button"
                   onClick={closeMobileMenu}
