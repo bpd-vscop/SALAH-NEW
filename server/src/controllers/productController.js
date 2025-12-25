@@ -402,20 +402,49 @@ const listProducts = async (req, res, next) => {
       andConditions.push({ $or: orConditions });
     }
 
-    // Price filtering
+    // Price filtering (include active sale price)
     if (minPrice || maxPrice) {
-      filter.price = {};
+      const range = {};
       if (minPrice) {
         const min = parseFloat(minPrice);
         if (!isNaN(min)) {
-          filter.price.$gte = min;
+          range.$gte = min;
         }
       }
       if (maxPrice) {
         const max = parseFloat(maxPrice);
         if (!isNaN(max)) {
-          filter.price.$lte = max;
+          range.$lte = max;
         }
+      }
+      if (Object.keys(range).length > 0) {
+        const now = new Date();
+        andConditions.push({
+          $or: [
+            { price: range },
+            {
+              $and: [
+                { salePrice: range },
+                { salePrice: { $ne: null } },
+                { $expr: { $lt: ['$salePrice', '$price'] } },
+                {
+                  $or: [
+                    { saleStartDate: { $exists: false } },
+                    { saleStartDate: null },
+                    { saleStartDate: { $lte: now } },
+                  ],
+                },
+                {
+                  $or: [
+                    { saleEndDate: { $exists: false } },
+                    { saleEndDate: null },
+                    { saleEndDate: { $gte: now } },
+                  ],
+                },
+              ],
+            },
+          ],
+        });
       }
     }
 

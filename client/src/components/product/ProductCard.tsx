@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import type { Product } from '../../types/api';
 import { formatCurrency } from '../../utils/format';
 import { useCart } from '../../context/CartContext';
-import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { cn } from '../../utils/cn';
 
@@ -90,7 +89,6 @@ const isSaleActive = (product: Product) => {
 };
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, className, badge, hideTags = false }) => {
-  const { user } = useAuth();
   const { addItem } = useCart();
   const { items: wishlistItems, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
 
@@ -110,15 +108,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
     addItem({ productId: product.id, quantity: 1 }, product);
   };
 
-  const canWishlist = user?.role === 'client';
   const isInWishlist = wishlistItems.some((line) => line.productId === product.id);
 
   const handleToggleWishlist = async (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    if (!canWishlist) {
-      return;
-    }
     if (isInWishlist) {
       await removeWishlistItem(product.id);
     } else {
@@ -168,19 +162,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
           </div>
         ) : null}
 
-        {canWishlist ? (
-          <button
-            type="button"
-            onClick={handleToggleWishlist}
-            className={cn(
-              'absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/90 text-slate-600 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110',
-              isInWishlist ? 'text-rose-500' : 'hover:text-rose-500'
-            )}
-            aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-          >
-            <Heart className={cn('h-5 w-5', isInWishlist ? 'fill-current' : '')} />
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={handleToggleWishlist}
+          className={cn(
+            'absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/90 text-slate-600 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110',
+            isInWishlist ? 'text-rose-500' : 'hover:text-rose-500'
+          )}
+          aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+        >
+          <Heart className={cn('h-5 w-5', isInWishlist ? 'fill-current' : '')} />
+        </button>
 
         <div className="absolute inset-0 flex items-center justify-center bg-slate-900/45 opacity-0 transition-all duration-300 group-hover:opacity-100">
           <div className="flex flex-col items-center gap-3">

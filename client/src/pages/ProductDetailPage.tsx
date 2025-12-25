@@ -628,6 +628,7 @@ export const ProductDetailPage: React.FC = () => {
           </section>
 
           <ProductDetailTabs
+            productId={product.id}
             description={product.description}
             featureHighlights={product.featureHighlights}
             packageContents={product.packageContents}

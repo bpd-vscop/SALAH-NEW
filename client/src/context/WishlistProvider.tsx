@@ -4,45 +4,9 @@ import type { WishlistItem } from '../types/api';
 import { useAuth } from './useAuth';
 import { WishlistContext, type WishlistContextValue, type WishlistLine } from './wishlist-context';
 
-const STORAGE_KEY = 'salah-store-wishlist';
-
-const sanitizeStoredWishlist = (raw: unknown): WishlistItem[] => {
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-  return raw.filter(
-    (item): item is WishlistItem =>
-      item && typeof item.productId === 'string' && typeof item.quantity === 'number'
-  );
-};
-
-const readStoredWishlist = (): WishlistItem[] => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    return sanitizeStoredWishlist(JSON.parse(raw));
-  } catch (error) {
-    console.warn('Failed to parse stored wishlist', error);
-    return [];
-  }
-};
-
-const writeStoredWishlist = (items: WishlistLine[]) => {
-  try {
-    const serialized = JSON.stringify(
-      items.map<WishlistItem>(({ productId, quantity }) => ({ productId, quantity }))
-    );
-    localStorage.setItem(STORAGE_KEY, serialized);
-  } catch (error) {
-    console.warn('Failed to persist wishlist', error);
-  }
-};
-
 export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, initializing } = useAuth();
-  const [items, setItemsState] = useState<WishlistLine[]>(() => readStoredWishlist());
+  const [items, setItemsState] = useState<WishlistLine[]>([]);
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
@@ -50,29 +14,37 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
 
-    if (user) {
-      setItemsState(user.role === 'client' ? (user.wishlist ?? []) : []);
-    }
-  }, [user, initializing]);
-
-  useEffect(() => {
-    writeStoredWishlist(items);
-  }, [items]);
-
-  const syncIfNeeded = useCallback(
-    async (nextItems: WishlistItem[]) => {
-      if (!user || user.role !== 'client') {
-        return;
-      }
+    let active = true;
+    const load = async () => {
       setSyncing(true);
       try {
-        await wishlistApi.update(nextItems);
+        const { wishlist } = await wishlistApi.get();
+        if (active) {
+          setItemsState(wishlist);
+        }
+      } catch (error) {
+        console.warn('Failed to load wishlist', error);
       } finally {
-        setSyncing(false);
+        if (active) {
+          setSyncing(false);
+        }
       }
-    },
-    [user]
-  );
+    };
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [initializing, user?.id]);
+
+  const syncWishlist = useCallback(async (nextItems: WishlistItem[]) => {
+    setSyncing(true);
+    try {
+      const { wishlist } = await wishlistApi.update(nextItems);
+      setItemsState(wishlist);
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
 
   const addItem = useCallback<WishlistContextValue['addItem']>(
     async (item, product) => {
@@ -95,9 +67,9 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return nextItems;
       });
 
-      await syncIfNeeded(nextItems.map<WishlistItem>(({ productId, quantity }) => ({ productId, quantity })));
+      await syncWishlist(nextItems.map<WishlistItem>(({ productId, quantity }) => ({ productId, quantity })));
     },
-    [syncIfNeeded]
+    [syncWishlist]
   );
 
   const updateItem = useCallback<WishlistContextValue['updateItem']>(
@@ -111,9 +83,9 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return nextItems;
       });
 
-      await syncIfNeeded(nextItems.map<WishlistItem>(({ productId, quantity }) => ({ productId, quantity })));
+      await syncWishlist(nextItems.map<WishlistItem>(({ productId, quantity }) => ({ productId, quantity })));
     },
-    [syncIfNeeded]
+    [syncWishlist]
   );
 
   const removeItem = useCallback<WishlistContextValue['removeItem']>(
@@ -124,28 +96,25 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return nextItems;
       });
 
-      await syncIfNeeded(nextItems.map<WishlistItem>(({ productId, quantity }) => ({ productId, quantity })));
+      await syncWishlist(nextItems.map<WishlistItem>(({ productId, quantity }) => ({ productId, quantity })));
     },
-    [syncIfNeeded]
+    [syncWishlist]
   );
 
   const clearWishlist = useCallback(async () => {
     setItemsState([]);
-    await syncIfNeeded([]);
-  }, [syncIfNeeded]);
+    await syncWishlist([]);
+  }, [syncWishlist]);
 
   const setItems = useCallback<WishlistContextValue['setItems']>(
     async (nextItems) => {
       setItemsState(nextItems);
-      await syncIfNeeded(nextItems);
+      await syncWishlist(nextItems);
     },
-    [syncIfNeeded]
+    [syncWishlist]
   );
 
   const loadFromServer = useCallback(async () => {
-    if (!user || user.role !== 'client') {
-      return;
-    }
     setSyncing(true);
     try {
       const { wishlist } = await wishlistApi.get();
@@ -153,7 +122,7 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } finally {
       setSyncing(false);
     }
-  }, [user]);
+  }, []);
 
   const value = useMemo<WishlistContextValue>(
     () => ({

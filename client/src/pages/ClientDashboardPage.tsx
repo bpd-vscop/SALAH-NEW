@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, type ChangeEvent, type FormEvent, type ReactNode, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Menu,
@@ -33,8 +33,10 @@ import { ProfileCompletionBar } from '../components/dashboard/ProfileCompletionB
 import { useAuth } from '../context/AuthContext';
 import { usersApi, type ShippingAddressPayload } from '../api/users';
 import { ordersApi } from '../api/orders';
+import { reviewsApi } from '../api/reviews';
+import { productsApi } from '../api/products';
 import { cn } from '../utils/cn';
-import type { ShippingAddress, Order } from '../types/api';
+import type { ShippingAddress, Order, ProductReview, Product } from '../types/api';
 import { evaluatePasswordStrength, PASSWORD_COMPLEXITY_MESSAGE } from '../utils/password';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
 import { CountrySelect } from '../components/common/CountrySelect';
@@ -74,6 +76,10 @@ export const ClientDashboardPage: React.FC = () => {
     const stored = Number(localStorage.getItem('ordersLastSeenAt') || '0');
     return Number.isFinite(stored) ? stored : 0;
   });
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [reviewProducts, setReviewProducts] = useState<Record<string, Product>>({});
 
   // Profile image states
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
@@ -235,6 +241,22 @@ export const ClientDashboardPage: React.FC = () => {
     });
   };
 
+  const formatReviewDate = (value?: string | null) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    const datePart = date.toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit',
+    });
+    const timePart = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `${datePart} - ${timePart}`;
+  };
+
   // Check URL params for tab
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -290,11 +312,46 @@ export const ClientDashboardPage: React.FC = () => {
     }
   }, [user]);
 
+  const loadReviews = useCallback(async () => {
+    if (!user) return;
+    setReviewsLoading(true);
+    setReviewsError(null);
+    try {
+      const { reviews: reviewList } = await reviewsApi.list({ mine: true, limit: 50, page: 1 });
+      setReviews(reviewList);
+      const productIds = Array.from(new Set(reviewList.map((review) => review.productId)));
+      if (!productIds.length) {
+        setReviewProducts({});
+        return;
+      }
+      const responses = await Promise.allSettled(productIds.map((id) => productsApi.get(id)));
+      const nextMap: Record<string, Product> = {};
+      responses.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          const product = result.value.product;
+          nextMap[product.id] = product;
+        }
+      });
+      setReviewProducts(nextMap);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to load reviews';
+      setReviewsError(message);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (activeTab === 'orders') {
       void loadOrders();
     }
   }, [activeTab, loadOrders]);
+
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      void loadReviews();
+    }
+  }, [activeTab, loadReviews]);
 
   // Cleanup preview URL
   useEffect(
@@ -1651,15 +1708,110 @@ export const ClientDashboardPage: React.FC = () => {
 
               {activeTab === 'reviews' && (
                 <div className="space-y-6">
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-                      <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                      </svg>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900">My Reviews</h2>
+                      <p className="text-sm text-slate-600 mt-1">Track the feedback you have shared.</p>
                     </div>
-                    <h3 className="text-lg font-medium text-slate-900">No reviews yet</h3>
-                    <p className="mt-2 text-sm text-slate-600">Reviews for products you've purchased will appear here.</p>
+                    <button
+                      onClick={() => loadReviews()}
+                      disabled={reviewsLoading}
+                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <RefreshCw className={cn("h-4 w-4", reviewsLoading && "animate-spin")} />
+                      {reviewsLoading ? 'Refreshing...' : 'Refresh'}
+                    </button>
                   </div>
+
+                  {reviewsError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                      <div className="flex items-center gap-3">
+                        <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                        <p className="text-sm text-red-800">{reviewsError}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {reviewsLoading && (
+                    <div className="rounded-lg border border-slate-200 bg-white p-8">
+                      <div className="flex items-center justify-center gap-3">
+                        <RefreshCw className="h-5 w-5 text-slate-400 animate-spin" />
+                        <p className="text-sm text-slate-600">Loading your reviews...</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {!reviewsLoading && reviews.length === 0 && (
+                    <div className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-12">
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100">
+                          <Star className="h-10 w-10 text-slate-400" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-slate-900">No reviews yet</h3>
+                        <p className="mt-2 text-sm text-slate-600 max-w-sm">
+                          Reviews for products you have purchased will appear here once submitted.
+                        </p>
+                        <button
+                          onClick={() => navigate('/products')}
+                          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
+                        >
+                          <ShoppingBag className="h-4 w-4" />
+                          Browse Products
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {reviews.length > 0 && (
+                    <div className="space-y-4">
+                      {reviews.map((review) => {
+                        const product = reviewProducts[review.productId];
+                        return (
+                          <div
+                            key={review.id}
+                            className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="space-y-1">
+                                <Link
+                                  to={`/products/${review.productId}`}
+                                  className="text-base font-semibold text-slate-900 hover:text-primary"
+                                >
+                                  {product?.name ?? 'Product'}
+                                </Link>
+                                <p className="text-xs text-slate-500">{formatReviewDate(review.createdAt)}</p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {review.isVerifiedPurchase ? (
+                                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                                    Verified purchase
+                                  </span>
+                                ) : null}
+                                <div className="flex items-center gap-1 text-amber-500">
+                                  {Array.from({ length: 5 }).map((_, index) => (
+                                    <Star
+                                      key={index}
+                                      className={cn(
+                                        "h-4 w-4",
+                                        review.rating >= index + 1 ? "fill-current text-amber-500" : "text-slate-200"
+                                      )}
+                                    />
+                                  ))}
+                                  <span className="text-xs font-semibold text-slate-700">{review.rating.toFixed(1)}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <p className="mt-3 text-sm text-slate-700">{review.comment}</p>
+                            {review.adminComment ? (
+                              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                <span className="font-semibold text-slate-700">Admin reply:</span> {review.adminComment}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
