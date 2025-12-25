@@ -7,7 +7,7 @@ import { ProductCard } from '../product/ProductCard';
 
 const MAX_ON_SALE_PRODUCTS = 24;
 const SCROLL_SPEED = 0.5; // pixels per frame
-const ITEMS_PER_SCROLL = 5; // items to scroll when arrow clicked
+const ITEMS_PER_SCROLL = 3; // items to scroll when arrow clicked
 
 type ArrowDirection = 'left' | 'right';
 
@@ -44,6 +44,8 @@ export const OnSaleOffers: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  const [isAtStart, setIsAtStart] = useState(true);
+  const [isAtEnd, setIsAtEnd] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
   const scrollPositionRef = useRef(0);
@@ -143,35 +145,68 @@ export const OnSaleOffers: React.FC = () => {
     const scrollContainer = scrollRef.current;
     if (!scrollContainer || !shouldScroll) return;
 
-    // Pause auto-scroll briefly
+    // Pause auto-scroll for 3 seconds to distinguish from continuous scroll
     setIsPaused(true);
 
     const scrollAmount = itemWidthRef.current * ITEMS_PER_SCROLL;
     const halfWidth = scrollContainer.scrollWidth / 2;
 
+    let newPosition = scrollPositionRef.current;
     if (direction === 'right') {
-      scrollPositionRef.current += scrollAmount;
-      if (scrollPositionRef.current >= halfWidth) {
-        scrollPositionRef.current -= halfWidth;
-      }
+      newPosition += scrollAmount;
     } else {
-      scrollPositionRef.current -= scrollAmount;
-      if (scrollPositionRef.current < 0) {
-        scrollPositionRef.current += halfWidth;
-      }
+      newPosition -= scrollAmount;
     }
 
-    // Smooth transition for arrow clicks
-    scrollContainer.style.transition = 'transform 0.4s ease-out';
-    scrollContainer.style.transform = `translateX(-${scrollPositionRef.current}px)`;
+    // Clamp to boundaries (no wrap-around for manual scrolling)
+    const minPosition = 0;
+    const maxPosition = halfWidth;
 
-    // Remove transition after animation and resume auto-scroll
+    // Check if we're at boundaries and show visual feedback
+    if (newPosition <= minPosition) {
+      newPosition = minPosition;
+      setIsAtStart(true);
+      setIsAtEnd(false);
+      // Bounce effect at start
+      scrollContainer.style.transition = 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      scrollContainer.style.transform = `translateX(${Math.min(20, scrollAmount * 0.1)}px)`;
+      setTimeout(() => {
+        if (scrollContainer) {
+          scrollContainer.style.transition = 'transform 0.3s ease-out';
+          scrollContainer.style.transform = `translateX(-${minPosition}px)`;
+        }
+      }, 200);
+      scrollPositionRef.current = minPosition;
+    } else if (newPosition >= maxPosition) {
+      newPosition = maxPosition;
+      setIsAtStart(false);
+      setIsAtEnd(true);
+      // Bounce effect at end
+      scrollContainer.style.transition = 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      scrollContainer.style.transform = `translateX(-${maxPosition + Math.min(20, scrollAmount * 0.1)}px)`;
+      setTimeout(() => {
+        if (scrollContainer) {
+          scrollContainer.style.transition = 'transform 0.3s ease-out';
+          scrollContainer.style.transform = `translateX(-${maxPosition}px)`;
+        }
+      }, 200);
+      scrollPositionRef.current = maxPosition;
+    } else {
+      // Normal scroll within boundaries
+      setIsAtStart(newPosition <= minPosition + 1);
+      setIsAtEnd(newPosition >= maxPosition - 1);
+      scrollPositionRef.current = newPosition;
+      scrollContainer.style.transition = 'transform 0.4s ease-out';
+      scrollContainer.style.transform = `translateX(-${newPosition}px)`;
+    }
+
+    // Remove transition after animation and resume auto-scroll after 3 seconds
     setTimeout(() => {
       if (scrollContainer) {
         scrollContainer.style.transition = '';
       }
       setIsPaused(false);
-    }, 500);
+    }, 3000);
   }, [shouldScroll]);
 
   if (loading) {
@@ -206,10 +241,12 @@ export const OnSaleOffers: React.FC = () => {
               <CarouselArrow
                 direction="left"
                 onClick={() => handleArrowClick('left')}
+                disabled={isAtStart}
               />
               <CarouselArrow
                 direction="right"
                 onClick={() => handleArrowClick('right')}
+                disabled={isAtEnd}
               />
             </div>
           )}

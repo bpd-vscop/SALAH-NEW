@@ -5,7 +5,7 @@ import { cn } from '../../utils/cn';
 import { formatCurrency } from '../../utils/format';
 import { Select } from '../ui/Select';
 import { DatePicker } from '../ui/DatePicker';
-import { X } from 'lucide-react';
+import { RefreshCw, X } from 'lucide-react';
 
 type StatusSetter = (msg: string | null, err?: string | null) => void;
 
@@ -548,6 +548,20 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
     }
   };
 
+  const handleRefresh = async () => {
+    setSearch('');
+    setStockFilter('all');
+    setBadgeFilter('all');
+    setActiveReplenishId(null);
+    setSelectedHiddenIds(new Set());
+    try {
+      await onRefresh();
+    } catch (error) {
+      console.error(error);
+      setStatus(null, error instanceof Error ? error.message : 'Failed to refresh inventory');
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-background p-6 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -594,14 +608,15 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
               ]}
               placeholder="Filter by badge"
             />
-          </div>
-          <button
-            type="button"
-            onClick={() => void onRefresh()}
-            className="h-11 rounded-xl border border-border bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
-          >
-            Refresh
-          </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleRefresh()}
+              className="flex h-11 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
           {hasActiveFilters && (
             <button
               type="button"
