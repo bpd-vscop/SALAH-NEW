@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { productsApi } from '../../api/products';
-import type { Product } from '../../types/api';
+import type { Product, ProductInventoryStatus } from '../../types/api';
 import { cn } from '../../utils/cn';
 import { formatCurrency } from '../../utils/format';
 import { Select } from '../ui/Select';
@@ -429,7 +429,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
       leadTime: '',
     };
 
-    const inventoryStatusOverride =
+    const inventoryStatusOverride: ProductInventoryStatus | undefined =
       edit.inventoryBadgeOverride === 'out_of_stock'
         ? 'out_of_stock'
         : edit.inventoryBadgeOverride === 'preorder'
