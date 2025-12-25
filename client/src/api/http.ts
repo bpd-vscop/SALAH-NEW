@@ -78,8 +78,12 @@ export class HttpClient {
     });
   }
 
-  delete<T>(path: string) {
-    return this.request<T>(path, { method: 'DELETE' });
+  delete<T>(path: string, body?: unknown) {
+    const options: RequestInit = { method: 'DELETE' };
+    if (body !== undefined) {
+      options.body = body instanceof FormData ? body : JSON.stringify(body ?? {});
+    }
+    return this.request<T>(path, options);
   }
 }
 

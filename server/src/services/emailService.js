@@ -5,6 +5,9 @@ const path = require('path');
 const LOGO_FILENAME = 'logo-png.png';
 const LOGO_CID = 'logo-ulksupply';
 const LOGO_FALLBACK_URL = 'https://i.postimg.cc/nVjjhfsz/qt-q-95.png';
+const SUPPORT_EMAIL = 'support@ulksupply.com';
+const SUPPORT_PHONES = ['+1-407-449-6740', '+1-407-452-7149', '+1-407-978-6077'];
+const WHATSAPP_PHONE = '+1-407-452-7149';
 const logoPath = path.resolve(__dirname, '../../../client/public', LOGO_FILENAME);
 const hasLogoFile = fs.existsSync(logoPath);
 const logoSrc = hasLogoFile ? `cid:${LOGO_CID}` : LOGO_FALLBACK_URL;
@@ -102,6 +105,48 @@ const getWebConfigBaseUrl = () => {
   } catch {
     return null;
   }
+};
+
+const buildContactRows = (baseUrl) => {
+  const rows = [
+    {
+      label: 'Email',
+      value: `<a href="mailto:${SUPPORT_EMAIL}" style="color: #f6b210; font-weight: 700; text-decoration: none;">${SUPPORT_EMAIL}</a>`,
+    },
+    {
+      label: 'Phone',
+      value: SUPPORT_PHONES.join(' / '),
+    },
+  ];
+
+  const whatsappDigits = WHATSAPP_PHONE.replace(/[^+\d]/g, '');
+  rows.push({
+    label: 'WhatsApp',
+    value: `<a href="https://wa.me/${whatsappDigits}" style="color: #f6b210; font-weight: 700; text-decoration: none;">${WHATSAPP_PHONE}</a>`,
+  });
+
+  if (baseUrl) {
+    const display = baseUrl.replace(/^https?:\/\//i, '');
+    rows.push({
+      label: 'Website',
+      value: `<a href="${baseUrl}/login" style="color: #f6b210; font-weight: 700; text-decoration: none;">${display}/login</a>`,
+    });
+  }
+
+  return rows;
+};
+
+const buildContactText = (baseUrl) => {
+  const lines = [
+    `Email: ${SUPPORT_EMAIL}`,
+    `Phone: ${SUPPORT_PHONES.join(' / ')}`,
+    `WhatsApp: ${WHATSAPP_PHONE}`,
+  ];
+  if (baseUrl) {
+    const display = baseUrl.replace(/^https?:\/\//i, '');
+    lines.push(`Website: ${display}/login`);
+  }
+  return lines;
 };
 
 const sendClientVerificationEmail = async ({ to, code, fullName, clientType, expiresInMinutes }) => {
@@ -694,6 +739,165 @@ const buildSupportMessageHtml = ({ title, subtitle, metaRows, message, ctaLabel,
 </html>`;
 };
 
+const sendClientAccountDeletedEmail = async ({ to, fullName, reason }) => {
+  if (!to) return;
+  const displayName = fullName || 'there';
+  const baseUrl = getWebConfigBaseUrl();
+  const contactRows = buildContactRows(baseUrl);
+
+  const messageLines = [
+    `Hi ${displayName},`,
+    '',
+    'Your ULK Supply account has been removed by our team.',
+    reason ? `Reason: ${reason}` : 'Reason: -',
+    '',
+    'If you have questions or believe this was a mistake, please contact us using any of the channels below.',
+  ];
+
+  const text = [...messageLines, '', ...buildContactText(baseUrl)].join('\n');
+  const html = buildSupportMessageHtml({
+    title: 'Account removed',
+    subtitle: 'Your ULK Supply account has been removed.',
+    metaRows: [{ label: 'Account', value: to }, ...contactRows],
+    message: messageLines.join('\n'),
+  });
+
+  await sendMail({
+    to,
+    subject: 'Your ULK Supply account was removed',
+    text,
+    html,
+    attachments: hasLogoFile
+      ? [
+          {
+            filename: LOGO_FILENAME,
+            path: logoPath,
+            cid: LOGO_CID,
+          },
+        ]
+      : undefined,
+  });
+};
+
+const sendClientAccountInactivatedEmail = async ({ to, fullName, reason }) => {
+  if (!to) return;
+  const displayName = fullName || 'there';
+  const baseUrl = getWebConfigBaseUrl();
+  const contactRows = buildContactRows(baseUrl);
+
+  const messageLines = [
+    `Hi ${displayName},`,
+    '',
+    'Your ULK Supply account has been set to inactive.',
+    reason ? `Reason: ${reason}` : 'Reason: -',
+    'For more information, please contact us using any of the channels below.',
+  ];
+
+  const text = [...messageLines, '', ...buildContactText(baseUrl)].join('\n');
+  const html = buildSupportMessageHtml({
+    title: 'Account inactive',
+    subtitle: 'Your ULK Supply account is currently inactive.',
+    metaRows: [{ label: 'Account', value: to }, ...contactRows],
+    message: messageLines.join('\n'),
+  });
+
+  await sendMail({
+    to,
+    subject: 'Your ULK Supply account is inactive',
+    text,
+    html,
+    attachments: hasLogoFile
+      ? [
+          {
+            filename: LOGO_FILENAME,
+            path: logoPath,
+            cid: LOGO_CID,
+          },
+        ]
+      : undefined,
+  });
+};
+
+const sendClientAccountActivatedEmail = async ({ to, fullName }) => {
+  if (!to) return;
+  const displayName = fullName || 'there';
+  const baseUrl = getWebConfigBaseUrl();
+  const contactRows = buildContactRows(baseUrl);
+
+  const messageLines = [
+    `Hi ${displayName},`,
+    '',
+    'Your ULK Supply account is active again.',
+    'You can log in to your account using the website link below.',
+    'If you have questions, please contact us using any of the channels below.',
+  ];
+
+  const text = [...messageLines, '', ...buildContactText(baseUrl)].join('\n');
+  const html = buildSupportMessageHtml({
+    title: 'Account active',
+    subtitle: 'Your ULK Supply account has been reactivated.',
+    metaRows: [{ label: 'Account', value: to }, ...contactRows],
+    message: messageLines.join('\n'),
+  });
+
+  await sendMail({
+    to,
+    subject: 'Your ULK Supply account is active',
+    text,
+    html,
+    attachments: hasLogoFile
+      ? [
+          {
+            filename: LOGO_FILENAME,
+            path: logoPath,
+            cid: LOGO_CID,
+          },
+        ]
+      : undefined,
+  });
+};
+
+const sendClientTypeDowngradeEmail = async ({ to, fullName, reason }) => {
+  if (!to) return;
+  const displayName = fullName || 'there';
+  const baseUrl = getWebConfigBaseUrl();
+  const contactRows = buildContactRows(baseUrl);
+
+  const messageLines = [
+    `Hi ${displayName},`,
+    '',
+    'Your account type has been changed from B2B to C2B.',
+    'Business details associated with your B2B profile have been removed.',
+    reason ? `Reason: ${reason}` : 'Reason: -',
+    '',
+    'If you have questions, please contact us using any of the channels below.',
+  ];
+
+  const text = [...messageLines, '', ...buildContactText(baseUrl)].join('\n');
+  const html = buildSupportMessageHtml({
+    title: 'Account type updated',
+    subtitle: 'Your ULK Supply account type has been updated.',
+    metaRows: [{ label: 'Account', value: to }, ...contactRows],
+    message: messageLines.join('\n'),
+  });
+
+  await sendMail({
+    to,
+    subject: 'Your ULK Supply account type was updated',
+    text,
+    html,
+    attachments: hasLogoFile
+      ? [
+          {
+            filename: LOGO_FILENAME,
+            path: logoPath,
+            cid: LOGO_CID,
+          },
+        ]
+      : undefined,
+  });
+};
+
 const sendSupportClientMessageEmailToAdmin = async ({ to, clientName, clientEmail, clientType, message, attachments }) => {
   const subject = `New client message: ${clientName || clientEmail || 'Client'}`;
   const text = [
@@ -797,6 +1001,10 @@ module.exports = {
   sendPasswordChangedConfirmation,
   sendOrderConfirmationEmail,
   sendAdminNewOrderEmail,
+  sendClientAccountDeletedEmail,
+  sendClientAccountInactivatedEmail,
+  sendClientAccountActivatedEmail,
+  sendClientTypeDowngradeEmail,
   sendSupportClientMessageEmailToAdmin,
   sendSupportAdminReplyEmailToClient,
 };

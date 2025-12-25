@@ -29,12 +29,14 @@ export type UpdateUserPayload = Partial<{
   email: string | null;
   role: User['role'];
   status: User['status'];
+  statusChangeReason: string;
   password: string;
   profileImage: string | null;
   removeProfileImage: boolean;
   phoneCode: string | null;
   phoneNumber: string | null;
   clientType: ClientType;
+  clientTypeChangeReason: string;
   companyName: string | null;
   companyPhone: string | null;
   companyAddress: string | null;
@@ -98,7 +100,7 @@ export const usersApi = {
   create: (payload: CreateUserPayload) => http.post<{ user: User }>('/users', payload),
   update: (id: string, payload: UpdateUserPayload | FormData) =>
     http.put<{ user: User }>(`/users/${id}`, payload),
-  delete: (id: string) => http.delete<void>(`/users/${id}`),
+  delete: (id: string, payload?: { reason?: string }) => http.delete<void>(`/users/${id}`, payload),
   sendVerification: (id: string) => http.post<{ message: string; expiresAt?: string; previewCode?: string; alreadyVerified?: boolean }>(`/users/${id}/send-verification`, {}),
 
   // Shipping addresses

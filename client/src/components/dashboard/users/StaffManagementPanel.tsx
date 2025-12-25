@@ -46,6 +46,18 @@ const BASE_ROLES_BY_ACTOR: Record<UserRole, UserRole[]> = {
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const EMAIL_DOMAINS = [
+  '@gmail.com',
+  '@yahoo.com',
+  '@outlook.com',
+  '@hotmail.com',
+  '@icloud.com',
+  '@aol.com',
+  '@protonmail.com',
+  '@zoho.com',
+  '@mail.com',
+  '@yandex.com',
+];
 
 const SORT_TO_QUERY: Record<SortOption, ListUsersParams['sort']> = {
   recent: 'recent',
@@ -98,6 +110,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCode: '+1', number: '' });
   const [searchOpen, setSearchOpen] = useState(false);
+  const [emailSuggestion, setEmailSuggestion] = useState('');
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
@@ -110,6 +123,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
       setFormError(null);
       setShowPassword(false);
       setShowConfirmPassword(false);
+      setEmailSuggestion('');
     }
   }, [defaultRole, editingId]);
 
@@ -201,6 +215,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
     setFormError(null);
     setShowPassword(false);
     setShowConfirmPassword(false);
+    setEmailSuggestion('');
   };
 
   const resetForm = () => {
@@ -210,6 +225,38 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
     setFormError(null);
     setShowPassword(false);
     setShowConfirmPassword(false);
+    setEmailSuggestion('');
+  };
+
+  const handleEmailChange = (value: string) => {
+    const lowerValue = value.toLowerCase();
+    setForm((prev) => ({ ...prev, email: lowerValue }));
+
+    if (!lowerValue) {
+      setEmailSuggestion('');
+    } else if (!lowerValue.includes('@')) {
+      setEmailSuggestion(`${lowerValue}@gmail.com`);
+    } else if (!lowerValue.includes('.')) {
+      const afterAt = lowerValue.split('@')[1] || '';
+      const suggestion = EMAIL_DOMAINS.find((domain) =>
+        domain.toLowerCase().startsWith(`@${afterAt.toLowerCase()}`)
+      );
+      if (suggestion) {
+        setEmailSuggestion(`${lowerValue.split('@')[0]}${suggestion}`);
+      } else {
+        setEmailSuggestion('');
+      }
+    } else {
+      setEmailSuggestion('');
+    }
+  };
+
+  const handleEmailKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Tab' && emailSuggestion) {
+      event.preventDefault();
+      setForm((prev) => ({ ...prev, email: emailSuggestion }));
+      setEmailSuggestion('');
+    }
   };
 
   const validateStaffForm = (
@@ -654,13 +701,30 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
 
           <label className="flex flex-col gap-2 text-sm text-slate-600">
             Email
-            <input
-              type="email"
-              value={form.email}
-              onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-              placeholder="Optional"
-              className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
+            <div className="relative rounded-xl bg-white">
+              {emailSuggestion && form.email && (
+                <div
+                  className="absolute inset-0 flex items-center overflow-hidden whitespace-nowrap px-4 pointer-events-none"
+                  aria-hidden="true"
+                >
+                  <span className="opacity-0 text-sm">{form.email}</span>
+                  <span className="text-red-300/70 text-sm">
+                    {emailSuggestion.slice(form.email.length)}
+                  </span>
+                </div>
+              )}
+              <input
+                type="email"
+                value={form.email}
+                onChange={(event) => handleEmailChange(event.target.value)}
+                onKeyDown={handleEmailKeyDown}
+                placeholder="Optional"
+                className="h-11 w-full rounded-xl border border-border bg-transparent px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            {emailSuggestion && form.email && (
+              <span className="text-xs text-slate-400">Press Tab to complete</span>
+            )}
           </label>
 
           <label className="flex flex-col gap-2 text-sm text-slate-600">

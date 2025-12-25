@@ -190,6 +190,9 @@ export interface User {
   orderHistory: string[];
   accountCreated?: string | null;
   accountUpdated?: string | null;
+  accountUpdatedById?: string | null;
+  accountUpdatedByName?: string | null;
+  accountUpdatedByRole?: UserRole | null;
 }
 
 export interface Product {

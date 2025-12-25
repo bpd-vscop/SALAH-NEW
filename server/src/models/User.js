@@ -100,6 +100,21 @@ const userSchema = new mongoose.Schema(
       enum: ['active', 'inactive'],
       default: 'active',
     },
+    accountUpdatedById: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    accountUpdatedByName: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    accountUpdatedByRole: {
+      type: String,
+      enum: ['super_admin', 'admin', 'staff', 'client'],
+      default: null,
+    },
     verificationFileUrl: {
       type: String,
       default: null,
@@ -144,6 +159,9 @@ const userSchema = new mongoose.Schema(
         ret.id = ret._id.toString();
         ret.accountCreated = ret.accountCreated ? new Date(ret.accountCreated).toISOString() : null;
         ret.accountUpdated = ret.accountUpdated ? new Date(ret.accountUpdated).toISOString() : null;
+        ret.accountUpdatedById = ret.accountUpdatedById ? ret.accountUpdatedById.toString() : null;
+        ret.accountUpdatedByName = ret.accountUpdatedByName || null;
+        ret.accountUpdatedByRole = ret.accountUpdatedByRole || null;
         ret.lastActiveAt = ret.lastActiveAt ? new Date(ret.lastActiveAt).toISOString() : null;
         ret.cart = Array.isArray(ret.cart)
           ? ret.cart.map((item) => ({

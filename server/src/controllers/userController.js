@@ -17,7 +17,13 @@ const {
   verifyPasswordChangeCode,
   issueVerificationCode,
 } = require('../services/verificationCodeService');
-const { sendPasswordChangedConfirmation } = require('../services/emailService');
+const {
+  sendPasswordChangedConfirmation,
+  sendClientAccountDeletedEmail,
+  sendClientAccountInactivatedEmail,
+  sendClientAccountActivatedEmail,
+  sendClientTypeDowngradeEmail,
+} = require('../services/emailService');
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -217,6 +223,9 @@ const createUser = async (req, res, next) => {
       crypto.randomBytes(12).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 16) ||
       crypto.randomBytes(9).toString('hex');
     const passwordHash = await hashPassword(resolvedPassword);
+    const actorName = req.user?.name || req.user?.username || null;
+    const actorId = req.user?.id || req.user?._id?.toString?.() || null;
+    const actorRole = req.user?.role || null;
 
     const user = await User.create({
       name: normalizedName || 'New Team Member',
@@ -227,6 +236,9 @@ const createUser = async (req, res, next) => {
       passwordHash,
       clientType: role === 'client' ? data.clientType ?? undefined : undefined,
       isEmailVerified: role !== 'client',
+      accountUpdatedById: actorId,
+      accountUpdatedByName: actorName,
+      accountUpdatedByRole: actorRole,
     });
 
     res.status(201).json({ user: user.toJSON() });
@@ -269,6 +281,30 @@ const updateUser = async (req, res, next) => {
 
     const previousProfileImage = user.profileImage;
     const previousVerificationFileUrl = user.verificationFileUrl;
+    const previousStatus = user.status;
+    const previousClientType = user.clientType;
+    const isDowngradingToC2B =
+      Object.prototype.hasOwnProperty.call(data, 'clientType') &&
+      previousClientType === 'B2B' &&
+      data.clientType === 'C2B';
+    const downgradeReason = data.clientTypeChangeReason || null;
+    const statusChangeReason = data.statusChangeReason || null;
+    const isInactivating =
+      Object.prototype.hasOwnProperty.call(data, 'status') &&
+      user.role === 'client' &&
+      previousStatus !== 'inactive' &&
+      data.status === 'inactive';
+
+    if (isDowngradingToC2B && !downgradeReason) {
+      throw badRequest('Reason is required to change a B2B client to C2B', [
+        { field: 'clientTypeChangeReason' },
+      ]);
+    }
+    if (isInactivating && !statusChangeReason) {
+      throw badRequest('Reason is required to set this client inactive', [
+        { field: 'statusChangeReason' },
+      ]);
+    }
 
     const isSelf = req.user && (req.user.id === id || req.user._id?.toString() === id);
 
@@ -463,6 +499,12 @@ const updateUser = async (req, res, next) => {
       user.markModified('company');
     }
 
+    if (isDowngradingToC2B) {
+      user.company = undefined;
+      user.markModified('company');
+      user.verificationFileUrl = null;
+    }
+
     if (data.status) {
       user.status = data.status;
     }
@@ -481,6 +523,12 @@ const updateUser = async (req, res, next) => {
       user.verificationFileUrl = data.verificationFileUrl;
     }
 
+    if (req.user) {
+      user.accountUpdatedById = req.user.id || req.user._id?.toString?.() || null;
+      user.accountUpdatedByName = req.user.name || req.user.username || null;
+      user.accountUpdatedByRole = req.user.role || null;
+    }
+
     await user.save();
 
     const previousProfileUploadUrl = resolveUploadsUrlFromStoredPath(previousProfileImage);
@@ -495,6 +543,45 @@ const updateUser = async (req, res, next) => {
       await safeUnlinkUploadsUrlPath(previousVerificationUploadUrl);
     }
 
+    const statusBecameInactive =
+      user.role === 'client' && previousStatus !== 'inactive' && user.status === 'inactive';
+    if (statusBecameInactive && user.email) {
+      try {
+        await sendClientAccountInactivatedEmail({
+          to: user.email,
+          fullName: user.name,
+          reason: statusChangeReason || undefined,
+        });
+      } catch (emailError) {
+        console.error('Failed to send account inactivity email:', emailError);
+      }
+    }
+
+    const statusBecameActive =
+      user.role === 'client' && previousStatus === 'inactive' && user.status === 'active';
+    if (statusBecameActive && user.email) {
+      try {
+        await sendClientAccountActivatedEmail({
+          to: user.email,
+          fullName: user.name,
+        });
+      } catch (emailError) {
+        console.error('Failed to send account activation email:', emailError);
+      }
+    }
+
+    if (isDowngradingToC2B && user.role === 'client' && user.email) {
+      try {
+        await sendClientTypeDowngradeEmail({
+          to: user.email,
+          fullName: user.name,
+          reason: downgradeReason || undefined,
+        });
+      } catch (emailError) {
+        console.error('Failed to send client type change email:', emailError);
+      }
+    }
+
     res.json({ user: user.toJSON() });
   } catch (error) {
     next(error);
@@ -504,6 +591,8 @@ const updateUser = async (req, res, next) => {
 const deleteUser = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const deleteReason =
+      typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
 
     if (req.user && req.user.id === id) {
       throw badRequest('You cannot delete your own account');
@@ -516,6 +605,18 @@ const deleteUser = async (req, res, next) => {
 
     if (req.user && !canEdit(req.user.role, user.role)) {
       throw forbidden('You cannot delete a user with higher or equal role');
+    }
+
+    if (user.role === 'client' && user.email) {
+      try {
+        await sendClientAccountDeletedEmail({
+          to: user.email,
+          fullName: user.name,
+          reason: deleteReason || undefined,
+        });
+      } catch (emailError) {
+        console.error('Failed to send account deletion email:', emailError);
+      }
     }
 
     await User.findByIdAndDelete(id);

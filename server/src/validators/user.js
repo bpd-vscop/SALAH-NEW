@@ -101,6 +101,8 @@ const updateUserSchema = z
         .regex(/^[^\s]+\.[^\s]+$/, 'Website must be a valid domain or URL')
     ),
     clientType: z.enum(['B2B', 'C2B']).optional(),
+    clientTypeChangeReason: optionalTrimmed(z.string().max(500)),
+    statusChangeReason: optionalTrimmed(z.string().max(500)),
     companyName: optionalTrimmed(z.string().max(120)),
     companyPhone: optionalTrimmed(z.string().max(40)),
     companyAddress: optionalTrimmed(z.string().max(200)),
