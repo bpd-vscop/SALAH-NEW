@@ -132,6 +132,28 @@ export interface ProductReviewsSummary {
   ratingBreakdown?: Record<string, number>;
 }
 
+export interface ProductReview {
+  id: string;
+  productId: string;
+  userId: string | null;
+  reviewerName: string;
+  rating: number;
+  comment: string;
+  adminComment?: string | null;
+  isVerifiedPurchase?: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface ReviewerName {
+  id: string;
+  name: string;
+  order?: number;
+  isActive?: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
 export interface ProductSeo {
   metaTitle?: string;
   metaDescription?: string;

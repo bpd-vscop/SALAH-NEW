@@ -21,6 +21,8 @@ const clientRoutes = require('./clients');
 const contactRoutes = require('./contact');
 const messageRoutes = require('./messages');
 const adminMessageRoutes = require('./adminMessages');
+const reviewRoutes = require('./reviews');
+const reviewerNameRoutes = require('./reviewerNames');
 
 module.exports = () => {
   const router = express.Router();
@@ -47,6 +49,8 @@ module.exports = () => {
   router.use('/contact', contactRoutes);
   router.use('/messages', messageRoutes);
   router.use('/admin/messages', adminMessageRoutes);
+  router.use('/reviews', reviewRoutes);
+  router.use('/reviewer-names', reviewerNameRoutes);
 
   return router;
 };
