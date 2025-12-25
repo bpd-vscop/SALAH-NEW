@@ -5,11 +5,11 @@ import { ordersApi } from '../api/orders';
 import type { Order, OrderStatus } from '../types/api';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { AdminTopNav } from '../components/dashboard/AdminTopNav';
-import { StatusPill } from '../components/common/StatusPill';
 import { formatCurrency } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
 import { adminTabs, getMenuIcon } from '../utils/adminSidebar';
 import { cn } from '../utils/cn';
+import { Select } from '../components/ui/Select';
 
 const ORDER_STATUSES: OrderStatus[] = ['pending', 'processing', 'completed', 'cancelled'];
 
@@ -21,23 +21,20 @@ const resolveUploadsHref = (value?: string | null) => {
   return `/uploads/${trimmed.replace(/^\/+/, '')}`;
 };
 
-const getStatusTone = (status: OrderStatus) => {
-  if (status === 'completed') return 'positive';
-  if (status === 'cancelled') return 'critical';
-  if (status === 'processing') return 'warning';
-  return 'warning';
-};
-
 const formatDate = (value?: string | null) => {
-  if (!value) return '—';
+  if (!value) return '-';
   try {
-    return new Intl.DateTimeFormat('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
+    const date = new Date(value);
+    const datePart = new Intl.DateTimeFormat('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit',
+    }).format(date);
+    const timePart = new Intl.DateTimeFormat('en-US', {
       hour: '2-digit',
       minute: '2-digit',
-    }).format(new Date(value));
+    }).format(date);
+    return `${datePart} - ${timePart}`;
   } catch {
     return value;
   }
@@ -140,7 +137,7 @@ export const AdminOrderDetailsPage: React.FC = () => {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-start gap-4">
             <button
               type="button"
               onClick={() => navigate('/admin', { state: { active: 'orders' } })}
@@ -148,39 +145,48 @@ export const AdminOrderDetailsPage: React.FC = () => {
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">
-                {order ? `Order #${order.id.slice(-6)}` : 'Order'}
-              </h1>
-              <p className="text-sm text-muted">
-                {order ? `Created ${formatDate(order.createdAt)}` : '—'}
-              </p>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold text-slate-900">
+                  {order ? `Order #${order.id.slice(-6)}` : 'Order'}
+                </h1>
+                {order && (
+                  <span className="rounded-full border border-border bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
+                    ID <span className="font-mono text-[11px] text-slate-500">{order.id}</span>
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs text-muted">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-white px-2.5 py-1">
+                  <span className="text-slate-500">Created</span>
+                  <span className="text-slate-700">{order ? formatDate(order.createdAt) : '-'}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-white px-2.5 py-1">
+                  <span className="text-slate-500">Updated</span>
+                  <span className="text-slate-700">
+                    {order ? formatDate(order.updatedAt ?? order.createdAt) : '-'}
+                  </span>
+                </span>
+              </div>
             </div>
           </div>
 
           {order && (
             <div className="flex items-center gap-3">
-              <StatusPill label={order.status} tone={getStatusTone(order.status)} />
-              {canEdit && (
-                <div className="flex items-center gap-1 rounded-xl border border-border bg-white p-1">
-                  {ORDER_STATUSES.map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => handleStatusChange(status)}
-                      disabled={saving}
-                      className={cn(
-                        'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                        order.status === status
-                          ? 'bg-primary text-white'
-                          : 'text-slate-600 hover:bg-slate-100'
-                      )}
-                    >
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </button>
-                  ))}
+              <div className="rounded-2xl border border-border bg-white px-4 py-3 shadow-sm">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Order status</div>
+                <div className="mt-2 min-w-[200px]">
+                  <Select
+                    value={order.status}
+                    onChange={(value) => handleStatusChange(value as OrderStatus)}
+                    options={ORDER_STATUSES.map((status) => ({
+                      value: status,
+                      label: status.charAt(0).toUpperCase() + status.slice(1),
+                    }))}
+                    disabled={!canEdit || saving}
+                  />
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>
@@ -207,7 +213,7 @@ export const AdminOrderDetailsPage: React.FC = () => {
                 <div className="flex items-center justify-between border-b border-border px-6 py-4">
                   <h2 className="text-lg font-semibold text-slate-900">Items</h2>
                   <span className="text-sm text-muted">
-                    {order.products.length} line{order.products.length !== 1 ? 's' : ''} · {totalQty} item{totalQty !== 1 ? 's' : ''}
+                    {order.products.length} line{order.products.length !== 1 ? 's' : ''} | {totalQty} item{totalQty !== 1 ? 's' : ''}
                   </span>
                 </div>
                 <div className="overflow-x-auto">
@@ -390,7 +396,7 @@ export const AdminOrderDetailsPage: React.FC = () => {
                           )} />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <p className="font-medium text-slate-900">{addr.fullName || '—'}</p>
+                              <p className="font-medium text-slate-900">{addr.fullName || '-'}</p>
                               {addr.isDefault && (
                                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                                   Default
@@ -415,26 +421,6 @@ export const AdminOrderDetailsPage: React.FC = () => {
                 </section>
               )}
 
-              {/* Order Info */}
-              <section className="rounded-2xl border border-border bg-surface shadow-sm">
-                <div className="border-b border-border px-6 py-4">
-                  <h2 className="text-lg font-semibold text-slate-900">Order Info</h2>
-                </div>
-                <div className="p-6 space-y-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">Order ID</span>
-                    <span className="font-mono text-xs text-slate-600">{order.id}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">Created</span>
-                    <span className="text-slate-900">{formatDate(order.createdAt)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">Updated</span>
-                    <span className="text-slate-900">{formatDate(order.updatedAt)}</span>
-                  </div>
-                </div>
-              </section>
             </aside>
           </div>
         )}
