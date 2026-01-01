@@ -59,6 +59,32 @@ const defaultSignup: SignupData = {
   confirmPassword: '',
 };
 
+const LAST_VISITED_STORAGE_KEY = 'lastVisitedPath';
+const CLIENT_REDIRECT_EXCLUSIONS = ['/login', '/register', '/reset-password', '/clients/register', '/admin'];
+
+const getClientRedirectPath = (): string | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    const stored = window.localStorage.getItem(LAST_VISITED_STORAGE_KEY);
+    if (!stored) {
+      return null;
+    }
+    const trimmed = stored.trim();
+    if (!trimmed.startsWith('/')) {
+      return null;
+    }
+    const pathOnly = trimmed.split(/[?#]/)[0];
+    const isBlocked = CLIENT_REDIRECT_EXCLUSIONS.some(
+      (prefix) => pathOnly === prefix || pathOnly.startsWith(`${prefix}/`)
+    );
+    return isBlocked ? null : trimmed;
+  } catch {
+    return null;
+  }
+};
+
 type LoginPageProps = {
   initialTab?: 'login' | 'signup';
 };
@@ -429,7 +455,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialTab = 'login' }) =>
           setSignupStep(isUserB2B ? 3 : 2); // Verification step
         } else {
           await loadFromServer();
-          navigate('/account', { replace: true });
+          const redirectPath = getClientRedirectPath();
+          navigate(redirectPath ?? '/account', { replace: true });
         }
       }
     } catch (error: unknown) {
