@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from '../components/routing/ProtectedRoute';
+import { ScrollToTop } from '../components/routing/ScrollToTop';
 import { AdminDashboardPage } from '../pages/AdminDashboardPage';
 import { CartPage } from '../pages/CartPage';
 import { CheckoutPage } from '../pages/CheckoutPage';
@@ -20,6 +21,7 @@ import { WishlistPage } from '../pages/WishlistPage';
 
 export const AppRouter: React.FC = () => (
   <BrowserRouter>
+    <ScrollToTop />
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/products" element={<ProductCatalogPage />} />

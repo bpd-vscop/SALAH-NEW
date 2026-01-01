@@ -48,7 +48,10 @@ export const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   return (
     <div className="min-h-screen bg-background text-slate-950 flex flex-col">
       <Header />
-      <main className="flex-1 transition-all duration-300" style={{ paddingTop: `${headerHeight}px` }}>
+      <main
+        className="flex-1 transition-all duration-300"
+        style={{ paddingTop: `${headerHeight}px`, minHeight: `calc(100vh - ${headerHeight}px)` }}
+      >
         {children}
       </main>
       <Footer />
