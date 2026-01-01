@@ -51,6 +51,93 @@ const DASHBOARD_TOP_MARGIN = 28; // matches hero/search stack height
 const DESKTOP_SIDEBAR_HEIGHT = `calc(100vh - ${DASHBOARD_TOP_MARGIN}px)`;
 const COMPANY_WEBSITE_PATTERN = /^[^\s]+\.[^\s]+$/;
 
+const US_STATES = [
+  'Alabama',
+  'Alaska',
+  'Arizona',
+  'Arkansas',
+  'California',
+  'Colorado',
+  'Connecticut',
+  'Delaware',
+  'District of Columbia',
+  'Florida',
+  'Georgia',
+  'Hawaii',
+  'Idaho',
+  'Illinois',
+  'Indiana',
+  'Iowa',
+  'Kansas',
+  'Kentucky',
+  'Louisiana',
+  'Maine',
+  'Maryland',
+  'Massachusetts',
+  'Michigan',
+  'Minnesota',
+  'Mississippi',
+  'Missouri',
+  'Montana',
+  'Nebraska',
+  'Nevada',
+  'New Hampshire',
+  'New Jersey',
+  'New Mexico',
+  'New York',
+  'North Carolina',
+  'North Dakota',
+  'Ohio',
+  'Oklahoma',
+  'Oregon',
+  'Pennsylvania',
+  'Rhode Island',
+  'South Carolina',
+  'South Dakota',
+  'Tennessee',
+  'Texas',
+  'Utah',
+  'Vermont',
+  'Virginia',
+  'Washington',
+  'West Virginia',
+  'Wisconsin',
+  'Wyoming',
+];
+
+const US_CITIES = [
+  'New York',
+  'Los Angeles',
+  'Chicago',
+  'Houston',
+  'Phoenix',
+  'Philadelphia',
+  'San Antonio',
+  'San Diego',
+  'Dallas',
+  'San Jose',
+  'Austin',
+  'Jacksonville',
+  'Fort Worth',
+  'Columbus',
+  'Charlotte',
+  'San Francisco',
+  'Indianapolis',
+  'Seattle',
+  'Denver',
+  'Washington',
+  'Boston',
+  'El Paso',
+  'Nashville',
+  'Detroit',
+  'Oklahoma City',
+  'Portland',
+  'Las Vegas',
+  'Memphis',
+  'Louisville',
+  'Baltimore',
+];
+
 const resolveProfileImage = (value: string | null | undefined): string | null => {
   if (!value) return null;
   if (value.startsWith('http://') || value.startsWith('https://')) {
@@ -99,12 +186,20 @@ export const ClientDashboardPage: React.FC = () => {
     businessType: '',
     taxId: '',
     website: '',
+    companyAddress: '',
+    companyCity: '',
+    companyState: '',
+    companyCountry: 'United States',
   });
   const [useCustomBusinessType, setUseCustomBusinessType] = useState(false);
   const [b2bVerificationFile, setB2bVerificationFile] = useState<File | null>(null);
   const [b2bConversionLoading, setB2bConversionLoading] = useState(false);
   const [companyTaxIdDraft, setCompanyTaxIdDraft] = useState('');
   const [companyWebsiteDraft, setCompanyWebsiteDraft] = useState('');
+  const [companyAddressDraft, setCompanyAddressDraft] = useState('');
+  const [companyCityDraft, setCompanyCityDraft] = useState('');
+  const [companyStateDraft, setCompanyStateDraft] = useState('');
+  const [companyCountryDraft, setCompanyCountryDraft] = useState('United States');
   const [companyDetailsLoading, setCompanyDetailsLoading] = useState(false);
   const [companyDetailsError, setCompanyDetailsError] = useState<string | null>(null);
   const [companyDetailsSuccess, setCompanyDetailsSuccess] = useState<string | null>(null);
@@ -514,6 +609,40 @@ export const ClientDashboardPage: React.FC = () => {
     }
   };
 
+  const handleSaveCompanyAddress = async () => {
+    if (!user) {
+      return;
+    }
+    const trimmedAddress = companyAddressDraft.trim();
+    const trimmedCity = companyCityDraft.trim();
+    const trimmedState = companyStateDraft.trim();
+    const trimmedCountry = companyCountryDraft.trim();
+
+    if (!trimmedAddress || !trimmedCity || !trimmedState || !trimmedCountry) {
+      setCompanyDetailsError('Company address, country, state, and city are required.');
+      return;
+    }
+
+    const formattedAddress = [trimmedAddress, trimmedCity, trimmedState, trimmedCountry].join(', ');
+
+    setCompanyDetailsLoading(true);
+    setCompanyDetailsError(null);
+    setCompanyDetailsSuccess(null);
+    try {
+      await usersApi.update(user.id, { companyAddress: formattedAddress });
+      setCompanyAddressDraft('');
+      setCompanyCityDraft('');
+      setCompanyStateDraft('');
+      setCompanyCountryDraft('United States');
+      await refresh();
+      setCompanyDetailsSuccess('Company address added successfully.');
+    } catch (error) {
+      setCompanyDetailsError(error instanceof Error ? error.message : 'Failed to add company address.');
+    } finally {
+      setCompanyDetailsLoading(false);
+    }
+  };
+
   const handleUndoRemoveProfileImage = () => {
     if (previewObjectUrl) {
       URL.revokeObjectURL(previewObjectUrl);
@@ -790,6 +919,14 @@ export const ClientDashboardPage: React.FC = () => {
 
   const isB2B = user.clientType === 'B2B';
   const isC2B = user.clientType === 'C2B';
+  const isUnitedStates = [
+    'united states',
+    'united states of america'
+  ].includes(b2bFormData.companyCountry.trim().toLowerCase());
+  const isUnitedStatesCompanyDetails = [
+    'united states',
+    'united states of america'
+  ].includes(companyCountryDraft.trim().toLowerCase());
 
   const getTabIcon = (tabId: TabType): ReactNode => {
     const baseClass = 'h-5 w-5';
@@ -1378,11 +1515,11 @@ export const ClientDashboardPage: React.FC = () => {
                     </div>
                   )}
 
-                  {isB2B && user.company && (!user.company.taxId || !user.company.website) && (
+                  {isB2B && user.company && (!user.company.taxId || !user.company.website || !user.company.address) && (
                     <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
                       <h3 className="text-lg font-semibold text-slate-900">Complete Company Details</h3>
                       <p className="text-sm text-slate-600">
-                        Add the remaining optional company information below. Once saved, these fields become locked.
+                        Add the remaining required company information below. Once saved, these fields become locked.
                       </p>
                       {companyDetailsError && (
                         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
@@ -1395,6 +1532,88 @@ export const ClientDashboardPage: React.FC = () => {
                         </div>
                       )}
                       <div className="grid gap-4 md:grid-cols-2">
+                        {!user.company.address && (
+                          <div className="flex flex-col gap-4 md:col-span-2">
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-medium text-slate-600">Company Address</label>
+                              <input
+                                type="text"
+                                value={companyAddressDraft}
+                                onChange={(event) => setCompanyAddressDraft(event.target.value)}
+                                placeholder="Street address"
+                                disabled={companyDetailsLoading}
+                                className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              />
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-3">
+                              <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium text-slate-600">Country</label>
+                                <CountrySelect
+                                  value={companyCountryDraft}
+                                  onChange={setCompanyCountryDraft}
+                                  placeholder="Select country"
+                                  searchPlaceholder="Search countries..."
+                                  className="w-full"
+                                />
+                              </div>
+
+                              <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium text-slate-600">State</label>
+                                {isUnitedStatesCompanyDetails ? (
+                                  <CountrySelect
+                                    value={companyStateDraft}
+                                    onChange={setCompanyStateDraft}
+                                    options={US_STATES}
+                                    placeholder="Select state"
+                                    searchPlaceholder="Search states..."
+                                    className="w-full"
+                                  />
+                                ) : (
+                                  <input
+                                    id="companyState"
+                                    type="text"
+                                    value={companyStateDraft}
+                                    onChange={(event) => setCompanyStateDraft(event.target.value)}
+                                    placeholder="State / Province"
+                                    disabled={companyDetailsLoading}
+                                    className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                  />
+                                )}
+                              </div>
+
+                              <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium text-slate-600">City</label>
+                                <input
+                                  id="companyCity"
+                                  type="text"
+                                  value={companyCityDraft}
+                                  onChange={(event) => setCompanyCityDraft(event.target.value)}
+                                  placeholder="City"
+                                  disabled={companyDetailsLoading}
+                                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <button
+                                type="button"
+                                onClick={handleSaveCompanyAddress}
+                                disabled={
+                                  companyDetailsLoading ||
+                                  !companyAddressDraft.trim() ||
+                                  !companyCityDraft.trim() ||
+                                  !companyStateDraft.trim() ||
+                                  !companyCountryDraft.trim()
+                                }
+                                className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Save Address
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         {!user.company.taxId && (
                           <div className="flex flex-col gap-2">
                             <label className="text-sm font-medium text-slate-600">Tax ID</label>
@@ -2307,23 +2526,51 @@ export const ClientDashboardPage: React.FC = () => {
                         e.preventDefault();
                         if (!user) return;
 
-                        setB2bConversionLoading(true);
                         setError(null);
                         setStatusMessage(null);
 
+                        const trimmedCompanyName = b2bFormData.companyName.trim();
+                        const trimmedBusinessType = b2bFormData.businessType.trim();
+                        const trimmedTaxId = b2bFormData.taxId.trim();
+                        const trimmedWebsite = b2bFormData.website.trim();
+                        const trimmedAddress = b2bFormData.companyAddress.trim();
+                        const trimmedCity = b2bFormData.companyCity.trim();
+                        const trimmedState = b2bFormData.companyState.trim();
+                        const trimmedCountry = b2bFormData.companyCountry.trim();
+
+                        if (
+                          !trimmedCompanyName ||
+                          !trimmedBusinessType ||
+                          !trimmedTaxId ||
+                          !trimmedAddress ||
+                          !trimmedCity ||
+                          !trimmedState ||
+                          !trimmedCountry
+                        ) {
+                          setError('Please fill out all required company details before converting to B2B.');
+                          return;
+                        }
+
+                        if (!b2bVerificationFile) {
+                          setError('Please upload a verification document to complete the B2B conversion.');
+                          return;
+                        }
+
+                        setB2bConversionLoading(true);
+
                         try {
                           const formData = new FormData();
-                          formData.append('companyName', b2bFormData.companyName);
-                          formData.append('businessType', b2bFormData.businessType.trim());
-                          if (b2bFormData.taxId) {
-                            formData.append('taxId', b2bFormData.taxId);
+                          formData.append('companyName', trimmedCompanyName);
+                          formData.append('businessType', trimmedBusinessType);
+                          formData.append('taxId', trimmedTaxId);
+                          formData.append('companyAddress', trimmedAddress);
+                          formData.append('companyCity', trimmedCity);
+                          formData.append('companyState', trimmedState);
+                          formData.append('companyCountry', trimmedCountry);
+                          if (trimmedWebsite) {
+                            formData.append('website', trimmedWebsite);
                           }
-                          if (b2bFormData.website) {
-                            formData.append('website', b2bFormData.website);
-                          }
-                          if (b2bVerificationFile) {
-                            formData.append('verificationFile', b2bVerificationFile);
-                          }
+                          formData.append('verificationFile', b2bVerificationFile);
 
                           const response = await usersApi.convertToB2B(user.id, formData);
                           await refresh();
@@ -2335,6 +2582,10 @@ export const ClientDashboardPage: React.FC = () => {
                             businessType: '',
                             taxId: '',
                             website: '',
+                            companyAddress: '',
+                            companyCity: '',
+                            companyState: '',
+                            companyCountry: 'United States',
                           });
                           setUseCustomBusinessType(false);
                           setB2bVerificationFile(null);
@@ -2404,9 +2655,93 @@ export const ClientDashboardPage: React.FC = () => {
                             )}
                           </div>
 
+                          <div className="grid gap-4 md:grid-cols-3">
+                            <div className="space-y-2 md:col-span-3">
+                              <label htmlFor="companyAddress" className="block text-sm font-medium text-slate-700">
+                                Company Address <span className="text-red-600">*</span>
+                              </label>
+                              <input
+                                id="companyAddress"
+                                type="text"
+                                value={b2bFormData.companyAddress}
+                                onChange={(e) => setB2bFormData({ ...b2bFormData, companyAddress: e.target.value })}
+                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                placeholder="Street address"
+                                required
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-slate-700">
+                                Country <span className="text-red-600">*</span>
+                              </label>
+                              <CountrySelect
+                                value={b2bFormData.companyCountry}
+                                onChange={(countryName) =>
+                                  setB2bFormData({ ...b2bFormData, companyCountry: countryName })
+                                }
+                                placeholder="Select country"
+                                searchPlaceholder="Search countries..."
+                                className="w-full"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-slate-700">
+                                State <span className="text-red-600">*</span>
+                              </label>
+                              {isUnitedStates ? (
+                                <CountrySelect
+                                  value={b2bFormData.companyState}
+                                  onChange={(stateName) =>
+                                    setB2bFormData({ ...b2bFormData, companyState: stateName })
+                                  }
+                                  options={US_STATES}
+                                  placeholder="Select state"
+                                  searchPlaceholder="Search states..."
+                                  className="w-full"
+                                />
+                              ) : (
+                                <input
+                                  id="companyState"
+                                  type="text"
+                                  value={b2bFormData.companyState}
+                                  onChange={(e) => setB2bFormData({ ...b2bFormData, companyState: e.target.value })}
+                                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                  placeholder="State / Province"
+                                  required
+                                />
+                              )}
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-slate-700">
+                                City <span className="text-red-600">*</span>
+                              </label>
+                              <input
+                                id="companyCity"
+                                type="text"
+                                list={isUnitedStates ? 'b2b-city-options' : undefined}
+                                value={b2bFormData.companyCity}
+                                onChange={(e) => setB2bFormData({ ...b2bFormData, companyCity: e.target.value })}
+                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                placeholder={isUnitedStates ? 'Select or type city' : 'City'}
+                                required
+                              />
+                            </div>
+                          </div>
+
+                          {isUnitedStates && (
+                            <datalist id="b2b-city-options">
+                              {US_CITIES.map((city) => (
+                                <option key={city} value={city} />
+                              ))}
+                            </datalist>
+                          )}
+
                           <div className="space-y-2">
                             <label htmlFor="taxId" className="block text-sm font-medium text-slate-700">
-                              Tax ID
+                              Tax ID <span className="text-red-600">*</span>
                             </label>
                             <input
                               id="taxId"
@@ -2414,7 +2749,8 @@ export const ClientDashboardPage: React.FC = () => {
                               value={b2bFormData.taxId}
                               onChange={(e) => setB2bFormData({ ...b2bFormData, taxId: e.target.value })}
                               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              placeholder="Tax ID"
+                              placeholder="EIN / VAT number"
+                              required
                             />
                           </div>
 
@@ -2435,7 +2771,7 @@ export const ClientDashboardPage: React.FC = () => {
 
                           <div className="space-y-2">
                             <label htmlFor="verificationFile" className="block text-sm font-medium text-slate-700">
-                              Business Verification Document
+                              Business Verification Document <span className="text-red-600">*</span>
                             </label>
                             <input
                               id="verificationFile"
@@ -2443,6 +2779,7 @@ export const ClientDashboardPage: React.FC = () => {
                               accept=".pdf,.jpg,.jpeg,.png"
                               onChange={(e) => setB2bVerificationFile(e.target.files?.[0] || null)}
                               className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
+                              required
                             />
                             <p className="text-xs text-slate-500">Upload your business license, tax certificate, or other official business documentation (PDF, JPG, PNG - max 10MB)</p>
                           </div>
@@ -2459,6 +2796,10 @@ export const ClientDashboardPage: React.FC = () => {
                               businessType: '',
                               taxId: '',
                               website: '',
+                              companyAddress: '',
+                              companyCity: '',
+                              companyState: '',
+                              companyCountry: 'United States',
                             });
                             setB2bVerificationFile(null);
                           }}

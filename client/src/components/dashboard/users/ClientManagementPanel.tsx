@@ -6,6 +6,7 @@ import type { ComposeClientRef, StatusSetter } from '../types';
 import { StatusPill } from '../../common/StatusPill';
 import { cn } from '../../../utils/cn';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../../common/PhoneInput';
+import { CountrySelect } from '../../common/CountrySelect';
 import { BusinessTypeSelect } from '../../common/BusinessTypeSelect';
 import { isBusinessTypeOption, type BusinessTypeOption } from '../../../data/businessTypes';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,6 +36,9 @@ interface ClientFormState {
   companyName: string;
   companyPhone: string;
   companyAddress: string;
+  companyCity: string;
+  companyState: string;
+  companyCountry: string;
   companyBusinessType: string;
   companyTaxId: string;
   companyWebsite: string;
@@ -60,6 +64,60 @@ const EMAIL_DOMAINS = [
   '@yandex.com',
 ];
 
+const US_STATES = [
+  'Alabama',
+  'Alaska',
+  'Arizona',
+  'Arkansas',
+  'California',
+  'Colorado',
+  'Connecticut',
+  'Delaware',
+  'District of Columbia',
+  'Florida',
+  'Georgia',
+  'Hawaii',
+  'Idaho',
+  'Illinois',
+  'Indiana',
+  'Iowa',
+  'Kansas',
+  'Kentucky',
+  'Louisiana',
+  'Maine',
+  'Maryland',
+  'Massachusetts',
+  'Michigan',
+  'Minnesota',
+  'Mississippi',
+  'Missouri',
+  'Montana',
+  'Nebraska',
+  'Nevada',
+  'New Hampshire',
+  'New Jersey',
+  'New Mexico',
+  'New York',
+  'North Carolina',
+  'North Dakota',
+  'Ohio',
+  'Oklahoma',
+  'Oregon',
+  'Pennsylvania',
+  'Rhode Island',
+  'South Carolina',
+  'South Dakota',
+  'Tennessee',
+  'Texas',
+  'Utah',
+  'Vermont',
+  'Virginia',
+  'Washington',
+  'West Virginia',
+  'Wisconsin',
+  'Wyoming',
+];
+
 const buildEmptyForm = (): ClientFormState => ({
   firstName: '',
   lastName: '',
@@ -71,6 +129,9 @@ const buildEmptyForm = (): ClientFormState => ({
   companyName: '',
   companyPhone: '',
   companyAddress: '',
+  companyCity: '',
+  companyState: '',
+  companyCountry: 'United States',
   companyBusinessType: '',
   companyTaxId: '',
   companyWebsite: '',
@@ -190,6 +251,10 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
   const isEditingB2B = Boolean(editingId && form.clientType === 'B2B');
   const showStepOne = !editingId ? formStep === 1 : !isEditingB2B || formStep === 1;
   const showStepTwo = !editingId ? formStep === 2 : isEditingB2B && formStep === 2;
+  const isUnitedStates = [
+    'united states',
+    'united states of america'
+  ].includes(form.companyCountry.trim().toLowerCase());
   const hideMetaColumns = isFormVisible;
   const tableColumnCount = hideMetaColumns ? 5 : 8;
 
@@ -316,6 +381,9 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
       companyName: client.company?.name ?? '',
       companyPhone: client.company?.phone ?? '',
       companyAddress: client.company?.address ?? '',
+      companyCity: '',
+      companyState: '',
+      companyCountry: 'United States',
       companyBusinessType: client.company?.businessType ?? '',
       companyTaxId: client.company?.taxId ?? '',
       companyWebsite: client.company?.website ?? '',
@@ -420,6 +488,9 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
           companyName: '',
           companyPhone: '',
           companyAddress: '',
+          companyCity: '',
+          companyState: '',
+          companyCountry: 'United States',
           companyBusinessType: '',
           companyTaxId: '',
           companyWebsite: '',
@@ -670,10 +741,23 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
     const trimmedPhoneNumber = phoneValue.number.trim();
     const trimmedCompanyName = form.companyName.trim();
     const trimmedCompanyPhone = form.companyPhone.trim();
-    const trimmedCompanyAddress = form.companyAddress.trim();
+    const trimmedCompanyAddressLine = form.companyAddress.trim();
+    const trimmedCompanyCity = form.companyCity.trim();
+    const trimmedCompanyState = form.companyState.trim();
+    const trimmedCompanyCountry = form.companyCountry.trim();
+    const formattedCompanyAddress = trimmedCompanyAddressLine && trimmedCompanyCity && trimmedCompanyState && trimmedCompanyCountry
+      ? `${trimmedCompanyAddressLine}, ${trimmedCompanyCity}, ${trimmedCompanyState}, ${trimmedCompanyCountry}`
+      : trimmedCompanyAddressLine;
     const trimmedCompanyBusinessType = form.companyBusinessType.trim();
     const trimmedCompanyTaxId = form.companyTaxId.trim();
     const trimmedCompanyWebsite = form.companyWebsite.trim();
+
+    if (!editingId && form.clientType === 'B2B') {
+      if (!trimmedCompanyAddressLine || !trimmedCompanyCity || !trimmedCompanyState || !trimmedCompanyCountry) {
+        setFormError('Company address, country, state, and city are required for B2B clients.');
+        return;
+      }
+    }
 
     try {
       setSubmitting(true);
@@ -717,8 +801,8 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
         if (trimmedCompanyPhone) {
           detailsPayload.companyPhone = trimmedCompanyPhone;
         }
-        if (trimmedCompanyAddress) {
-          detailsPayload.companyAddress = trimmedCompanyAddress;
+        if (formattedCompanyAddress) {
+          detailsPayload.companyAddress = formattedCompanyAddress;
         }
         if (trimmedCompanyBusinessType) {
           detailsPayload.companyBusinessType = trimmedCompanyBusinessType;
@@ -766,7 +850,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
         phoneNumber: hasPhone ? trimmedPhoneNumber : null,
         companyName: trimmedCompanyName || null,
         companyPhone: trimmedCompanyPhone || null,
-        companyAddress: trimmedCompanyAddress || null,
+        companyAddress: formattedCompanyAddress || null,
         companyBusinessType: trimmedCompanyBusinessType || null,
         companyTaxId: trimmedCompanyTaxId || null,
         companyWebsite: trimmedCompanyWebsite || null,
@@ -1958,15 +2042,76 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                     />
                   </label>
 
-                  <label className="flex flex-col gap-2 text-sm text-slate-600">
-                    Company address
-                    <textarea
-                      value={form.companyAddress}
-                      onChange={(event) => setForm((prev) => ({ ...prev, companyAddress: event.target.value }))}
-                      placeholder="Optional"
-                      className="min-h-[80px] rounded-xl border border-border bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </label>
+                  {!editingId ? (
+                    <div className="flex flex-col gap-3">
+                      <label className="flex flex-col gap-2 text-sm text-slate-600">
+                        Company address
+                        <input
+                          type="text"
+                          value={form.companyAddress}
+                          onChange={(event) => setForm((prev) => ({ ...prev, companyAddress: event.target.value }))}
+                          placeholder="Street address"
+                          className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </label>
+
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div className="flex flex-col gap-2 text-sm text-slate-600">
+                          <span>Country</span>
+                          <CountrySelect
+                            value={form.companyCountry}
+                            onChange={(value) => setForm((prev) => ({ ...prev, companyCountry: value }))}
+                            placeholder="Select country"
+                            searchPlaceholder="Search countries..."
+                            className="w-full"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-2 text-sm text-slate-600">
+                          <span>State</span>
+                          {isUnitedStates ? (
+                            <CountrySelect
+                              value={form.companyState}
+                              onChange={(value) => setForm((prev) => ({ ...prev, companyState: value }))}
+                              options={US_STATES}
+                              placeholder="Select state"
+                              searchPlaceholder="Search states..."
+                              className="w-full"
+                            />
+                          ) : (
+                            <input
+                              type="text"
+                              value={form.companyState}
+                              onChange={(event) => setForm((prev) => ({ ...prev, companyState: event.target.value }))}
+                              placeholder="State / Province"
+                              className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                          )}
+                        </div>
+
+                        <div className="flex flex-col gap-2 text-sm text-slate-600">
+                          <span>City</span>
+                          <input
+                            type="text"
+                            value={form.companyCity}
+                            onChange={(event) => setForm((prev) => ({ ...prev, companyCity: event.target.value }))}
+                            placeholder="City"
+                            className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col gap-2 text-sm text-slate-600">
+                      Company address
+                      <textarea
+                        value={form.companyAddress}
+                        onChange={(event) => setForm((prev) => ({ ...prev, companyAddress: event.target.value }))}
+                        placeholder="Optional"
+                        className="min-h-[80px] rounded-xl border border-border bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </label>
+                  )}
 
                   <label className="flex flex-col gap-2 text-sm text-slate-600">
                     Company website

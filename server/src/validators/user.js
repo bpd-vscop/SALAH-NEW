@@ -114,7 +114,11 @@ const convertToB2BSchema = z
   .object({
     companyName: z.string().trim().min(2, 'Company name is required').max(120),
     businessType: z.string().trim().min(2, 'Business type is required').max(120),
-    taxId: optionalTrimmed(z.string().max(80)),
+    taxId: z.string().trim().min(2, 'Tax ID is required').max(80),
+    companyAddress: z.string().trim().min(2, 'Company address is required').max(200),
+    companyCity: z.string().trim().min(2, 'City is required').max(120),
+    companyState: z.string().trim().min(2, 'State is required').max(120),
+    companyCountry: z.string().trim().min(2, 'Country is required').max(120),
     website: optionalTrimmed(
       z
         .string()

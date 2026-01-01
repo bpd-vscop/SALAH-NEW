@@ -883,10 +883,22 @@ const convertToB2B = async (req, res, next) => {
       });
     }
 
-    if (req.file) {
-      const relativePath = path.posix.join('users', id, 'verification', req.file.filename);
-      user.verificationFileUrl = relativePath;
+    if (!req.file) {
+      throw badRequest('Verification document is required to convert to B2B');
     }
+
+    const relativePath = path.posix.join('users', id, 'verification', req.file.filename);
+    user.verificationFileUrl = relativePath;
+
+    const companyAddress = [
+      data.companyAddress,
+      data.companyCity,
+      data.companyState,
+      data.companyCountry,
+    ]
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter(Boolean)
+      .join(', ');
 
     const existingCompany = user.company || {};
     user.clientType = 'B2B';
@@ -896,7 +908,7 @@ const convertToB2B = async (req, res, next) => {
       taxId: data.taxId ?? null,
       website: data.website ?? null,
       phone: existingCompany.phone ?? null,
-      address: existingCompany.address ?? null,
+      address: companyAddress || existingCompany.address || null,
     };
 
     await user.save();
