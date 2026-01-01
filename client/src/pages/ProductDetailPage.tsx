@@ -8,6 +8,7 @@ import { SiteLayout } from '../components/layout/SiteLayout';
 import { ProductMediaGallery } from '../components/product/ProductMediaGallery';
 import { ProductDetailTabs } from '../components/product/ProductDetailTabs';
 import { ProductRecommendationRail } from '../components/product/ProductRecommendationRail';
+import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import type { Category, Product, ProductInventoryStatus, ProductVariation } from '../types/api';
@@ -132,8 +133,10 @@ export const ProductDetailPage: React.FC = () => {
   const [selectedVariationId, setSelectedVariationId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
 
+  const { user } = useAuth();
   const { addItem } = useCart();
   const { items: wishlistItems, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
+  const isSignedInClient = user?.role === 'client';
 
   useEffect(() => {
     if (!id) return;
@@ -308,6 +311,17 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleToggleWishlist = async () => {
     if (!product) return;
+    if (!isSignedInClient) {
+      window.dispatchEvent(
+        new CustomEvent('openAuthPrompt', {
+          detail: {
+            title: 'Sign in required',
+            message: 'Please sign in or sign up with a client account to add this product to your wishlist.',
+          },
+        })
+      );
+      return;
+    }
     if (isInWishlist) {
       await removeWishlistItem(product.id);
     } else {

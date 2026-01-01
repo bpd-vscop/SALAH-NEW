@@ -395,7 +395,7 @@ export const Header: React.FC = () => {
   } = useWishlist();
   const cartCount = useMemo(() => items.reduce((sum, line) => sum + line.quantity, 0), [items]);
   const wishlistCount = useMemo(() => wishlistItems.length, [wishlistItems]);
-  const showWishlist = true;
+  const showWishlist = user?.role === 'client';
   const [cartProducts, setCartProducts] = useState<Record<string, Product>>({});
   const [wishlistProducts, setWishlistProducts] = useState<Record<string, Product>>({});
   const cartSubtotal = useMemo(() => {

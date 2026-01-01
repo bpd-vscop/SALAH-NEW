@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { Product } from '../../types/api';
 import { formatCurrency } from '../../utils/format';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { cn } from '../../utils/cn';
 
@@ -90,7 +91,9 @@ const isSaleActive = (product: Product) => {
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, className, badge, hideTags = false }) => {
   const { addItem } = useCart();
+  const { user } = useAuth();
   const { items: wishlistItems, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
+  const isSignedInClient = user?.role === 'client';
 
   const allowBackorder = product.inventory?.allowBackorder ?? false;
   const availableQuantity = product.inventory?.quantity ?? null;
@@ -113,6 +116,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
   const handleToggleWishlist = async (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    if (!isSignedInClient) {
+      window.dispatchEvent(
+        new CustomEvent('openAuthPrompt', {
+          detail: {
+            title: 'Sign in required',
+            message: 'Please sign in or sign up with a client account to add this product to your wishlist.',
+          },
+        })
+      );
+      return;
+    }
     if (isInWishlist) {
       await removeWishlistItem(product.id);
     } else {
@@ -166,8 +180,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
           type="button"
           onClick={handleToggleWishlist}
           className={cn(
-            'absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/90 text-slate-600 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110',
-            isInWishlist ? 'text-rose-500' : 'hover:text-rose-500'
+            'absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/90 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110',
+            isInWishlist ? 'text-rose-500' : 'text-slate-600 hover:text-rose-500'
           )}
           aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
         >
