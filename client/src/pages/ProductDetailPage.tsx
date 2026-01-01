@@ -137,6 +137,8 @@ export const ProductDetailPage: React.FC = () => {
   const { addItem } = useCart();
   const { items: wishlistItems, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
   const isSignedInClient = user?.role === 'client';
+  const isStaffUser = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'staff';
+  const showWishlistAction = !isStaffUser;
 
   useEffect(() => {
     if (!id) return;
@@ -311,6 +313,9 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleToggleWishlist = async () => {
     if (!product) return;
+    if (isStaffUser) {
+      return;
+    }
     if (!isSignedInClient) {
       window.dispatchEvent(
         new CustomEvent('openAuthPrompt', {
@@ -539,14 +544,16 @@ export const ProductDetailPage: React.FC = () => {
                 >
                   Check fitment
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void handleToggleWishlist()}
-                  className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                >
-                  <Heart className={cn('h-4 w-4', isInWishlist ? 'text-rose-500' : 'text-slate-500')} />
-                  {isInWishlist ? 'Saved to wishlist' : 'Add to wishlist'}
-                </button>
+                {showWishlistAction && (
+                  <button
+                    type="button"
+                    onClick={() => void handleToggleWishlist()}
+                    className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                  >
+                    <Heart className={cn('h-4 w-4', isInWishlist ? 'text-rose-500' : 'text-slate-500')} />
+                    {isInWishlist ? 'Saved to wishlist' : 'Add to wishlist'}
+                  </button>
+                )}
               </div>
 
               <dl className="grid gap-3 rounded-2xl border border-border bg-background p-4 text-xs text-muted">

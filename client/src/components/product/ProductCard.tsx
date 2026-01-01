@@ -94,6 +94,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
   const { user } = useAuth();
   const { items: wishlistItems, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
   const isSignedInClient = user?.role === 'client';
+  const isStaffUser = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'staff';
+  const showWishlistAction = !isStaffUser;
 
   const allowBackorder = product.inventory?.allowBackorder ?? false;
   const availableQuantity = product.inventory?.quantity ?? null;
@@ -116,6 +118,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
   const handleToggleWishlist = async (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    if (isStaffUser) {
+      return;
+    }
     if (!isSignedInClient) {
       window.dispatchEvent(
         new CustomEvent('openAuthPrompt', {
@@ -176,17 +181,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
           </div>
         ) : null}
 
-        <button
-          type="button"
-          onClick={handleToggleWishlist}
-          className={cn(
-            'absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/90 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110',
-            isInWishlist ? 'text-rose-500' : 'text-slate-600 hover:text-rose-500'
-          )}
-          aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-        >
-          <Heart className={cn('h-5 w-5', isInWishlist ? 'fill-current' : '')} />
-        </button>
+        {showWishlistAction && (
+          <button
+            type="button"
+            onClick={handleToggleWishlist}
+            className={cn(
+              'absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/90 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110',
+              isInWishlist ? 'text-rose-500' : 'text-slate-600 hover:text-rose-500'
+            )}
+            aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+          >
+            <Heart className={cn('h-5 w-5', isInWishlist ? 'fill-current' : '')} />
+          </button>
+        )}
 
         <div className="absolute inset-0 flex items-center justify-center bg-slate-900/45 opacity-0 transition-all duration-300 group-hover:opacity-100">
           <div className="flex flex-col items-center gap-3">
