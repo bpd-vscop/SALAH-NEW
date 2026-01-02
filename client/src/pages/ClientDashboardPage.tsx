@@ -1351,6 +1351,7 @@ export const ClientDashboardPage: React.FC = () => {
                             value={editPhoneValue}
                             onChange={setEditPhoneValue}
                             placeholder="600000000"
+                            portalZIndex={30}
                           />
                         ) : (
                           <div className="flex items-center gap-2">
@@ -1558,6 +1559,7 @@ export const ClientDashboardPage: React.FC = () => {
                                   onChange={setCompanyCountryDraft}
                                   placeholder="Select country"
                                   searchPlaceholder="Search countries..."
+                                  portalZIndex={30}
                                   className="w-full"
                                 />
                               </div>
@@ -1571,6 +1573,7 @@ export const ClientDashboardPage: React.FC = () => {
                                     options={US_STATES}
                                     placeholder="Select state"
                                     searchPlaceholder="Search states..."
+                                    portalZIndex={30}
                                     className="w-full"
                                   />
                                 ) : (
@@ -2087,6 +2090,8 @@ export const ClientDashboardPage: React.FC = () => {
                   }}
                   placeholder="600000000"
                   placement="bottom"
+                  portalZIndex={30}
+                  size="compact"
                 />
               </div>
             </div>
@@ -2122,6 +2127,7 @@ export const ClientDashboardPage: React.FC = () => {
                   setAddressForm({ ...addressForm, country: countryName });
                 }}
                 defaultPhoneCode={addressPhoneValue.countryCode}
+                portalZIndex={30}
                 className="w-full"
               />
             </div>
@@ -2136,6 +2142,7 @@ export const ClientDashboardPage: React.FC = () => {
                     options={US_STATES}
                     placeholder="Select state"
                     searchPlaceholder="Search states..."
+                    portalZIndex={30}
                     className="w-full"
                   />
                 ) : (
@@ -2698,6 +2705,7 @@ export const ClientDashboardPage: React.FC = () => {
                                 }
                                 placeholder="Select country"
                                 searchPlaceholder="Search countries..."
+                                portalZIndex={30}
                                 className="w-full"
                               />
                             </div>
@@ -2715,6 +2723,7 @@ export const ClientDashboardPage: React.FC = () => {
                                   options={US_STATES}
                                   placeholder="Select state"
                                   searchPlaceholder="Search states..."
+                                  portalZIndex={30}
                                   className="w-full"
                                 />
                               ) : (

@@ -247,6 +247,8 @@ interface PhoneNumberInputProps {
   placeholder?: string;
   required?: boolean;
   placement?: 'auto' | 'top' | 'bottom';
+  portalZIndex?: number;
+  size?: 'default' | 'compact';
 }
 
 export function PhoneNumberInput({
@@ -256,6 +258,8 @@ export function PhoneNumberInput({
   placeholder = '1234567890',
   required = false,
   placement = 'top',
+  portalZIndex,
+  size = 'default',
 }: PhoneNumberInputProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -268,6 +272,15 @@ export function PhoneNumberInput({
     listMaxHeight: 224,
   });
   const isAutoPlacement = placement === 'auto';
+  const resolvedZIndex = portalZIndex ?? 9999;
+  const buttonClassName =
+    size === 'compact'
+      ? 'flex w-full items-center justify-between gap-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium transition focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60'
+      : 'flex w-full items-center justify-between gap-1 rounded-xl border border-slate-400/45 bg-white/95 px-2 py-3 text-sm font-medium transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 disabled:cursor-not-allowed disabled:opacity-60';
+  const inputClassName =
+    size === 'compact'
+      ? 'flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm transition focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60'
+      : 'flex-1 rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 disabled:cursor-not-allowed disabled:opacity-60';
 
   const selected = useMemo(
     () => COUNTRIES.find((c) => c.code === value.countryCode) || COUNTRIES[0],
@@ -354,7 +367,7 @@ export function PhoneNumberInput({
       <div className="relative w-[20%] flex-shrink-0">
         <button
           type="button"
-          className="flex w-full items-center justify-between gap-1 rounded-xl border border-slate-400/45 bg-white/95 px-2 py-3 text-sm font-medium transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 disabled:cursor-not-allowed disabled:opacity-60"
+          className={buttonClassName}
           onClick={() => !disabled && setOpen((prev) => !prev)}
           disabled={disabled}
         >
@@ -379,11 +392,12 @@ export function PhoneNumberInput({
         {open && createPortal(
           <div
             ref={dropdownRef}
-            className="absolute z-[9999] w-64 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl"
+            className="absolute w-64 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl"
             style={{
               top: `${dropdownPosition.top}px`,
               left: `${dropdownPosition.left}px`,
               maxHeight: isAutoPlacement ? `${dropdownPosition.maxHeight}px` : undefined,
+              zIndex: resolvedZIndex,
             }}
           >
             <div className="border-b border-slate-200 p-2">
@@ -433,7 +447,7 @@ export function PhoneNumberInput({
           onChange({ countryCode: value.countryCode, number: digitsOnly });
         }}
         maxLength={13}
-        className="flex-1 rounded-xl border border-slate-400/45 bg-white/95 px-3.5 py-3 text-[0.95rem] transition-all duration-250 ease-in-out focus:outline-none focus:border-red-700/60 focus:ring-4 focus:ring-red-700/12 disabled:cursor-not-allowed disabled:opacity-60"
+        className={inputClassName}
       />
     </div>
   );

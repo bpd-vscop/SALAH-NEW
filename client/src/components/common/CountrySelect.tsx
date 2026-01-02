@@ -17,6 +17,7 @@ export interface CountrySelectProps {
   placeholder?: string;
   searchPlaceholder?: string;
   placement?: 'bottom' | 'auto';
+  portalZIndex?: number;
 }
 
 export const CountrySelect: React.FC<CountrySelectProps> = ({
@@ -28,6 +29,7 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
   placeholder,
   searchPlaceholder,
   placement = 'bottom',
+  portalZIndex,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -102,6 +104,7 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
   const buttonRect = buttonRef.current?.getBoundingClientRect();
   const maxDropdownHeight = 288;
   const isAutoPlacement = placement === 'auto';
+  const resolvedZIndex = portalZIndex ?? 9999;
   let dropdownTop = buttonRect ? `${buttonRect.bottom + window.scrollY + 4}px` : '0px';
   let maxHeightStyle: string | undefined;
 
@@ -152,7 +155,7 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
               left: `${buttonRect.left + window.scrollX}px`,
               width: `${buttonRect.width}px`,
               maxHeight: maxHeightStyle,
-              zIndex: 9999,
+              zIndex: resolvedZIndex,
             }}
             className="max-h-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
           >
