@@ -10,7 +10,7 @@ import { CountrySelect } from '../../common/CountrySelect';
 import { BusinessTypeSelect } from '../../common/BusinessTypeSelect';
 import { isBusinessTypeOption, type BusinessTypeOption } from '../../../data/businessTypes';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Eye, EyeOff, MessageSquare, Search, X } from 'lucide-react';
+import { ChevronDown, Download, Eye, EyeOff, MessageSquare, Search, X } from 'lucide-react';
 import { PASSWORD_COMPLEXITY_MESSAGE, evaluatePasswordStrength, meetsPasswordPolicy } from '../../../utils/password';
 import { Select } from '../../ui/Select';
 
@@ -245,6 +245,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
   const [statusMenuOpenId, setStatusMenuOpenId] = useState<string | null>(null);
   const [typeMenuOpenId, setTypeMenuOpenId] = useState<string | null>(null);
   const [rowActionId, setRowActionId] = useState<string | null>(null);
+  const [documentPreview, setDocumentPreview] = useState<{ href: string; name: string } | null>(null);
 
   const passwordStrength = useMemo(() => evaluatePasswordStrength(form.password), [form.password]);
   const isFormVisible = !formCollapsed || Boolean(editingId);
@@ -1625,16 +1626,31 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                         )}
                         <td className="px-4 py-3 text-sm text-slate-600">
                           {verificationHref ? (
-                            <a
-                              href={verificationHref}
-                              download={`${deriveVerificationFilename(client)}`}
-                              className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1 text-xs font-semibold text-primary transition hover:bg-primary/5"
-                            >
-                              Download
-                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
-                              </svg>
-                            </a>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDocumentPreview({
+                                    href: verificationHref,
+                                    name: client.name || client.email || deriveVerificationFilename(client),
+                                  })
+                                }
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-white text-slate-600 transition hover:border-primary hover:text-primary"
+                                title="View document"
+                                aria-label="View document"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <a
+                                href={verificationHref}
+                                download={`${deriveVerificationFilename(client)}`}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-white text-slate-600 transition hover:border-primary hover:text-primary"
+                                title="Download document"
+                                aria-label="Download document"
+                              >
+                                <Download className="h-4 w-4" />
+                              </a>
+                            </div>
                           ) : (
                             <span className="text-xs text-slate-400">No document</span>
                           )}
@@ -2240,6 +2256,40 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
           )}
         </AnimatePresence>
       </div>
+
+      {documentPreview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setDocumentPreview(null)}
+        >
+          <div
+            className="w-full max-w-4xl rounded-2xl border border-border bg-surface p-4 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Document preview</h3>
+                <p className="text-xs text-slate-500">{documentPreview.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDocumentPreview(null)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-slate-600 transition hover:border-primary hover:text-primary"
+                aria-label="Close preview"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="h-[70vh] w-full overflow-hidden rounded-xl border border-border bg-white">
+              <iframe
+                src={documentPreview.href}
+                title={documentPreview.name}
+                className="h-full w-full"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {reasonModal && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm">
