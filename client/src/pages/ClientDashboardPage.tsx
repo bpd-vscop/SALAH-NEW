@@ -927,6 +927,10 @@ export const ClientDashboardPage: React.FC = () => {
     'united states',
     'united states of america'
   ].includes(companyCountryDraft.trim().toLowerCase());
+  const isUnitedStatesShipping = [
+    'united states',
+    'united states of america'
+  ].includes((addressForm.country || '').trim().toLowerCase());
 
   const getTabIcon = (tabId: TabType): ReactNode => {
     const baseClass = 'h-5 w-5';
@@ -2082,6 +2086,7 @@ export const ClientDashboardPage: React.FC = () => {
                     setAddressForm({ ...addressForm, phone: `${val.countryCode}${val.number}` });
                   }}
                   placeholder="600000000"
+                  placement="bottom"
                 />
               </div>
             </div>
@@ -2109,7 +2114,40 @@ export const ClientDashboardPage: React.FC = () => {
               />
             </div>
 
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Country *</label>
+              <CountrySelect
+                value={addressForm.country || 'United States'}
+                onChange={(countryName) => {
+                  setAddressForm({ ...addressForm, country: countryName });
+                }}
+                defaultPhoneCode={addressPhoneValue.countryCode}
+                className="w-full"
+              />
+            </div>
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">State/Province</label>
+                {isUnitedStatesShipping ? (
+                  <CountrySelect
+                    value={addressForm.state || ''}
+                    onChange={(stateName) => setAddressForm({ ...addressForm, state: stateName })}
+                    options={US_STATES}
+                    placeholder="Select state"
+                    searchPlaceholder="Search states..."
+                    className="w-full"
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={addressForm.state}
+                    onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                    placeholder="State / Province"
+                  />
+                )}
+              </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">City *</label>
                 <input
@@ -2118,17 +2156,7 @@ export const ClientDashboardPage: React.FC = () => {
                   value={addressForm.city}
                   onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
                   className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                  placeholder="Casablanca"
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">State/Province</label>
-                <input
-                  type="text"
-                  value={addressForm.state}
-                  onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                  placeholder="Casablanca-Settat"
+                  placeholder="City name"
                 />
               </div>
               <div>
@@ -2141,18 +2169,6 @@ export const ClientDashboardPage: React.FC = () => {
                   placeholder="20000"
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Country *</label>
-              <CountrySelect
-                value={addressForm.country || 'United States'}
-                onChange={(countryName) => {
-                  setAddressForm({ ...addressForm, country: countryName });
-                }}
-                defaultPhoneCode={addressPhoneValue.countryCode}
-                className="w-full"
-              />
             </div>
 
             <div className="flex items-center gap-2">

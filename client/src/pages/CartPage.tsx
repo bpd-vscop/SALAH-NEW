@@ -62,28 +62,10 @@ export const CartPage: React.FC = () => {
     { label: 'Complete', active: false },
   ];
 
-  // Check if user has required information
-  const hasShippingAddress = user?.shippingAddresses && user.shippingAddresses.length > 0;
-  const missingInfo: string[] = [];
-
-  if (user) {
-    if (!hasShippingAddress) {
-      missingInfo.push('Shipping Address');
-    }
-    // Note: Shipping method and payment method would typically be selected during checkout
-    // For now, we'll just check for address
-  }
-
   const handleCheckout = () => {
     if (!user) {
       // Redirect to login
       navigate('/login', { state: { from: '/cart' } });
-      return;
-    }
-
-    if (missingInfo.length > 0) {
-      // Redirect to dashboard to complete profile
-      navigate('/dashboard?tab=account&highlight=address');
       return;
     }
 
@@ -304,34 +286,6 @@ export const CartPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Missing Info Warning */}
-                  {user && missingInfo.length > 0 && (
-                    <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-amber-900 mb-2">
-                            Complete your profile
-                          </p>
-                          <p className="text-xs text-amber-700 mb-3">
-                            Please add the following information in your dashboard:
-                          </p>
-                          <ul className="text-xs text-amber-700 list-disc list-inside space-y-1 mb-3">
-                            {missingInfo.map((info) => (
-                              <li key={info}>{info}</li>
-                            ))}
-                          </ul>
-                          <Link
-                            to="/dashboard?tab=account"
-                            className="inline-block text-xs font-semibold text-amber-900 hover:text-amber-950 underline"
-                          >
-                            Go to Dashboard →
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Not Logged In Warning */}
                   {!user && (
                     <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -382,7 +336,7 @@ export const CartPage: React.FC = () => {
                     onClick={handleCheckout}
                     className="mt-6 w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {!user ? 'Login to Checkout' : missingInfo.length > 0 ? 'Complete Profile' : 'Proceed to Checkout'}
+                    {!user ? 'Login to Checkout' : 'Proceed to Checkout'}
                   </button>
                 </div>
               </div>

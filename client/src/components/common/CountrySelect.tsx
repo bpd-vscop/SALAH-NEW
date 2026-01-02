@@ -16,6 +16,7 @@ export interface CountrySelectProps {
   options?: string[];
   placeholder?: string;
   searchPlaceholder?: string;
+  placement?: 'bottom' | 'auto';
 }
 
 export const CountrySelect: React.FC<CountrySelectProps> = ({
@@ -25,7 +26,8 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
   defaultPhoneCode,
   options,
   placeholder,
-  searchPlaceholder
+  searchPlaceholder,
+  placement = 'bottom',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -98,6 +100,27 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
   };
 
   const buttonRect = buttonRef.current?.getBoundingClientRect();
+  const maxDropdownHeight = 288;
+  const isAutoPlacement = placement === 'auto';
+  let dropdownTop = buttonRect ? `${buttonRect.bottom + window.scrollY + 4}px` : '0px';
+  let maxHeightStyle: string | undefined;
+
+  if (buttonRect && isAutoPlacement) {
+    const optionHeight = 40;
+    const searchHeight = 56;
+    const estimatedHeight = Math.min(maxDropdownHeight, searchHeight + filteredOptions.length * optionHeight);
+    const spaceBelow = window.innerHeight - buttonRect.bottom;
+    const spaceAbove = buttonRect.top;
+    const shouldOpenUp = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+    const availableSpace = shouldOpenUp ? spaceAbove : spaceBelow;
+    const maxHeight = Math.min(maxDropdownHeight, Math.max(120, availableSpace - 8));
+    const dropdownHeight = Math.min(estimatedHeight, maxHeight);
+
+    dropdownTop = shouldOpenUp
+      ? `${Math.max(8, buttonRect.top + window.scrollY - dropdownHeight - 4)}px`
+      : `${buttonRect.bottom + window.scrollY + 4}px`;
+    maxHeightStyle = `${maxHeight}px`;
+  }
 
   return (
     <>
@@ -125,9 +148,10 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
             ref={dropdownRef}
             style={{
               position: 'absolute',
-              top: `${buttonRect.bottom + window.scrollY + 4}px`,
+              top: dropdownTop,
               left: `${buttonRect.left + window.scrollX}px`,
               width: `${buttonRect.width}px`,
+              maxHeight: maxHeightStyle,
               zIndex: 9999,
             }}
             className="max-h-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"

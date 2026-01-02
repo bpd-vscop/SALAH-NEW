@@ -246,6 +246,7 @@ interface PhoneNumberInputProps {
   disabled?: boolean;
   placeholder?: string;
   required?: boolean;
+  placement?: 'auto' | 'top' | 'bottom';
 }
 
 export function PhoneNumberInput({
@@ -254,12 +255,19 @@ export function PhoneNumberInput({
   disabled,
   placeholder = '1234567890',
   required = false,
+  placement = 'top',
 }: PhoneNumberInputProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const [dropdownPosition, setDropdownPosition] = useState({
+    top: 0,
+    left: 0,
+    maxHeight: 300,
+    listMaxHeight: 224,
+  });
+  const isAutoPlacement = placement === 'auto';
 
   const selected = useMemo(
     () => COUNTRIES.find((c) => c.code === value.countryCode) || COUNTRIES[0],
@@ -277,13 +285,44 @@ export function PhoneNumberInput({
   useEffect(() => {
     if (open && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      const dropdownHeight = 300; // Approximate height of dropdown
-      setDropdownPosition({
-        top: rect.top + window.scrollY - dropdownHeight - 8,
+      const dropdownHeight = 300;
+      const defaultTop = rect.top + window.scrollY - dropdownHeight - 8;
+      const defaultPosition = {
+        top: defaultTop,
         left: rect.left + window.scrollX,
+        maxHeight: dropdownHeight,
+        listMaxHeight: 224,
+      };
+
+      if (!isAutoPlacement) {
+        const nextTop = placement === 'bottom'
+          ? rect.bottom + window.scrollY + 8
+          : defaultTop;
+        setDropdownPosition({ ...defaultPosition, top: nextTop });
+        return;
+      }
+
+      const optionHeight = 40;
+      const searchHeight = 48;
+      const estimatedHeight = Math.min(dropdownHeight, searchHeight + filteredCountries.length * optionHeight);
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const shouldOpenUp = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+      const availableSpace = shouldOpenUp ? spaceAbove : spaceBelow;
+      const maxHeight = Math.min(dropdownHeight, Math.max(160, availableSpace - 8));
+      const listMaxHeight = Math.max(120, maxHeight - searchHeight - 8);
+      const top = shouldOpenUp
+        ? rect.top + window.scrollY - maxHeight - 8
+        : rect.bottom + window.scrollY + 8;
+
+      setDropdownPosition({
+        top: Math.max(8, top),
+        left: rect.left + window.scrollX,
+        maxHeight,
+        listMaxHeight,
       });
     }
-  }, [open]);
+  }, [open, isAutoPlacement, placement, filteredCountries.length]);
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
@@ -340,10 +379,11 @@ export function PhoneNumberInput({
         {open && createPortal(
           <div
             ref={dropdownRef}
-            className="fixed z-[9999] w-64 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl"
+            className="absolute z-[9999] w-64 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl"
             style={{
               top: `${dropdownPosition.top}px`,
               left: `${dropdownPosition.left}px`,
+              maxHeight: isAutoPlacement ? `${dropdownPosition.maxHeight}px` : undefined,
             }}
           >
             <div className="border-b border-slate-200 p-2">
@@ -356,7 +396,10 @@ export function PhoneNumberInput({
                 autoFocus
               />
             </div>
-            <div className="max-h-56 overflow-y-auto">
+            <div
+              className="max-h-56 overflow-y-auto"
+              style={isAutoPlacement ? { maxHeight: `${dropdownPosition.listMaxHeight}px` } : undefined}
+            >
               {filteredCountries.length > 0 ? (
                 filteredCountries.map((country) => (
                   <button
