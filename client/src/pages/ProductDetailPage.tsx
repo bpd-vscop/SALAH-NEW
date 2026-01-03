@@ -97,6 +97,25 @@ const fetchProductsByIds = async (ids?: string[]): Promise<Product[]> => {
   return results.filter((item): item is Product => Boolean(item));
 };
 
+const fetchCategoriesByIds = async (ids?: string[]): Promise<Category[]> => {
+  if (!ids?.length) return [];
+  try {
+    const { categories } = await categoriesApi.list();
+    const map = new Map(categories.map((category) => [category.id, category]));
+    const uniqueIds: string[] = [];
+    const seen = new Set<string>();
+    ids.forEach((id) => {
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      uniqueIds.push(id);
+    });
+    return uniqueIds.map((id) => map.get(id)).filter((item): item is Category => Boolean(item));
+  } catch (err) {
+    console.error('Unable to load categories', err);
+    return [];
+  }
+};
+
 const variationLabel = (variation: ProductVariation, fallbackIndex: number): string => {
   if (variation.name) {
     return variation.name;
@@ -126,6 +145,7 @@ export const ProductDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoryTrail, setCategoryTrail] = useState<Category[]>([]);
+  const [productCategories, setProductCategories] = useState<Category[]>([]);
   const [manufacturer, setManufacturer] = useState<Manufacturer | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [upsellProducts, setUpsellProducts] = useState<Product[]>([]);
@@ -173,6 +193,7 @@ export const ProductDetailPage: React.FC = () => {
   useEffect(() => {
     if (!product) {
       setCategoryTrail([]);
+      setProductCategories([]);
       setManufacturer(null);
       setRelatedProducts([]);
       setUpsellProducts([]);
@@ -186,16 +207,30 @@ export const ProductDetailPage: React.FC = () => {
 
     const loadSupportingData = async () => {
       try {
-        const [trail, manufacturerRecord, related, upsell, crossSell] = await Promise.all([
+        const categoryIds: string[] = [];
+        const seen = new Set<string>();
+        const addCategoryId = (value?: string | null) => {
+          if (!value) return;
+          const trimmed = value.trim();
+          if (!trimmed || seen.has(trimmed)) return;
+          seen.add(trimmed);
+          categoryIds.push(trimmed);
+        };
+        addCategoryId(product.categoryId);
+        (product.categoryIds ?? []).forEach((value) => addCategoryId(value));
+
+        const [trail, manufacturerRecord, related, upsell, crossSell, categories] = await Promise.all([
           buildCategoryTrail(product.categoryId),
           fetchManufacturerById(product.manufacturerId),
           fetchProductsByIds(product.relatedProductIds),
           fetchProductsByIds(product.upsellProductIds),
           fetchProductsByIds(product.crossSellProductIds),
+          fetchCategoriesByIds(categoryIds),
         ]);
 
         if (cancelled) return;
         setCategoryTrail(trail);
+        setProductCategories(categories);
         setManufacturer(manufacturerRecord);
         setRelatedProducts(related);
         setUpsellProducts(upsell);
@@ -339,6 +374,8 @@ export const ProductDetailPage: React.FC = () => {
     window.dispatchEvent(new CustomEvent('openContactWidget', { detail: { view: 'email' } }));
   };
 
+  const categoriesToShow = productCategories.length ? productCategories : categoryTrail;
+  const categoryLabel = categoriesToShow.length > 1 ? 'Categories' : 'Category';
 
   return (
     <SiteLayout>
@@ -587,11 +624,11 @@ export const ProductDetailPage: React.FC = () => {
                     <dd className="font-semibold text-slate-900">{product.manufacturerName}</dd>
                   </div>
                 ) : null}
-                {categoryTrail.length ? (
+                {categoriesToShow.length ? (
                   <div className="flex items-center justify-between">
-                    <dt className="font-medium text-slate-600">Category</dt>
+                    <dt className="font-medium text-slate-600">{categoryLabel}</dt>
                     <dd className="flex flex-wrap justify-end gap-1 text-right">
-                      {categoryTrail.map((category) => (
+                      {categoriesToShow.map((category) => (
                         <Link
                           key={category.id}
                           to={`/categories/${category.id}`}

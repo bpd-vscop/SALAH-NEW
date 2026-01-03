@@ -37,6 +37,23 @@ const sanitizeSerialNumbers = (serialNumbers) =>
       })
     : serialNumbers;
 
+const normalizeCategoryIds = (primaryId, categoryIds) => {
+  const normalized = [];
+  const seen = new Set();
+  const add = (value) => {
+    if (!value) return;
+    const stringValue = String(value);
+    if (seen.has(stringValue)) return;
+    seen.add(stringValue);
+    normalized.push(stringValue);
+  };
+  add(primaryId);
+  if (Array.isArray(categoryIds)) {
+    categoryIds.forEach(add);
+  }
+  return normalized;
+};
+
 const PRODUCT_UPLOADS_PREFIX = '/uploads/products/';
 const PRODUCT_TMP_IMAGES_PREFIX = '/uploads/products/_tmp/images/';
 const PRODUCT_TMP_DOCUMENTS_PREFIX = '/uploads/products/_tmp/documents/';
@@ -289,7 +306,7 @@ const listProducts = async (req, res, next) => {
     }
 
     if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
-      filter.categoryId = categoryId;
+      andConditions.push({ $or: [{ categoryId }, { categoryIds: categoryId }] });
     }
 
     // Handle single manufacturer (backwards compatibility)
@@ -393,7 +410,10 @@ const listProducts = async (req, res, next) => {
       ];
 
       if (categoryIdsFromSearch.length > 0) {
-        orConditions.push({ categoryId: { $in: categoryIdsFromSearch } });
+        orConditions.push(
+          { categoryId: { $in: categoryIdsFromSearch } },
+          { categoryIds: { $in: categoryIdsFromSearch } }
+        );
       }
       if (manufacturerIdsFromSearch.length > 0) {
         orConditions.push({ manufacturerId: { $in: manufacturerIdsFromSearch } });
@@ -549,18 +569,27 @@ const createProduct = async (req, res, next) => {
   try {
     const data = validateCreateProduct(req.body || {});
 
-    const category = await Category.findById(data.categoryId);
-    if (!category) {
-      throw badRequest('Category does not exist');
+    const manageStock = data.manageStock !== false;
+    const normalizedCategoryIds = normalizeCategoryIds(data.categoryId, data.categoryIds);
+    const categories = await Category.find({ _id: { $in: normalizedCategoryIds } }).select('_id');
+    if (categories.length !== normalizedCategoryIds.length) {
+      throw badRequest('One or more categories do not exist');
     }
 
     const payload = {
       ...data,
+      manageStock,
+      categoryId: normalizedCategoryIds[0] ?? data.categoryId,
+      categoryIds: normalizedCategoryIds,
       tags: data.tags && data.tags.length ? data.tags : undefined,
       manufacturerId: data.manufacturerId || null,
       saleStartDate: data.saleStartDate ?? undefined,
       saleEndDate: data.saleEndDate ?? undefined,
     };
+
+    if (!manageStock) {
+      payload.inventory = null;
+    }
 
     if (typeof data.cost !== 'undefined') {
       payload.cost = data.cost === null ? undefined : data.cost;
@@ -618,12 +647,36 @@ const updateProduct = async (req, res, next) => {
     const previousName = product.name;
     const previousUploads = collectProductUploadPaths(product);
 
-    if (data.categoryId && data.categoryId !== String(product.categoryId)) {
-      const category = await Category.findById(data.categoryId);
-      if (!category) {
-        throw badRequest('Category does not exist');
+    const hasCategoryIdUpdate = typeof data.categoryId !== 'undefined';
+    const hasCategoryIdsUpdate = typeof data.categoryIds !== 'undefined';
+    if (hasCategoryIdUpdate || hasCategoryIdsUpdate) {
+      const existingCategoryIds = Array.isArray(product.categoryIds)
+        ? product.categoryIds.map((id) => String(id))
+        : [];
+      const baseCategoryId = hasCategoryIdUpdate
+        ? data.categoryId
+        : Array.isArray(data.categoryIds) && data.categoryIds.length
+          ? data.categoryIds[0]
+          : String(product.categoryId);
+      const normalizedCategoryIds = hasCategoryIdsUpdate
+        ? normalizeCategoryIds(baseCategoryId, data.categoryIds)
+        : normalizeCategoryIds(baseCategoryId, existingCategoryIds);
+      const categoriesToValidate = hasCategoryIdsUpdate
+        ? normalizedCategoryIds
+        : normalizeCategoryIds(baseCategoryId, [baseCategoryId]);
+      const categories = await Category.find({ _id: { $in: categoriesToValidate } }).select('_id');
+      if (categories.length !== categoriesToValidate.length) {
+        throw badRequest('One or more categories do not exist');
       }
-      product.categoryId = data.categoryId;
+      product.categoryId = baseCategoryId;
+      product.categoryIds = normalizedCategoryIds;
+    }
+
+    if (typeof data.manageStock !== 'undefined') {
+      product.manageStock = data.manageStock;
+      if (data.manageStock === false) {
+        product.inventory = null;
+      }
     }
 
     if (typeof data.name !== 'undefined') {
@@ -689,7 +742,11 @@ const updateProduct = async (req, res, next) => {
     }
 
     if (typeof data.inventory !== 'undefined') {
-      product.inventory = data.inventory;
+      if (product.manageStock === false) {
+        product.inventory = null;
+      } else {
+        product.inventory = data.inventory;
+      }
     }
 
     if (typeof data.shipping !== 'undefined') {

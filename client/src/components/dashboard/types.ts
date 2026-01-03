@@ -99,7 +99,7 @@ export interface ProductFormState {
   productType: ProductType | '';
   status: ProductStatus | '';
   visibility: ProductVisibility | '';
-  categoryId: string;
+  categoryIds: string[];
   manufacturerId: string;
   manufacturerName: string;
   shortDescription: string;
@@ -127,6 +127,7 @@ export interface ProductFormState {
   relatedProductIds: string[];
   upsellProductIds: string[];
   crossSellProductIds: string[];
+  manageStock: boolean;
   inventory: {
     quantity: string;
     lowStockThreshold: string;

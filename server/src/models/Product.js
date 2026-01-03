@@ -114,6 +114,11 @@ const productSchema = new mongoose.Schema(
       ref: 'Category',
       required: true,
     },
+    categoryIds: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: 'Category',
+      default: [],
+    },
     manufacturerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Manufacturer',
@@ -176,6 +181,10 @@ const productSchema = new mongoose.Schema(
     taxClass: {
       type: String,
       trim: true,
+    },
+    manageStock: {
+      type: Boolean,
+      default: true,
     },
     inventory: {
       quantity: { type: Number, min: 0, default: 0 },
@@ -311,6 +320,13 @@ const productSchema = new mongoose.Schema(
       transform: (_doc, ret) => {
         ret.id = ret._id.toString();
         ret.categoryId = ret.categoryId ? ret.categoryId.toString() : null;
+        const normalizedCategoryIds = Array.isArray(ret.categoryIds)
+          ? ret.categoryIds.map((categoryId) => (categoryId ? categoryId.toString() : null)).filter(Boolean)
+          : [];
+        if (ret.categoryId && !normalizedCategoryIds.includes(ret.categoryId)) {
+          normalizedCategoryIds.unshift(ret.categoryId);
+        }
+        ret.categoryIds = normalizedCategoryIds;
         ret.manufacturerId = ret.manufacturerId ? ret.manufacturerId.toString() : null;
         if (Array.isArray(ret.relatedProductIds)) {
           ret.relatedProductIds = ret.relatedProductIds

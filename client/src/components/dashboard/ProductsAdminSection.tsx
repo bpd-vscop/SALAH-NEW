@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronDown, ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react';
 import { formatCurrency } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { productsApi } from '../../api/products';
@@ -162,11 +163,14 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   const [vehicleOptionsLoading, setVehicleOptionsLoading] = useState(false);
   const [vehicleOptionsError, setVehicleOptionsError] = useState<string | null>(null);
   const [allBrandsModelsAdded, setAllBrandsModelsAdded] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState<string | null>(null);
+  const [categorySearchQuery, setCategorySearchQuery] = useState<Record<string, string>>({});
 
   // Step navigation state
   const [currentStep, setCurrentStep] = useState(0);
   const [stepValidation, setStepValidation] = useState<Record<number, 'valid' | 'warning' | 'incomplete'>>({});
   const stepTabsRef = useRef<HTMLDivElement>(null);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [canScrollStepsLeft, setCanScrollStepsLeft] = useState(false);
   const [canScrollStepsRight, setCanScrollStepsRight] = useState(false);
 
@@ -190,6 +194,17 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     window.addEventListener('resize', updateStepScrollState);
     return () => window.removeEventListener('resize', updateStepScrollState);
   }, [updateStepScrollState]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setCategoryDropdownOpen(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -274,7 +289,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
 
     if (step.id === 'basics') {
       const hasName = form.name.trim().length >= 2;
-      const hasCategory = form.categoryId.trim().length > 0;
+      const hasCategory = form.categoryIds.some((categoryId) => categoryId.trim().length > 0);
 
       if (hasName && hasCategory) return 'valid';
       if (!hasName || !hasCategory) return 'warning';
@@ -384,6 +399,12 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   const mainProductImage = form.primaryImage?.trim() ?? '';
   const thumbnailImages = form.galleryImages ?? [];
   const totalImagesCount = (mainProductImage ? 1 : 0) + thumbnailImages.length;
+  const selectedCategoryIds = new Set(
+    form.categoryIds.map((value) => value.trim()).filter(Boolean)
+  );
+  const hasAvailableCategories = categories.some((category) => !selectedCategoryIds.has(category.id));
+  const canAddCategoryRow = form.categoryIds.every((categoryId) => categoryId.trim().length > 0);
+  const canAddAnotherCategory = canAddCategoryRow && hasAvailableCategories;
 
   const toggleProductSelection = (productId: string) => {
     setSelectedProducts((prev) => {
@@ -721,6 +742,43 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
         next.add(tag);
       }
       return { ...state, tags: next };
+    });
+  };
+
+  const addCategoryRow = () => {
+    if (!canAddAnotherCategory) {
+      return;
+    }
+    setForm((state) => {
+      const hasEmpty = state.categoryIds.some((value) => !value.trim());
+      if (hasEmpty) {
+        return state;
+      }
+      const selected = new Set(state.categoryIds.map((value) => value.trim()).filter(Boolean));
+      const hasAvailable = categories.some((category) => !selected.has(category.id));
+      if (!hasAvailable) {
+        return state;
+      }
+      return { ...state, categoryIds: [...state.categoryIds, ''] };
+    });
+  };
+
+  const updateCategoryRow = (index: number, value: string) => {
+    const dropdownId = `product-category-${index}`;
+    setForm((state) => {
+      const next = [...state.categoryIds];
+      next[index] = value;
+      return { ...state, categoryIds: next };
+    });
+    setCategoryDropdownOpen(null);
+    setCategorySearchQuery((prev) => ({ ...prev, [dropdownId]: '' }));
+  };
+
+  const removeCategoryRow = (index: number) => {
+    setCategoryDropdownOpen(null);
+    setForm((state) => {
+      const next = state.categoryIds.filter((_, idx) => idx !== index);
+      return { ...state, categoryIds: next.length ? next : [''] };
     });
   };
 
@@ -2161,23 +2219,153 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 />
               </label>
             </div>
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              <span className="font-medium">
-                Category <span className="text-red-600">*</span>
-              </span>
-              <Select
-                value={form.categoryId}
-                onChange={(value) => setForm((state) => ({ ...state, categoryId: value }))}
-                options={[
-                  { value: '', label: 'Select category' },
-                  ...categories.map((category) => ({
-                    value: category.id,
-                    label: category.name,
-                  })),
-                ]}
-                placeholder="Select category"
-              />
-            </label>
+            <div className="space-y-2 text-sm text-slate-600">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">
+                  Categories <span className="text-red-600">*</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={addCategoryRow}
+                  disabled={!canAddAnotherCategory}
+                  title={!canAddCategoryRow ? 'Select a category before adding another.' : undefined}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-lg border border-dashed border-primary px-2 py-1 text-xs font-semibold text-primary transition hover:border-primary/60 hover:text-primary-dark",
+                    !canAddAnotherCategory && "cursor-not-allowed opacity-50"
+                  )}
+                >
+                  <Plus className="h-3 w-3" />
+                  Add category
+                </button>
+              </div>
+              {form.categoryIds.map((categoryId, index) => (
+                <div key={`category-${index}`} className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                  {(() => {
+                    const dropdownId = `product-category-${index}`;
+                    const selectedCategory = categories.find((category) => category.id === categoryId);
+                    const availableCategories = categories.filter(
+                      (category) => category.id === categoryId || !selectedCategoryIds.has(category.id)
+                    );
+                    const query = (categorySearchQuery[dropdownId] || '').toLowerCase();
+                    const filteredCategories = availableCategories.filter((category) =>
+                      category.name.toLowerCase().includes(query)
+                    );
+
+                    return (
+                      <div
+                        className="relative"
+                        ref={categoryDropdownOpen === dropdownId ? categoryDropdownRef : null}
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCategoryDropdownOpen(categoryDropdownOpen === dropdownId ? null : dropdownId)
+                          }
+                          className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        >
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
+                            {selectedCategory?.imageUrl && (
+                              <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-300">
+                                <img
+                                  src={normalizeImageSrc(selectedCategory.imageUrl)}
+                                  alt={selectedCategory.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                            )}
+                            <span className={cn('truncate text-sm font-medium', !selectedCategory && 'text-slate-400')}>
+                              {selectedCategory?.name ?? 'Select category'}
+                            </span>
+                          </div>
+                          <ChevronDown
+                            className={cn(
+                              "h-4 w-4 flex-shrink-0 text-slate-400 transition-transform",
+                              categoryDropdownOpen === dropdownId && "rotate-180"
+                            )}
+                          />
+                        </button>
+                        <AnimatePresence>
+                          {categoryDropdownOpen === dropdownId && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              transition={{ duration: 0.1 }}
+                              className="absolute left-0 right-0 top-full z-[100] mt-1 max-h-96 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 shadow-xl"
+                            >
+                              <div className="sticky top-0 z-10 bg-white pb-2">
+                                <div className="relative">
+                                  <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                                  <input
+                                    type="text"
+                                    placeholder="Search categories..."
+                                    value={categorySearchQuery[dropdownId] || ''}
+                                    onChange={(event) =>
+                                      setCategorySearchQuery((prev) => ({
+                                        ...prev,
+                                        [dropdownId]: event.target.value,
+                                      }))
+                                    }
+                                    className="h-8 w-full rounded-md border border-slate-300 bg-white pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-6">
+                                {filteredCategories.length ? (
+                                  filteredCategories.map((category) => (
+                                    <button
+                                      key={category.id}
+                                      type="button"
+                                      onClick={() => updateCategoryRow(index, category.id)}
+                                      className={cn(
+                                        "flex flex-col items-center gap-1 rounded-md border p-1.5 text-center transition hover:border-primary hover:bg-primary/5",
+                                        categoryId === category.id ? "border-primary bg-primary/10" : "border-slate-200"
+                                      )}
+                                    >
+                                      {category.imageUrl && (
+                                        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-slate-200">
+                                          <img
+                                            src={normalizeImageSrc(category.imageUrl)}
+                                            alt={category.name}
+                                            className="h-full w-full object-cover"
+                                          />
+                                        </div>
+                                      )}
+                                      <span
+                                        className={cn(
+                                          "text-[0.6rem] font-medium leading-tight line-clamp-2",
+                                          categoryId === category.id ? "text-primary" : "text-slate-600"
+                                        )}
+                                      >
+                                        {category.name}
+                                      </span>
+                                    </button>
+                                  ))
+                                ) : (
+                                  <div className="col-span-full rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                                    No categories found.
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })()}
+                  {form.categoryIds.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => removeCategoryRow(index)}
+                      className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 transition hover:bg-red-50"
+                      aria-label="Remove category"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2 text-sm text-slate-600">
                 <span className="font-medium">Manufacturer</span>
@@ -2402,87 +2590,141 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Stock
-                <input
-                  type="number"
-                  min={0}
-                  value={form.inventory.quantity}
-                  onChange={(event) =>
-                    setForm((state) => ({
-                      ...state,
-                      inventory: { ...state.inventory, quantity: event.target.value },
-                    }))
-                  }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Low-stock threshold
-                <input
-                  type="number"
-                  min={0}
-                  value={form.inventory.lowStockThreshold}
-                  onChange={(event) =>
-                    setForm((state) => ({
-                      ...state,
-                      inventory: { ...state.inventory, lowStockThreshold: event.target.value },
-                    }))
-                  }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                <span className="font-medium">Inventory status</span>
-                <Select
-                  value={form.inventory.status}
-                  onChange={(value) =>
-                    setForm((state) => ({
-                      ...state,
-                      inventory: { ...state.inventory, status: value as ProductInventoryStatus | '' },
-                    }))
-                  }
-                  options={[
-                    { value: '', label: 'Automatic' },
-                    ...inventoryStatuses.map((status) => ({
-                      value: status,
-                      label: status.replace(/_/g, ' '),
-                    })),
-                  ]}
-                  placeholder="Select inventory status"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Lead time
-                <input
-                  type="text"
-                  value={form.inventory.leadTime}
-                  onChange={(event) =>
-                    setForm((state) => ({
-                      ...state,
-                      inventory: { ...state.inventory, leadTime: event.target.value },
-                    }))
-                  }
-                  placeholder="Ships in 48 hours"
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
+            <div className="pt-2">
+              <div className="space-y-4 rounded-xl border border-border bg-white/70 px-4 py-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-slate-900">Manage stock</span>
+                    <span className="text-xs text-slate-500">
+                      Toggle on to track inventory counts. When off, this product is always in stock.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={form.manageStock}
+                    onClick={() => setForm((state) => ({ ...state, manageStock: !state.manageStock }))}
+                    className={cn(
+                      'relative inline-flex h-6 w-11 items-center rounded-full border transition',
+                      form.manageStock
+                        ? 'border-primary bg-primary'
+                        : 'border-slate-300 bg-slate-200'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'inline-block h-4 w-4 rounded-full bg-white shadow transition',
+                        form.manageStock ? 'translate-x-5' : 'translate-x-1'
+                      )}
+                    />
+                    <span className="sr-only">Toggle stock management</span>
+                  </button>
+                </div>
+                {form.manageStock ? (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                      <label className="flex flex-col gap-2 text-sm text-slate-600">
+                        Stock
+                        <input
+                          type="number"
+                          min={0}
+                          value={form.inventory.quantity}
+                          onChange={(event) =>
+                            setForm((state) => ({
+                              ...state,
+                              inventory: {
+                                ...state.inventory,
+                                quantity: event.target.value,
+                                status: event.target.value.trim() ? 'in_stock' : '',
+                              },
+                            }))
+                          }
+                          className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-2 text-sm text-slate-600">
+                        Low-stock threshold
+                        <input
+                          type="number"
+                          min={0}
+                          value={form.inventory.lowStockThreshold}
+                          onChange={(event) =>
+                            setForm((state) => ({
+                              ...state,
+                              inventory: { ...state.inventory, lowStockThreshold: event.target.value },
+                            }))
+                          }
+                          className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-2 text-sm text-slate-600">
+                        <span className="font-medium">Inventory status</span>
+                        <Select
+                          value={form.inventory.status}
+                          onChange={(value) =>
+                            setForm((state) => ({
+                              ...state,
+                              inventory: { ...state.inventory, status: value as ProductInventoryStatus | '' },
+                            }))
+                          }
+                          options={[
+                            { value: '', label: 'Automatic' },
+                            ...inventoryStatuses.map((status) => ({
+                              value: status,
+                              label: status.replace(/_/g, ' '),
+                            })),
+                          ]}
+                          placeholder="Select inventory status"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-2 text-sm text-slate-600">
+                        Lead time
+                        <input
+                          type="text"
+                          value={form.inventory.leadTime}
+                          onChange={(event) =>
+                            setForm((state) => ({
+                              ...state,
+                              inventory: { ...state.inventory, leadTime: event.target.value },
+                            }))
+                          }
+                          placeholder="Ships in 48 hours"
+                          className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </label>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-white/70 px-3 py-2 text-sm text-slate-600">
+                      <span>Allow backorders</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={form.inventory.allowBackorder}
+                        onClick={() =>
+                          setForm((state) => ({
+                            ...state,
+                            inventory: { ...state.inventory, allowBackorder: !state.inventory.allowBackorder },
+                          }))
+                        }
+                        className={cn(
+                          'relative inline-flex h-6 w-11 items-center rounded-full border transition',
+                          form.inventory.allowBackorder
+                            ? 'border-primary bg-primary'
+                            : 'border-slate-300 bg-slate-200'
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'inline-block h-4 w-4 rounded-full bg-white shadow transition',
+                            form.inventory.allowBackorder ? 'translate-x-5' : 'translate-x-1'
+                          )}
+                        />
+                        <span className="sr-only">Toggle backorders</span>
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+              </div>
             </div>
-            <label className="inline-flex items-center gap-3 text-sm text-slate-600">
-              <input
-                type="checkbox"
-                checked={form.inventory.allowBackorder}
-                onChange={(event) =>
-                  setForm((state) => ({
-                    ...state,
-                    inventory: { ...state.inventory, allowBackorder: event.target.checked },
-                  }))
-                }
-                className="h-4 w-4 rounded border-border text-primary focus:ring-primary/40"
-              />
-              Allow backorders
-            </label>
           </FormPanel>
           )}
 

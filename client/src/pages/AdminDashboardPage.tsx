@@ -152,6 +152,21 @@ const recordToRows = (record?: Record<string, string> | null) =>
     value,
   }));
 
+const normalizeCategoryIds = (primaryId?: string | null, categoryIds?: Array<string | null>) => {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  const add = (value?: string | null) => {
+    if (!value) return;
+    const trimmed = value.trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  };
+  add(primaryId);
+  (categoryIds ?? []).forEach(add);
+  return normalized.length ? normalized : [''];
+};
+
 const parseYouTubeTimestamp = (value: string | null): number | null => {
   if (!value) return null;
   if (/^\d+$/.test(value)) {
@@ -238,7 +253,7 @@ const createEmptyProductForm = (): ProductFormState => ({
   productType: '',
   status: 'draft',
   visibility: 'catalog-and-search',
-  categoryId: '',
+  categoryIds: [''],
   manufacturerId: '',
   manufacturerName: '',
   shortDescription: '',
@@ -266,6 +281,7 @@ const createEmptyProductForm = (): ProductFormState => ({
   relatedProductIds: [],
   upsellProductIds: [],
   crossSellProductIds: [],
+  manageStock: true,
   inventory: {
     quantity: '',
     lowStockThreshold: '',
@@ -319,7 +335,7 @@ const mapProductToForm = (product: Product): ProductFormState => ({
   productType: product.productType ?? '',
   status: product.status ?? '',
   visibility: product.visibility ?? 'catalog-and-search',
-  categoryId: product.categoryId ?? '',
+  categoryIds: normalizeCategoryIds(product.categoryId ?? null, product.categoryIds ?? []),
   manufacturerId: product.manufacturerId ?? '',
   manufacturerName: product.manufacturerName ?? '',
   shortDescription: product.shortDescription ?? '',
@@ -388,6 +404,7 @@ const mapProductToForm = (product: Product): ProductFormState => ({
   relatedProductIds: [...(product.relatedProductIds ?? [])],
   upsellProductIds: [...(product.upsellProductIds ?? [])],
   crossSellProductIds: [...(product.crossSellProductIds ?? [])],
+  manageStock: product.manageStock ?? true,
   inventory: {
     quantity: product.inventory?.quantity != null ? String(product.inventory.quantity) : '',
     lowStockThreshold:
@@ -1069,6 +1086,9 @@ export const AdminDashboardPage: React.FC = () => {
       const relatedIds = cleanStringArray(productForm.relatedProductIds);
       const upsellIds = cleanStringArray(productForm.upsellProductIds);
       const crossSellIds = cleanStringArray(productForm.crossSellProductIds);
+      const normalizedCategoryIds = cleanStringArray(productForm.categoryIds);
+      const primaryCategoryId = normalizedCategoryIds[0] ?? '';
+      const manageStock = productForm.manageStock;
 
       const normalizedVideoUrls: string[] = [];
       for (const url of productForm.videoUrls) {
@@ -1096,6 +1116,16 @@ export const AdminDashboardPage: React.FC = () => {
         imagesPayload.push(image);
       });
 
+      const inventoryPayload = manageStock
+        ? {
+            quantity: Number.isFinite(inventoryQuantity ?? NaN) ? inventoryQuantity ?? undefined : undefined,
+            lowStockThreshold: Number.isFinite(lowStock ?? NaN) ? lowStock ?? undefined : undefined,
+            status: productForm.inventory.status || undefined,
+            allowBackorder: productForm.inventory.allowBackorder,
+            leadTime: productForm.inventory.leadTime.trim() || undefined,
+          }
+        : null;
+
       const payload = {
         name: productForm.name.trim(),
         slug: productForm.slug.trim() || undefined,
@@ -1105,7 +1135,9 @@ export const AdminDashboardPage: React.FC = () => {
         status: productForm.status || undefined,
         visibility: productForm.visibility || undefined,
         requiresB2B: productForm.requiresB2B,
-        categoryId: productForm.categoryId,
+        manageStock,
+        categoryId: primaryCategoryId,
+        categoryIds: normalizedCategoryIds.length ? normalizedCategoryIds : undefined,
         manufacturerId: productForm.manufacturerId ? productForm.manufacturerId : null,
         manufacturerName: productForm.manufacturerName.trim() || undefined,
         shortDescription: productForm.shortDescription.trim() || undefined,
@@ -1147,13 +1179,7 @@ export const AdminDashboardPage: React.FC = () => {
         relatedProductIds: relatedIds.length ? relatedIds : undefined,
         upsellProductIds: upsellIds.length ? upsellIds : undefined,
         crossSellProductIds: crossSellIds.length ? crossSellIds : undefined,
-        inventory: {
-          quantity: Number.isFinite(inventoryQuantity ?? NaN) ? inventoryQuantity ?? undefined : undefined,
-          lowStockThreshold: Number.isFinite(lowStock ?? NaN) ? lowStock ?? undefined : undefined,
-          status: productForm.inventory.status || undefined,
-          allowBackorder: productForm.inventory.allowBackorder,
-          leadTime: productForm.inventory.leadTime.trim() || undefined,
-        },
+        inventory: inventoryPayload,
         shipping: {
           weight: Number.isFinite(shippingWeight ?? NaN) ? shippingWeight ?? undefined : undefined,
           weightUnit: productForm.shipping.weightUnit.trim() || undefined,

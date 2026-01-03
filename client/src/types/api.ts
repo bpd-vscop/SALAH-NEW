@@ -233,6 +233,8 @@ export interface Product {
   status?: ProductStatus;
   visibility?: ProductVisibility;
   categoryId: string;
+  categoryIds?: string[];
+  manageStock?: boolean;
   manufacturerId?: string | null;
   manufacturerName?: string | null;
   tags: ProductTag[];

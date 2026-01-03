@@ -246,8 +246,12 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
         }
       }
 
-      if (categoryFilter && product.categoryId !== categoryFilter) {
-        return false;
+      if (categoryFilter) {
+        const matchesPrimary = product.categoryId === categoryFilter;
+        const matchesSecondary = product.categoryIds?.includes(categoryFilter) ?? false;
+        if (!matchesPrimary && !matchesSecondary) {
+          return false;
+        }
       }
 
       if (manufacturerFilter && product.manufacturerId !== manufacturerFilter) {

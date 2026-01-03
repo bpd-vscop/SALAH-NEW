@@ -237,7 +237,7 @@ const deleteCategory = async (req, res, next) => {
       throw notFound('Category not found');
     }
 
-    const productCount = await Product.countDocuments({ categoryId: id });
+    const productCount = await Product.countDocuments({ $or: [{ categoryId: id }, { categoryIds: id }] });
     if (productCount > 0) {
       throw badRequest('Cannot delete category with linked products', [{ count: productCount }]);
     }

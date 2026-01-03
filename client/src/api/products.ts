@@ -23,6 +23,9 @@ interface ProductPayload {
   productType?: Product['productType'];
   status?: Product['status'];
   visibility?: Product['visibility'];
+  categoryId?: string;
+  categoryIds?: string[];
+  manageStock?: boolean;
   manufacturerId?: string | null;
   manufacturerName?: string | null;
   tags?: ProductTag[];
