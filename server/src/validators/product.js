@@ -112,7 +112,7 @@ const supportSchema = z.object({
 const reviewsSummarySchema = z.object({
   averageRating: z.number().min(0).max(5).optional(),
   reviewCount: z.number().int().min(0).optional(),
-  ratingBreakdown: z.record(z.number().min(0)).optional(),
+  ratingBreakdown: z.record(z.string(), z.number().min(0)).optional(),
 });
 
 const inventorySchema = z
