@@ -19,6 +19,9 @@ export const NewProductsSection: React.FC = () => {
         const response = await productsApi.list({ limit: DESKTOP_LIMIT, sort: 'newest' });
 
         const isAvailable = (product: Product) => {
+          if (product.manageStock === false) {
+            return true;
+          }
           const allowBackorder = product.inventory?.allowBackorder ?? false;
           const availableQuantity = product.inventory?.quantity ?? null;
           const inventoryStatus = product.inventory?.status ?? 'in_stock';

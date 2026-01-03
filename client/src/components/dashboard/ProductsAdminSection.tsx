@@ -6,7 +6,7 @@ import { cn } from '../../utils/cn';
 import { productsApi } from '../../api/products';
 import { brandsApi, type Brand } from '../../api/brands';
 import { modelsApi, type Model } from '../../api/models';
-import { getProductStatusTags } from '../../utils/productStatus';
+import { getEffectiveInventoryStatus, getProductStatusTags } from '../../utils/productStatus';
 import { Select } from '../ui/Select';
 import type {
   Category,
@@ -1342,18 +1342,18 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
           {displayMode === 'card' && (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredAndSortedProducts.map((product) => {
-            const inventoryStatus = product.inventory?.status ?? 'in_stock';
-            const badgeClasses = cn(
-              'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold',
-              inventoryStatus === 'in_stock' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
-              inventoryStatus === 'low_stock' && 'border-amber-200 bg-amber-50 text-amber-700',
-              inventoryStatus === 'out_of_stock' && 'border-red-200 bg-red-50 text-red-700',
-              inventoryStatus === 'backorder' && 'border-sky-200 bg-sky-50 text-sky-700',
-              inventoryStatus === 'preorder' && 'border-indigo-200 bg-indigo-50 text-indigo-700'
-            );
-            const hasSale = typeof product.salePrice === 'number' && product.salePrice < product.price;
-            const costDisplay = typeof product.cost === 'number' ? formatCurrency(product.cost) : null;
-            return (
+                const inventoryStatus = getEffectiveInventoryStatus(product);
+                const badgeClasses = cn(
+                  'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold',
+                  inventoryStatus === 'in_stock' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                  inventoryStatus === 'low_stock' && 'border-amber-200 bg-amber-50 text-amber-700',
+                  inventoryStatus === 'out_of_stock' && 'border-red-200 bg-red-50 text-red-700',
+                  inventoryStatus === 'backorder' && 'border-sky-200 bg-sky-50 text-sky-700',
+                  inventoryStatus === 'preorder' && 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                );
+                const hasSale = typeof product.salePrice === 'number' && product.salePrice < product.price;
+                const costDisplay = typeof product.cost === 'number' ? formatCurrency(product.cost) : null;
+                return (
               <article
                 key={product.id}
                 className={cn(
@@ -1518,7 +1518,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredAndSortedProducts.map((product) => {
-                    const inventoryStatus = product.inventory?.status ?? 'in_stock';
+                    const inventoryStatus = getEffectiveInventoryStatus(product);
                     const badgeClasses = cn(
                       'inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[10px] font-semibold',
                       inventoryStatus === 'in_stock' && 'border-emerald-200 bg-emerald-50 text-emerald-700',

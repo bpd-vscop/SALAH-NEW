@@ -93,12 +93,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
   const isStaffUser = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'staff';
   const showWishlistAction = !isStaffUser;
 
-  const allowBackorder = product.inventory?.allowBackorder ?? false;
-  const availableQuantity = product.inventory?.quantity ?? null;
-  const inventoryStatus = product.inventory?.status ?? 'in_stock';
+  const managesStock = product.manageStock !== false;
+  const allowBackorder = managesStock ? (product.inventory?.allowBackorder ?? false) : false;
+  const availableQuantity = managesStock ? product.inventory?.quantity ?? null : null;
+  const inventoryStatus = managesStock ? product.inventory?.status ?? 'in_stock' : 'in_stock';
   const outOfStock =
-    inventoryStatus === 'out_of_stock' ||
-    (!allowBackorder && typeof availableQuantity === 'number' && availableQuantity <= 0);
+    managesStock &&
+    (inventoryStatus === 'out_of_stock' ||
+      (!allowBackorder && typeof availableQuantity === 'number' && availableQuantity <= 0));
 
   const handleAddToCart = (event: React.MouseEvent) => {
     event.preventDefault();

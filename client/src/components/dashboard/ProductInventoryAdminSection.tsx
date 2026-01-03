@@ -646,7 +646,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                   const outOfStock = status === 'out_of_stock';
                   const statusLabel = status.replace(/_/g, ' ');
                   const saleActive = isOnSale(product);
-                  const showBackInStock = Boolean(product.restockedAt);
+                  const showBackInStock = isBackInStock(product);
                   const showNewArrival = isNewArrival(product);
                   const showComingSoon = isComingSoon(product);
                   const showHidden = product.visibility === 'hidden';

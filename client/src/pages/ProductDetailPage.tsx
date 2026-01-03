@@ -14,7 +14,7 @@ import { useWishlist } from '../context/WishlistContext';
 import type { Category, Product, ProductInventoryStatus, ProductVariation } from '../types/api';
 import { formatCurrency } from '../utils/format';
 import { cn } from '../utils/cn';
-import { getProductStatusTags } from '../utils/productStatus';
+import { getEffectiveInventoryStatus, getProductStatusTags } from '../utils/productStatus';
 
 type InventoryStatusMeta = {
   label: string;
@@ -294,8 +294,7 @@ export const ProductDetailPage: React.FC = () => {
       ? Math.round((1 - saleData.salePrice / saleData.basePrice) * 100)
       : 0;
 
-  const inventoryStatus: ProductInventoryStatus =
-    product?.inventory?.status ?? 'in_stock';
+  const inventoryStatus: ProductInventoryStatus = product ? getEffectiveInventoryStatus(product) : 'in_stock';
   const inventoryMeta = inventoryStatusMeta[inventoryStatus] ?? inventoryStatusMeta.in_stock;
   const allowBackorder =
     activeVariation?.allowBackorder ?? product?.inventory?.allowBackorder ?? false;
@@ -316,6 +315,7 @@ export const ProductDetailPage: React.FC = () => {
     ((Number.isFinite(maxQuantity) && maxQuantity <= 0) || inventoryStatus === 'out_of_stock');
 
   const isLowStock =
+    product?.manageStock !== false &&
     typeof product?.inventory?.quantity === 'number' &&
     typeof product.inventory.lowStockThreshold === 'number' &&
     product.inventory.quantity > 0 &&

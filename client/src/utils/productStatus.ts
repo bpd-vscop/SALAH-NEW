@@ -51,6 +51,9 @@ export const isOutOfStock = (product: Product): boolean => {
 };
 
 export const isBackInStock = (product: Product): boolean => {
+  if (product.manageStock === false) {
+    return false;
+  }
   if (!product.restockedAt) {
     return false;
   }

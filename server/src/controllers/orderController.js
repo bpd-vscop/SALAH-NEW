@@ -116,7 +116,7 @@ const getOrderItemTags = (product) => {
   if (isProductOnSale(product)) {
     tags.push('on sale');
   }
-  if (product.restockedAt && isProductInStock(product)) {
+  if (product.manageStock !== false && product.restockedAt && isProductInStock(product)) {
     tags.push('back in stock');
   }
   if (isProductNewArrival(product)) {
