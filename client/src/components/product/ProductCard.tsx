@@ -6,8 +6,9 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { cn } from '../../utils/cn';
+import { getProductStatusTags, isOnSale } from '../../utils/productStatus';
 
-type ProductCardBadgeVariant = 'inStock' | 'onSale' | 'backInStock' | 'newArrival' | 'outOfStock';
+type ProductCardBadgeVariant = 'inStock' | 'onSale' | 'backInStock' | 'newArrival' | 'comingSoon' | 'outOfStock';
 
 type ProductCardBadge = {
   label: string;
@@ -39,6 +40,12 @@ const badgeStyles: Record<
   },
   newArrival: {
     container: 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 shadow-[0_10px_30px_rgba(245,158,11,0.25)]',
+    dot: 'bg-white',
+    ping: 'bg-white/70',
+    text: 'text-white',
+  },
+  comingSoon: {
+    container: 'bg-gradient-to-r from-teal-500 via-cyan-500 to-sky-500 shadow-[0_10px_30px_rgba(14,116,144,0.25)]',
     dot: 'bg-white',
     ping: 'bg-white/70',
     text: 'text-white',
@@ -76,17 +83,6 @@ const ProductBadge: React.FC<{ badge: ProductCardBadge }> = ({ badge }) => {
       {badge.label}
     </span>
   );
-};
-
-const isSaleActive = (product: Product) => {
-  if (typeof product.salePrice !== 'number' || product.salePrice >= product.price) {
-    return false;
-  }
-
-  const now = new Date();
-  const startOk = product.saleStartDate ? now >= new Date(product.saleStartDate) : true;
-  const endOk = product.saleEndDate ? now <= new Date(product.saleEndDate) : true;
-  return startOk && endOk;
 };
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, className, badge, hideTags = false }) => {
@@ -139,12 +135,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
     }
   };
 
-  const saleActive = isSaleActive(product);
+  const saleActive = isOnSale(product);
   const displayPrice = saleActive ? (product.salePrice as number) : product.price;
   const effectiveBadge: ProductCardBadge | null =
     badge ?? (outOfStock ? { label: 'Out of stock', variant: 'outOfStock' } : null);
   const ratingValue = product.reviewsSummary?.averageRating ?? 0;
   const ratingCount = product.reviewsSummary?.reviewCount ?? 0;
+  const displayTags = getProductStatusTags(product);
 
   return (
     <Link
@@ -168,9 +165,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
           <div className="absolute left-3 top-3 z-10">
             <ProductBadge badge={effectiveBadge} />
           </div>
-        ) : !hideTags && product.tags.length > 0 ? (
+        ) : !hideTags && displayTags.length > 0 ? (
           <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-            {product.tags.map((tag) => (
+            {displayTags.map((tag) => (
               <span
                 key={tag}
                 className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white shadow-sm"

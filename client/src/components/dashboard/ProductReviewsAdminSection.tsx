@@ -6,6 +6,7 @@ import type { Manufacturer } from '../../api/manufacturers';
 import type { Category, Order, Product, ProductReview, ReviewerName } from '../../types/api';
 import { cn } from '../../utils/cn';
 import { formatCurrency } from '../../utils/format';
+import { getEffectiveInventoryStatus, isBackInStock, isNewArrival, isOnSale } from '../../utils/productStatus';
 import { Select } from '../ui/Select';
 import type { StatusSetter } from './types';
 
@@ -38,32 +39,6 @@ const ratingOptions: Array<{ value: RatingFilter; label: string }> = [
   { value: '1', label: '1+ stars' },
 ];
 
-const getEffectiveInventoryStatus = (product: Product): StockFilter => {
-  const status = product.inventory?.status ?? 'in_stock';
-  const allowBackorder = Boolean(product.inventory?.allowBackorder);
-  const quantity = typeof product.inventory?.quantity === 'number' ? product.inventory.quantity : 0;
-  const lowStockThreshold =
-    typeof product.inventory?.lowStockThreshold === 'number' ? product.inventory.lowStockThreshold : 0;
-
-  if (status === 'preorder') return 'preorder';
-  if (status === 'backorder' && quantity <= 0) return 'backorder';
-  if (allowBackorder && quantity <= 0) return 'backorder';
-  if (status === 'out_of_stock' || quantity <= 0) return 'out_of_stock';
-  if (status === 'low_stock' || (lowStockThreshold > 0 && quantity <= lowStockThreshold)) {
-    return 'low_stock';
-  }
-  return 'in_stock';
-};
-
-const isSaleActive = (product: Product) => {
-  if (typeof product.salePrice !== 'number' || product.salePrice >= product.price) {
-    return false;
-  }
-  const now = new Date();
-  const startOk = product.saleStartDate ? now >= new Date(product.saleStartDate) : true;
-  const endOk = product.saleEndDate ? now <= new Date(product.saleEndDate) : true;
-  return startOk && endOk;
-};
 
 const formatReviewDate = (value?: string | null) => {
   if (!value) return '-';
@@ -264,9 +239,9 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
 
       if (badgeFilter !== 'all') {
         if (badgeFilter === 'featured' && !product.featured) return false;
-        if (badgeFilter === 'new_arrival' && !product.newArrival) return false;
-        if (badgeFilter === 'back_in_stock' && !product.restockedAt) return false;
-        if (badgeFilter === 'on_sale' && !isSaleActive(product)) return false;
+        if (badgeFilter === 'new_arrival' && !isNewArrival(product)) return false;
+        if (badgeFilter === 'back_in_stock' && !isBackInStock(product)) return false;
+        if (badgeFilter === 'on_sale' && !isOnSale(product)) return false;
       }
 
       if (brandFilter || modelFilter) {
@@ -516,13 +491,13 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
     const stockStatus = getEffectiveInventoryStatus(selectedProduct);
     const stockLabel = stockOptions.find((option) => option.value === stockStatus)?.label ?? 'In stock';
     const stockQuantity = typeof selectedProduct.inventory?.quantity === 'number' ? selectedProduct.inventory.quantity : 0;
-    const saleActive = isSaleActive(selectedProduct);
+    const saleActive = isOnSale(selectedProduct);
     const displayPrice = saleActive && typeof selectedProduct.salePrice === 'number' ? selectedProduct.salePrice : selectedProduct.price;
     const salesCount = salesByProductId.get(selectedProduct.id) ?? 0;
     const badgeLabels: string[] = [];
     if (selectedProduct.featured) badgeLabels.push('Featured');
-    if (selectedProduct.newArrival) badgeLabels.push('New arrival');
-    if (selectedProduct.restockedAt) badgeLabels.push('Back in stock');
+    if (isNewArrival(selectedProduct)) badgeLabels.push('New arrival');
+    if (isBackInStock(selectedProduct)) badgeLabels.push('Back in stock');
     if (saleActive) badgeLabels.push('On sale');
     const brandList = summarizeList(
       Array.from(new Set((selectedProduct.compatibility ?? []).map((entry) => entry.make).filter(Boolean)))
@@ -971,14 +946,14 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
                 const stockStatus = getEffectiveInventoryStatus(product);
                 const stockLabel = stockOptions.find((option) => option.value === stockStatus)?.label ?? 'In stock';
                 const stockQty = typeof product.inventory?.quantity === 'number' ? product.inventory.quantity : 0;
-                const saleActive = isSaleActive(product);
+                const saleActive = isOnSale(product);
                 const displayPrice =
                   saleActive && typeof product.salePrice === 'number' ? product.salePrice : product.price;
                 const salesCount = salesByProductId.get(product.id) ?? 0;
                 const badgeLabels: string[] = [];
                 if (product.featured) badgeLabels.push('Featured');
-                if (product.newArrival) badgeLabels.push('New arrival');
-                if (product.restockedAt) badgeLabels.push('Back in stock');
+                if (isNewArrival(product)) badgeLabels.push('New arrival');
+                if (isBackInStock(product)) badgeLabels.push('Back in stock');
                 if (saleActive) badgeLabels.push('On sale');
                 const brandList = summarizeList(
                   Array.from(new Set((product.compatibility ?? []).map((entry) => entry.make).filter(Boolean)))

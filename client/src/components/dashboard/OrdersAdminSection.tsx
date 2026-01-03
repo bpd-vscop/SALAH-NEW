@@ -79,14 +79,10 @@ const getStatusTone = (status: OrderStatus) => {
   }
 };
 
-// Check if order has preorder or backorder items
+// Check if order has backorder items
 const getOrderPaymentInfo = (order: Order): { type: string; status: 'paid' | 'pending'; statusColor: string } => {
-  const hasPreorder = order.products.some(p => p.tagsAtPurchase?.includes('available to order'));
-  const hasBackorder = order.products.some(p => p.tagsAtPurchase?.includes('out of stock'));
+  const hasBackorder = order.products.some((p) => p.tagsAtPurchase?.includes('out of stock'));
 
-  if (hasPreorder) {
-    return { type: 'Preorder', status: 'pending', statusColor: 'bg-amber-100 text-amber-700' };
-  }
   if (hasBackorder) {
     return { type: 'Backorder', status: 'pending', statusColor: 'bg-orange-100 text-orange-700' };
   }

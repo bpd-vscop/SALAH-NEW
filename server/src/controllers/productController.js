@@ -54,6 +54,17 @@ const normalizeCategoryIds = (primaryId, categoryIds) => {
   return normalized;
 };
 
+const COMING_SOON_TAG = 'coming soon';
+const NEW_ARRIVAL_DAYS = 30;
+
+const sanitizeTags = (tags) => {
+  if (!Array.isArray(tags)) {
+    return [];
+  }
+  const filtered = tags.filter((tag) => tag === COMING_SOON_TAG);
+  return Array.from(new Set(filtered));
+};
+
 const PRODUCT_UPLOADS_PREFIX = '/uploads/products/';
 const PRODUCT_TMP_IMAGES_PREFIX = '/uploads/products/_tmp/images/';
 const PRODUCT_TMP_DOCUMENTS_PREFIX = '/uploads/products/_tmp/documents/';
@@ -333,7 +344,9 @@ const listProducts = async (req, res, next) => {
     }
 
     if (wantsNewArrival) {
-      filter.newArrival = true;
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - NEW_ARRIVAL_DAYS);
+      andConditions.push({ createdAt: { $gte: cutoff } }, { restockedAt: null });
     }
 
     const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -576,12 +589,13 @@ const createProduct = async (req, res, next) => {
       throw badRequest('One or more categories do not exist');
     }
 
+    const sanitizedTags = sanitizeTags(data.tags);
     const payload = {
       ...data,
       manageStock,
       categoryId: normalizedCategoryIds[0] ?? data.categoryId,
       categoryIds: normalizedCategoryIds,
-      tags: data.tags && data.tags.length ? data.tags : undefined,
+      tags: sanitizedTags.length ? sanitizedTags : undefined,
       manufacturerId: data.manufacturerId || null,
       saleStartDate: data.saleStartDate ?? undefined,
       saleEndDate: data.saleEndDate ?? undefined,
@@ -692,7 +706,6 @@ const updateProduct = async (req, res, next) => {
       'status',
       'visibility',
       'manufacturerName',
-      'tags',
       'shortDescription',
       'description',
       'featureHighlights',
@@ -719,7 +732,6 @@ const updateProduct = async (req, res, next) => {
       'reviewsSummary',
       'notes',
       'featured',
-      'newArrival',
       'requiresB2B',
     ];
 
@@ -732,6 +744,8 @@ const updateProduct = async (req, res, next) => {
         }
       }
     });
+
+    product.tags = sanitizeTags(typeof data.tags !== 'undefined' ? data.tags : product.tags);
 
     if (typeof data.cost !== 'undefined') {
       product.cost = data.cost === null ? undefined : data.cost;

@@ -14,6 +14,7 @@ import { useWishlist } from '../context/WishlistContext';
 import type { Category, Product, ProductInventoryStatus, ProductVariation } from '../types/api';
 import { formatCurrency } from '../utils/format';
 import { cn } from '../utils/cn';
+import { getProductStatusTags } from '../utils/productStatus';
 
 type InventoryStatusMeta = {
   label: string;
@@ -376,6 +377,7 @@ export const ProductDetailPage: React.FC = () => {
 
   const categoriesToShow = productCategories.length ? productCategories : categoryTrail;
   const categoryLabel = categoriesToShow.length > 1 ? 'Categories' : 'Category';
+  const statusTags = product ? getProductStatusTags(product) : [];
 
   return (
     <SiteLayout>
@@ -640,11 +642,11 @@ export const ProductDetailPage: React.FC = () => {
                     </dd>
                   </div>
                 ) : null}
-                {product.tags.length ? (
+                {statusTags.length ? (
                   <div className="flex items-start justify-between">
                     <dt className="mt-1 font-medium text-slate-600">Tags</dt>
                     <dd className="flex flex-wrap justify-end gap-1">
-                      {product.tags.map((tag) => (
+                      {statusTags.map((tag) => (
                         <span key={tag} className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-600">
                           {tag}
                         </span>

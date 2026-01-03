@@ -4,13 +4,21 @@ import { Search, X, Filter } from 'lucide-react';
 import { categoriesApi } from '../api/categories';
 import { productsApi } from '../api/products';
 import { manufacturersApi, type Manufacturer } from '../api/manufacturers';
-import type { Category, Product, ProductTag } from '../types/api';
+import type { Category, Product, ProductStatusTag } from '../types/api';
 import { SiteLayout } from '../components/layout/SiteLayout';
 import { CategoryGrid } from '../components/home/CategoryGrid';
 import { ProductCard } from '../components/product/ProductCard';
 import { cn } from '../utils/cn';
+import { getProductStatusTags } from '../utils/productStatus';
 
-const tagOptions: ProductTag[] = ['in stock', 'out of stock', 'on sale', 'available to order'];
+const tagOptions: ProductStatusTag[] = [
+  'in stock',
+  'out of stock',
+  'on sale',
+  'back in stock',
+  'new arrival',
+  'coming soon',
+];
 
 export const CategoryPage: React.FC = () => {
   const { categoryId } = useParams<{ categoryId: string }>();
@@ -28,7 +36,7 @@ export const CategoryPage: React.FC = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedManufacturers, setSelectedManufacturers] = useState<Set<string>>(new Set());
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
-  const [selectedTags, setSelectedTags] = useState<Set<ProductTag>>(new Set());
+  const [selectedTags, setSelectedTags] = useState<Set<ProductStatusTag>>(new Set());
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(10000);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -139,8 +147,8 @@ export const CategoryPage: React.FC = () => {
 
       // Tags filter
       if (selectedTags.size > 0) {
-        if (!product.tags || !Array.isArray(product.tags)) return false;
-        const hasSelectedTag = Array.from(selectedTags).some((tag) => product.tags.includes(tag));
+        const productTags = getProductStatusTags(product);
+        const hasSelectedTag = Array.from(selectedTags).some((tag) => productTags.includes(tag));
         if (!hasSelectedTag) return false;
       }
 
@@ -172,7 +180,7 @@ export const CategoryPage: React.FC = () => {
     });
   };
 
-  const toggleTag = (tag: ProductTag) => {
+  const toggleTag = (tag: ProductStatusTag) => {
     setSelectedTags((current) => {
       const next = new Set(current);
       if (next.has(tag)) {

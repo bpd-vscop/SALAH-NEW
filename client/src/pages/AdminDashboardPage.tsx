@@ -81,7 +81,6 @@ const emptyFeatureForm = (variant: FeaturedVariant): FeatureFormState => ({
   altText: '',
 });
 
-const productTags: ProductTag[] = ['in stock', 'out of stock', 'on sale', 'available to order'];
 // const bannerTypes: BannerType[] = ['slide', 'row', 'advertising'];
 const orderStatuses: OrderStatus[] = ['pending', 'processing', 'completed', 'cancelled'];
 
@@ -347,7 +346,7 @@ const mapProductToForm = (product: Product): ProductFormState => ({
   saleEndDate: toDateTimeLocal(product.saleEndDate ?? null),
   taxClass: product.taxClass ?? '',
   featureHighlights: [...(product.featureHighlights ?? [])],
-  tags: new Set(product.tags ?? []),
+  tags: new Set((product.tags ?? []).filter((tag) => tag === 'coming soon')),
   primaryImage: product.images?.[0] ?? '',
   galleryImages: [...(product.images?.slice(1) ?? [])],
   videoUrls: [...(product.videoUrls ?? [])],
@@ -2056,7 +2055,6 @@ export const AdminDashboardPage: React.FC = () => {
                     return Promise.resolve();
                   }}
                   onRefreshProducts={refreshProducts}
-                  productTags={productTags}
                   view={productsView}
                   onViewChange={setProductsView}
                   manufacturers={manufacturers}

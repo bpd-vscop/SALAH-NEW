@@ -1,6 +1,6 @@
 ﻿const mongoose = require('mongoose');
 
-const allowedTags = ['in stock', 'out of stock', 'on sale', 'available to order'];
+const allowedTags = ['coming soon'];
 const productTypes = ['simple', 'variable', 'grouped'];
 const productStatuses = ['draft', 'scheduled', 'private', 'published'];
 const inventoryStatuses = ['in_stock', 'low_stock', 'out_of_stock', 'backorder', 'preorder'];
@@ -131,7 +131,7 @@ const productSchema = new mongoose.Schema(
     tags: {
       type: [String],
       enum: allowedTags,
-      default: ['available to order'],
+      default: [],
       validate: {
         validator: (tags) => new Set(tags).size === tags.length,
         message: 'Tags must be unique per product',

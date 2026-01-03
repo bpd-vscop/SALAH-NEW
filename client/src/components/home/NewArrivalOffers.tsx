@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { productsApi } from '../../api/products';
 import type { Product } from '../../types/api';
 import { ProductCard } from '../product/ProductCard';
+import { isInStock } from '../../utils/productStatus';
 
 const MAX_NEW_ARRIVAL_PRODUCTS = 24;
 
@@ -81,12 +82,6 @@ export const NewArrivalOffers: React.FC = () => {
           sort: 'newest',
           limit: MAX_NEW_ARRIVAL_PRODUCTS,
         });
-
-        const isInStock = (product: Product) => {
-          const quantity = product.inventory?.quantity ?? null;
-          const status = product.inventory?.status ?? 'in_stock';
-          return status !== 'out_of_stock' && typeof quantity === 'number' && quantity > 0;
-        };
 
         const list = (response.products ?? []).filter(isInStock).slice(0, MAX_NEW_ARRIVAL_PRODUCTS);
 

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { productsApi } from '../../api/products';
 import type { Product } from '../../types/api';
 import { ProductCard } from '../product/ProductCard';
+import { isInStock } from '../../utils/productStatus';
 
 const MAX_BACK_IN_STOCK_PRODUCTS = 24;
 const SCROLL_SPEED = 0.5; // pixels per frame (scrolls LEFT - opposite direction)
@@ -62,12 +63,6 @@ export const BackInStockOffers: React.FC = () => {
           sort: 'restocked',
           limit: MAX_BACK_IN_STOCK_PRODUCTS,
         });
-
-        const isInStock = (product: Product) => {
-          const quantity = product.inventory?.quantity ?? null;
-          const status = product.inventory?.status ?? 'in_stock';
-          return status !== 'out_of_stock' && typeof quantity === 'number' && quantity > 0;
-        };
 
         const list = (response.products ?? []).filter(isInStock).slice(0, MAX_BACK_IN_STOCK_PRODUCTS);
 

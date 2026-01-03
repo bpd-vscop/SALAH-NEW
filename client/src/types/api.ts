@@ -2,7 +2,14 @@ export type UserRole = 'super_admin' | 'admin' | 'staff' | 'client';
 export type UserStatus = 'active' | 'inactive';
 export type ClientType = 'B2B' | 'C2B';
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
-export type ProductTag = 'in stock' | 'out of stock' | 'on sale' | 'available to order';
+export type ProductTag = 'coming soon';
+export type ProductStatusTag =
+  | 'in stock'
+  | 'out of stock'
+  | 'on sale'
+  | 'back in stock'
+  | 'new arrival'
+  | 'coming soon';
 export type ProductInventoryStatus = 'in_stock' | 'low_stock' | 'out_of_stock' | 'backorder' | 'preorder';
 export type ProductType = 'simple' | 'variable' | 'grouped';
 export type ProductStatus = 'draft' | 'scheduled' | 'private' | 'published';
@@ -307,7 +314,7 @@ export interface OrderProductItem {
   name: string;
   quantity: number;
   price: number;
-  tagsAtPurchase: ProductTag[];
+  tagsAtPurchase: ProductStatusTag[];
 }
 
 export interface OrderUserSummary {

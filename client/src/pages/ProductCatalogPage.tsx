@@ -5,13 +5,14 @@ import { categoriesApi } from '../api/categories';
 import { productsApi } from '../api/products';
 import { manufacturersApi, type Manufacturer } from '../api/manufacturers';
 import { SiteLayout } from '../components/layout/SiteLayout';
-import type { Category, Product } from '../types/api';
+import type { Category, Product, ProductTag } from '../types/api';
 import { cn } from '../utils/cn';
 import { ProductCard } from '../components/product/ProductCard';
 import { Select } from '../components/ui/Select';
+import { getEffectiveInventoryStatus, isBackInStock, isNewArrival, isOnSale, isComingSoon } from '../utils/productStatus';
 
 type AvailabilityFilter = 'in_stock' | 'low_stock' | 'out_of_stock' | 'backorder' | 'preorder';
-type BadgeFilter = 'on_sale' | 'back_in_stock' | 'featured' | 'new_arrival';
+type BadgeFilter = 'on_sale' | 'back_in_stock' | 'featured' | 'new_arrival' | 'coming_soon';
 
 const availabilityOptions: Array<{ id: AvailabilityFilter; label: string }> = [
   { id: 'in_stock', label: 'In stock' },
@@ -26,6 +27,7 @@ const badgeOptions: Array<{ id: BadgeFilter; label: string }> = [
   { id: 'back_in_stock', label: 'Back in stock' },
   { id: 'featured', label: 'Featured' },
   { id: 'new_arrival', label: 'New arrival' },
+  { id: 'coming_soon', label: 'Coming soon' },
 ];
 
 export const ProductCatalogPage: React.FC = () => {
@@ -35,10 +37,16 @@ export const ProductCatalogPage: React.FC = () => {
   const vehicleYear = searchParams.get('vehicleYear') || '';
   const vehicleMake = searchParams.get('vehicleMake') || '';
   const vehicleModel = searchParams.get('vehicleModel') || '';
+  const urlTags = searchParams.get('tags') || '';
   const urlOnSale = ['true', '1', 'yes'].includes((searchParams.get('onSale') || '').toLowerCase());
   const urlBackInStock = ['true', '1', 'yes'].includes((searchParams.get('backInStock') || '').toLowerCase());
   const urlFeatured = ['true', '1', 'yes'].includes((searchParams.get('featured') || '').toLowerCase());
   const urlNewArrival = ['true', '1', 'yes'].includes((searchParams.get('newArrival') || '').toLowerCase());
+  const urlTagList = urlTags
+    .split(',')
+    .map((tag) => tag.trim().toLowerCase())
+    .filter(Boolean);
+  const urlComingSoon = urlTagList.includes('coming soon');
 
   const buildBadgeSelection = () => {
     const next = new Set<BadgeFilter>();
@@ -46,6 +54,7 @@ export const ProductCatalogPage: React.FC = () => {
     if (urlBackInStock) next.add('back_in_stock');
     if (urlFeatured) next.add('featured');
     if (urlNewArrival) next.add('new_arrival');
+    if (urlComingSoon) next.add('coming_soon');
     return next;
   };
 
@@ -100,7 +109,7 @@ export const ProductCatalogPage: React.FC = () => {
 
   useEffect(() => {
     setSelectedBadges(buildBadgeSelection());
-  }, [urlOnSale, urlBackInStock, urlFeatured, urlNewArrival]);
+  }, [urlOnSale, urlBackInStock, urlFeatured, urlNewArrival, urlComingSoon]);
 
   useEffect(() => {
     setSelectedBrands(buildBrandSelection());
@@ -184,6 +193,7 @@ export const ProductCatalogPage: React.FC = () => {
         categoryId?: string;
         manufacturerId?: string;
         manufacturerIds?: string[];
+        tags?: ProductTag[];
         search?: string;
         onSale?: boolean;
         backInStock?: boolean;
@@ -216,6 +226,7 @@ export const ProductCatalogPage: React.FC = () => {
       categoryId: selectedCategory || undefined,
       manufacturerIds: selectedManufacturers.size ? Array.from(selectedManufacturers) : undefined,
       search: search || undefined,
+      tags: selectedBadges.has('coming_soon') ? ['coming soon'] : undefined,
       onSale: selectedBadges.has('on_sale') || undefined,
       backInStock: selectedBadges.has('back_in_stock') || undefined,
       featured: selectedBadges.has('featured') || undefined,
@@ -257,6 +268,7 @@ export const ProductCatalogPage: React.FC = () => {
     newParams.delete('backInStock');
     newParams.delete('featured');
     newParams.delete('newArrival');
+    newParams.delete('tags');
     setSearchParams(newParams);
     // Products will auto-refresh via useEffect
   };
@@ -334,45 +346,19 @@ export const ProductCatalogPage: React.FC = () => {
     maxPrice < 1000 ||
     hasVehicleFilters;
 
-  const getEffectiveInventoryStatus = (product: Product): AvailabilityFilter => {
-    const status = product.inventory?.status ?? 'in_stock';
-    const allowBackorder = Boolean(product.inventory?.allowBackorder);
-    const quantity = typeof product.inventory?.quantity === 'number' ? product.inventory.quantity : 0;
-    const lowStockThreshold =
-      typeof product.inventory?.lowStockThreshold === 'number' ? product.inventory.lowStockThreshold : 0;
-
-    if (status === 'preorder') return 'preorder';
-    if (status === 'backorder' && quantity <= 0) return 'backorder';
-    if (allowBackorder && quantity <= 0) return 'backorder';
-    if (status === 'out_of_stock' || quantity <= 0) return 'out_of_stock';
-    if (status === 'low_stock' || (lowStockThreshold > 0 && quantity <= lowStockThreshold)) {
-      return 'low_stock';
-    }
-    return 'in_stock';
-  };
-
-  const isSaleActive = (product: Product) => {
-    if (typeof product.salePrice !== 'number' || product.salePrice >= product.price) {
-      return false;
-    }
-    const now = new Date();
-    const startOk = product.saleStartDate ? now >= new Date(product.saleStartDate) : true;
-    const endOk = product.saleEndDate ? now <= new Date(product.saleEndDate) : true;
-    return startOk && endOk;
-  };
-
   const matchesAvailability = (product: Product) => {
     if (!selectedAvailability.size) return true;
-    const status = getEffectiveInventoryStatus(product);
+    const status = getEffectiveInventoryStatus(product) as AvailabilityFilter;
     return selectedAvailability.has(status);
   };
 
   const matchesBadges = (product: Product) => {
     if (!selectedBadges.size) return true;
     if (selectedBadges.has('featured') && !product.featured) return false;
-    if (selectedBadges.has('new_arrival') && !product.newArrival) return false;
-    if (selectedBadges.has('back_in_stock') && !product.restockedAt) return false;
-    if (selectedBadges.has('on_sale') && !isSaleActive(product)) return false;
+    if (selectedBadges.has('new_arrival') && !isNewArrival(product)) return false;
+    if (selectedBadges.has('back_in_stock') && !isBackInStock(product)) return false;
+    if (selectedBadges.has('on_sale') && !isOnSale(product)) return false;
+    if (selectedBadges.has('coming_soon') && !isComingSoon(product)) return false;
     return true;
   };
 

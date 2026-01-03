@@ -3,6 +3,13 @@ import { productsApi } from '../../api/products';
 import type { Product, ProductInventoryStatus } from '../../types/api';
 import { cn } from '../../utils/cn';
 import { formatCurrency } from '../../utils/format';
+import {
+  getEffectiveInventoryStatus,
+  isBackInStock,
+  isComingSoon,
+  isNewArrival,
+  isOnSale,
+} from '../../utils/productStatus';
 import { Select } from '../ui/Select';
 import { DatePicker } from '../ui/DatePicker';
 import { RefreshCw, X } from 'lucide-react';
@@ -15,10 +22,10 @@ type BadgeFilter =
   | 'all'
   | 'backorder'
   | 'preorder'
-  | 'featured'
   | 'new_arrival'
   | 'on_sale'
   | 'back_in_stock'
+  | 'coming_soon'
   | 'hidden';
 
 type InventoryBadgeOverride = '' | 'out_of_stock' | 'preorder';
@@ -28,8 +35,7 @@ type ProductInventoryEditState = {
   replenishBy: string;
   lowStockThreshold: string;
   allowBackorder: boolean;
-  featured: boolean;
-  newArrival: boolean;
+  comingSoon: boolean;
   visibility: NonNullable<Product['visibility']> | 'hidden';
   inventoryBadgeOverride: InventoryBadgeOverride;
   price: string;
@@ -50,14 +56,14 @@ const toDateLocal = (iso?: string | null) => {
 };
 
 const DEFAULT_VISIBILITY: NonNullable<Product['visibility']> = 'catalog-and-search';
+const COMING_SOON_TAG = 'coming soon';
 
 const getDefaultEditState = (product: Product): ProductInventoryEditState => ({
   quantity: String(product.inventory?.quantity ?? 0),
   replenishBy: '',
   lowStockThreshold: String(product.inventory?.lowStockThreshold ?? 0),
   allowBackorder: Boolean(product.inventory?.allowBackorder),
-  featured: Boolean(product.featured),
-  newArrival: Boolean(product.newArrival),
+  comingSoon: isComingSoon(product),
   visibility: (product.visibility ?? DEFAULT_VISIBILITY) as NonNullable<Product['visibility']>,
   inventoryBadgeOverride:
     product.inventory?.status === 'out_of_stock'
@@ -79,38 +85,6 @@ const getDefaultEditState = (product: Product): ProductInventoryEditState => ({
   saleEndDate: toDateLocal(product.saleEndDate ?? null),
 });
 
-type EffectiveInventoryStatus = 'in_stock' | 'low_stock' | 'out_of_stock' | 'backorder' | 'preorder';
-
-const getEffectiveInventoryStatus = (product: Product): EffectiveInventoryStatus => {
-  const status = (product.inventory?.status ?? 'in_stock') as EffectiveInventoryStatus;
-  const allowBackorder = Boolean(product.inventory?.allowBackorder);
-  const quantity = typeof product.inventory?.quantity === 'number' ? product.inventory.quantity : 0;
-  const lowStockThreshold =
-    typeof product.inventory?.lowStockThreshold === 'number' ? product.inventory.lowStockThreshold : 0;
-
-  if (status === 'preorder') {
-    return 'preorder';
-  }
-
-  if (status === 'backorder' && quantity <= 0) {
-    return 'backorder';
-  }
-
-  if (allowBackorder && quantity <= 0) {
-    return 'backorder';
-  }
-
-  if (status === 'out_of_stock' || quantity <= 0) {
-    return 'out_of_stock';
-  }
-
-  if (status === 'low_stock' || (lowStockThreshold > 0 && quantity <= lowStockThreshold)) {
-    return 'low_stock';
-  }
-
-  return 'in_stock';
-};
-
 const statusRank = (product: Product) => {
   const status = getEffectiveInventoryStatus(product);
   if (status === 'out_of_stock') return 0;
@@ -118,17 +92,6 @@ const statusRank = (product: Product) => {
   if (status === 'backorder') return 2;
   if (status === 'preorder') return 3;
   return 4;
-};
-
-const isSaleActive = (product: Product) => {
-  if (typeof product.salePrice !== 'number' || product.salePrice >= product.price) {
-    return false;
-  }
-
-  const now = new Date();
-  const startOk = product.saleStartDate ? now >= new Date(product.saleStartDate) : true;
-  const endOk = product.saleEndDate ? now <= new Date(product.saleEndDate) : true;
-  return startOk && endOk;
 };
 
 interface ProductInventoryAdminSectionProps {
@@ -206,20 +169,20 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
         return product.inventory?.status === 'preorder';
       }
 
-      if (badgeFilter === 'featured') {
-        return Boolean(product.featured);
-      }
-
       if (badgeFilter === 'new_arrival') {
-        return Boolean(product.newArrival);
+        return isNewArrival(product);
       }
 
       if (badgeFilter === 'on_sale') {
-        return isSaleActive(product);
+        return isOnSale(product);
       }
 
       if (badgeFilter === 'back_in_stock') {
-        return Boolean(product.restockedAt);
+        return isBackInStock(product);
+      }
+
+      if (badgeFilter === 'coming_soon') {
+        return isComingSoon(product);
       }
 
       return product.visibility === 'hidden';
@@ -263,8 +226,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
     const quantity = product.inventory?.quantity ?? 0;
     const lowStockThreshold = product.inventory?.lowStockThreshold ?? 0;
     const allowBackorder = Boolean(product.inventory?.allowBackorder);
-    const featured = Boolean(product.featured);
-    const newArrival = Boolean(product.newArrival);
+    const comingSoon = isComingSoon(product);
     const visibility = (product.visibility ?? DEFAULT_VISIBILITY) as NonNullable<Product['visibility']>;
     const inventoryBadgeOverride =
       product.inventory?.status === 'out_of_stock'
@@ -307,8 +269,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
         ? nextLowStock !== lowStockThreshold
         : edit.lowStockThreshold.trim() !== String(lowStockThreshold)) ||
       edit.allowBackorder !== allowBackorder ||
-      edit.featured !== featured ||
-      edit.newArrival !== newArrival ||
+      edit.comingSoon !== comingSoon ||
       edit.visibility !== visibility ||
       edit.inventoryBadgeOverride !== inventoryBadgeOverride ||
       (Number.isFinite(nextPrice) ? nextPrice !== price : edit.price.trim() !== String(price)) ||
@@ -442,14 +403,22 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
           ? true
           : edit.allowBackorder;
 
+    const baseTags = Array.isArray(product.tags) ? product.tags : [];
+    const hasComingSoon = baseTags.includes(COMING_SOON_TAG);
+    const nextTags = edit.comingSoon
+      ? hasComingSoon
+        ? baseTags
+        : [...baseTags, COMING_SOON_TAG]
+      : baseTags.filter((tag) => tag !== COMING_SOON_TAG);
+    const tagsChanged = hasComingSoon !== edit.comingSoon;
+
     return {
       payload: {
         price,
         salePrice,
         saleStartDate,
         saleEndDate,
-        featured: edit.featured,
-        newArrival: edit.newArrival,
+        ...(tagsChanged ? { tags: nextTags } : {}),
         visibility: edit.visibility ?? DEFAULT_VISIBILITY,
         inventory: {
           ...baseInventory,
@@ -599,7 +568,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
               options={[
                 { value: 'all', label: 'All badges' },
                 { value: 'hidden', label: 'Hidden' },
-                { value: 'featured', label: 'Featured' },
+                { value: 'coming_soon', label: 'Coming soon' },
                 { value: 'new_arrival', label: 'New arrival' },
                 { value: 'on_sale', label: 'On sale' },
                 { value: 'back_in_stock', label: 'Back in stock' },
@@ -676,10 +645,10 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                   const status = getEffectiveInventoryStatus(product);
                   const outOfStock = status === 'out_of_stock';
                   const statusLabel = status.replace(/_/g, ' ');
-                  const saleActive = isSaleActive(product);
+                  const saleActive = isOnSale(product);
                   const showBackInStock = Boolean(product.restockedAt);
-                  const showFeatured = Boolean(product.featured);
-                  const showNewArrival = Boolean(product.newArrival);
+                  const showNewArrival = isNewArrival(product);
+                  const showComingSoon = isComingSoon(product);
                   const showHidden = product.visibility === 'hidden';
                   const showBackorderBadge = Boolean(product.inventory?.allowBackorder) && status !== 'preorder';
                   const rowHasEdits = hasEdits(product);
@@ -802,9 +771,9 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                                 Back in stock
                               </span>
                             ) : null}
-                            {showFeatured ? (
-                              <span className="inline-flex whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[0.7rem] font-semibold text-slate-800">
-                                Featured
+                            {showComingSoon ? (
+                              <span className="inline-flex whitespace-nowrap rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[0.7rem] font-semibold text-teal-700">
+                                Coming soon
                               </span>
                             ) : null}
                             {showNewArrival ? (
@@ -1090,21 +1059,11 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                           <label className="flex items-center gap-1.5">
                             <input
                               type="checkbox"
-                              checked={edit.featured}
-                              onChange={(event) => updateFieldForProduct(product, 'featured', event.target.checked)}
+                              checked={edit.comingSoon}
+                              onChange={(event) => updateFieldForProduct(product, 'comingSoon', event.target.checked)}
                               className="h-4 w-4 rounded border-border text-primary focus:ring-primary/40"
                             />
-                            <span className="font-medium">Featured</span>
-                          </label>
-
-                          <label className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={edit.newArrival}
-                              onChange={(event) => updateFieldForProduct(product, 'newArrival', event.target.checked)}
-                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary/40"
-                            />
-                            <span className="font-medium">New arrival</span>
+                            <span className="font-medium">Coming soon</span>
                           </label>
 
                           <label className="flex items-center gap-1.5">

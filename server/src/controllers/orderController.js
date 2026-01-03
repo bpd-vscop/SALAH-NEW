@@ -62,6 +62,74 @@ const isInventoryOutOfStock = (inventory) => {
   return status === 'out_of_stock' || (!allowBackorder && quantity <= 0);
 };
 
+const COMING_SOON_TAG = 'coming soon';
+const NEW_ARRIVAL_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const isProductOnSale = (product) => {
+  if (typeof product.salePrice !== 'number' || product.salePrice >= product.price) {
+    return false;
+  }
+  const now = new Date();
+  const startOk = product.saleStartDate ? now >= new Date(product.saleStartDate) : true;
+  const endOk = product.saleEndDate ? now <= new Date(product.saleEndDate) : true;
+  return startOk && endOk;
+};
+
+const isProductNewArrival = (product) => {
+  if (product.restockedAt) {
+    return false;
+  }
+  if (!product.createdAt) {
+    return false;
+  }
+  const createdAt = new Date(product.createdAt);
+  if (Number.isNaN(createdAt.getTime())) {
+    return false;
+  }
+  const diff = Date.now() - createdAt.getTime();
+  return diff >= 0 && diff <= NEW_ARRIVAL_DAYS * DAY_MS;
+};
+
+const isProductInStock = (product) => {
+  if (product.manageStock === false) {
+    return true;
+  }
+  const quantity = typeof product.inventory?.quantity === 'number' ? product.inventory.quantity : 0;
+  return quantity > 0;
+};
+
+const isProductOutOfStock = (product) => {
+  if (product.manageStock === false) {
+    return false;
+  }
+  const quantity = typeof product.inventory?.quantity === 'number' ? product.inventory.quantity : 0;
+  return quantity <= 0;
+};
+
+const getOrderItemTags = (product) => {
+  if (Array.isArray(product.tags) && product.tags.includes(COMING_SOON_TAG)) {
+    return [COMING_SOON_TAG];
+  }
+
+  const tags = [];
+  if (isProductOnSale(product)) {
+    tags.push('on sale');
+  }
+  if (product.restockedAt && isProductInStock(product)) {
+    tags.push('back in stock');
+  }
+  if (isProductNewArrival(product)) {
+    tags.push('new arrival');
+  }
+  if (isProductOutOfStock(product)) {
+    tags.push('out of stock');
+  } else if (isProductInStock(product)) {
+    tags.push('in stock');
+  }
+  return tags;
+};
+
 const listOrders = async (req, res, next) => {
   try {
     const filter = {};
@@ -203,7 +271,7 @@ const createOrder = async (req, res, next) => {
         name: product.name,
         quantity,
         price: product.price || 0,
-        tagsAtPurchase: product.tags,
+        tagsAtPurchase: getOrderItemTags(product),
       };
     });
 

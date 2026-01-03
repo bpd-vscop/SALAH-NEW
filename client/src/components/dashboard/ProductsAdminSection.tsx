@@ -6,6 +6,7 @@ import { cn } from '../../utils/cn';
 import { productsApi } from '../../api/products';
 import { brandsApi, type Brand } from '../../api/brands';
 import { modelsApi, type Model } from '../../api/models';
+import { getProductStatusTags } from '../../utils/productStatus';
 import { Select } from '../ui/Select';
 import type {
   Category,
@@ -38,7 +39,6 @@ interface ProductsAdminSectionProps {
   onDelete: (id: string) => Promise<void>;
   onBulkDelete: (ids: string[]) => Promise<void>;
   onRefreshProducts: () => Promise<void>;
-  productTags: ProductTag[];
   view: 'all' | 'add';
   onViewChange: (view: 'all' | 'add') => void;
 }
@@ -138,7 +138,6 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   onDelete,
   onBulkDelete,
   onRefreshProducts,
-  productTags,
   view,
   onViewChange,
 }) => {
@@ -1529,6 +1528,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       inventoryStatus === 'preorder' && 'border-indigo-200 bg-indigo-50 text-indigo-700'
                     );
                     const hasSale = typeof product.salePrice === 'number' && product.salePrice < product.price;
+                    const displayTags = getProductStatusTags(product);
 
                     return (
                       <tr
@@ -1572,7 +1572,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                           <div className="space-y-1">
                             <p className="text-sm font-semibold text-slate-900 line-clamp-2">{product.name}</p>
                             <div className="flex flex-wrap gap-1">
-                              {product.tags.slice(0, 2).map((tag) => (
+                              {displayTags.slice(0, 2).map((tag) => (
                                 <span
                                   key={tag}
                                   className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary"
@@ -2471,28 +2471,33 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 </button>
               </div>
             </div>
-            <div className="flex flex-col gap-2 text-sm text-slate-600">
-              <span>Tags</span>
-              <div className="flex flex-wrap gap-2">
-                {productTags.map((tag) => {
-                  const active = form.tags.has(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => toggleTag(tag)}
-                      className={cn(
-                        'rounded-full px-3 py-1 text-xs font-medium transition',
-                        active
-                          ? 'bg-primary text-white shadow-sm'
-                          : 'border border-border bg-white text-slate-600 hover:border-primary hover:text-primary'
-                      )}
-                    >
-                      {tag}
-                    </button>
-                  );
-                })}
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-white/70 px-4 py-3">
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-slate-900">Coming soon</span>
+                <span className="text-xs text-slate-500">
+                  Show this product in the Coming soon section before it is available for sale.
+                </span>
               </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.tags.has('coming soon')}
+                onClick={() => toggleTag('coming soon')}
+                className={cn(
+                  'relative inline-flex h-8 w-14 items-center rounded-full border transition',
+                  form.tags.has('coming soon')
+                    ? 'border-primary bg-primary'
+                    : 'border-slate-300 bg-slate-200'
+                )}
+              >
+                <span
+                  className={cn(
+                    'inline-block h-6 w-6 rounded-full bg-white shadow transition',
+                    form.tags.has('coming soon') ? 'translate-x-6' : 'translate-x-1'
+                  )}
+                />
+                <span className="sr-only">Toggle coming soon</span>
+              </button>
             </div>
             <label className="flex flex-col gap-2 text-sm text-slate-600">
               Short description

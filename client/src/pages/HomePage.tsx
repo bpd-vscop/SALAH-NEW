@@ -8,10 +8,9 @@ import { SiteLayout } from '../components/layout/SiteLayout';
 import { HeroSlider } from '../components/home/HeroSlider';
 import { FeaturedProducts } from '../components/home/FeaturedProducts';
 import { NewProductsSection } from '../components/home/NewProductsSection';
-import { FeaturedOffers } from '../components/home/FeaturedOffers';
-import { NewArrivalOffers } from '../components/home/NewArrivalOffers';
 import { BackInStockOffers } from '../components/home/BackInStockOffers';
 import { OnSaleOffers } from '../components/home/OnSaleOffers';
+import { ComingSoonOffers } from '../components/home/ComingSoonOffers';
 import { ManufacturerLogos } from '../components/home/ManufacturerLogos';
 import { CategoryGrid } from '../components/home/CategoryGrid';
 import { BatteryPromo } from '../components/home/BatteryPromo';
@@ -95,10 +94,9 @@ export const HomePage: React.FC = () => {
       </section>
 
       <NewProductsSection />
-      <FeaturedOffers />
-      <NewArrivalOffers />
-      <BackInStockOffers />
       <OnSaleOffers />
+      <BackInStockOffers />
+      <ComingSoonOffers />
 
       {/* Manufacturers logos */}
       <ManufacturerLogos />
