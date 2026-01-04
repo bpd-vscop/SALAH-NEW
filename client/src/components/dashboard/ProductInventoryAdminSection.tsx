@@ -121,6 +121,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
   const [activeReplenishId, setActiveReplenishId] = useState<string | null>(null);
   const [selectedHiddenIds, setSelectedHiddenIds] = useState<Set<string>>(new Set());
   const [openBadgeDropdownId, setOpenBadgeDropdownId] = useState<string | null>(null);
+  const [openSaleTypeDropdownId, setOpenSaleTypeDropdownId] = useState<string | null>(null);
 
   useEffect(() => {
     setEdits((current) => {
@@ -904,14 +905,57 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                       </td>
                       <td className="px-2 py-3 align-top">
                         <div className="flex flex-col gap-1.5">
-                          <select
-                            value={edit.saleType}
-                            onChange={(event) => updateFieldForProduct(product, 'saleType', event.target.value as ProductInventoryEditState['saleType'])}
-                            className="h-6 w-full rounded-lg border border-border bg-white px-2 text-xs font-semibold text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                          >
-                            <option value="percentage">%</option>
-                            <option value="price">Price</option>
-                          </select>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenSaleTypeDropdownId((current) => current === product.id ? null : product.id);
+                              }}
+                              onBlur={(event) => {
+                                if (!event.currentTarget.parentElement?.contains(event.relatedTarget as Node)) {
+                                  setTimeout(() => setOpenSaleTypeDropdownId(null), 150);
+                                }
+                              }}
+                              className="flex h-6 w-full items-center justify-between rounded-lg border border-border bg-white px-2 text-xs font-medium text-slate-700 transition hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            >
+                              <span>{edit.saleType === 'percentage' ? '%' : 'Price'}</span>
+                              <svg className="h-3 w-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                            {openSaleTypeDropdownId === product.id && (
+                              <div className="absolute left-0 top-full z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
+                                <div className="flex flex-col py-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      updateFieldForProduct(product, 'saleType', 'percentage');
+                                      setOpenSaleTypeDropdownId(null);
+                                    }}
+                                    className="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-slate-50"
+                                  >
+                                    <span className="font-medium text-slate-700">%</span>
+                                    {edit.saleType === 'percentage' && (
+                                      <Check className="h-4 w-4 text-rose-600" strokeWidth={2} />
+                                    )}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      updateFieldForProduct(product, 'saleType', 'price');
+                                      setOpenSaleTypeDropdownId(null);
+                                    }}
+                                    className="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-slate-50"
+                                  >
+                                    <span className="font-medium text-slate-700">Price</span>
+                                    {edit.saleType === 'price' && (
+                                      <Check className="h-4 w-4 text-rose-600" strokeWidth={2} />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                           {edit.saleType === 'percentage' ? (
                             <input
                               type="number"
