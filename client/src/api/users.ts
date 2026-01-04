@@ -44,6 +44,7 @@ export type UpdateUserPayload = Partial<{
   companyTaxId: string | null;
   companyWebsite: string | null;
   verificationStatus: VerificationStatus;
+  taxExempt: boolean;
 }>;
 
 export type ShippingAddressPayload = {

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { usersApi, type CreateUserPayload, type ListUsersParams, type UpdateUserPayload } from '../../../api/users';
-import type { ClientType, User, UserRole } from '../../../types/api';
+import { taxRatesApi } from '../../../api/taxRates';
+import type { ClientType, TaxRate, User, UserRole } from '../../../types/api';
 import type { ComposeClientRef, StatusSetter } from '../types';
 import { StatusPill } from '../../common/StatusPill';
 import { cn } from '../../../utils/cn';
@@ -178,6 +180,36 @@ const formatShortTimestamp = (value?: string | null) => {
   }
 };
 
+const normalizeLocation = (value?: string | null) => {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  return trimmed ? trimmed.toLowerCase() : null;
+};
+
+const extractCompanyLocation = (company?: User['company'] | null) => {
+  if (!company) {
+    return { country: null, state: null };
+  }
+  const address = typeof company.address === 'string' ? company.address : '';
+  if (!address) {
+    return { country: null, state: null };
+  }
+  const parts = address
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (!parts.length) {
+    return { country: null, state: null };
+  }
+  const country = parts[parts.length - 1] || null;
+  const state = parts.length > 1 ? parts[parts.length - 2] || null : null;
+  return { country, state };
+};
+
+const formatLocationLabel = (location: { country: string | null; state: string | null }) => {
+  const parts = [location.state, location.country].filter(Boolean);
+  return parts.length ? parts.join(', ') : null;
+};
+
 const deriveVerificationFilename = (client: User) => {
   const base = client.name?.trim() || client.email?.split('@')[0] || 'client';
   return `${base.replace(/\s+/g, '-').toLowerCase()}-verification-${client.id}`;
@@ -233,6 +265,9 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
   const [bulkMenuOpen, setBulkMenuOpen] = useState(false);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
+  const [taxRateLoading, setTaxRateLoading] = useState(false);
+  const [taxExemptUpdatingIds, setTaxExemptUpdatingIds] = useState<Set<string>>(new Set());
   const [reasonModal, setReasonModal] = useState<{
     mode: 'delete' | 'downgrade' | 'bulkDowngrade' | 'inactive' | 'bulkInactive';
     client?: User;
@@ -246,6 +281,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
   const [statusChangeTargetId, setStatusChangeTargetId] = useState<string | null>(null);
   const [statusChangeReason, setStatusChangeReason] = useState<string | null>(null);
   const [statusMenuOpenId, setStatusMenuOpenId] = useState<string | null>(null);
+  const [statusMenuPosition, setStatusMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [typeMenuOpenId, setTypeMenuOpenId] = useState<string | null>(null);
   const [rowActionId, setRowActionId] = useState<string | null>(null);
   const [documentPreview, setDocumentPreview] = useState<{ href: string; name: string } | null>(null);
@@ -260,12 +296,46 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
     'united states of america'
   ].includes(form.companyCountry.trim().toLowerCase());
   const hideMetaColumns = isFormVisible;
-  const tableColumnCount = hideMetaColumns ? 5 : 8;
+  const tableColumnCount = hideMetaColumns ? 6 : 9;
+
+  const taxRateIndex = useMemo(() => {
+    const index = new Map<string, TaxRate>();
+    taxRates.forEach((rate) => {
+      const countryKey = normalizeLocation(rate.country);
+      const stateKey = normalizeLocation(rate.state);
+      const key = `${countryKey || ''}::${stateKey || ''}`;
+      index.set(key, rate);
+    });
+    return index;
+  }, [taxRates]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
+
+  useEffect(() => {
+    let active = true;
+    const loadTaxRates = async () => {
+      setTaxRateLoading(true);
+      try {
+        const { taxRates: list } = await taxRatesApi.list();
+        if (active) {
+          setTaxRates(list);
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (active) {
+          setTaxRateLoading(false);
+        }
+      }
+    };
+    void loadTaxRates();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const loadClients = useCallback(async () => {
     const params: ListUsersParams = {
@@ -304,6 +374,64 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
     }
   }, [debouncedSearch, setStatus, sort, statusFilter, typeFilter, verificationFilter]);
 
+  const resolveTaxRateForClient = useCallback(
+    (client: User) => {
+      if (client.clientType !== 'B2B') {
+        return { rate: 0, locationLabel: 'C2B tax-free' };
+      }
+      if (client.taxExempt) {
+        return { rate: 0, locationLabel: 'Tax exempt' };
+      }
+      const location = extractCompanyLocation(client.company);
+      const locationLabel = formatLocationLabel(location) || 'No company address';
+      const countryKey = normalizeLocation(location.country);
+      const stateKey = normalizeLocation(location.state);
+      let matched: TaxRate | undefined;
+      if (countryKey && stateKey) {
+        matched = taxRateIndex.get(`${countryKey}::${stateKey}`);
+      }
+      if (!matched && countryKey) {
+        matched = taxRateIndex.get(`${countryKey}::`);
+      }
+      if (!matched && stateKey) {
+        matched = taxRateIndex.get(`::${stateKey}`);
+      }
+      if (!matched) {
+        return {
+          rate: 0,
+          locationLabel,
+        };
+      }
+      return {
+        rate: matched.rate,
+        locationLabel,
+      };
+    },
+    [taxRateIndex]
+  );
+
+  const toggleTaxExempt = async (client: User) => {
+    if (!canManageClients || client.clientType !== 'B2B') return;
+    setTaxExemptUpdatingIds((prev) => new Set(prev).add(client.id));
+    try {
+      const nextValue = !client.taxExempt;
+      const { user: updated } = await usersApi.update(client.id, { taxExempt: nextValue });
+      setRecords((prev) =>
+        prev.map((record) => (record.id === updated.id ? { ...record, taxExempt: updated.taxExempt } : record))
+      );
+      setStatus(nextValue ? 'Tax disabled for client' : 'Tax enabled for client');
+    } catch (error) {
+      console.error(error);
+      setStatus(null, error instanceof Error ? error.message : 'Unable to update tax status');
+    } finally {
+      setTaxExemptUpdatingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(client.id);
+        return next;
+      });
+    }
+  };
+
   useEffect(() => {
     void loadClients();
   }, [loadClients]);
@@ -338,6 +466,23 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
       document.removeEventListener('mousedown', handleDocClick);
     };
   }, []);
+
+  useEffect(() => {
+    if (!statusMenuOpenId) {
+      setStatusMenuPosition(null);
+      return;
+    }
+    const handleScroll = () => {
+      setStatusMenuOpenId(null);
+      setStatusMenuPosition(null);
+    };
+    document.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+    return () => {
+      document.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [statusMenuOpenId]);
 
   const editingClient = useMemo(
     () => (editingId ? records.find((record) => record.id === editingId) ?? null : null),
@@ -446,8 +591,31 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
     setBulkMenuOpen(false);
   };
 
-  const toggleStatusMenu = (clientId: string) => {
-    setStatusMenuOpenId((prev) => (prev === clientId ? null : clientId));
+  const toggleStatusMenu = (clientId: string, anchor?: HTMLElement | null) => {
+    const nextOpen = statusMenuOpenId === clientId ? null : clientId;
+    if (!nextOpen) {
+      setStatusMenuOpenId(null);
+      setStatusMenuPosition(null);
+      return;
+    }
+    if (anchor) {
+      const rect = anchor.getBoundingClientRect();
+      const menuHeight = 96;
+      const menuOffset = 4;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const shouldOpenUp = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+      const rawTop = shouldOpenUp
+        ? rect.top + window.scrollY - menuHeight - menuOffset
+        : rect.bottom + window.scrollY + menuOffset;
+      setStatusMenuPosition({
+        top: Math.max(8, rawTop),
+        left: rect.left + window.scrollX,
+      });
+    } else {
+      setStatusMenuPosition(null);
+    }
+    setStatusMenuOpenId(nextOpen);
     setTypeMenuOpenId(null);
     setBulkMenuOpen(false);
   };
@@ -1513,9 +1681,10 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
               <thead className="sticky top-0 z-10 bg-background text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Client</th>
-                  <th className="px-4 py-3 font-semibold">Type</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Verification</th>
+                  <th className="pl-1 pr-4 py-3 font-semibold">Type</th>
+                  <th className="pl-1 pr-4 py-3 font-semibold">Status</th>
+                  <th className="pl-1 pr-4 py-3 font-semibold">Email</th>
+                  <th className="px-4 py-3 font-semibold">Tax</th>
                   {!hideMetaColumns && <th className="px-4 py-3 font-semibold">Created</th>}
                   {!hideMetaColumns && <th className="px-4 py-3 font-semibold">Updated</th>}
                   <th className="px-4 py-3 font-semibold">Documents</th>
@@ -1550,6 +1719,16 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                     const isApproving = isDecisionBusy && verificationDecisionStatus === 'approved';
                     const isRevoking = isDecisionBusy && verificationDecisionStatus === 'rejected';
                     const verificationInputId = `verification-upload-${client.id}`;
+                    const isTaxExemptUpdating = taxExemptUpdatingIds.has(client.id);
+                    const taxStatus = resolveTaxRateForClient(client);
+                    const taxLabel =
+                      client.clientType === 'B2B'
+                        ? client.taxExempt
+                          ? '0%'
+                          : taxRateLoading
+                            ? '...'
+                            : `${taxStatus.rate}%`
+                        : '0%';
                     return (
                       <tr
                         key={client.id}
@@ -1579,7 +1758,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="pl-1 pr-4 py-3">
                           {client.clientType === 'B2B' && canManageClients ? (
                             <div className="relative inline-flex" onMouseDown={(event) => event.stopPropagation()}>
                               <button
@@ -1626,12 +1805,12 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="pl-1 pr-4 py-3">
                           {canManageClients ? (
                             <div className="relative inline-flex" onMouseDown={(event) => event.stopPropagation()}>
                               <button
                                 type="button"
-                                onClick={() => toggleStatusMenu(client.id)}
+                                onClick={(event) => toggleStatusMenu(client.id, event.currentTarget)}
                                 disabled={rowActionId === client.id}
                                 className={cn(
                                   'inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition',
@@ -1644,36 +1823,42 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                                 {client.status === 'active' ? 'Active' : 'Inactive'}
                                 <ChevronDown className="h-3 w-3" />
                               </button>
-                              {statusMenuOpenId === client.id && (
-                                <div className="absolute left-0 top-full z-20 mt-1 w-36 rounded-xl border border-border bg-white shadow-lg">
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleQuickStatusChange(client, 'active')}
-                                    disabled={client.status === 'active' || rowActionId === client.id}
-                                    className={cn(
-                                      'flex w-full items-center px-4 py-2 text-sm',
-                                      client.status === 'active' || rowActionId === client.id
-                                        ? 'cursor-not-allowed text-slate-400'
-                                        : 'text-slate-700 hover:bg-slate-50'
-                                    )}
+                              {statusMenuOpenId === client.id &&
+                                statusMenuPosition &&
+                                createPortal(
+                                  <div
+                                    className="absolute z-50 w-36 rounded-xl border border-border bg-white shadow-lg"
+                                    style={{ top: statusMenuPosition.top, left: statusMenuPosition.left }}
                                   >
-                                    Active
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => openReasonPrompt('inactive', client, 'table')}
-                                    disabled={client.status === 'inactive' || rowActionId === client.id}
-                                    className={cn(
-                                      'flex w-full items-center px-4 py-2 text-sm',
-                                      client.status === 'inactive' || rowActionId === client.id
-                                        ? 'cursor-not-allowed text-slate-400'
-                                        : 'text-slate-700 hover:bg-slate-50'
-                                    )}
-                                  >
-                                    Inactive
-                                  </button>
-                                </div>
-                              )}
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleQuickStatusChange(client, 'active')}
+                                      disabled={client.status === 'active' || rowActionId === client.id}
+                                      className={cn(
+                                        'flex w-full items-center px-4 py-2 text-sm',
+                                        client.status === 'active' || rowActionId === client.id
+                                          ? 'cursor-not-allowed text-slate-400'
+                                          : 'text-slate-700 hover:bg-slate-50'
+                                      )}
+                                    >
+                                      Active
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => openReasonPrompt('inactive', client, 'table')}
+                                      disabled={client.status === 'inactive' || rowActionId === client.id}
+                                      className={cn(
+                                        'flex w-full items-center px-4 py-2 text-sm',
+                                        client.status === 'inactive' || rowActionId === client.id
+                                          ? 'cursor-not-allowed text-slate-400'
+                                          : 'text-slate-700 hover:bg-slate-50'
+                                      )}
+                                    >
+                                      Inactive
+                                    </button>
+                                  </div>,
+                                  document.body
+                                )}
                             </div>
                           ) : (
                             <StatusPill
@@ -1682,8 +1867,40 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                             />
                           )}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="pl-1 pr-4 py-3">
                           <StatusPill label={client.isEmailVerified ? 'Verified' : 'Pending'} tone={toneForVerification(client.isEmailVerified)} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-slate-900">
+                                {client.clientType === 'B2B' ? taxLabel : '0%'}
+                              </div>
+                            </div>
+                            {client.clientType === 'B2B' && canManageClients && (
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={!client.taxExempt}
+                                onClick={() => void toggleTaxExempt(client)}
+                                disabled={isTaxExemptUpdating}
+                                className={cn(
+                                  'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border transition self-start mt-0.5',
+                                  client.taxExempt ? 'border-slate-300 bg-slate-200' : 'border-primary bg-primary',
+                                  isTaxExemptUpdating && 'cursor-not-allowed opacity-60'
+                                )}
+                                title={client.taxExempt ? 'Enable tax' : 'Disable tax'}
+                              >
+                                <span
+                                  className={cn(
+                                    'inline-block h-3 w-3 flex-shrink-0 rounded-full bg-white shadow transition',
+                                    client.taxExempt ? 'translate-x-1' : 'translate-x-4'
+                                  )}
+                                />
+                                <span className="sr-only">Toggle tax exemption</span>
+                              </button>
+                            )}
+                          </div>
                         </td>
                         {!hideMetaColumns && (
                           <td className="px-4 py-3 text-xs text-slate-500">

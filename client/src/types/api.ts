@@ -19,6 +19,15 @@ export type CouponType = 'percentage' | 'fixed';
 export type ConversationStatus = 'open' | 'closed';
 export type MessageSenderRole = 'client' | 'admin';
 
+export interface TaxRate {
+  id: string;
+  country: string | null;
+  state: string | null;
+  rate: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
 export interface ConversationClientSummary {
   id: string;
   name: string;
@@ -218,6 +227,7 @@ export interface User {
   phoneNumber?: string | null;
   clientType?: ClientType | null;
   company?: CompanyInfo | null;
+  taxExempt?: boolean | null;
   verificationFileUrl?: string | null;
   verificationStatus?: VerificationStatus | null;
   profileImage?: string | null;
@@ -350,6 +360,7 @@ export interface OrderUserSummary {
   status: UserStatus | null;
   isEmailVerified: boolean | null;
   company: CompanyInfo | null;
+  taxExempt?: boolean | null;
   verificationFileUrl: string | null;
   verificationStatus: VerificationStatus | null;
   profileImage: string | null;
@@ -364,6 +375,10 @@ export interface Order {
   user?: OrderUserSummary | null;
   products: OrderProductItem[];
   coupon?: OrderCoupon | null;
+  taxRate?: number | null;
+  taxAmount?: number | null;
+  taxCountry?: string | null;
+  taxState?: string | null;
   status: OrderStatus;
   createdAt: string | null;
   updatedAt: string | null;

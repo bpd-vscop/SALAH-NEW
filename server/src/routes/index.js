@@ -18,6 +18,7 @@ const brandRoutes = require('./brands');
 const modelRoutes = require('./models');
 const tagRoutes = require('./tags');
 const couponRoutes = require('./coupons');
+const taxRateRoutes = require('./taxRates');
 const clientRoutes = require('./clients');
 const contactRoutes = require('./contact');
 const messageRoutes = require('./messages');
@@ -47,6 +48,7 @@ module.exports = () => {
   router.use('/models', modelRoutes);
   router.use('/tags', tagRoutes);
   router.use('/coupons', couponRoutes);
+  router.use('/tax-rates', taxRateRoutes);
   router.use('/clients', clientRoutes);
   router.use('/contact', contactRoutes);
   router.use('/messages', messageRoutes);

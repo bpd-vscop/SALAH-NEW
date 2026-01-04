@@ -140,6 +140,10 @@ const userSchema = new mongoose.Schema(
       enum: ['none', 'pending', 'approved', 'rejected'],
       default: 'none',
     },
+    taxExempt: {
+      type: Boolean,
+      default: false,
+    },
     profileImage: {
       type: String,
       default: null,
@@ -213,6 +217,7 @@ const userSchema = new mongoose.Schema(
         ret.clientType = ret.clientType || null;
         ret.profileImage = ret.profileImage || null;
         ret.verificationStatus = ret.verificationStatus || (ret.verificationFileUrl ? 'pending' : 'none');
+        ret.taxExempt = Boolean(ret.taxExempt);
         ret.isEmailVerified =
           typeof ret.isEmailVerified === 'boolean' ? ret.isEmailVerified : true;
         ret.company = ret.company

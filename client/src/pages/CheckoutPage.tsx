@@ -4,6 +4,7 @@ import { MapPin, CreditCard, Package, CheckCircle, AlertCircle, Truck, Upload, X
 import { couponsApi } from '../api/coupons';
 import { ordersApi } from '../api/orders';
 import { productsApi } from '../api/products';
+import { taxRatesApi } from '../api/taxRates';
 import { usersApi, type ShippingAddressPayload } from '../api/users';
 import { CountrySelect } from '../components/common/CountrySelect';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
@@ -93,6 +94,7 @@ export const CheckoutPage: React.FC = () => {
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [eligibleSubtotal, setEligibleSubtotal] = useState(0);
+  const [taxRate, setTaxRate] = useState(0);
   const [selectedAddress, setSelectedAddress] = useState<string>('');
   const [selectedShipping, setSelectedShipping] = useState<ShippingMethod>('standard');
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('credit-card');
@@ -231,9 +233,16 @@ export const CheckoutPage: React.FC = () => {
     return method?.price ?? 0;
   }, [selectedShipping]);
 
+  const isB2BUser = user?.clientType === 'B2B';
+  const hasCompanyAddress = Boolean(user?.company?.address && user.company.address.trim());
+  const hasVerificationFile = Boolean(user?.verificationFileUrl);
+  const needsCompanyAddress = Boolean(isB2BUser && !hasCompanyAddress);
+  const needsVerification = Boolean(isB2BUser && !hasVerificationFile);
+
   const tax = useMemo(() => {
-    return discountedSubtotal * 0.1; // 10% tax
-  }, [discountedSubtotal]);
+    if (!isB2BUser || user?.taxExempt || taxRate <= 0) return 0;
+    return Math.round(discountedSubtotal * (taxRate / 100) * 100) / 100;
+  }, [discountedSubtotal, isB2BUser, taxRate, user?.taxExempt]);
 
   const total = discountedSubtotal + shippingCost + tax;
 
@@ -310,11 +319,6 @@ export const CheckoutPage: React.FC = () => {
     void validateCoupon(appliedCoupon.code, true);
   }, [appliedCoupon, applyingCoupon, cartSignature, validateCoupon]);
 
-  const isB2BUser = user?.clientType === 'B2B';
-  const hasCompanyAddress = Boolean(user?.company?.address && user.company.address.trim());
-  const hasVerificationFile = Boolean(user?.verificationFileUrl);
-  const needsCompanyAddress = Boolean(isB2BUser && !hasCompanyAddress);
-  const needsVerification = Boolean(isB2BUser && !hasVerificationFile);
   const needsB2BRequirements = needsCompanyAddress || needsVerification;
   const hasShippingAddress = Boolean(user?.shippingAddresses && user.shippingAddresses.length > 0);
   const needsShippingAddress = !hasShippingAddress;
@@ -338,6 +342,32 @@ export const CheckoutPage: React.FC = () => {
       setCurrentStep(1);
     }
   }, [needsB2BRequirements, needsShippingAddressAfterB2B, currentStep]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user || !isB2BUser || user.taxExempt || !user.company?.address) {
+      setTaxRate(0);
+      return () => {
+        active = false;
+      };
+    }
+
+    const loadTaxRate = async () => {
+      try {
+        const { taxRate: matched } = await taxRatesApi.lookup();
+        if (!active) return;
+        setTaxRate(matched?.rate ?? 0);
+      } catch (err) {
+        if (!active) return;
+        setTaxRate(0);
+      }
+    };
+
+    void loadTaxRate();
+    return () => {
+      active = false;
+    };
+  }, [isB2BUser, user?.company?.address, user]);
 
   const steps = [
     { label: 'Cart', active: false, completed: true },
@@ -1270,7 +1300,9 @@ export const CheckoutPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Tax (10%):</span>
+                  <span className="text-slate-600">
+                    Tax{taxRate > 0 ? ` (${taxRate}%)` : ''}:
+                  </span>
                   <span className="font-semibold text-slate-900">{formatCurrency(tax)}</span>
                 </div>
                 <div className="pt-3 border-t border-slate-200 flex justify-between">

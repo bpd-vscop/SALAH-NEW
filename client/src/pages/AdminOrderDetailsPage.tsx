@@ -58,7 +58,8 @@ export const AdminOrderDetailsPage: React.FC = () => {
   }, [order]);
 
   const discount = order?.coupon?.discountAmount ?? 0;
-  const total = useMemo(() => Math.max(0, subtotal - discount), [discount, subtotal]);
+  const taxAmount = order?.taxAmount ?? 0;
+  const total = useMemo(() => Math.max(0, subtotal - discount) + taxAmount, [discount, subtotal, taxAmount]);
 
   const totalQty = useMemo(() => {
     if (!order) return 0;
@@ -273,12 +274,12 @@ export const AdminOrderDetailsPage: React.FC = () => {
                   </table>
                 </div>
                 <div className="border-t border-border bg-slate-50/50 px-6 py-4">
-                  {discount > 0 ? (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-600">Subtotal</span>
-                        <span className="text-sm font-semibold text-slate-900">{formatCurrency(subtotal)}</span>
-                      </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-600">Subtotal</span>
+                      <span className="text-sm font-semibold text-slate-900">{formatCurrency(subtotal)}</span>
+                    </div>
+                    {discount > 0 && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-slate-600">
                           Discount{order?.coupon?.code ? ` (${order.coupon.code})` : ''}
@@ -287,17 +288,20 @@ export const AdminOrderDetailsPage: React.FC = () => {
                           -{formatCurrency(discount)}
                         </span>
                       </div>
+                    )}
+                    {taxAmount > 0 && (
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-600">Total</span>
-                        <span className="text-xl font-bold text-slate-900">{formatCurrency(total)}</span>
+                        <span className="text-sm text-slate-600">
+                          Tax{order?.taxRate ? ` (${order.taxRate}%)` : ''}
+                        </span>
+                        <span className="text-sm font-semibold text-slate-900">{formatCurrency(taxAmount)}</span>
                       </div>
-                    </div>
-                  ) : (
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-600">Total</span>
                       <span className="text-xl font-bold text-slate-900">{formatCurrency(total)}</span>
                     </div>
-                  )}
+                  </div>
                 </div>
               </section>
             </div>

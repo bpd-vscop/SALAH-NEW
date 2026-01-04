@@ -1920,7 +1920,8 @@ export const ClientDashboardPage: React.FC = () => {
                           0
                         );
                         const discount = order.coupon?.discountAmount ?? 0;
-                        const total = Math.max(0, subtotal - discount);
+                        const taxAmount = order.taxAmount ?? 0;
+                        const total = Math.max(0, subtotal - discount) + taxAmount;
 
                         const getStatusConfig = (status: string) => {
                           switch (status) {

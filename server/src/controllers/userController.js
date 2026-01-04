@@ -342,6 +342,7 @@ const updateUser = async (req, res, next) => {
       actorCanEditTarget && req.user && (req.user.role === 'admin' || req.user.role === 'super_admin');
     const verificationStatusProvided = Object.prototype.hasOwnProperty.call(data, 'verificationStatus');
     const verificationFileProvided = Object.prototype.hasOwnProperty.call(data, 'verificationFileUrl');
+    const taxExemptProvided = Object.prototype.hasOwnProperty.call(data, 'taxExempt');
 
     if (verificationStatusProvided) {
       if (user.role !== 'client') {
@@ -349,6 +350,15 @@ const updateUser = async (req, res, next) => {
       }
       if (!actorHasClientAdminPrivileges) {
         throw forbidden('You do not have permission to update verification status');
+      }
+    }
+
+    if (taxExemptProvided) {
+      if (user.role !== 'client') {
+        throw forbidden('Only client accounts can update tax exemptions');
+      }
+      if (!actorHasClientAdminPrivileges) {
+        throw forbidden('You do not have permission to update tax exemptions');
       }
     }
 
@@ -446,6 +456,10 @@ const updateUser = async (req, res, next) => {
         throw forbidden('You do not have permission to change client type');
       }
       user.clientType = data.clientType;
+    }
+
+    if (taxExemptProvided) {
+      user.taxExempt = Boolean(data.taxExempt);
     }
 
     if (Object.prototype.hasOwnProperty.call(payload, 'companyName')) {

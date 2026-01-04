@@ -5,6 +5,7 @@ const Coupon = require('../models/Coupon');
 const User = require('../models/User');
 const { validateCreateOrder, validateUpdateOrder } = require('../validators/order');
 const { badRequest, notFound, forbidden } = require('../utils/appError');
+const { extractCompanyLocation, findMatchingTaxRate } = require('../utils/taxRates');
 const {
   sendOrderConfirmationEmail,
   sendAdminNewOrderEmail,
@@ -368,11 +369,34 @@ const createOrder = async (req, res, next) => {
       };
     });
 
+    const orderSubtotal = orderItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
+    const orderDiscount = appliedCoupon?.discountAmount ?? 0;
+    const discountedSubtotal = Math.max(0, orderSubtotal - orderDiscount);
+    let taxRate = 0;
+    let taxAmount = 0;
+    let taxCountry = null;
+    let taxState = null;
+
+    if (req.user.clientType === 'B2B' && !req.user.taxExempt) {
+      const location = extractCompanyLocation(req.user.company);
+      const match = await findMatchingTaxRate(location);
+      if (match) {
+        taxRate = typeof match.rate === 'number' ? match.rate : 0;
+        taxCountry = match.country || null;
+        taxState = match.state || null;
+      }
+      taxAmount = Math.round(discountedSubtotal * (taxRate / 100) * 100) / 100;
+    }
+
     const order = await Order.create({
       userId: req.user._id,
       products: orderItems,
       status: 'pending',
       ...(appliedCoupon ? { coupon: appliedCoupon } : {}),
+      taxRate,
+      taxAmount,
+      taxCountry,
+      taxState,
     });
 
     req.user.orderHistory.push(order._id);
@@ -380,9 +404,7 @@ const createOrder = async (req, res, next) => {
     await req.user.save();
 
     // Fire-and-forget notifications (do not block order creation on email failures)
-    const orderSubtotal = orderItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
-    const orderDiscount = appliedCoupon?.discountAmount ?? 0;
-    const orderTotal = Math.max(0, orderSubtotal - orderDiscount);
+    const orderTotal = Math.max(0, orderSubtotal - orderDiscount) + taxAmount;
     const clientEmail = req.user.email;
     const clientName = req.user.name;
 

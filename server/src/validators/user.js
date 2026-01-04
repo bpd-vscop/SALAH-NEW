@@ -92,6 +92,14 @@ const updateUserSchema = z
       .optional(),
     verificationFileUrl: z.union([z.string().min(1), z.null()]).optional(),
     verificationStatus: z.enum(['none', 'pending', 'approved', 'rejected']).optional(),
+    taxExempt: z
+      .preprocess((val) => {
+        if (typeof val === 'string') {
+          return val === 'true';
+        }
+        return val;
+      }, z.boolean())
+      .optional(),
     phoneCode: z.string().optional(),
     phoneNumber: z.string().optional(),
     companyTaxId: optionalTrimmed(z.string().max(80)),

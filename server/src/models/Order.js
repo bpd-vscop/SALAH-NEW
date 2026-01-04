@@ -55,6 +55,27 @@ const orderSchema = new mongoose.Schema(
       type: orderCouponSchema,
       default: null,
     },
+    taxRate: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
+    taxAmount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    taxCountry: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    taxState: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     status: {
       type: String,
       enum: ['pending', 'processing', 'completed', 'cancelled'],
@@ -114,6 +135,7 @@ const orderSchema = new mongoose.Schema(
             isEmailVerified:
               typeof rawUser.isEmailVerified === 'boolean' ? rawUser.isEmailVerified : null,
             company: rawUser.company ?? null,
+            taxExempt: typeof rawUser.taxExempt === 'boolean' ? rawUser.taxExempt : null,
             verificationFileUrl: rawUser.verificationFileUrl ?? null,
             verificationStatus: rawUser.verificationStatus ?? null,
             profileImage: rawUser.profileImage ?? null,
@@ -152,6 +174,10 @@ const orderSchema = new mongoose.Schema(
               tagsAtPurchase: item.tagsAtPurchase,
             }))
           : [];
+        ret.taxRate = typeof ret.taxRate === 'number' ? ret.taxRate : 0;
+        ret.taxAmount = typeof ret.taxAmount === 'number' ? ret.taxAmount : 0;
+        ret.taxCountry = ret.taxCountry || null;
+        ret.taxState = ret.taxState || null;
         ret.createdAt = ret.createdAt ? new Date(ret.createdAt).toISOString() : null;
         ret.updatedAt = ret.updatedAt ? new Date(ret.updatedAt).toISOString() : null;
         delete ret._id;
