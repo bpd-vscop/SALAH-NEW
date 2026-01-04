@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { productsApi } from '../../api/products';
-import type { Product, ProductInventoryStatus } from '../../types/api';
+import { productsApi, type UpdateProductInput } from '../../api/products';
+import type { Product, ProductInventory, ProductInventoryStatus, ProductTag } from '../../types/api';
 import { cn } from '../../utils/cn';
 import { formatCurrency } from '../../utils/format';
 import {
@@ -12,9 +12,14 @@ import {
 } from '../../utils/productStatus';
 import { Select } from '../ui/Select';
 import { DatePicker } from '../ui/DatePicker';
-import { RefreshCw, X } from 'lucide-react';
+import { Check, Eye, EyeOff, Loader2, Pencil, RefreshCw, Save, X } from 'lucide-react';
 
 type StatusSetter = (msg: string | null, err?: string | null) => void;
+
+type InventoryUpdatePayload = UpdateProductInput;
+type InventoryUpdateResult =
+  | { ok: false; error: string }
+  | { ok: true; payload: InventoryUpdatePayload };
 
 type StockFilter = 'all' | 'out_of_stock' | 'low_stock' | 'in_stock' | 'backorder' | 'preorder';
 
@@ -115,6 +120,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
   const [bulkSaving, setBulkSaving] = useState(false);
   const [activeReplenishId, setActiveReplenishId] = useState<string | null>(null);
   const [selectedHiddenIds, setSelectedHiddenIds] = useState<Set<string>>(new Set());
+  const [openBadgeDropdownId, setOpenBadgeDropdownId] = useState<string | null>(null);
 
   useEffect(() => {
     setEdits((current) => {
@@ -313,20 +319,20 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
     }
   };
 
-  const buildInventoryUpdate = (product: Product, edit: ProductInventoryEditState) => {
+  const buildInventoryUpdate = (product: Product, edit: ProductInventoryEditState): InventoryUpdateResult => {
     const quantity = Number.parseInt(edit.quantity, 10);
     if (!Number.isFinite(quantity) || quantity < 0) {
-      return { error: 'Stock quantity must be a number (0 or higher).' };
+      return { ok: false, error: 'Stock quantity must be a number (0 or higher).' };
     }
 
     const lowStockThreshold = Number.parseInt(edit.lowStockThreshold, 10);
     if (!Number.isFinite(lowStockThreshold) || lowStockThreshold < 0) {
-      return { error: 'Low-stock threshold must be a number (0 or higher).' };
+      return { ok: false, error: 'Low-stock threshold must be a number (0 or higher).' };
     }
 
     const price = Number.parseFloat(edit.price);
     if (!Number.isFinite(price) || price < 0) {
-      return { error: 'Price must be a number (0 or higher).' };
+      return { ok: false, error: 'Price must be a number (0 or higher).' };
     }
 
     let salePrice: number | null = null;
@@ -335,10 +341,10 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
       if (percentRaw) {
         const percent = Number.parseFloat(percentRaw);
         if (!Number.isFinite(percent) || percent <= 0 || percent >= 100) {
-          return { error: 'Sale percentage must be between 0 and 100.' };
+          return { ok: false, error: 'Sale percentage must be between 0 and 100.' };
         }
         if (price <= 0) {
-          return { error: 'Price must be set before applying a percentage sale.' };
+          return { ok: false, error: 'Price must be set before applying a percentage sale.' };
         }
         salePrice = Math.round(price * (1 - percent / 100) * 100) / 100;
       }
@@ -347,14 +353,14 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
       if (salePriceRaw) {
         const parsed = Number.parseFloat(salePriceRaw);
         if (!Number.isFinite(parsed) || parsed < 0) {
-          return { error: 'Sale price must be a number (0 or higher).' };
+          return { ok: false, error: 'Sale price must be a number (0 or higher).' };
         }
         salePrice = parsed;
       }
     }
 
     if (salePrice != null && salePrice > price) {
-      return { error: 'Sale must be less than (or equal to) the regular price.' };
+      return { ok: false, error: 'Sale must be less than (or equal to) the regular price.' };
     }
 
     const parseDateOnlyLocal = (value: string, endOfDay = false): string | null => {
@@ -376,10 +382,10 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
     const saleStartDate = parseDateOnlyLocal(edit.saleStartDate, false);
     const saleEndDate = parseDateOnlyLocal(edit.saleEndDate, true);
     if (edit.saleStartDate.trim() && !saleStartDate) {
-      return { error: 'Sale start date is invalid.' };
+      return { ok: false, error: 'Sale start date is invalid.' };
     }
     if (edit.saleEndDate.trim() && !saleEndDate) {
-      return { error: 'Sale end date is invalid.' };
+      return { ok: false, error: 'Sale end date is invalid.' };
     }
 
     const baseInventory = product.inventory ?? {
@@ -405,36 +411,47 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
 
     const baseTags = Array.isArray(product.tags) ? product.tags : [];
     const hasComingSoon = baseTags.includes(COMING_SOON_TAG);
-    const nextTags = edit.comingSoon
+    const nextTags: ProductTag[] = edit.comingSoon
       ? hasComingSoon
         ? baseTags
-        : [...baseTags, COMING_SOON_TAG]
+        : [...baseTags, COMING_SOON_TAG as ProductTag]
       : baseTags.filter((tag) => tag !== COMING_SOON_TAG);
     const tagsChanged = hasComingSoon !== edit.comingSoon;
 
-    return {
-      payload: {
-        price,
-        salePrice,
-        saleStartDate,
-        saleEndDate,
-        ...(tagsChanged ? { tags: nextTags } : {}),
-        visibility: edit.visibility ?? DEFAULT_VISIBILITY,
-        inventory: {
-          ...baseInventory,
-          quantity,
-          lowStockThreshold,
-          allowBackorder,
-          status: inventoryStatusOverride,
-        },
-      },
+    const normalizedLeadTime =
+      typeof baseInventory.leadTime === 'string' && baseInventory.leadTime.trim()
+        ? baseInventory.leadTime.trim()
+        : undefined;
+
+    const inventory: ProductInventory | null =
+      product.manageStock === false
+        ? null
+        : {
+            ...baseInventory,
+            quantity,
+            lowStockThreshold,
+            allowBackorder,
+            ...(inventoryStatusOverride ? { status: inventoryStatusOverride } : {}),
+            leadTime: normalizedLeadTime,
+          };
+
+    const payload: InventoryUpdatePayload = {
+      price,
+      salePrice,
+      saleStartDate,
+      saleEndDate,
+      ...(tagsChanged ? { tags: nextTags } : {}),
+      visibility: edit.visibility === 'hidden' ? 'hidden' : (edit.visibility ?? DEFAULT_VISIBILITY),
+      inventory,
     };
+
+    return { ok: true, payload };
   };
 
   const saveProduct = async (product: Product) => {
     const edit = edits[product.id] ?? getDefaultEditState(product);
     const result = buildInventoryUpdate(product, edit);
-    if ('error' in result) {
+    if (!result.ok) {
       setStatus(null, result.error);
       return;
     }
@@ -463,7 +480,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
       for (const product of targets) {
         const edit = edits[product.id] ?? getDefaultEditState(product);
         const result = buildInventoryUpdate(product, edit);
-        if ('error' in result) {
+        if (!result.ok) {
           setStatus(null, result.error);
           return;
         }
@@ -634,9 +651,9 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                   <th className="px-2 py-3 text-left font-semibold w-[6%]">Low stock</th>
                   <th className="px-2 py-3 text-left font-semibold w-[6%]">Price</th>
                   <th className="px-2 py-3 text-left font-semibold w-[10%]">Sale</th>
-                  <th className="px-2 py-3 text-left font-semibold w-[18%]">Sales period</th>
+                  <th className="px-2 py-3 text-left font-semibold w-[14%]">Sales period</th>
                   <th className="px-2 py-3 text-left font-semibold w-[10%]">Badges</th>
-                  <th className="px-2 py-3 text-right font-semibold w-[5%]">Actions</th>
+                  <th className="px-2 py-3 text-right font-semibold w-[9%]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1038,101 +1055,137 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                         </div>
                       </td>
                       <td className="px-2 py-3 align-top">
-                        <div className="flex flex-col gap-1.5 text-xs text-slate-700">
-                          <label className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={edit.inventoryBadgeOverride === 'preorder' ? true : edit.allowBackorder}
-                              disabled={edit.inventoryBadgeOverride === 'out_of_stock' || edit.inventoryBadgeOverride === 'preorder'}
-                              onChange={(event) => {
-                                const checked = event.target.checked;
-                                updateFieldForProduct(product, 'allowBackorder', checked);
-                                if (checked && edit.inventoryBadgeOverride === 'out_of_stock') {
-                                  updateFieldForProduct(product, 'inventoryBadgeOverride', '');
-                                }
-                              }}
-                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary/40 disabled:opacity-40"
-                            />
-                            <span className="font-medium">Backorder</span>
-                          </label>
-
-                          <label className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={edit.comingSoon}
-                              onChange={(event) => updateFieldForProduct(product, 'comingSoon', event.target.checked)}
-                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary/40"
-                            />
-                            <span className="font-medium">Coming soon</span>
-                          </label>
-
-                          <label className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={edit.inventoryBadgeOverride === 'out_of_stock'}
-                              onChange={(event) => {
-                                const checked = event.target.checked;
-                                updateFieldForProduct(product, 'inventoryBadgeOverride', checked ? 'out_of_stock' : '');
-                                if (checked) {
-                                  updateFieldForProduct(product, 'allowBackorder', false);
-                                }
-                              }}
-                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary/40"
-                            />
-                            <span className="font-medium">Out of stock</span>
-                          </label>
-
-                          <label className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={edit.inventoryBadgeOverride === 'preorder'}
-                              onChange={(event) => {
-                                const checked = event.target.checked;
-                                updateFieldForProduct(product, 'inventoryBadgeOverride', checked ? 'preorder' : '');
-                                if (checked) {
-                                  updateFieldForProduct(product, 'allowBackorder', true);
-                                }
-                              }}
-                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary/40"
-                            />
-                            <span className="font-medium">Preorder</span>
-                          </label>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenBadgeDropdownId((current) => current === product.id ? null : product.id);
+                            }}
+                            onBlur={(event) => {
+                              if (!event.currentTarget.parentElement?.contains(event.relatedTarget as Node)) {
+                                setTimeout(() => setOpenBadgeDropdownId(null), 150);
+                              }
+                            }}
+                            className="flex h-9 w-full items-center justify-between rounded-lg border border-border bg-white px-3 text-xs font-medium text-slate-700 transition hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          >
+                            <span>Badges</span>
+                            <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {openBadgeDropdownId === product.id && (
+                            <div className="absolute left-0 top-full z-10 mt-1 w-full min-w-[180px] rounded-lg border border-slate-200 bg-white shadow-lg">
+                              <div className="flex flex-col py-1">
+                                <button
+                                  type="button"
+                                  disabled={edit.inventoryBadgeOverride === 'out_of_stock' || edit.inventoryBadgeOverride === 'preorder'}
+                                  onClick={() => {
+                                    const checked = !(edit.inventoryBadgeOverride === 'preorder' ? true : edit.allowBackorder);
+                                    updateFieldForProduct(product, 'allowBackorder', checked);
+                                    if (checked && edit.inventoryBadgeOverride === 'out_of_stock') {
+                                      updateFieldForProduct(product, 'inventoryBadgeOverride', '');
+                                    }
+                                  }}
+                                  className="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  <span className="font-medium text-slate-700">Backorder</span>
+                                  {(edit.inventoryBadgeOverride === 'preorder' ? true : edit.allowBackorder) && (
+                                    <Check className="h-4 w-4 text-rose-600" strokeWidth={2} />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateFieldForProduct(product, 'comingSoon', !edit.comingSoon)}
+                                  className="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-slate-50"
+                                >
+                                  <span className="font-medium text-slate-700">Coming soon</span>
+                                  {edit.comingSoon && (
+                                    <Check className="h-4 w-4 text-rose-600" strokeWidth={2} />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const checked = !(edit.inventoryBadgeOverride === 'out_of_stock');
+                                    updateFieldForProduct(product, 'inventoryBadgeOverride', checked ? 'out_of_stock' : '');
+                                    if (checked) {
+                                      updateFieldForProduct(product, 'allowBackorder', false);
+                                    }
+                                  }}
+                                  className="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-slate-50"
+                                >
+                                  <span className="font-medium text-slate-700">Out of stock</span>
+                                  {edit.inventoryBadgeOverride === 'out_of_stock' && (
+                                    <Check className="h-4 w-4 text-rose-600" strokeWidth={2} />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const checked = !(edit.inventoryBadgeOverride === 'preorder');
+                                    updateFieldForProduct(product, 'inventoryBadgeOverride', checked ? 'preorder' : '');
+                                    if (checked) {
+                                      updateFieldForProduct(product, 'allowBackorder', true);
+                                    }
+                                  }}
+                                  className="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-slate-50"
+                                >
+                                  <span className="font-medium text-slate-700">Preorder</span>
+                                  {edit.inventoryBadgeOverride === 'preorder' && (
+                                    <Check className="h-4 w-4 text-rose-600" strokeWidth={2} />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </td>
-                      <td className="px-2 py-3 align-middle text-right">
-                        <div className="flex h-full flex-col items-end justify-center gap-1.5">
+                      <td className="px-2 py-3 align-top text-right">
+                        <div className="flex h-full flex-col items-end justify-start gap-1.5">
                           <button
                             type="button"
                             disabled={isSaving}
                             onClick={() => void toggleHidden(product)}
                             className={cn(
-                              'h-9 whitespace-nowrap rounded-lg border px-2 text-xs font-semibold transition ',
+                              'inline-flex h-8 w-8 items-center justify-center !rounded-full border text-xs font-semibold transition',
                               product.visibility === 'hidden'
                                 ? 'border-slate-200 bg-white text-slate-700 hover:border-primary hover:text-primary'
                                 : 'border-amber-200 bg-amber-100 text-amber-900 hover:bg-amber-200'
                             )}
+                            aria-label={product.visibility === 'hidden' ? 'Unhide product' : 'Hide product'}
+                            title={product.visibility === 'hidden' ? 'Unhide' : 'Hide'}
                           >
-                            {product.visibility === 'hidden' ? 'Unhide' : 'Hide'}
+                            {product.visibility === 'hidden' ? <Eye className="h-3.5 w-3.5" strokeWidth={1.5} /> : <EyeOff className="h-3.5 w-3.5" strokeWidth={1.5} />}
                           </button>
                           <button
                             type="button"
                             onClick={() => onOpenProduct(product.id)}
-                            className="h-9 whitespace-nowrap rounded-lg border border-border bg-white px-2 text-xs font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
+                            className="inline-flex h-8 w-8 items-center justify-center !rounded-full border border-border bg-white text-xs font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
+                            aria-label="Edit details"
+                            title="Edit details"
                           >
-                            Edit details
+                            <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
                           </button>
                           <button
                             type="button"
                             disabled={!rowHasEdits || isSaving}
                             onClick={() => void saveProduct(product)}
                             className={cn(
-                              'h-9 rounded-lg px-2 text-xs font-semibold transition',
+                              'inline-flex h-8 w-8 items-center justify-center !rounded-full text-xs font-semibold transition',
                               !rowHasEdits || isSaving
                                 ? 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
                                 : 'border border-primary bg-primary text-white hover:bg-primary/90'
                             )}
+                            aria-label={isSaving ? 'Saving' : rowHasEdits ? 'Save changes' : 'Saved'}
+                            title={isSaving ? 'Saving...' : rowHasEdits ? 'Save' : 'Saved'}
                           >
-                            {isSaving ? 'Saving...' : rowHasEdits ? 'Save' : 'Saved'}
+                            {isSaving ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} />
+                            ) : rowHasEdits ? (
+                              <Save className="h-3.5 w-3.5" strokeWidth={1.5} />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" strokeWidth={1.5} />
+                            )}
                           </button>
                         </div>
                       </td>
