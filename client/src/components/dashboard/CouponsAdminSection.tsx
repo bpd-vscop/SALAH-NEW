@@ -396,7 +396,7 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
         </div>
 
         <form className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 shadow-sm" onSubmit={submit}>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
               Coupon code
               <input
@@ -408,6 +408,9 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
                 required
               />
             </label>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
               Discount type
               <Select
@@ -420,9 +423,6 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
                 placeholder="Select type"
               />
             </label>
-          </div>
-
-          <div className="grid gap-4">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
               Discount amount
               <input
