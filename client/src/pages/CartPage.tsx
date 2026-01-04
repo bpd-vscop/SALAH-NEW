@@ -7,6 +7,7 @@ import { SiteLayout } from '../components/layout/SiteLayout';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import type { Coupon, Product } from '../types/api';
+import { clearStoredCouponCode, readStoredCouponCode, writeStoredCouponCode } from '../utils/couponStorage';
 import { formatCurrency } from '../utils/format';
 
 export const CartPage: React.FC = () => {
@@ -22,6 +23,7 @@ export const CartPage: React.FC = () => {
   const [eligibleSubtotal, setEligibleSubtotal] = useState(0);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const lastValidatedSignatureRef = useRef('');
+  const storedCouponLoadedRef = useRef(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -93,6 +95,7 @@ export const CartPage: React.FC = () => {
       setEligibleSubtotal(response.eligibleSubtotal);
       setCouponError(null);
       setCouponCode(response.coupon.code);
+      writeStoredCouponCode(response.coupon.code);
       lastValidatedSignatureRef.current = cartSignature;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to apply coupon.';
@@ -100,6 +103,7 @@ export const CartPage: React.FC = () => {
       setAppliedCoupon(null);
       setCouponDiscount(0);
       setEligibleSubtotal(0);
+      clearStoredCouponCode();
       if (!silent) {
         setCouponCode(normalizedCode);
       }
@@ -115,7 +119,20 @@ export const CartPage: React.FC = () => {
     setCouponError(null);
     setCouponCode('');
     lastValidatedSignatureRef.current = '';
+    clearStoredCouponCode();
   };
+
+  useEffect(() => {
+    if (storedCouponLoadedRef.current) {
+      return;
+    }
+    const storedCode = readStoredCouponCode();
+    if (storedCode) {
+      setCouponCode(storedCode);
+      void validateCoupon(storedCode, true);
+    }
+    storedCouponLoadedRef.current = true;
+  }, [validateCoupon]);
 
   useEffect(() => {
     if (!appliedCoupon || applyingCoupon) return;

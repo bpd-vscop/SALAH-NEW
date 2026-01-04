@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, CreditCard, Package, CheckCircle, AlertCircle, Truck, Upload, X } from 'lucide-react';
+import { couponsApi } from '../api/coupons';
 import { ordersApi } from '../api/orders';
 import { productsApi } from '../api/products';
 import { usersApi, type ShippingAddressPayload } from '../api/users';
@@ -9,7 +10,8 @@ import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/comm
 import { SiteLayout } from '../components/layout/SiteLayout';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import type { Product } from '../types/api';
+import type { Coupon, Product } from '../types/api';
+import { clearStoredCouponCode, readStoredCouponCode, writeStoredCouponCode } from '../utils/couponStorage';
 import { formatCurrency } from '../utils/format';
 
 type ShippingMethod = 'standard' | 'express' | 'overnight';
@@ -85,6 +87,12 @@ export const CheckoutPage: React.FC = () => {
   const { user, refresh } = useAuth();
   const { items, clearCart } = useCart();
   const [productMap, setProductMap] = useState<Record<string, Product>>({});
+  const [couponCode, setCouponCode] = useState('');
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [eligibleSubtotal, setEligibleSubtotal] = useState(0);
   const [selectedAddress, setSelectedAddress] = useState<string>('');
   const [selectedShipping, setSelectedShipping] = useState<ShippingMethod>('standard');
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('credit-card');
@@ -129,6 +137,8 @@ export const CheckoutPage: React.FC = () => {
     htmlOverflow: string;
     scrollY: number;
   } | null>(null);
+  const lastValidatedSignatureRef = useRef('');
+  const storedCouponLoadedRef = useRef(false);
   const isCheckoutModalOpen = showRequirementsModal || showShippingModal;
 
   // Auto-select first address if available
@@ -202,20 +212,103 @@ export const CheckoutPage: React.FC = () => {
     }, 0);
   }, [items, productMap]);
 
+  const cartSignature = useMemo(
+    () =>
+      items
+        .map((line) => `${line.productId}:${line.quantity}`)
+        .sort()
+        .join('|'),
+    [items]
+  );
+
+  const discountedSubtotal = useMemo(
+    () => Math.max(0, subtotal - couponDiscount),
+    [subtotal, couponDiscount]
+  );
+
   const shippingCost = useMemo(() => {
     const method = shippingMethods.find(m => m.id === selectedShipping);
     return method?.price ?? 0;
   }, [selectedShipping]);
 
   const tax = useMemo(() => {
-    return subtotal * 0.1; // 10% tax
-  }, [subtotal]);
+    return discountedSubtotal * 0.1; // 10% tax
+  }, [discountedSubtotal]);
 
-  const total = subtotal + shippingCost + tax;
+  const total = discountedSubtotal + shippingCost + tax;
 
   const selectedAddressData = useMemo(() => {
     return user?.shippingAddresses?.find((addr) => addr.id === selectedAddress);
   }, [user, selectedAddress]);
+
+  const validateCoupon = useCallback(async (code: string, silent = false) => {
+    const normalizedCode = code.trim();
+    if (!normalizedCode) {
+      if (!silent) setCouponError('Enter a coupon code.');
+      return;
+    }
+    if (!items.length) {
+      if (!silent) setCouponError('Your cart is empty.');
+      setAppliedCoupon(null);
+      setCouponDiscount(0);
+      setEligibleSubtotal(0);
+      return;
+    }
+    setApplyingCoupon(true);
+    try {
+      const response = await couponsApi.validate({
+        code: normalizedCode,
+        items: items.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+      });
+      setAppliedCoupon(response.coupon);
+      setCouponDiscount(response.discountAmount);
+      setEligibleSubtotal(response.eligibleSubtotal);
+      setCouponError(null);
+      setCouponCode(response.coupon.code);
+      writeStoredCouponCode(response.coupon.code);
+      lastValidatedSignatureRef.current = cartSignature;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to apply coupon.';
+      setCouponError(message);
+      setAppliedCoupon(null);
+      setCouponDiscount(0);
+      setEligibleSubtotal(0);
+      clearStoredCouponCode();
+      if (!silent) {
+        setCouponCode(normalizedCode);
+      }
+    } finally {
+      setApplyingCoupon(false);
+    }
+  }, [cartSignature, items]);
+
+  const clearCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+    setEligibleSubtotal(0);
+    setCouponError(null);
+    setCouponCode('');
+    lastValidatedSignatureRef.current = '';
+    clearStoredCouponCode();
+  };
+
+  useEffect(() => {
+    if (storedCouponLoadedRef.current) {
+      return;
+    }
+    const storedCode = readStoredCouponCode();
+    if (storedCode) {
+      setCouponCode(storedCode);
+      void validateCoupon(storedCode, true);
+    }
+    storedCouponLoadedRef.current = true;
+  }, [validateCoupon]);
+
+  useEffect(() => {
+    if (!appliedCoupon || applyingCoupon) return;
+    if (cartSignature === lastValidatedSignatureRef.current) return;
+    void validateCoupon(appliedCoupon.code, true);
+  }, [appliedCoupon, applyingCoupon, cartSignature, validateCoupon]);
 
   const isB2BUser = user?.clientType === 'B2B';
   const hasCompanyAddress = Boolean(user?.company?.address && user.company.address.trim());
@@ -1098,11 +1191,70 @@ export const CheckoutPage: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm p-6 h-fit sticky top-6">
               <h2 className="text-lg font-semibold text-slate-900 mb-4">Order Summary</h2>
 
+              <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <h3 className="text-sm font-semibold text-slate-900">Coupon</h3>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter your coupon here"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    className="flex-1 h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void validateCoupon(couponCode)}
+                    disabled={applyingCoupon || !couponCode.trim()}
+                    className="px-4 h-9 rounded-lg bg-slate-900 text-xs font-semibold text-white hover:bg-slate-800 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {applyingCoupon ? 'Applying...' : 'Apply'}
+                  </button>
+                </div>
+                {couponError && (
+                  <p className="mt-2 text-xs text-red-600">{couponError}</p>
+                )}
+                {appliedCoupon && (
+                  <div className="mt-3 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                    <span>
+                      Applied: <strong>{appliedCoupon.code}</strong>
+                      {eligibleSubtotal > 0 && eligibleSubtotal < subtotal && (
+                        <span className="ml-2 text-emerald-600">
+                          ({formatCurrency(eligibleSubtotal)} eligible)
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={clearCoupon}
+                      className="text-emerald-700 hover:text-emerald-900 underline underline-offset-2"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-3 mb-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Subtotal:</span>
                   <span className="font-semibold text-slate-900">{formatCurrency(subtotal)}</span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Discount ({appliedCoupon.code}):</span>
+                    <span className="font-semibold text-emerald-600">
+                      -{formatCurrency(couponDiscount)}
+                    </span>
+                  </div>
+                )}
+                {appliedCoupon && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Subtotal after discount:</span>
+                    <span className="font-semibold text-slate-900">
+                      {formatCurrency(discountedSubtotal)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Shipping:</span>
                   <span className="font-semibold text-slate-900">
