@@ -10,7 +10,7 @@ import { CountrySelect } from '../../common/CountrySelect';
 import { BusinessTypeSelect } from '../../common/BusinessTypeSelect';
 import { isBusinessTypeOption, type BusinessTypeOption } from '../../../data/businessTypes';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Download, Eye, EyeOff, Loader2, MessageSquare, Pencil, Search, Send, Trash2, X } from 'lucide-react';
+import { ChevronDown, Download, Eye, EyeOff, Loader2, MessageSquare, Pencil, Search, Send, Trash2, Upload, X } from 'lucide-react';
 import { PASSWORD_COMPLEXITY_MESSAGE, evaluatePasswordStrength, meetsPasswordPolicy } from '../../../utils/password';
 import { Select } from '../../ui/Select';
 
@@ -218,6 +218,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<User | null>(null);
   const [sendingVerificationId, setSendingVerificationId] = useState<string | null>(null);
+  const [uploadingVerificationId, setUploadingVerificationId] = useState<string | null>(null);
   const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCode: '+1', number: '' });
   const [formStep, setFormStep] = useState<1 | 2>(1);
   const [useCustomBusinessType, setUseCustomBusinessType] = useState(false);
@@ -943,6 +944,34 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
     }
   };
 
+  const handleVerificationUpload = async (
+    client: User,
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!canManageClients) {
+      setStatus(null, 'You do not have permission to upload verification documents');
+      return;
+    }
+
+    setUploadingVerificationId(client.id);
+    try {
+      const formData = new FormData();
+      formData.append('verificationFile', file);
+      const { user } = await usersApi.update(client.id, formData);
+      setRecords((current) => current.map((record) => (record.id === user.id ? user : record)));
+      setStatus(`Verification document uploaded for ${user.name || user.email || 'client'}`);
+    } catch (error) {
+      console.error(error);
+      const message = error instanceof Error ? error.message : 'Unable to upload verification document';
+      setStatus(null, message);
+    } finally {
+      setUploadingVerificationId(null);
+    }
+  };
+
   const handleMessageClient = (client: User) => {
     const compose = buildComposeClient(client);
     if (!compose) {
@@ -1478,6 +1507,8 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                   records.map((client) => {
                     const isEditing = editingId === client.id;
                     const verificationHref = resolveUploadsHref(client.verificationFileUrl);
+                    const isVerificationUploading = uploadingVerificationId === client.id;
+                    const verificationInputId = `verification-upload-${client.id}`;
                     return (
                       <tr
                         key={client.id}
@@ -1651,8 +1682,34 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                                 <Download className="h-4 w-4" />
                               </a>
                             </div>
+                          ) : client.clientType === 'B2B' ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                id={verificationInputId}
+                                type="file"
+                                accept="application/pdf,image/png,image/jpeg"
+                                className="sr-only"
+                                disabled={!canManageClients || isVerificationUploading}
+                                onChange={(event) => void handleVerificationUpload(client, event)}
+                              />
+                              <label
+                                htmlFor={verificationInputId}
+                                className={cn(
+                                  'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-500 transition hover:border-primary hover:text-primary',
+                                  (!canManageClients || isVerificationUploading) && 'cursor-not-allowed opacity-50'
+                                )}
+                                title="Upload verification document"
+                                aria-label="Upload verification document"
+                              >
+                                {isVerificationUploading ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Upload className="h-4 w-4" />
+                                )}
+                              </label>
+                            </div>
                           ) : (
-                            <span className="text-xs text-slate-400">No document</span>
+                            <span className="text-xs text-slate-400">Not required</span>
                           )}
                         </td>
                         {!hideMetaColumns && (
