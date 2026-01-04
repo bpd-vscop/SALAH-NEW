@@ -266,9 +266,14 @@ const createOrder = async (req, res, next) => {
       }
     }
 
+    const comingSoonIssues = [];
     const stockIssues = [];
     for (const [productId, requestedQuantity] of requestedByProductId.entries()) {
       const product = foundProducts.get(productId);
+      if (Array.isArray(product.tags) && product.tags.includes(COMING_SOON_TAG)) {
+        comingSoonIssues.push({ code: 'coming_soon', productId });
+        continue;
+      }
       const inventory = product.inventory ?? {};
       const availableQuantity = typeof inventory.quantity === 'number' ? inventory.quantity : 0;
 
@@ -280,6 +285,10 @@ const createOrder = async (req, res, next) => {
       if (!inventory.allowBackorder && availableQuantity < requestedQuantity) {
         stockIssues.push({ code: 'insufficient_stock', productId, availableQuantity, requestedQuantity });
       }
+    }
+
+    if (comingSoonIssues.length > 0) {
+      throw badRequest('Some products are coming soon and cannot be ordered yet', comingSoonIssues);
     }
 
     if (stockIssues.length > 0) {

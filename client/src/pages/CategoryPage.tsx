@@ -9,7 +9,7 @@ import { SiteLayout } from '../components/layout/SiteLayout';
 import { CategoryGrid } from '../components/home/CategoryGrid';
 import { ProductCard } from '../components/product/ProductCard';
 import { cn } from '../utils/cn';
-import { getProductStatusTags } from '../utils/productStatus';
+import { getProductStatusTags, isComingSoon } from '../utils/productStatus';
 
 const tagOptions: ProductStatusTag[] = [
   'in stock',
@@ -110,6 +110,9 @@ export const CategoryPage: React.FC = () => {
   // Filter products
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
+      if (isComingSoon(product)) {
+        return selectedTags.has('coming soon');
+      }
       // Search filter
       if (debouncedSearch.trim()) {
         const query = debouncedSearch.toLowerCase();

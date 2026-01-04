@@ -6,7 +6,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { cn } from '../../utils/cn';
-import { getProductStatusTags, isOnSale } from '../../utils/productStatus';
+import { getProductStatusTags, isComingSoon, isOnSale } from '../../utils/productStatus';
 
 type ProductCardBadgeVariant = 'inStock' | 'onSale' | 'backInStock' | 'newArrival' | 'comingSoon' | 'outOfStock';
 
@@ -97,15 +97,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
   const allowBackorder = managesStock ? (product.inventory?.allowBackorder ?? false) : false;
   const availableQuantity = managesStock ? product.inventory?.quantity ?? null : null;
   const inventoryStatus = managesStock ? product.inventory?.status ?? 'in_stock' : 'in_stock';
+  const comingSoon = isComingSoon(product);
   const outOfStock =
     managesStock &&
     (inventoryStatus === 'out_of_stock' ||
       (!allowBackorder && typeof availableQuantity === 'number' && availableQuantity <= 0));
+  const disablePurchase = comingSoon || outOfStock;
 
   const handleAddToCart = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    if (outOfStock) {
+    if (disablePurchase) {
       return;
     }
     addItem({ productId: product.id, quantity: 1 }, product);
@@ -199,13 +201,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={outOfStock}
+              disabled={disablePurchase}
               className={cn(
                 'rounded-full px-6 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-md transition',
-                outOfStock ? 'cursor-not-allowed bg-slate-400' : 'bg-primary hover:bg-primary-dark'
+                disablePurchase ? 'cursor-not-allowed bg-slate-400' : 'bg-primary hover:bg-primary-dark'
               )}
             >
-              {outOfStock ? 'Out of stock' : 'Add to cart'}
+              {comingSoon ? 'Coming soon' : outOfStock ? 'Out of stock' : 'Add to cart'}
             </button>
             <span className="rounded-full border border-white/70 px-6 py-2 text-xs font-semibold uppercase tracking-wide text-white">
               View details

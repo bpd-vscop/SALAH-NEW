@@ -14,7 +14,7 @@ import { useWishlist } from '../context/WishlistContext';
 import type { Category, Product, ProductInventoryStatus, ProductVariation } from '../types/api';
 import { formatCurrency } from '../utils/format';
 import { cn } from '../utils/cn';
-import { getEffectiveInventoryStatus, getProductStatusTags } from '../utils/productStatus';
+import { getEffectiveInventoryStatus, getProductStatusTags, isComingSoon } from '../utils/productStatus';
 
 type InventoryStatusMeta = {
   label: string;
@@ -295,7 +295,14 @@ export const ProductDetailPage: React.FC = () => {
       : 0;
 
   const inventoryStatus: ProductInventoryStatus = product ? getEffectiveInventoryStatus(product) : 'in_stock';
-  const inventoryMeta = inventoryStatusMeta[inventoryStatus] ?? inventoryStatusMeta.in_stock;
+  const comingSoon = product ? isComingSoon(product) : false;
+  const inventoryMeta = comingSoon
+    ? {
+        label: 'Coming soon',
+        badge: 'border-sky-200 bg-sky-50 text-sky-700',
+        description: 'This product is coming soon and not yet available for purchase.',
+      }
+    : inventoryStatusMeta[inventoryStatus] ?? inventoryStatusMeta.in_stock;
   const allowBackorder =
     activeVariation?.allowBackorder ?? product?.inventory?.allowBackorder ?? false;
 
@@ -311,10 +318,12 @@ export const ProductDetailPage: React.FC = () => {
       : Number.POSITIVE_INFINITY;
 
   const disableAddToCart =
-    !allowBackorder &&
-    ((Number.isFinite(maxQuantity) && maxQuantity <= 0) || inventoryStatus === 'out_of_stock');
+    comingSoon ||
+    (!allowBackorder &&
+      ((Number.isFinite(maxQuantity) && maxQuantity <= 0) || inventoryStatus === 'out_of_stock'));
 
   const isLowStock =
+    !comingSoon &&
     product?.manageStock !== false &&
     typeof product?.inventory?.quantity === 'number' &&
     typeof product.inventory.lowStockThreshold === 'number' &&
@@ -551,18 +560,20 @@ export const ProductDetailPage: React.FC = () => {
                     onClick={handleAddToCart}
                     disabled={disableAddToCart}
                   >
-                    {disableAddToCart ? 'Currently unavailable' : 'Add to cart'}
+                    {comingSoon ? 'Coming soon' : disableAddToCart ? 'Currently unavailable' : 'Add to cart'}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs text-muted">
-                  {availableQuantity !== null && Number.isFinite(availableQuantity) ? (
-                    <span>
-                      {allowBackorder
-                        ? `Backorder available. ${availableQuantity} unit${availableQuantity === 1 ? '' : 's'} in next allocation.`
-                        : `${availableQuantity} unit${availableQuantity === 1 ? '' : 's'} available.`}
-                    </span>
-                  ) : allowBackorder ? (
-                    <span>Backorder allowed; ships as soon as stock is replenished.</span>
+                  {!comingSoon ? (
+                    availableQuantity !== null && Number.isFinite(availableQuantity) ? (
+                      <span>
+                        {allowBackorder
+                          ? `Backorder available. ${availableQuantity} unit${availableQuantity === 1 ? '' : 's'} in next allocation.`
+                          : `${availableQuantity} unit${availableQuantity === 1 ? '' : 's'} available.`}
+                      </span>
+                    ) : allowBackorder ? (
+                      <span>Backorder allowed; ships as soon as stock is replenished.</span>
+                    ) : null
                   ) : null}
                   {activeVariation && (activeVariation.attributes || activeVariation.name) ? (
                     <span className="font-medium text-slate-700">

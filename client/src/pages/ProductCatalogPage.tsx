@@ -353,6 +353,9 @@ export const ProductCatalogPage: React.FC = () => {
   };
 
   const matchesBadges = (product: Product) => {
+    if (isComingSoon(product)) {
+      return selectedBadges.has('coming_soon');
+    }
     if (!selectedBadges.size) return true;
     if (selectedBadges.has('featured') && !product.featured) return false;
     if (selectedBadges.has('new_arrival') && !isNewArrival(product)) return false;

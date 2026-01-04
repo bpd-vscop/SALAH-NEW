@@ -20,6 +20,9 @@ export const isOnSale = (product: Product, now: Date = new Date()): boolean => {
 };
 
 export const isNewArrival = (product: Product, now: Date = new Date()): boolean => {
+  if (isComingSoon(product)) {
+    return false;
+  }
   if (product.restockedAt) {
     return false;
   }
@@ -35,6 +38,9 @@ export const isNewArrival = (product: Product, now: Date = new Date()): boolean 
 };
 
 export const isInStock = (product: Product): boolean => {
+  if (isComingSoon(product)) {
+    return false;
+  }
   if (product.manageStock === false) {
     return true;
   }
@@ -43,6 +49,9 @@ export const isInStock = (product: Product): boolean => {
 };
 
 export const isOutOfStock = (product: Product): boolean => {
+  if (isComingSoon(product)) {
+    return false;
+  }
   if (product.manageStock === false) {
     return false;
   }

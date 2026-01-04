@@ -334,9 +334,15 @@ const listProducts = async (req, res, next) => {
       }
     }
 
-    if (tags) {
-      const tagList = Array.isArray(tags) ? tags : String(tags).split(',');
+    const tagList = tags ? (Array.isArray(tags) ? tags : String(tags).split(',')) : [];
+    const wantsComingSoon = tagList.some((tag) => String(tag).trim().toLowerCase() === COMING_SOON_TAG);
+
+    if (tagList.length) {
       filter.tags = { $in: tagList };
+    }
+
+    if (!isPrivilegedRequest && !wantsComingSoon) {
+      andConditions.push({ tags: { $ne: COMING_SOON_TAG } });
     }
 
     if (wantsFeatured) {

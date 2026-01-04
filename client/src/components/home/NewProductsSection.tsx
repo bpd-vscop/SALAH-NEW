@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { productsApi } from '../../api/products';
 import type { Product } from '../../types/api';
 import { ProductCard } from '../product/ProductCard';
+import { isComingSoon } from '../../utils/productStatus';
 
 const DESKTOP_LIMIT = 10;
 const MOBILE_LIMIT = 6;
@@ -19,6 +20,9 @@ export const NewProductsSection: React.FC = () => {
         const response = await productsApi.list({ limit: DESKTOP_LIMIT, sort: 'newest' });
 
         const isAvailable = (product: Product) => {
+          if (isComingSoon(product)) {
+            return false;
+          }
           if (product.manageStock === false) {
             return true;
           }
