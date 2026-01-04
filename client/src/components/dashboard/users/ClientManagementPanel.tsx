@@ -1871,34 +1871,41 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                           <StatusPill label={client.isEmailVerified ? 'Verified' : 'Pending'} tone={toneForVerification(client.isEmailVerified)} />
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-sm font-semibold text-slate-900">
-                                {client.clientType === 'B2B' ? taxLabel : '0%'}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-slate-900">
+                                  {client.clientType === 'B2B' ? taxLabel : '0%'}
+                                </div>
                               </div>
-                            </div>
-                            {client.clientType === 'B2B' && canManageClients && (
-                              <button
-                                type="button"
-                                role="switch"
-                                aria-checked={!client.taxExempt}
-                                onClick={() => void toggleTaxExempt(client)}
-                                disabled={isTaxExemptUpdating}
-                                className={cn(
-                                  'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border transition self-start mt-0.5',
-                                  client.taxExempt ? 'border-slate-300 bg-slate-200' : 'border-primary bg-primary',
-                                  isTaxExemptUpdating && 'cursor-not-allowed opacity-60'
-                                )}
-                                title={client.taxExempt ? 'Enable tax' : 'Disable tax'}
-                              >
-                                <span
+                              {client.clientType === 'B2B' && canManageClients && (
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={!client.taxExempt}
+                                  onClick={() => void toggleTaxExempt(client)}
+                                  disabled={isTaxExemptUpdating}
                                   className={cn(
-                                    'inline-block h-3 w-3 flex-shrink-0 rounded-full bg-white shadow transition',
-                                    client.taxExempt ? 'translate-x-1' : 'translate-x-4'
+                                    'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border transition self-start mt-0.5',
+                                    client.taxExempt ? 'border-slate-300 bg-slate-200' : 'border-primary bg-primary',
+                                    isTaxExemptUpdating && 'cursor-not-allowed opacity-60'
                                   )}
-                                />
-                                <span className="sr-only">Toggle tax exemption</span>
-                              </button>
+                                  title={client.taxExempt ? 'Enable tax' : 'Disable tax'}
+                                >
+                                  <span
+                                    className={cn(
+                                      'inline-block h-3 w-3 flex-shrink-0 rounded-full bg-white shadow transition',
+                                      client.taxExempt ? 'translate-x-1' : 'translate-x-4'
+                                    )}
+                                  />
+                                  <span className="sr-only">Toggle tax exemption</span>
+                                </button>
+                              )}
+                            </div>
+                            {client.clientType === 'B2B' && client.taxExempt && (
+                              <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                                Tax exempt
+                              </span>
                             )}
                           </div>
                         </td>
