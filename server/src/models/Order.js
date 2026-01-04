@@ -29,6 +29,17 @@ const orderProductSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const orderCouponSchema = new mongoose.Schema(
+  {
+    code: { type: String, trim: true },
+    type: { type: String, enum: ['percentage', 'fixed'] },
+    amount: { type: Number, min: 0 },
+    discountAmount: { type: Number, min: 0 },
+    eligibleSubtotal: { type: Number, min: 0 },
+  },
+  { _id: false }
+);
+
 const orderSchema = new mongoose.Schema(
   {
     userId: {
@@ -39,6 +50,10 @@ const orderSchema = new mongoose.Schema(
     products: {
       type: [orderProductSchema],
       validate: [(products) => products.length > 0, 'Order must contain products'],
+    },
+    coupon: {
+      type: orderCouponSchema,
+      default: null,
     },
     status: {
       type: String,

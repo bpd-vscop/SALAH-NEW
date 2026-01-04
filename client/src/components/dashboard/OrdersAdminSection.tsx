@@ -776,7 +776,9 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
             </thead>
             <tbody className="divide-y divide-border bg-surface">
               {paginatedOrders.map((order) => {
-                const total = order.products.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                const subtotal = order.products.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                const discount = order.coupon?.discountAmount ?? 0;
+                const total = Math.max(0, subtotal - discount);
                 const lineCount = order.products.length;
                 const totalQty = order.products.reduce((sum, item) => sum + item.quantity, 0);
                 const customerName = order.user?.name || 'Unknown customer';

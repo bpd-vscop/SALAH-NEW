@@ -427,10 +427,18 @@ export const CheckoutPage: React.FC = () => {
     setPlacingOrder(true);
     setError(null);
     try {
+      const couponPayload = appliedCoupon?.code ? { couponCode: appliedCoupon.code } : {};
       await ordersApi.create({
         products: items.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+        ...couponPayload,
       });
       await clearCart();
+      clearStoredCouponCode();
+      setAppliedCoupon(null);
+      setCouponDiscount(0);
+      setEligibleSubtotal(0);
+      setCouponError(null);
+      setCouponCode('');
       setStatusMessage('Order placed successfully! Redirecting to products...');
       setTimeout(() => {
         navigate('/products');

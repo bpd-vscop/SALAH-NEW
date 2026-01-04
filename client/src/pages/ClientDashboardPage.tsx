@@ -1805,10 +1805,12 @@ export const ClientDashboardPage: React.FC = () => {
                     <div className="max-h-[600px] overflow-y-auto pr-2 space-y-4 scrollbar-custom">
                       {orders.map((order) => {
                         const itemCount = order.products.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                        const total = order.products.reduce(
+                        const subtotal = order.products.reduce(
                           (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
                           0
                         );
+                        const discount = order.coupon?.discountAmount ?? 0;
+                        const total = Math.max(0, subtotal - discount);
 
                         const getStatusConfig = (status: string) => {
                           switch (status) {

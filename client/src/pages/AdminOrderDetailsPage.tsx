@@ -52,10 +52,13 @@ export const AdminOrderDetailsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const total = useMemo(() => {
+  const subtotal = useMemo(() => {
     if (!order) return 0;
     return order.products.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [order]);
+
+  const discount = order?.coupon?.discountAmount ?? 0;
+  const total = useMemo(() => Math.max(0, subtotal - discount), [discount, subtotal]);
 
   const totalQty = useMemo(() => {
     if (!order) return 0;
@@ -270,10 +273,31 @@ export const AdminOrderDetailsPage: React.FC = () => {
                   </table>
                 </div>
                 <div className="border-t border-border bg-slate-50/50 px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-600">Total</span>
-                    <span className="text-xl font-bold text-slate-900">{formatCurrency(total)}</span>
-                  </div>
+                  {discount > 0 ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-600">Subtotal</span>
+                        <span className="text-sm font-semibold text-slate-900">{formatCurrency(subtotal)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-600">
+                          Discount{order?.coupon?.code ? ` (${order.coupon.code})` : ''}
+                        </span>
+                        <span className="text-sm font-semibold text-emerald-600">
+                          -{formatCurrency(discount)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">Total</span>
+                        <span className="text-xl font-bold text-slate-900">{formatCurrency(total)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-600">Total</span>
+                      <span className="text-xl font-bold text-slate-900">{formatCurrency(total)}</span>
+                    </div>
+                  )}
                 </div>
               </section>
             </div>

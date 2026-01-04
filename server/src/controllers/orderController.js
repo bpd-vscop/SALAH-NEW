@@ -1,6 +1,7 @@
 ﻿const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const Coupon = require('../models/Coupon');
 const User = require('../models/User');
 const { validateCreateOrder, validateUpdateOrder } = require('../validators/order');
 const { badRequest, notFound, forbidden } = require('../utils/appError');
@@ -65,6 +66,65 @@ const isInventoryOutOfStock = (inventory) => {
 const COMING_SOON_TAG = 'coming soon';
 const NEW_ARRIVAL_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const sanitizeProductTags = (product) => {
+  if (!product) return;
+  const currentTags = Array.isArray(product.tags) ? product.tags : [];
+  const sanitized = currentTags.filter((tag) => tag === COMING_SOON_TAG);
+  if (!Array.isArray(product.tags) || sanitized.length !== currentTags.length) {
+    product.tags = sanitized;
+    product.markModified('tags');
+  }
+};
+
+const computeCouponDiscount = (coupon, items, productMap) => {
+  const appliesToAll = !coupon.categoryIds.length && !coupon.productIds.length;
+  const couponProductIds = new Set(coupon.productIds.map((id) => id.toString()));
+  const couponCategoryIds = new Set(coupon.categoryIds.map((id) => id.toString()));
+
+  let eligibleSubtotal = 0;
+
+  items.forEach((item) => {
+    const product = productMap.get(item.productId);
+    if (!product) {
+      return;
+    }
+
+    const quantity = item.quantity;
+    const unitPrice = typeof product.price === 'number' ? product.price : 0;
+    const lineTotal = unitPrice * quantity;
+
+    let isEligible = appliesToAll || couponProductIds.has(product._id.toString());
+
+    if (!isEligible && couponCategoryIds.size > 0) {
+      const productCategoryIds = new Set(
+        [
+          product.categoryId ? product.categoryId.toString() : null,
+          ...(Array.isArray(product.categoryIds) ? product.categoryIds.map((id) => id.toString()) : []),
+        ].filter(Boolean)
+      );
+      isEligible = Array.from(productCategoryIds).some((categoryId) => couponCategoryIds.has(categoryId));
+    }
+
+    if (isEligible) {
+      eligibleSubtotal += lineTotal;
+    }
+  });
+
+  if (eligibleSubtotal <= 0) {
+    throw badRequest('Coupon does not apply to any items in your cart');
+  }
+
+  let discountAmount = 0;
+  if (coupon.type === 'percentage') {
+    discountAmount = (eligibleSubtotal * coupon.amount) / 100;
+  } else {
+    discountAmount = Math.min(coupon.amount, eligibleSubtotal);
+  }
+  discountAmount = Math.round(discountAmount * 100) / 100;
+
+  return { discountAmount, eligibleSubtotal };
+};
 
 const isProductOnSale = (product) => {
   if (typeof product.salePrice !== 'number' || product.salePrice >= product.price) {
@@ -226,6 +286,28 @@ const createOrder = async (req, res, next) => {
       throw badRequest('Some products are out of stock or have insufficient stock', stockIssues);
     }
 
+    let appliedCoupon = null;
+    if (payload.couponCode) {
+      const coupon = await Coupon.findOne({ code: payload.couponCode });
+      if (!coupon || !coupon.isActive) {
+        throw badRequest('Coupon is invalid or inactive');
+      }
+
+      const { discountAmount, eligibleSubtotal } = computeCouponDiscount(
+        coupon,
+        payload.products,
+        foundProducts
+      );
+
+      appliedCoupon = {
+        code: coupon.code,
+        type: coupon.type,
+        amount: coupon.amount,
+        discountAmount,
+        eligibleSubtotal,
+      };
+    }
+
     // Decrement inventory quantities for in-stock products (best-effort atomicity per product).
     for (const [productId, requestedQuantity] of requestedByProductId.entries()) {
       const product = foundProducts.get(productId);
@@ -245,24 +327,26 @@ const createOrder = async (req, res, next) => {
           { new: true }
         );
 
-        if (!updated) {
-          throw badRequest('Some products are no longer available in the requested quantity', [
-            { code: 'insufficient_stock', productId },
-          ]);
-        }
-
-        normalizeInventoryStatus(updated.inventory);
-        updated.markModified('inventory');
-        await updated.save();
-        continue;
+      if (!updated) {
+        throw badRequest('Some products are no longer available in the requested quantity', [
+          { code: 'insufficient_stock', productId },
+        ]);
       }
 
-      const currentQuantity = typeof product.inventory.quantity === 'number' ? product.inventory.quantity : 0;
-      product.inventory.quantity = Math.max(0, currentQuantity - requestedQuantity);
-      normalizeInventoryStatus(product.inventory);
-      product.markModified('inventory');
-      await product.save();
+      normalizeInventoryStatus(updated.inventory);
+      sanitizeProductTags(updated);
+      updated.markModified('inventory');
+      await updated.save();
+      continue;
     }
+
+    const currentQuantity = typeof product.inventory.quantity === 'number' ? product.inventory.quantity : 0;
+    product.inventory.quantity = Math.max(0, currentQuantity - requestedQuantity);
+    normalizeInventoryStatus(product.inventory);
+    sanitizeProductTags(product);
+    product.markModified('inventory');
+    await product.save();
+  }
 
     const orderItems = Array.from(requestedByProductId.entries()).map(([productId, quantity]) => {
       const product = foundProducts.get(productId);
@@ -279,6 +363,7 @@ const createOrder = async (req, res, next) => {
       userId: req.user._id,
       products: orderItems,
       status: 'pending',
+      ...(appliedCoupon ? { coupon: appliedCoupon } : {}),
     });
 
     req.user.orderHistory.push(order._id);
@@ -286,7 +371,9 @@ const createOrder = async (req, res, next) => {
     await req.user.save();
 
     // Fire-and-forget notifications (do not block order creation on email failures)
-    const orderTotal = orderItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
+    const orderSubtotal = orderItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
+    const orderDiscount = appliedCoupon?.discountAmount ?? 0;
+    const orderTotal = Math.max(0, orderSubtotal - orderDiscount);
     const clientEmail = req.user.email;
     const clientName = req.user.name;
 

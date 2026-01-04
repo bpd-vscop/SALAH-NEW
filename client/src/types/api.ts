@@ -330,6 +330,14 @@ export interface OrderProductItem {
   tagsAtPurchase: ProductStatusTag[];
 }
 
+export interface OrderCoupon {
+  code: string;
+  type: CouponType;
+  amount: number;
+  discountAmount: number;
+  eligibleSubtotal: number;
+}
+
 export interface OrderUserSummary {
   id: string | null;
   name: string | null;
@@ -352,6 +360,7 @@ export interface Order {
   userId: string;
   user?: OrderUserSummary | null;
   products: OrderProductItem[];
+  coupon?: OrderCoupon | null;
   status: OrderStatus;
   createdAt: string | null;
   updatedAt: string | null;
