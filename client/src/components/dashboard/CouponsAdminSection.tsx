@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Pencil, Trash2, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronDown, Pencil, Search, Trash2, X } from 'lucide-react';
 import { couponsApi } from '../../api/coupons';
 import { formatCurrency } from '../../utils/format';
 import { cn } from '../../utils/cn';
@@ -57,9 +58,11 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [categorySearch, setCategorySearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
-  const [categoryPick, setCategoryPick] = useState('');
-  const [productPick, setProductPick] = useState('');
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [productDropdownOpen, setProductDropdownOpen] = useState(false);
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  const productDropdownRef = useRef<HTMLDivElement>(null);
 
   const refresh = async () => {
     const { coupons } = await couponsApi.list();
@@ -88,6 +91,20 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
     }
   }, [selectedId, list]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setCategoryDropdownOpen(false);
+      }
+      if (productDropdownRef.current && !productDropdownRef.current.contains(event.target as Node)) {
+        setProductDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const categoryNameById = useMemo(
     () => new Map(categories.map((category) => [category.id, category.name])),
     [categories]
@@ -104,16 +121,15 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
     return list.filter((coupon) => coupon.code.toLowerCase().includes(query));
   }, [list, searchQuery]);
 
-  const availableCategoryOptions = useMemo(() => {
+  const availableCategories = useMemo(() => {
     const query = categorySearch.trim().toLowerCase();
     return categories
       .filter((category) => !form.categoryIds.includes(category.id))
       .filter((category) => (query ? category.name.toLowerCase().includes(query) : true))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((category) => ({ value: category.id, label: category.name }));
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [categories, form.categoryIds, categorySearch]);
 
-  const availableProductOptions = useMemo(() => {
+  const availableProducts = useMemo(() => {
     const query = productSearch.trim().toLowerCase();
     return products
       .filter((product) => !form.productIds.includes(product.id))
@@ -123,11 +139,7 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
         const sku = product.sku?.toLowerCase() ?? '';
         return name.includes(query) || sku.includes(query);
       })
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((product) => ({
-        value: product.id,
-        label: product.sku ? `${product.name} (${product.sku})` : product.name,
-      }));
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [products, form.productIds, productSearch]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -170,8 +182,6 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
       }
       await refresh();
       setSelectedId('');
-      setCategoryPick('');
-      setProductPick('');
     } catch (err) {
       console.error(err);
       setStatus(null, err instanceof Error ? err.message : 'Coupon operation failed');
@@ -219,6 +229,27 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
       });
     }
   };
+
+  const selectedCategory =
+    form.categoryIds.length === 1
+      ? categories.find((category) => category.id === form.categoryIds[0]) ?? null
+      : null;
+  const selectedCategoryLabel =
+    form.categoryIds.length === 0
+      ? 'Select category'
+      : form.categoryIds.length === 1
+        ? selectedCategory?.name ?? 'Select category'
+        : `${form.categoryIds.length} categories selected`;
+  const selectedProduct =
+    form.productIds.length === 1
+      ? products.find((product) => product.id === form.productIds[0]) ?? null
+      : null;
+  const selectedProductLabel =
+    form.productIds.length === 0
+      ? 'Select product'
+      : form.productIds.length === 1
+        ? selectedProduct?.name ?? 'Select product'
+        : `${form.productIds.length} products selected`;
 
   return (
     <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
@@ -378,27 +409,94 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
               </div>
             </div>
             <div className="mt-3 grid gap-3">
-              <input
-                type="search"
-                placeholder="Search categories"
-                value={categorySearch}
-                onChange={(event) => setCategorySearch(event.target.value)}
-                className="h-7 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <Select
-                value={categoryPick}
-                onChange={(value) => {
-                  if (!value) return;
-                  setForm((state) => ({
-                    ...state,
-                    categoryIds: [...state.categoryIds, value],
-                  }));
-                  setCategoryPick('');
-                }}
-                options={availableCategoryOptions}
-                placeholder={availableCategoryOptions.length ? 'Select category' : 'No categories available'}
-                disabled={!availableCategoryOptions.length}
-              />
+              <div className="relative" ref={categoryDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setCategoryDropdownOpen((open) => !open)}
+                  className="flex h-7 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    {selectedCategory?.imageUrl && (
+                      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-300">
+                        <img
+                          src={selectedCategory.imageUrl}
+                          alt={selectedCategory.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <span className={cn('truncate text-sm font-medium', !form.categoryIds.length && 'text-slate-400')}>
+                      {selectedCategoryLabel}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 flex-shrink-0 text-slate-400 transition-transform',
+                      categoryDropdownOpen && 'rotate-180'
+                    )}
+                  />
+                </button>
+                <AnimatePresence>
+                  {categoryDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.1 }}
+                      className="absolute left-0 right-0 top-full z-[100] mt-1 max-h-96 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 shadow-xl"
+                    >
+                      <div className="sticky top-0 z-10 bg-white pb-2">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="Search categories..."
+                            value={categorySearch}
+                            onChange={(event) => setCategorySearch(event.target.value)}
+                            className="h-8 w-full rounded-md border border-slate-300 bg-white pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-6">
+                        {availableCategories.length ? (
+                          availableCategories.map((category) => (
+                            <button
+                              key={category.id}
+                              type="button"
+                              onClick={() => {
+                                setForm((state) => ({
+                                  ...state,
+                                  categoryIds: [...state.categoryIds, category.id],
+                                }));
+                                setCategoryDropdownOpen(false);
+                                setCategorySearch('');
+                              }}
+                              className="flex flex-col items-center gap-1 rounded-md border border-slate-200 p-1.5 text-center transition hover:border-primary hover:bg-primary/5"
+                            >
+                              {category.imageUrl && (
+                                <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-slate-200">
+                                  <img
+                                    src={category.imageUrl}
+                                    alt={category.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              )}
+                              <span className="text-[0.6rem] font-medium leading-tight line-clamp-2 text-slate-600">
+                                {category.name}
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="col-span-full rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                            No categories found.
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {form.categoryIds.map((id) => (
                   <span
@@ -436,27 +534,94 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
               </div>
             </div>
             <div className="mt-3 grid gap-3">
-              <input
-                type="search"
-                placeholder="Search products"
-                value={productSearch}
-                onChange={(event) => setProductSearch(event.target.value)}
-                className="h-7 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <Select
-                value={productPick}
-                onChange={(value) => {
-                  if (!value) return;
-                  setForm((state) => ({
-                    ...state,
-                    productIds: [...state.productIds, value],
-                  }));
-                  setProductPick('');
-                }}
-                options={availableProductOptions}
-                placeholder={availableProductOptions.length ? 'Select product' : 'No products available'}
-                disabled={!availableProductOptions.length}
-              />
+              <div className="relative" ref={productDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setProductDropdownOpen((open) => !open)}
+                  className="flex h-7 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    {selectedProduct?.images?.[0] && (
+                      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-300">
+                        <img
+                          src={selectedProduct.images[0]}
+                          alt={selectedProduct.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <span className={cn('truncate text-sm font-medium', !form.productIds.length && 'text-slate-400')}>
+                      {selectedProductLabel}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 flex-shrink-0 text-slate-400 transition-transform',
+                      productDropdownOpen && 'rotate-180'
+                    )}
+                  />
+                </button>
+                <AnimatePresence>
+                  {productDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.1 }}
+                      className="absolute left-0 right-0 top-full z-[100] mt-1 max-h-96 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 shadow-xl"
+                    >
+                      <div className="sticky top-0 z-10 bg-white pb-2">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="Search products..."
+                            value={productSearch}
+                            onChange={(event) => setProductSearch(event.target.value)}
+                            className="h-8 w-full rounded-md border border-slate-300 bg-white pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-3">
+                        {availableProducts.length ? (
+                          availableProducts.map((product) => (
+                            <button
+                              key={product.id}
+                              type="button"
+                              onClick={() => {
+                                setForm((state) => ({
+                                  ...state,
+                                  productIds: [...state.productIds, product.id],
+                                }));
+                                setProductDropdownOpen(false);
+                                setProductSearch('');
+                              }}
+                              className="flex flex-col items-center gap-1 rounded-md border border-slate-200 p-2 text-center transition hover:border-primary hover:bg-primary/5"
+                            >
+                              {product.images?.[0] && (
+                                <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-slate-200">
+                                  <img
+                                    src={product.images[0]}
+                                    alt={product.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              )}
+                              <span className="text-[0.6rem] font-medium leading-tight line-clamp-2 text-slate-600">
+                                {product.name}
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="col-span-full rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                            No products found.
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {form.productIds.map((id) => (
                   <span
