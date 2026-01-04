@@ -835,7 +835,7 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search by name, SKU, code..."
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-7 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <div>

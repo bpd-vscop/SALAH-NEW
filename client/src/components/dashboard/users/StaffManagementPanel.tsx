@@ -490,7 +490,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
                 type="button"
                 onClick={() => setSort('recent')}
                 className={cn(
-                  'rounded-lg px-3 py-1.5 text-xs font-medium transition',
+                  'inline-flex h-7 items-center rounded-lg px-3 text-xs font-medium transition',
                   sort === 'recent' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 )}
               >
@@ -500,7 +500,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
                 type="button"
                 onClick={() => setSort('name-asc')}
                 className={cn(
-                  'rounded-lg px-3 py-1.5 text-xs font-medium transition',
+                  'inline-flex h-7 items-center rounded-lg px-3 text-xs font-medium transition',
                   sort === 'name-asc' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 )}
               >
@@ -517,6 +517,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
                 }))}
                 placeholder="Role"
                 className="min-w-[130px]"
+                buttonClassName="h-7"
               />
               <Select
                 value={statusFilter}
@@ -528,6 +529,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
                 ]}
                 placeholder="Status"
                 className="min-w-[120px]"
+                buttonClassName="h-7"
               />
               <div className="relative w-full sm:w-auto">
                 <motion.div
@@ -551,7 +553,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
                           value={searchInput}
                           onChange={(event) => setSearchInput(event.target.value)}
                           placeholder="Search by name or email"
-                          className="h-10 w-full rounded-xl border border-border bg-white pl-9 pr-9 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          className="h-7 w-full rounded-xl border border-border bg-white pl-9 pr-9 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                         {searchInput && (
                           <button
@@ -572,7 +574,7 @@ export const StaffManagementPanel: React.FC<StaffManagementPanelProps> = ({ role
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.2 }}
                         type="button"
-                        className="h-10 w-10 flex items-center justify-center rounded-xl border border-border bg-white text-slate-600 hover:bg-slate-100"
+                        className="h-7 w-7 flex items-center justify-center rounded-xl border border-border bg-white text-slate-600 hover:bg-slate-100"
                         onClick={() => setSearchOpen(true)}
                         aria-label="Open search"
                       >

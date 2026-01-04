@@ -562,7 +562,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by name, SKU, code..."
-            className="h-11 w-full rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-72"
+            className="h-7 w-full rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-72"
           />
           <div className="w-full sm:w-60">
             <Select
@@ -577,6 +577,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                 { value: 'preorder', label: 'Preorder' },
               ]}
               placeholder="Filter by stock"
+              buttonClassName="h-7"
             />
           </div>
           <div className="w-full sm:w-60">
@@ -594,12 +595,13 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                 { value: 'preorder', label: 'Preorder' },
               ]}
               placeholder="Filter by badge"
+              buttonClassName="h-7"
             />
             </div>
             <button
               type="button"
               onClick={() => void handleRefresh()}
-              className="flex h-11 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
+              className="flex h-7 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
             >
               <RefreshCw className="h-4 w-4" />
               Refresh
@@ -610,7 +612,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
               onClick={() => void handleSaveAll()}
               disabled={bulkSaving || !hasBulkEdits}
               className={cn(
-                'h-11 rounded-xl px-4 text-sm font-semibold text-white transition',
+                'h-7 rounded-xl px-4 text-sm font-semibold text-white transition',
                 bulkSaving || !hasBulkEdits
                   ? 'cursor-not-allowed bg-rose-200 text-white/80'
                   : 'bg-rose-600 hover:bg-rose-700'

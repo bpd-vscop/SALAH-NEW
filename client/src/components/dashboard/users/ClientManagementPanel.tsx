@@ -1462,7 +1462,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
             type="button"
             onClick={() => setSort('recent')}
             className={cn(
-              'rounded-lg px-3 py-1.5 text-xs font-medium transition',
+              'inline-flex h-7 items-center rounded-lg px-3 text-xs font-medium transition',
               sort === 'recent' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             )}
           >
@@ -1472,7 +1472,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
             type="button"
             onClick={() => setSort('name-asc')}
             className={cn(
-              'rounded-lg px-3 py-1.5 text-xs font-medium transition',
+              'inline-flex h-7 items-center rounded-lg px-3 text-xs font-medium transition',
               sort === 'name-asc' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             )}
           >
@@ -1485,7 +1485,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
               <button
                 type="button"
                 onClick={toggleSelectionMode}
-                className="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                className="inline-flex h-7 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
               >
                 Select
               </button>
@@ -1494,7 +1494,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                 <button
                   type="button"
                   onClick={() => setBulkMenuOpen((prev) => !prev)}
-                  className="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                  className="inline-flex h-7 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
                 >
                   {selectedCount > 0 ? `Selected ${selectedCount}` : 'Actions'}
                   <ChevronDown className="h-4 w-4" />
@@ -1588,6 +1588,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
             ]}
             placeholder="Type"
             className="min-w-[120px]"
+            buttonClassName="h-7"
           />
           <Select
             value={verificationFilter}
@@ -1599,6 +1600,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
             ]}
             placeholder="Verification"
             className="min-w-[150px]"
+            buttonClassName="h-7"
           />
           <Select
             value={statusFilter}
@@ -1610,6 +1612,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
             ]}
             placeholder="Status"
             className="min-w-[120px]"
+            buttonClassName="h-7"
           />
           <div className="relative w-full sm:w-auto">
             <motion.div
@@ -1633,7 +1636,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                       value={searchInput}
                       onChange={(event) => setSearchInput(event.target.value)}
                       placeholder="Search by name or email"
-                      className="h-10 w-full rounded-xl border border-border bg-white pl-9 pr-9 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-7 w-full rounded-xl border border-border bg-white pl-9 pr-9 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                     {searchInput && (
                       <button
@@ -1654,7 +1657,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
                     type="button"
-                    className="h-10 w-10 flex items-center justify-center rounded-xl border border-border bg-white text-slate-600 hover:bg-slate-100"
+                    className="h-7 w-7 flex items-center justify-center rounded-xl border border-border bg-white text-slate-600 hover:bg-slate-100"
                     onClick={() => setSearchOpen(true)}
                     aria-label="Open search"
                   >
