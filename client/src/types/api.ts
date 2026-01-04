@@ -14,6 +14,7 @@ export type ProductInventoryStatus = 'in_stock' | 'low_stock' | 'out_of_stock' |
 export type ProductType = 'simple' | 'variable' | 'grouped';
 export type ProductStatus = 'draft' | 'scheduled' | 'private' | 'published';
 export type ProductVisibility = 'catalog' | 'search' | 'hidden' | 'catalog-and-search';
+export type CouponType = 'percentage' | 'fixed';
 export type ConversationStatus = 'open' | 'closed';
 export type MessageSenderRole = 'client' | 'admin';
 
@@ -279,6 +280,18 @@ export interface Product {
   featured?: boolean;
   newArrival?: boolean;
   requiresB2B?: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  type: CouponType;
+  amount: number;
+  isActive: boolean;
+  categoryIds?: string[];
+  productIds?: string[];
   createdAt?: string | null;
   updatedAt?: string | null;
 }

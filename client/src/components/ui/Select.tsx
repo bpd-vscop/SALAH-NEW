@@ -53,7 +53,7 @@ export const Select: React.FC<SelectProps> = ({
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className="flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex h-7 w-full items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <span className={cn('font-medium', !selectedOption && 'text-slate-400')}>
           {selectedOption ? selectedOption.label : placeholder}

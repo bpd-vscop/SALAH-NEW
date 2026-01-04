@@ -17,6 +17,7 @@ const manufacturerDisplayRoutes = require('./manufacturerDisplay');
 const brandRoutes = require('./brands');
 const modelRoutes = require('./models');
 const tagRoutes = require('./tags');
+const couponRoutes = require('./coupons');
 const clientRoutes = require('./clients');
 const contactRoutes = require('./contact');
 const messageRoutes = require('./messages');
@@ -45,6 +46,7 @@ module.exports = () => {
   router.use('/brands', brandRoutes);
   router.use('/models', modelRoutes);
   router.use('/tags', tagRoutes);
+  router.use('/coupons', couponRoutes);
   router.use('/clients', clientRoutes);
   router.use('/contact', contactRoutes);
   router.use('/messages', messageRoutes);

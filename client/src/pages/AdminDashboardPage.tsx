@@ -35,6 +35,7 @@ import { CategoriesAdminSection } from '../components/dashboard/CategoriesAdminS
 import { ProductsAdminSection } from '../components/dashboard/ProductsAdminSection';
 import { ProductInventoryAdminSection } from '../components/dashboard/ProductInventoryAdminSection';
 import { ProductReviewsAdminSection } from '../components/dashboard/ProductReviewsAdminSection';
+import { CouponsAdminSection } from '../components/dashboard/CouponsAdminSection';
 // import { BannersAdminSection } from '../components/dashboard/BannersAdminSection';
 import { ManufacturersAdminSection } from '../components/dashboard/ManufacturersAdminSection';
 import { ManufacturersDisplayAdminSection } from '../components/dashboard/ManufacturersDisplayAdminSection';
@@ -530,7 +531,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [homepageSection, setHomepageSection] = useState<'hero' | 'featured' | 'categorydisplay' | 'manufacturers'>('hero');
   const [catalogSection, setCatalogSection] = useState<'categories' | 'manufacturers' | 'brands' | 'models' | 'tags'>('categories');
   const [navigationSection, setNavigationSection] = useState<'topnav' | 'sections' | 'quicklinks' | 'visible'>('topnav');
-  const [productsView, setProductsView] = useState<'all' | 'add' | 'inventory' | 'list'>('all');
+  const [productsView, setProductsView] = useState<'all' | 'add' | 'inventory' | 'list' | 'coupons'>('all');
   const [activeFeatureTab, setActiveFeatureTab] = useState<'feature' | 'tile'>('feature');
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>(null);
   const [orderConflict, setOrderConflict] = useState<OrderConflictState>(null);
@@ -1787,7 +1788,9 @@ export const AdminDashboardPage: React.FC = () => {
                 ? 'Inventory'
                 : productsView === 'list'
                   ? 'Product list'
-                  : 'All Products';
+                  : productsView === 'coupons'
+                    ? 'Coupons'
+                    : 'All Products';
           return {
             id: tab.id,
             label: tab.label,
@@ -1798,6 +1801,7 @@ export const AdminDashboardPage: React.FC = () => {
                 { id: 'list', label: 'Product list' },
                 { id: 'add', label: 'Add Product' },
                 { id: 'inventory', label: 'Inventory' },
+                { id: 'coupons', label: 'Coupons' },
               ],
               activeId: activeTab === 'products' ? productsView : undefined,
             },
@@ -1852,7 +1856,13 @@ export const AdminDashboardPage: React.FC = () => {
     }
 
     if (id === 'products') {
-      if (dropdownId === 'all' || dropdownId === 'add' || dropdownId === 'inventory' || dropdownId === 'list') {
+      if (
+        dropdownId === 'all' ||
+        dropdownId === 'add' ||
+        dropdownId === 'inventory' ||
+        dropdownId === 'list' ||
+        dropdownId === 'coupons'
+      ) {
         setProductsView(dropdownId);
       }
       setActiveTab('products');
@@ -2033,6 +2043,12 @@ export const AdminDashboardPage: React.FC = () => {
                   manufacturers={manufacturers}
                   orders={orders}
                   onRefresh={refreshProducts}
+                  setStatus={setStatus}
+                />
+              ) : productsView === 'coupons' ? (
+                <CouponsAdminSection
+                  categories={categories}
+                  products={products}
                   setStatus={setStatus}
                 />
               ) : (

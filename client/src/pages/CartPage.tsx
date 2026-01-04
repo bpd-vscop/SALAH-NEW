@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, ShoppingCart, Shield, Headphones, CreditCard, AlertCircle } from 'lucide-react';
+import { couponsApi } from '../api/coupons';
 import { productsApi } from '../api/products';
 import { SiteLayout } from '../components/layout/SiteLayout';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import type { Product } from '../types/api';
+import type { Coupon, Product } from '../types/api';
 import { formatCurrency } from '../utils/format';
 
 export const CartPage: React.FC = () => {
@@ -14,7 +15,13 @@ export const CartPage: React.FC = () => {
   const [productMap, setProductMap] = useState<Record<string, Product>>({});
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [couponCode, setCouponCode] = useState('');
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [eligibleSubtotal, setEligibleSubtotal] = useState(0);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const lastValidatedSignatureRef = useRef('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -52,6 +59,69 @@ export const CartPage: React.FC = () => {
       return sum + price * line.quantity;
     }, 0);
   }, [items, productMap]);
+
+  const cartSignature = useMemo(
+    () =>
+      items
+        .map((line) => `${line.productId}:${line.quantity}`)
+        .sort()
+        .join('|'),
+    [items]
+  );
+
+  const validateCoupon = useCallback(async (code: string, silent = false) => {
+    const normalizedCode = code.trim();
+    if (!normalizedCode) {
+      if (!silent) setCouponError('Enter a coupon code.');
+      return;
+    }
+    if (!items.length) {
+      if (!silent) setCouponError('Your cart is empty.');
+      setAppliedCoupon(null);
+      setCouponDiscount(0);
+      setEligibleSubtotal(0);
+      return;
+    }
+    setApplyingCoupon(true);
+    try {
+      const response = await couponsApi.validate({
+        code: normalizedCode,
+        items: items.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+      });
+      setAppliedCoupon(response.coupon);
+      setCouponDiscount(response.discountAmount);
+      setEligibleSubtotal(response.eligibleSubtotal);
+      setCouponError(null);
+      setCouponCode(response.coupon.code);
+      lastValidatedSignatureRef.current = cartSignature;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to apply coupon.';
+      setCouponError(message);
+      setAppliedCoupon(null);
+      setCouponDiscount(0);
+      setEligibleSubtotal(0);
+      if (!silent) {
+        setCouponCode(normalizedCode);
+      }
+    } finally {
+      setApplyingCoupon(false);
+    }
+  }, [cartSignature, items]);
+
+  const clearCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+    setEligibleSubtotal(0);
+    setCouponError(null);
+    setCouponCode('');
+    lastValidatedSignatureRef.current = '';
+  };
+
+  useEffect(() => {
+    if (!appliedCoupon || applyingCoupon) return;
+    if (cartSignature === lastValidatedSignatureRef.current) return;
+    void validateCoupon(appliedCoupon.code, true);
+  }, [appliedCoupon, applyingCoupon, cartSignature, validateCoupon]);
 
   const steps = [
     { label: 'Cart', active: true },
@@ -251,16 +321,40 @@ export const CartPage: React.FC = () => {
                       type="text"
                       placeholder="Enter your coupon here"
                       value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                       className="flex-1 h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
                     />
                     <button
                       type="button"
-                      className="px-6 h-10 rounded-lg bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800 transition"
+                      onClick={() => void validateCoupon(couponCode)}
+                      disabled={applyingCoupon || !couponCode.trim()}
+                      className="px-6 h-10 rounded-lg bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800 transition disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Apply coupon
+                      {applyingCoupon ? 'Applying...' : 'Apply coupon'}
                     </button>
                   </div>
+                  {couponError && (
+                    <p className="mt-2 text-xs text-red-600">{couponError}</p>
+                  )}
+                  {appliedCoupon && (
+                    <div className="mt-3 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                      <span>
+                        Applied: <strong>{appliedCoupon.code}</strong>
+                        {eligibleSubtotal > 0 && eligibleSubtotal < subtotal && (
+                          <span className="ml-2 text-emerald-600">
+                            ({formatCurrency(eligibleSubtotal)} eligible)
+                          </span>
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={clearCoupon}
+                        className="text-emerald-700 hover:text-emerald-900 underline underline-offset-2"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Order Summary */}
@@ -270,6 +364,22 @@ export const CartPage: React.FC = () => {
                       <span className="text-slate-600">Sub-Total:</span>
                       <span className="font-semibold text-slate-900">{formatCurrency(subtotal)}</span>
                     </div>
+                    {appliedCoupon && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600">Discount ({appliedCoupon.code}):</span>
+                        <span className="font-semibold text-emerald-600">
+                          -{formatCurrency(couponDiscount)}
+                        </span>
+                      </div>
+                    )}
+                    {appliedCoupon && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600">Subtotal after discount:</span>
+                        <span className="font-semibold text-slate-900">
+                          {formatCurrency(Math.max(0, subtotal - couponDiscount))}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-600">Shipping:</span>
                       <span className="text-xs text-slate-500">Calculated during checkout</span>
