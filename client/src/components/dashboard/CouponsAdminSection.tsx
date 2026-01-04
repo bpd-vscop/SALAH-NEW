@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { X } from 'lucide-react';
+import { Pencil, Trash2, X } from 'lucide-react';
 import { couponsApi } from '../../api/coupons';
 import { formatCurrency } from '../../utils/format';
 import { cn } from '../../utils/cn';
@@ -226,7 +226,7 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
         <h2 className="text-lg font-semibold text-slate-900">Coupons</h2>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-[11fr_9fr]">
         <div className="rounded-xl border border-border bg-background p-4">
           <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <label className="flex w-full sm:w-auto items-center gap-2">
@@ -243,7 +243,8 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
             <table className="min-w-full divide-y divide-border text-left text-sm">
               <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur text-xs uppercase tracking-wide text-muted">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Code</th>
+                  <th className="px-4 py-3 text-center font-semibold w-[8%]">Active</th>
+                  <th className="px-4 py-3 font-semibold w-[20%]">Code</th>
                   <th className="px-4 py-3 font-semibold">Discount</th>
                   <th className="px-4 py-3 font-semibold">Applies to</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
@@ -253,30 +254,30 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
               <tbody className="divide-y divide-border bg-surface">
                 {filteredCoupons.map((coupon) => (
                   <tr key={coupon.id} className="hover:bg-primary/5">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={coupon.isActive}
-                          onClick={() => void toggleCouponActive(coupon)}
-                          disabled={updatingIds.has(coupon.id)}
+                    <td className="px-4 py-3 text-center w-[8%]">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={coupon.isActive}
+                        onClick={() => void toggleCouponActive(coupon)}
+                        disabled={updatingIds.has(coupon.id)}
+                        className={cn(
+                          'relative inline-flex h-5 w-9 items-center rounded-full border transition',
+                          coupon.isActive ? 'border-primary bg-primary' : 'border-slate-300 bg-slate-200',
+                          updatingIds.has(coupon.id) && 'opacity-60 cursor-not-allowed'
+                        )}
+                      >
+                        <span
                           className={cn(
-                            'relative inline-flex h-6 w-11 items-center rounded-full border transition',
-                            coupon.isActive ? 'border-primary bg-primary' : 'border-slate-300 bg-slate-200',
-                            updatingIds.has(coupon.id) && 'opacity-60 cursor-not-allowed'
+                            'inline-block h-3 w-3 rounded-full bg-white shadow transition',
+                            coupon.isActive ? 'translate-x-4' : 'translate-x-1'
                           )}
-                        >
-                          <span
-                            className={cn(
-                              'inline-block h-4 w-4 rounded-full bg-white shadow transition',
-                              coupon.isActive ? 'translate-x-5' : 'translate-x-1'
-                            )}
-                          />
-                          <span className="sr-only">Toggle coupon active</span>
-                        </button>
-                        <span className="font-semibold text-slate-900">{coupon.code}</span>
-                      </div>
+                        />
+                        <span className="sr-only">Toggle coupon active</span>
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-slate-900 w-[20%] break-all">
+                      {coupon.code}
                     </td>
                     <td className="px-4 py-3 text-slate-700">{formatCouponValue(coupon)}</td>
                     <td className="px-4 py-3 text-slate-600">{buildAppliesLabel(coupon)}</td>
@@ -292,27 +293,31 @@ export const CouponsAdminSection: React.FC<CouponsAdminSectionProps> = ({
                         {coupon.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="flex items-center justify-end gap-2 px-4 py-3">
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                        onClick={() => setSelectedId(coupon.id)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                        onClick={() => setDeleteId(coupon.id)}
-                      >
-                        Delete
-                      </button>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedId(coupon.id)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border text-slate-600 transition hover:border-primary hover:text-primary"
+                          aria-label={`Edit coupon ${coupon.code}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteId(coupon.id)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 transition hover:bg-red-50"
+                          aria-label={`Delete coupon ${coupon.code}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
                 {!filteredCoupons.length && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted">
+                    <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted">
                       No coupons found.
                     </td>
                   </tr>
