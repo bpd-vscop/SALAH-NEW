@@ -807,75 +807,81 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                         </div>
                       </td>
                       <td className="px-2 py-3 align-top">
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <div className="relative group">
-                              <span
-                                className={cn(
-                                  'inline-flex h-9 min-w-14 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors',
-                                  displayQuantityPillClass
-                                )}
-                              >
-                                {displayQuantity}
-                              </span>
-                              {hasPendingQuantity ? (
-                                <button
-                                  type="button"
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    updateFieldForProduct(product, 'quantity', String(currentQuantity));
-                                  }}
-                                  className="absolute -right-1 -top-1 hidden h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-rose-200 hover:text-rose-700 group-hover:flex"
-                                  aria-label="Cancel quantity change"
-                                  title="Cancel quantity change"
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              ) : null}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveReplenishId((current) => (current === product.id ? null : product.id));
-                                updateFieldForProduct(product, 'replenishBy', '');
-                              }}
-                              className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-base font-bold text-slate-700 transition hover:border-primary hover:text-primary"
-                              aria-label="Replenish stock"
-                            >
-                              +
-                            </button>
+                        {product.manageStock === false ? (
+                          <div className="flex items-center justify-center px-3 py-2">
+                            <span className="text-xs font-medium text-slate-500">Stock not managed</span>
                           </div>
-
-                          {activeReplenishId === product.id ? (
-                            <div className="flex flex-col items-start gap-2">
-                              <input
-                                type="number"
-                                min={0}
-                                value={edit.replenishBy}
-                                onChange={(event) => updateFieldForProduct(product, 'replenishBy', event.target.value)}
-                                placeholder="Add"
-                                className="h-9 w-full rounded-lg border border-border bg-white px-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              />
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <div className="relative group">
+                                <span
+                                  className={cn(
+                                    'inline-flex h-9 min-w-14 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors',
+                                    displayQuantityPillClass
+                                  )}
+                                >
+                                  {displayQuantity}
+                                </span>
+                                {hasPendingQuantity ? (
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      updateFieldForProduct(product, 'quantity', String(currentQuantity));
+                                    }}
+                                    className="absolute -right-1 -top-1 hidden h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-rose-200 hover:text-rose-700 group-hover:flex"
+                                    aria-label="Cancel quantity change"
+                                    title="Cancel quantity change"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                ) : null}
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const amount = Number.parseInt(edit.replenishBy, 10);
-                                  if (!Number.isFinite(amount) || amount <= 0) {
-                                    setStatus(null, 'Replenish amount must be greater than 0.');
-                                    return;
-                                  }
-                                  updateFieldForProduct(product, 'quantity', String(currentQuantity + amount));
+                                  setActiveReplenishId((current) => (current === product.id ? null : product.id));
                                   updateFieldForProduct(product, 'replenishBy', '');
-                                  setActiveReplenishId(null);
                                 }}
-                                className="h-9 w-20 self-center rounded-lg border border-primary bg-primary px-3 text-xs font-semibold text-white transition hover:bg-primary/90"
+                                className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-base font-bold text-slate-700 transition hover:border-primary hover:text-primary"
+                                aria-label="Replenish stock"
                               >
-                                Add
+                                +
                               </button>
                             </div>
-                          ) : null}
-                        </div>
+
+                            {activeReplenishId === product.id ? (
+                              <div className="flex flex-col items-start gap-2">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={edit.replenishBy}
+                                  onChange={(event) => updateFieldForProduct(product, 'replenishBy', event.target.value)}
+                                  placeholder="Add"
+                                  className="h-9 w-full rounded-lg border border-border bg-white px-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const amount = Number.parseInt(edit.replenishBy, 10);
+                                    if (!Number.isFinite(amount) || amount <= 0) {
+                                      setStatus(null, 'Replenish amount must be greater than 0.');
+                                      return;
+                                    }
+                                    updateFieldForProduct(product, 'quantity', String(currentQuantity + amount));
+                                    updateFieldForProduct(product, 'replenishBy', '');
+                                    setActiveReplenishId(null);
+                                  }}
+                                  className="h-9 w-20 self-center rounded-lg border border-primary bg-primary px-3 text-xs font-semibold text-white transition hover:bg-primary/90"
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
                       </td>
                       <td className="px-2 py-3 align-top">
                         <input
