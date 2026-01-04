@@ -147,7 +147,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
         className={cn(
-          'flex h-9 w-full items-center gap-1 rounded-full border border-border bg-white px-3 text-sm transition',
+          'flex h-6 w-full items-center gap-1 rounded-full border border-border bg-white px-2 text-xs transition',
           'hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
           disabled && 'cursor-not-allowed opacity-60'
         )}
@@ -155,7 +155,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         <span className={cn('min-w-0 flex-1 truncate', displayed ? 'text-slate-900' : 'text-slate-400')}>
           {displayed || placeholder}
         </span>
-        <Calendar className="h-4 w-4 text-slate-500" />
+        <Calendar className="h-3 w-3 text-slate-500" />
       </button>
 
       <AnimatePresence>

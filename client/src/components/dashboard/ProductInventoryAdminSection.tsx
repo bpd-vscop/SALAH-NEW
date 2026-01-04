@@ -817,7 +817,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                               <div className="relative group">
                                 <span
                                   className={cn(
-                                    'inline-flex h-9 min-w-14 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors',
+                                    'inline-flex h-6 min-w-14 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition-colors',
                                     displayQuantityPillClass
                                   )}
                                 >
@@ -845,7 +845,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                                   setActiveReplenishId((current) => (current === product.id ? null : product.id));
                                   updateFieldForProduct(product, 'replenishBy', '');
                                 }}
-                                className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-base font-bold text-slate-700 transition hover:border-primary hover:text-primary"
+                                className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:border-primary hover:text-primary"
                                 aria-label="Replenish stock"
                               >
                                 +
@@ -860,7 +860,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                                   value={edit.replenishBy}
                                   onChange={(event) => updateFieldForProduct(product, 'replenishBy', event.target.value)}
                                   placeholder="Add"
-                                  className="h-9 w-full rounded-lg border border-border bg-white px-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                  className="h-6 w-full rounded-lg border border-border bg-white px-2 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 />
                                 <button
                                   type="button"
@@ -874,7 +874,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                                     updateFieldForProduct(product, 'replenishBy', '');
                                     setActiveReplenishId(null);
                                   }}
-                                  className="h-9 w-20 self-center rounded-lg border border-primary bg-primary px-3 text-xs font-semibold text-white transition hover:bg-primary/90"
+                                  className="h-6 w-16 self-center rounded-lg border border-primary bg-primary px-2 text-xs font-semibold text-white transition hover:bg-primary/90"
                                 >
                                   Add
                                 </button>
@@ -889,7 +889,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                           min={0}
                           value={edit.lowStockThreshold}
                           onChange={(event) => updateFieldForProduct(product, 'lowStockThreshold', event.target.value)}
-                          className="h-9 w-full rounded-lg border border-border bg-white px-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          className="h-6 w-full rounded-lg border border-border bg-white px-2 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </td>
                       <td className="px-2 py-3 align-top">
@@ -899,7 +899,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                           step="0.01"
                           value={edit.price}
                           onChange={(event) => updateFieldForProduct(product, 'price', event.target.value)}
-                          className="h-9 w-full rounded-lg border border-border bg-white px-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          className="h-6 w-full rounded-lg border border-border bg-white px-2 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </td>
                       <td className="px-2 py-3 align-top">
@@ -907,7 +907,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                           <select
                             value={edit.saleType}
                             onChange={(event) => updateFieldForProduct(product, 'saleType', event.target.value as ProductInventoryEditState['saleType'])}
-                            className="h-9 w-full rounded-lg border border-border bg-white px-2 text-xs font-semibold text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            className="h-6 w-full rounded-lg border border-border bg-white px-2 text-xs font-semibold text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                           >
                             <option value="percentage">%</option>
                             <option value="price">Price</option>
@@ -921,7 +921,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                               value={edit.salePercentage}
                               onChange={(event) => updateFieldForProduct(product, 'salePercentage', event.target.value)}
                               placeholder="%"
-                              className="h-9 w-full rounded-lg border border-border bg-white px-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              className="h-6 w-full rounded-lg border border-border bg-white px-2 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                             />
                           ) : (
                             <input
@@ -931,7 +931,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                               value={edit.salePrice}
                               onChange={(event) => updateFieldForProduct(product, 'salePrice', event.target.value)}
                               placeholder="—"
-                              className="h-9 w-full rounded-lg border border-border bg-white px-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              className="h-6 w-full rounded-lg border border-border bg-white px-2 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                             />
                           )}
                           {(() => {
@@ -1015,7 +1015,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                                 updateFieldForProduct(product, 'saleEndDate', '');
                               }}
                               className={cn(
-                                'h-8 whitespace-nowrap rounded-lg border px-2 text-[0.7rem] font-semibold transition',
+                                'h-6 whitespace-nowrap rounded-lg border px-2 text-[0.7rem] font-semibold transition',
                                 (() => {
                                   const nextBasePrice = Number.parseFloat(edit.price);
                                   const basePrice = Number.isFinite(nextBasePrice) ? nextBasePrice : product.price;
@@ -1072,10 +1072,10 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                                 setTimeout(() => setOpenBadgeDropdownId(null), 150);
                               }
                             }}
-                            className="flex h-9 w-full items-center justify-between rounded-lg border border-border bg-white px-3 text-xs font-medium text-slate-700 transition hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            className="flex h-6 w-full items-center justify-between rounded-lg border border-border bg-white px-2 text-xs font-medium text-slate-700 transition hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                           >
                             <span>Badges</span>
-                            <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="h-3 w-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                           </button>
@@ -1153,7 +1153,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                             disabled={isSaving}
                             onClick={() => void toggleHidden(product)}
                             className={cn(
-                              'inline-flex h-8 w-8 items-center justify-center !rounded-full border text-xs font-semibold transition',
+                              'inline-flex h-6 w-6 items-center justify-center !rounded-full border text-xs font-semibold transition',
                               product.visibility === 'hidden'
                                 ? 'border-slate-200 bg-white text-slate-700 hover:border-primary hover:text-primary'
                                 : 'border-amber-200 bg-amber-100 text-amber-900 hover:bg-amber-200'
@@ -1166,7 +1166,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                           <button
                             type="button"
                             onClick={() => onOpenProduct(product.id)}
-                            className="inline-flex h-8 w-8 items-center justify-center !rounded-full border border-border bg-white text-xs font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
+                            className="inline-flex h-6 w-6 items-center justify-center !rounded-full border border-border bg-white text-xs font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
                             aria-label="Edit details"
                             title="Edit details"
                           >
@@ -1177,7 +1177,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                             disabled={!rowHasEdits || isSaving}
                             onClick={() => void saveProduct(product)}
                             className={cn(
-                              'inline-flex h-8 w-8 items-center justify-center !rounded-full text-xs font-semibold transition',
+                              'inline-flex h-6 w-6 items-center justify-center !rounded-full text-xs font-semibold transition',
                               !rowHasEdits || isSaving
                                 ? 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
                                 : 'border border-primary bg-primary text-white hover:bg-primary/90'
