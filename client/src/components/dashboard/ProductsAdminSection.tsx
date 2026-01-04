@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react';
 import { formatCurrency } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { productsApi } from '../../api/products';
@@ -1321,7 +1321,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted">
                 Showing {filteredAndSortedProducts.length} of {products.length} products
-                {selectedProducts.size > 0 && ` • ${selectedProducts.size} selected`}
+                {selectedProducts.size > 0 && ` â€¢ ${selectedProducts.size} selected`}
               </p>
               {selectedProducts.size > 0 && (
                 <button
@@ -1592,7 +1592,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                           {typeof product.cost === 'number' ? (
                             <p className="text-xs font-semibold text-slate-700">{formatCurrency(product.cost)}</p>
                           ) : (
-                            <p className="text-xs text-muted">—</p>
+                            <p className="text-xs text-muted">â€”</p>
                           )}
                         </td>
                         <td className="px-4 py-3">
@@ -1681,7 +1681,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-slate-600 transition hover:border-primary hover:text-primary"
                   aria-label="Close serial numbers panel"
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 
@@ -1871,7 +1871,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                                 />
                               </td>
                               <td className="px-4 py-3 text-sm text-slate-700 align-middle whitespace-nowrap">
-                                {row.addedAt ? new Date(row.addedAt).toLocaleDateString() : '—'}
+                                {row.addedAt ? new Date(row.addedAt).toLocaleDateString() : 'â€”'}
                               </td>
                               <td className="px-4 py-3 align-top">
                                 <textarea
@@ -2116,7 +2116,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         )}
                         style={isWarning ? { backgroundColor: '#ffcc00' } : undefined}
                       >
-                        {isIncomplete ? '!' : isWarning ? '⚠' : index < currentStep ? '✓' : index + 1}
+                        {isIncomplete ? '!' : isWarning ? <AlertTriangle className="h-3.5 w-3.5" /> : index < currentStep ? <Check className="h-3.5 w-3.5" /> : index + 1}
                       </span>
                       <div className="flex-1 min-w-0">
                         <div
@@ -2186,7 +2186,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 value={form.name}
                 onChange={(event) => setForm((state) => ({ ...state, name: event.target.value }))}
                 required
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
             <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -2196,7 +2196,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 value={form.slug}
                 onChange={(event) => setForm((state) => ({ ...state, slug: event.target.value }))}
                 placeholder="auto-generate if left blank"
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
             <div className="grid gap-4 md:grid-cols-2">
@@ -2206,7 +2206,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                   type="text"
                   value={form.sku}
                   onChange={(event) => setForm((state) => ({ ...state, sku: event.target.value }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -2215,7 +2215,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                   type="text"
                   value={form.productCode}
                   onChange={(event) => setForm((state) => ({ ...state, productCode: event.target.value }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
             </div>
@@ -2261,7 +2261,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                           onClick={() =>
                             setCategoryDropdownOpen(categoryDropdownOpen === dropdownId ? null : dropdownId)
                           }
-                          className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         >
                           <div className="flex min-w-0 flex-1 items-center gap-2">
                             {selectedCategory?.imageUrl && (
@@ -2357,7 +2357,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     <button
                       type="button"
                       onClick={() => removeCategoryRow(index)}
-                      className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 transition hover:bg-red-50"
+                      className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 transition hover:bg-red-50"
                       aria-label="Remove category"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -2396,7 +2396,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                   value={form.manufacturerName}
                   onChange={(event) => setForm((state) => ({ ...state, manufacturerName: event.target.value }))}
                   placeholder="Override or add new manufacturer label"
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
             </div>
@@ -2455,7 +2455,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                   aria-checked={!form.requiresB2B}
                   onClick={() => setForm((state) => ({ ...state, requiresB2B: !state.requiresB2B }))}
                   className={cn(
-                    'relative inline-flex h-8 w-14 items-center rounded-full border transition',
+                    'relative inline-flex h-6 w-11 items-center rounded-full border transition',
                     !form.requiresB2B
                       ? 'border-primary bg-primary'
                       : 'border-slate-300 bg-slate-200'
@@ -2463,8 +2463,8 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 >
                   <span
                     className={cn(
-                      'inline-block h-6 w-6 rounded-full bg-white shadow transition',
-                      !form.requiresB2B ? 'translate-x-6' : 'translate-x-1'
+                      'inline-block h-4 w-4 rounded-full bg-white shadow transition',
+                      !form.requiresB2B ? 'translate-x-5' : 'translate-x-1'
                     )}
                   />
                   <span className="sr-only">Toggle B2B requirement</span>
@@ -2484,7 +2484,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 aria-checked={form.tags.has('coming soon')}
                 onClick={() => toggleTag('coming soon')}
                 className={cn(
-                  'relative inline-flex h-8 w-14 items-center rounded-full border transition',
+                  'relative inline-flex h-6 w-11 items-center rounded-full border transition',
                   form.tags.has('coming soon')
                     ? 'border-primary bg-primary'
                     : 'border-slate-300 bg-slate-200'
@@ -2492,8 +2492,8 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
               >
                 <span
                   className={cn(
-                    'inline-block h-6 w-6 rounded-full bg-white shadow transition',
-                    form.tags.has('coming soon') ? 'translate-x-6' : 'translate-x-1'
+                    'inline-block h-4 w-4 rounded-full bg-white shadow transition',
+                    form.tags.has('coming soon') ? 'translate-x-5' : 'translate-x-1'
                   )}
                 />
                 <span className="sr-only">Toggle coming soon</span>
@@ -2534,7 +2534,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                   step="0.01"
                   value={form.price}
                   onChange={(event) => setForm((state) => ({ ...state, price: event.target.value }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   required
                 />
               </label>
@@ -2549,7 +2549,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                   value={form.cost}
                   onChange={(event) => setForm((state) => ({ ...state, cost: event.target.value }))}
                   placeholder="Hidden from storefront"
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -2561,7 +2561,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                   value={form.salePrice}
                   onChange={(event) => setForm((state) => ({ ...state, salePrice: event.target.value }))}
                   placeholder="Leave blank for standard pricing"
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
             </div>
@@ -2572,7 +2572,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                   type="datetime-local"
                   value={form.saleStartDate}
                   onChange={(event) => setForm((state) => ({ ...state, saleStartDate: event.target.value }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -2581,7 +2581,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                   type="datetime-local"
                   value={form.saleEndDate}
                   onChange={(event) => setForm((state) => ({ ...state, saleEndDate: event.target.value }))}
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
             </div>
@@ -2592,7 +2592,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 value={form.taxClass}
                 onChange={(event) => setForm((state) => ({ ...state, taxClass: event.target.value }))}
                 placeholder="Standard, reduced, exempt..."
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
             <div className="pt-2">
@@ -2644,7 +2644,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                               },
                             }))
                           }
-                          className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </label>
                       <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -2659,7 +2659,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                               inventory: { ...state.inventory, lowStockThreshold: event.target.value },
                             }))
                           }
-                          className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </label>
                       <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -2694,7 +2694,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                             }))
                           }
                           placeholder="Ships in 48 hours"
-                          className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </label>
                     </div>
@@ -2753,15 +2753,15 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     value={highlight}
                     onChange={(event) => updateHighlight(index, event.target.value)}
                     placeholder="e.g. Includes Smart Key programming support"
-                    className="h-11 flex-1 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 flex-1 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="button"
                     onClick={() => removeHighlight(index)}
-                    className="h-11 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
+                    className="h-9 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
                     aria-label="Remove highlight"
                   >
-                    ×
+                    Ã—
                   </button>
                 </div>
               ))}
@@ -2787,15 +2787,15 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     value={item}
                     onChange={(event) => updatePackageItem(index, event.target.value)}
                     placeholder="e.g. VVDI tool case"
-                    className="h-11 flex-1 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 flex-1 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="button"
                     onClick={() => removePackageItem(index)}
-                    className="h-11 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
+                    className="h-9 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
                     aria-label="Remove package item"
                   >
-                    ×
+                    Ã—
                   </button>
                 </div>
               ))}
@@ -2967,22 +2967,22 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     value={document.label}
                     onChange={(event) => updateDocument(document.id, 'label', event.target.value)}
                     placeholder="Installation manual"
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <input
                     type="text"
                     value={document.url}
                     onChange={(event) => updateDocument(document.id, 'url', event.target.value)}
                     placeholder="https://example.com/manual.pdf or /uploads/products/..."
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="button"
                     onClick={() => removeDocument(document.id)}
-                    className="h-11 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
+                    className="h-9 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
                     aria-label="Remove document"
                   >
-                    ×
+                    Ã—
                   </button>
                 </div>
               ))}
@@ -3013,22 +3013,22 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     value={row.label}
                     onChange={(event) => updateKeyValueRow('specifications', row.id, 'label', event.target.value)}
                     placeholder="Transponder"
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <input
                     type="text"
                     value={row.value}
                     onChange={(event) => updateKeyValueRow('specifications', row.id, 'value', event.target.value)}
                     placeholder="46 / 4D / 8A"
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="button"
                     onClick={() => removeKeyValueRow('specifications', row.id)}
-                    className="h-11 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
+                    className="h-9 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
                     aria-label="Remove specification"
                   >
-                    ×
+                    Ã—
                   </button>
                 </div>
               ))}
@@ -3054,22 +3054,22 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     value={row.label}
                     onChange={(event) => updateKeyValueRow('attributes', row.id, 'label', event.target.value)}
                     placeholder="Buttons"
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <input
                     type="text"
                     value={row.value}
                     onChange={(event) => updateKeyValueRow('attributes', row.id, 'value', event.target.value)}
                     placeholder="4 (lock/unlock/panic/trunk)"
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="button"
                     onClick={() => removeKeyValueRow('attributes', row.id)}
-                    className="h-11 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
+                    className="h-9 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
                     aria-label="Remove attribute"
                   >
-                    ×
+                    Ã—
                   </button>
                 </div>
               ))}
@@ -3092,22 +3092,22 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     value={row.label}
                     onChange={(event) => updateKeyValueRow('customAttributes', row.id, 'label', event.target.value)}
                     placeholder="Programming notes"
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <input
                     type="text"
                     value={row.value}
                     onChange={(event) => updateKeyValueRow('customAttributes', row.id, 'value', event.target.value)}
                     placeholder="Requires VVDI smart adapter"
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="button"
                     onClick={() => removeKeyValueRow('customAttributes', row.id)}
-                    className="h-11 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
+                    className="h-9 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
                     aria-label="Remove custom attribute"
                   >
-                    ×
+                    Ã—
                   </button>
                 </div>
               ))}
@@ -3135,15 +3135,15 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     value={attribute}
                     onChange={(event) => updateVariationAttributeName(index, event.target.value)}
                     placeholder="e.g. Button count"
-                    className="h-11 flex-1 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 flex-1 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="button"
                     onClick={() => removeVariationAttributeName(index)}
-                    className="h-11 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
+                    className="h-9 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
                     aria-label="Remove variation attribute"
                   >
-                    ×
+                    Ã—
                   </button>
                 </div>
               ))}
@@ -3173,7 +3173,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         type="text"
                         value={variation.name}
                         onChange={(event) => updateVariationField(variation.id, 'name', event.target.value)}
-                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -3182,7 +3182,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         type="text"
                         value={variation.sku}
                         onChange={(event) => updateVariationField(variation.id, 'sku', event.target.value)}
-                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -3193,7 +3193,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         step="0.01"
                         value={variation.price}
                         onChange={(event) => updateVariationField(variation.id, 'price', event.target.value)}
-                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -3204,7 +3204,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         step="0.01"
                         value={variation.salePrice}
                         onChange={(event) => updateVariationField(variation.id, 'salePrice', event.target.value)}
-                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -3214,7 +3214,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         min={0}
                         value={variation.stockQuantity}
                         onChange={(event) => updateVariationField(variation.id, 'stockQuantity', event.target.value)}
-                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -3225,7 +3225,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         step="0.01"
                         value={variation.weight}
                         onChange={(event) => updateVariationField(variation.id, 'weight', event.target.value)}
-                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted md:col-span-2">
@@ -3234,7 +3234,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         type="url"
                         value={variation.image}
                         onChange={(event) => updateVariationField(variation.id, 'image', event.target.value)}
-                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </label>
                     <label className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -3267,7 +3267,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                             updateVariationAttribute(variation.id, attribute.id, 'label', event.target.value)
                           }
                           placeholder="Attribute"
-                          className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          className="h-8 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                         <input
                           type="text"
@@ -3276,15 +3276,15 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                             updateVariationAttribute(variation.id, attribute.id, 'value', event.target.value)
                           }
                           placeholder="Value"
-                          className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          className="h-8 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                         <button
                           type="button"
                           onClick={() => removeVariationAttribute(variation.id, attribute.id)}
-                          className="h-10 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
+                          className="h-8 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
                           aria-label="Remove variation attribute"
                         >
-                          ×
+                          Ã—
                         </button>
                       </div>
                     ))}
@@ -3330,7 +3330,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         value={serial.serialNumber}
                         onChange={(event) => updateSerialNumberField(serial.id, 'serialNumber', event.target.value)}
                         placeholder="e.g. SN123456789"
-                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -3355,7 +3355,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         value={serial.orderId}
                         onChange={(event) => updateSerialNumberField(serial.id, 'orderId', event.target.value)}
                         placeholder="Optional"
-                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted md:col-span-2">
@@ -3364,7 +3364,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         type="datetime-local"
                         value={serial.soldDate}
                         onChange={(event) => updateSerialNumberField(serial.id, 'soldDate', event.target.value)}
-                        className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-xl border border-border bg-white px-3 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted md:col-span-2">
@@ -3467,21 +3467,21 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         placeholder="Year start"
                         value={entry.yearStart}
                         onChange={(event) => updateCompatibilityRow(entry.id, 'yearStart', event.target.value)}
-                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                       <input
                         type="number"
                         placeholder="Year end"
                         value={entry.yearEnd}
                         onChange={(event) => updateCompatibilityRow(entry.id, 'yearEnd', event.target.value)}
-                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                       <input
                         type="number"
                         placeholder="Specific year"
                         value={entry.year}
                         onChange={(event) => updateCompatibilityRow(entry.id, 'year', event.target.value)}
-                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </div>
                     <div className="grid gap-2 md:grid-cols-3">
@@ -3518,7 +3518,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         placeholder="Sub-model"
                         value={entry.subModel}
                         onChange={(event) => updateCompatibilityRow(entry.id, 'subModel', event.target.value)}
-                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </div>
                     <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
@@ -3527,19 +3527,19 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                         placeholder="Engine"
                         value={entry.engine}
                         onChange={(event) => updateCompatibilityRow(entry.id, 'engine', event.target.value)}
-                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                       <input
                         type="text"
                         placeholder="Notes"
                         value={entry.notes}
                         onChange={(event) => updateCompatibilityRow(entry.id, 'notes', event.target.value)}
-                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="h-8 rounded-lg border border-border bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                       <button
                         type="button"
                         onClick={() => removeCompatibilityRow(entry.id)}
-                        className="h-10 rounded-lg border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
+                        className="h-8 rounded-lg border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
                         aria-label="Remove compatibility row"
                       >
                         Remove
@@ -3626,7 +3626,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       shipping: { ...state.shipping, weight: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -3640,7 +3640,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       shipping: { ...state.shipping, weightUnit: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
             </div>
@@ -3658,7 +3658,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       shipping: { ...state.shipping, length: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -3674,7 +3674,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       shipping: { ...state.shipping, width: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -3690,7 +3690,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       shipping: { ...state.shipping, height: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -3704,7 +3704,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       shipping: { ...state.shipping, dimensionUnit: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
             </div>
@@ -3720,7 +3720,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       shipping: { ...state.shipping, shippingClass: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -3734,7 +3734,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       shipping: { ...state.shipping, warehouseLocation: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
             </div>
@@ -3770,29 +3770,29 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     value={badge.label}
                     onChange={(event) => updateBadge(badge.id, 'label', event.target.value)}
                     placeholder="Warranty"
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <input
                     type="text"
                     value={badge.description}
                     onChange={(event) => updateBadge(badge.id, 'description', event.target.value)}
                     placeholder="12-month manufacturer warranty"
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <input
                     type="text"
                     value={badge.icon}
                     onChange={(event) => updateBadge(badge.id, 'icon', event.target.value)}
                     placeholder="shield-check"
-                    className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="button"
                     onClick={() => removeBadge(badge.id)}
-                    className="h-11 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
+                    className="h-9 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
                     aria-label="Remove badge"
                   >
-                    ×
+                    Ã—
                   </button>
                 </div>
               ))}
@@ -3809,7 +3809,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       support: { ...state.support, warranty: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -3823,7 +3823,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       support: { ...state.support, returnPolicy: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -3837,7 +3837,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       support: { ...state.support, supportPhone: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -3851,7 +3851,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       support: { ...state.support, supportEmail: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -3865,7 +3865,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       support: { ...state.support, liveChatUrl: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -3879,7 +3879,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       support: { ...state.support, supportHours: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
             </div>
@@ -3899,7 +3899,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     seo: { ...state.seo, metaTitle: event.target.value },
                   }))
                 }
-                className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </label>
             <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -3928,7 +3928,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       seo: { ...state.seo, canonicalUrl: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -3942,7 +3942,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       seo: { ...state.seo, openGraphImage: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
             </div>
@@ -3998,7 +3998,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       reviewsSummary: { ...state.reviewsSummary, averageRating: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -4013,7 +4013,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                       reviewsSummary: { ...state.reviewsSummary, reviewCount: event.target.value },
                     }))
                   }
-                  className="h-11 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 rounded-xl border border-border bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </label>
             </div>
@@ -4026,7 +4026,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     onClick={addRatingDefaults}
                     className="text-xs font-semibold text-muted underline-offset-2 hover:underline"
                   >
-                    Use 5★ template
+                    Use 5â˜… template
                   </button>
                   <button
                     type="button"
@@ -4044,7 +4044,7 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     value={row.rating}
                     onChange={(event) => updateRatingRow(row.id, 'rating', event.target.value)}
                     placeholder="e.g. 5"
-                    className="h-10 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-8 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <input
                     type="number"
@@ -4052,15 +4052,15 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                     value={row.count}
                     onChange={(event) => updateRatingRow(row.id, 'count', event.target.value)}
                     placeholder="Count"
-                    className="h-10 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-8 rounded-xl border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="button"
                     onClick={() => removeRatingRow(row.id)}
-                    className="h-10 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
+                    className="h-8 rounded-xl border border-border px-3 text-sm text-muted transition hover:border-red-200 hover:text-red-600"
                     aria-label="Remove rating row"
                   >
-                    ×
+                    Ã—
                   </button>
                 </div>
               ))}

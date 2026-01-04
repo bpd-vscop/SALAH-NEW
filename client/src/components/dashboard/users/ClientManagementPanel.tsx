@@ -10,7 +10,7 @@ import { CountrySelect } from '../../common/CountrySelect';
 import { BusinessTypeSelect } from '../../common/BusinessTypeSelect';
 import { isBusinessTypeOption, type BusinessTypeOption } from '../../../data/businessTypes';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Download, Eye, EyeOff, MessageSquare, Search, X } from 'lucide-react';
+import { ChevronDown, Download, Eye, EyeOff, Loader2, MessageSquare, Pencil, Search, Send, Trash2, X } from 'lucide-react';
 import { PASSWORD_COMPLEXITY_MESSAGE, evaluatePasswordStrength, meetsPasswordPolicy } from '../../../utils/password';
 import { Select } from '../../ui/Select';
 
@@ -1662,7 +1662,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                                 type="button"
                                 onClick={() => handleMessageClient(client)}
                                 className={cn(
-                                  'inline-flex items-center justify-center rounded-xl border border-border px-2.5 py-1.5 text-xs font-medium text-slate-600 transition',
+                                  'inline-flex h-8 w-8 items-center justify-center rounded-full border border-border text-slate-600 transition',
                                   client.email ? 'hover:border-primary hover:text-primary' : 'cursor-not-allowed opacity-50'
                                 )}
                                 disabled={!client.email}
@@ -1673,26 +1673,45 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                               <button
                                 type="button"
                                 onClick={() => handleEdit(client)}
-                                className="inline-flex items-center rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+                                className={cn(
+                                  'inline-flex h-8 w-8 items-center justify-center rounded-full border border-border text-slate-600 transition hover:border-primary hover:text-primary',
+                                  !canManageClients && 'cursor-not-allowed opacity-50'
+                                )}
                                 disabled={!canManageClients}
+                                aria-label="Edit client"
+                                title="Edit client"
                               >
-                                Edit
+                                <Pencil className="h-4 w-4" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleSendVerification(client)}
-                                className="inline-flex items-center rounded-xl border border-primary/40 px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/5"
+                                className={cn(
+                                  'inline-flex h-8 w-8 items-center justify-center rounded-full border border-primary/40 text-primary transition hover:bg-primary/5',
+                                  (!canManageClients || !client.email || sendingVerificationId === client.id) && 'cursor-not-allowed opacity-50'
+                                )}
                                 disabled={!canManageClients || !client.email || sendingVerificationId === client.id}
+                                aria-label="Send verification"
+                                title={client.email ? 'Send verification' : 'Client has no email'}
                               >
-                                {sendingVerificationId === client.id ? 'Sending...' : 'Send verification'}
+                                {sendingVerificationId === client.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Send className="h-4 w-4" />
+                                )}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => openReasonPrompt('delete', client)}
-                                className="inline-flex items-center rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                                className={cn(
+                                  'inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 transition hover:bg-red-50',
+                                  !canManageClients && 'cursor-not-allowed opacity-50'
+                                )}
                                 disabled={!canManageClients}
+                                aria-label="Delete client"
+                                title="Delete client"
                               >
-                                Delete
+                                <Trash2 className="h-4 w-4" />
                               </button>
                             </div>
                           </td>
