@@ -10,7 +10,7 @@ import { CountrySelect } from '../../common/CountrySelect';
 import { BusinessTypeSelect } from '../../common/BusinessTypeSelect';
 import { isBusinessTypeOption, type BusinessTypeOption } from '../../../data/businessTypes';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Download, Eye, EyeOff, Loader2, MessageSquare, Pencil, Search, Send, Trash2, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, Download, Eye, EyeOff, Loader2, MessageSquare, Pencil, Search, Send, Trash2, Upload, X, XCircle } from 'lucide-react';
 import { PASSWORD_COMPLEXITY_MESSAGE, evaluatePasswordStrength, meetsPasswordPolicy } from '../../../utils/password';
 import { Select } from '../../ui/Select';
 
@@ -219,6 +219,8 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
   const [pendingDelete, setPendingDelete] = useState<User | null>(null);
   const [sendingVerificationId, setSendingVerificationId] = useState<string | null>(null);
   const [uploadingVerificationId, setUploadingVerificationId] = useState<string | null>(null);
+  const [verificationDecisionId, setVerificationDecisionId] = useState<string | null>(null);
+  const [verificationDecisionStatus, setVerificationDecisionStatus] = useState<'approved' | 'rejected' | null>(null);
   const [phoneValue, setPhoneValue] = useState<PhoneNumberInputValue>({ countryCode: '+1', number: '' });
   const [formStep, setFormStep] = useState<1 | 2>(1);
   const [useCustomBusinessType, setUseCustomBusinessType] = useState(false);
@@ -944,6 +946,38 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
     }
   };
 
+  const handleVerificationDecision = async (client: User, status: 'approved' | 'rejected') => {
+    if (!canManageClients) {
+      setStatus(null, 'You do not have permission to review verification documents');
+      return;
+    }
+    if (status === 'approved' && !client.verificationFileUrl) {
+      setStatus(null, 'This client does not have a verification document to approve');
+      return;
+    }
+
+    setVerificationDecisionId(client.id);
+    setVerificationDecisionStatus(status);
+    try {
+      const response = await usersApi.update(client.id, { verificationStatus: status });
+      setRecords((current) =>
+        current.map((record) => (record.id === response.user.id ? response.user : record))
+      );
+      setStatus(
+        status === 'approved'
+          ? `Verification approved for ${response.user.name || response.user.email || 'client'}`
+          : `Verification revoked for ${response.user.name || response.user.email || 'client'}`
+      );
+    } catch (error) {
+      console.error(error);
+      const message = error instanceof Error ? error.message : 'Unable to update verification status';
+      setStatus(null, message);
+    } finally {
+      setVerificationDecisionId(null);
+      setVerificationDecisionStatus(null);
+    }
+  };
+
   const handleVerificationUpload = async (
     client: User,
     event: React.ChangeEvent<HTMLInputElement>
@@ -1507,12 +1541,23 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                   records.map((client) => {
                     const isEditing = editingId === client.id;
                     const verificationHref = resolveUploadsHref(client.verificationFileUrl);
+                    const verificationStatus =
+                      client.verificationStatus ?? (client.verificationFileUrl ? 'pending' : 'none');
+                    const isVerificationApproved = verificationStatus === 'approved';
+                    const isVerificationPending = verificationStatus === 'pending';
                     const isVerificationUploading = uploadingVerificationId === client.id;
+                    const isDecisionBusy = verificationDecisionId === client.id;
+                    const isApproving = isDecisionBusy && verificationDecisionStatus === 'approved';
+                    const isRevoking = isDecisionBusy && verificationDecisionStatus === 'rejected';
                     const verificationInputId = `verification-upload-${client.id}`;
                     return (
                       <tr
                         key={client.id}
-                        className={cn('transition hover:bg-primary/5', isEditing && 'bg-primary/10')}
+                        className={cn(
+                          'transition',
+                          isVerificationPending ? 'bg-amber-50/90 hover:bg-amber-100/70' : 'hover:bg-primary/5',
+                          isEditing && 'bg-primary/10'
+                        )}
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-start gap-3">
@@ -1656,58 +1701,116 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                           </td>
                         )}
                         <td className="px-4 py-3 text-sm text-slate-600">
-                          {verificationHref ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setDocumentPreview({
-                                    href: verificationHref,
-                                    name: client.name || client.email || deriveVerificationFilename(client),
-                                  })
-                                }
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-white text-slate-600 transition hover:border-primary hover:text-primary"
-                                title="View document"
-                                aria-label="View document"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
-                              <a
-                                href={verificationHref}
-                                download={`${deriveVerificationFilename(client)}`}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-white text-slate-600 transition hover:border-primary hover:text-primary"
-                                title="Download document"
-                                aria-label="Download document"
-                              >
-                                <Download className="h-4 w-4" />
-                              </a>
-                            </div>
-                          ) : client.clientType === 'B2B' ? (
-                            <div className="flex items-center gap-2">
-                              <input
-                                id={verificationInputId}
-                                type="file"
-                                accept="application/pdf,image/png,image/jpeg"
-                                className="sr-only"
-                                disabled={!canManageClients || isVerificationUploading}
-                                onChange={(event) => void handleVerificationUpload(client, event)}
-                              />
-                              <label
-                                htmlFor={verificationInputId}
-                                className={cn(
-                                  'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-500 transition hover:border-primary hover:text-primary',
-                                  (!canManageClients || isVerificationUploading) && 'cursor-not-allowed opacity-50'
-                                )}
-                                title="Upload verification document"
-                                aria-label="Upload verification document"
-                              >
-                                {isVerificationUploading ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Upload className="h-4 w-4" />
-                                )}
-                              </label>
-                            </div>
+                          {client.clientType === 'B2B' ? (
+                            verificationHref && isVerificationApproved ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDocumentPreview({
+                                      href: verificationHref,
+                                      name: client.name || client.email || deriveVerificationFilename(client),
+                                    })
+                                  }
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-white text-slate-600 transition hover:border-primary hover:text-primary"
+                                  title="View document"
+                                  aria-label="View document"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                                <a
+                                  href={verificationHref}
+                                  download={`${deriveVerificationFilename(client)}`}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-white text-slate-600 transition hover:border-primary hover:text-primary"
+                                  title="Download document"
+                                  aria-label="Download document"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => handleVerificationDecision(client, 'rejected')}
+                                  disabled={!canManageClients || isDecisionBusy}
+                                  className={cn(
+                                    'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50',
+                                    (!canManageClients || isDecisionBusy) && 'cursor-not-allowed opacity-50'
+                                  )}
+                                  title="Revoke verification"
+                                  aria-label="Revoke verification"
+                                >
+                                  {isRevoking ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                                </button>
+                              </div>
+                            ) : verificationHref ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDocumentPreview({
+                                      href: verificationHref,
+                                      name: client.name || client.email || deriveVerificationFilename(client),
+                                    })
+                                  }
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-white text-slate-600 transition hover:border-primary hover:text-primary"
+                                  title="Review document"
+                                  aria-label="Review document"
+                                >
+                                  <Search className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleVerificationDecision(client, 'approved')}
+                                  disabled={!canManageClients || isDecisionBusy}
+                                  className={cn(
+                                    'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 text-emerald-600 transition hover:bg-emerald-50',
+                                    (!canManageClients || isDecisionBusy) && 'cursor-not-allowed opacity-50'
+                                  )}
+                                  title="Approve document"
+                                  aria-label="Approve document"
+                                >
+                                  {isApproving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleVerificationDecision(client, 'rejected')}
+                                  disabled={!canManageClients || isDecisionBusy}
+                                  className={cn(
+                                    'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50',
+                                    (!canManageClients || isDecisionBusy) && 'cursor-not-allowed opacity-50'
+                                  )}
+                                  title="Revoke verification"
+                                  aria-label="Revoke verification"
+                                >
+                                  {isRevoking ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  id={verificationInputId}
+                                  type="file"
+                                  accept="application/pdf,image/png,image/jpeg"
+                                  className="sr-only"
+                                  disabled={!canManageClients || isVerificationUploading}
+                                  onChange={(event) => void handleVerificationUpload(client, event)}
+                                />
+                                <label
+                                  htmlFor={verificationInputId}
+                                  className={cn(
+                                    'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-500 transition hover:border-primary hover:text-primary',
+                                    (!canManageClients || isVerificationUploading) && 'cursor-not-allowed opacity-50'
+                                  )}
+                                  title="Upload verification document"
+                                  aria-label="Upload verification document"
+                                >
+                                  {isVerificationUploading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Upload className="h-4 w-4" />
+                                  )}
+                                </label>
+                              </div>
+                            )
                           ) : (
                             <span className="text-xs text-slate-400">Not required</span>
                           )}

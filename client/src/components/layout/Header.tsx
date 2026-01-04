@@ -38,6 +38,7 @@ import type { Order, Product } from '../../types/api';
 import { formatCurrency } from '../../utils/format';
 
 const phoneNumbers = ['+1-407-449-6740', '+1-407-452-7149', '+1-407-978-6077'];
+const VERIFICATION_STATUS_KEY = 'verificationStatusLastSeen';
 
 function FacebookIcon({ className }: { className?: string }) {
   return (
@@ -430,6 +431,10 @@ export const Header: React.FC = () => {
     const stored = Number(localStorage.getItem('ordersLastSeenAt') || '0');
     return Number.isFinite(stored) ? stored : 0;
   });
+  const [verificationStatusLastSeen, setVerificationStatusLastSeen] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem(VERIFICATION_STATUS_KEY) || '';
+  });
 
   const ordersBadgeCount = useMemo(() => {
     if (!user || user.role !== 'client') return 0;
@@ -440,6 +445,15 @@ export const Header: React.FC = () => {
       return isActive && created > seenAt;
     }).length;
   }, [orders, ordersLastSeenAt, user]);
+
+  const verificationBadgeCount = useMemo(() => {
+    if (!user || user.role !== 'client') return 0;
+    const status = user.verificationStatus ?? (user.verificationFileUrl ? 'pending' : 'none');
+    if (status !== 'approved' && status !== 'rejected') return 0;
+    return verificationStatusLastSeen === status ? 0 : 1;
+  }, [user, verificationStatusLastSeen]);
+
+  const accountBadgeCount = ordersBadgeCount + verificationBadgeCount;
 
   useEffect(() => {
     const updateViewed = (event?: Event) => {
@@ -463,6 +477,24 @@ export const Header: React.FC = () => {
       window.removeEventListener('focus', updateViewed);
     };
   }, [ordersLastSeenAt]);
+
+  useEffect(() => {
+    const syncVerificationSeen = () => {
+      if (typeof window === 'undefined') return;
+      const stored = localStorage.getItem(VERIFICATION_STATUS_KEY) || '';
+      if (stored !== verificationStatusLastSeen) {
+        setVerificationStatusLastSeen(stored);
+      }
+    };
+    window.addEventListener('verificationStatusViewed', syncVerificationSeen as EventListener);
+    window.addEventListener('storage', syncVerificationSeen);
+    window.addEventListener('focus', syncVerificationSeen);
+    return () => {
+      window.removeEventListener('verificationStatusViewed', syncVerificationSeen as EventListener);
+      window.removeEventListener('storage', syncVerificationSeen);
+      window.removeEventListener('focus', syncVerificationSeen);
+    };
+  }, [verificationStatusLastSeen]);
 
   // Load orders for notification badge (initial, on focus, periodic refresh)
   useEffect(() => {
@@ -1002,9 +1034,9 @@ export const Header: React.FC = () => {
               </button>
 
               {/* Orders notification badge */}
-              {ordersBadgeCount > 0 && (
+              {accountBadgeCount > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-md ring-2 ring-white">
-                  {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+                  {accountBadgeCount > 99 ? '99+' : accountBadgeCount}
                 </span>
               )}
 

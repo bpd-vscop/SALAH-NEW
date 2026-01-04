@@ -91,6 +91,7 @@ const updateUserSchema = z
       }, z.boolean())
       .optional(),
     verificationFileUrl: z.union([z.string().min(1), z.null()]).optional(),
+    verificationStatus: z.enum(['none', 'pending', 'approved', 'rejected']).optional(),
     phoneCode: z.string().optional(),
     phoneNumber: z.string().optional(),
     companyTaxId: optionalTrimmed(z.string().max(80)),

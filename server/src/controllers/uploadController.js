@@ -33,6 +33,7 @@ const uploadVerification = async (req, res, next) => {
     const previousVerificationFileUrl = req.user.verificationFileUrl;
     const relativePath = path.posix.join('users', String(userId), 'verification', req.file.filename);
     req.user.verificationFileUrl = relativePath;
+    req.user.verificationStatus = 'pending';
     await req.user.save();
 
     const previousUploadsUrl = resolveUploadsUrlFromStoredPath(previousVerificationFileUrl);

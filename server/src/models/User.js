@@ -135,6 +135,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    verificationStatus: {
+      type: String,
+      enum: ['none', 'pending', 'approved', 'rejected'],
+      default: 'none',
+    },
     profileImage: {
       type: String,
       default: null,
@@ -207,6 +212,7 @@ const userSchema = new mongoose.Schema(
         ret.phoneNumber = ret.phoneNumber || null;
         ret.clientType = ret.clientType || null;
         ret.profileImage = ret.profileImage || null;
+        ret.verificationStatus = ret.verificationStatus || (ret.verificationFileUrl ? 'pending' : 'none');
         ret.isEmailVerified =
           typeof ret.isEmailVerified === 'boolean' ? ret.isEmailVerified : true;
         ret.company = ret.company

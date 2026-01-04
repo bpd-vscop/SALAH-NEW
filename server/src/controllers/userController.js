@@ -340,6 +340,17 @@ const updateUser = async (req, res, next) => {
     const actorCanEditTarget = !isSelf && req.user && canEdit(req.user.role, user.role);
     const actorHasClientAdminPrivileges =
       actorCanEditTarget && req.user && (req.user.role === 'admin' || req.user.role === 'super_admin');
+    const verificationStatusProvided = Object.prototype.hasOwnProperty.call(data, 'verificationStatus');
+    const verificationFileProvided = Object.prototype.hasOwnProperty.call(data, 'verificationFileUrl');
+
+    if (verificationStatusProvided) {
+      if (user.role !== 'client') {
+        throw forbidden('Only client accounts can update verification status');
+      }
+      if (!actorHasClientAdminPrivileges) {
+        throw forbidden('You do not have permission to update verification status');
+      }
+    }
 
     const ensureClientCompany = () => {
       if (user.role !== 'client') {
@@ -503,6 +514,7 @@ const updateUser = async (req, res, next) => {
       user.company = undefined;
       user.markModified('company');
       user.verificationFileUrl = null;
+      user.verificationStatus = 'none';
     }
 
     if (data.status) {
@@ -518,9 +530,30 @@ const updateUser = async (req, res, next) => {
       user.profileImage = null;
     }
 
-    // Update verification file URL if provided
-    if (Object.prototype.hasOwnProperty.call(data, 'verificationFileUrl')) {
-      user.verificationFileUrl = data.verificationFileUrl;
+    if (verificationFileProvided) {
+      if (user.clientType !== 'B2B') {
+        throw badRequest('Verification documents are only available for B2B clients');
+      }
+      user.verificationFileUrl = data.verificationFileUrl || null;
+      if (!verificationStatusProvided) {
+        user.verificationStatus = user.verificationFileUrl ? 'pending' : 'none';
+      }
+    }
+
+    if (verificationStatusProvided) {
+      if (user.clientType !== 'B2B') {
+        throw badRequest('Only B2B clients can be verified');
+      }
+      if (
+        (data.verificationStatus === 'approved' || data.verificationStatus === 'pending') &&
+        !user.verificationFileUrl
+      ) {
+        throw badRequest('Verification document is required before approving');
+      }
+      if (data.verificationStatus === 'rejected' || data.verificationStatus === 'none') {
+        user.verificationFileUrl = null;
+      }
+      user.verificationStatus = data.verificationStatus;
     }
 
     if (req.user) {
@@ -889,6 +922,7 @@ const convertToB2B = async (req, res, next) => {
 
     const relativePath = path.posix.join('users', id, 'verification', req.file.filename);
     user.verificationFileUrl = relativePath;
+    user.verificationStatus = 'pending';
 
     const companyAddress = [
       data.companyAddress,

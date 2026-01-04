@@ -11,7 +11,7 @@ const {
 } = require('../services/emailService');
 
 const ORDER_USER_SELECT =
-  'name email phoneCode phoneNumber clientType status isEmailVerified company verificationFileUrl profileImage shippingAddresses accountCreated accountUpdated';
+  'name email phoneCode phoneNumber clientType status isEmailVerified company verificationFileUrl verificationStatus profileImage shippingAddresses accountCreated accountUpdated';
 
 const specialInventoryStatuses = new Set(['backorder', 'preorder']);
 

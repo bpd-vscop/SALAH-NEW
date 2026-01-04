@@ -1,5 +1,5 @@
 import { http } from './http';
-import type { ClientType, User } from '../types/api';
+import type { ClientType, User, VerificationStatus } from '../types/api';
 
 export interface ListUsersParams {
   role?: User['role'] | User['role'][];
@@ -43,6 +43,7 @@ export type UpdateUserPayload = Partial<{
   companyBusinessType: string | null;
   companyTaxId: string | null;
   companyWebsite: string | null;
+  verificationStatus: VerificationStatus;
 }>;
 
 export type ShippingAddressPayload = {

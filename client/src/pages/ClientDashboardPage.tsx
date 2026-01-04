@@ -50,6 +50,7 @@ type TabType = 'account' | 'orders' | 'reviews' | 'settings' | 'b2b-upgrade';
 const DASHBOARD_TOP_MARGIN = 28; // matches hero/search stack height
 const DESKTOP_SIDEBAR_HEIGHT = `calc(100vh - ${DASHBOARD_TOP_MARGIN}px)`;
 const COMPANY_WEBSITE_PATTERN = /^[^\s]+\.[^\s]+$/;
+const VERIFICATION_STATUS_KEY = 'verificationStatusLastSeen';
 
 const US_STATES = [
   'Alabama',
@@ -163,10 +164,18 @@ export const ClientDashboardPage: React.FC = () => {
     const stored = Number(localStorage.getItem('ordersLastSeenAt') || '0');
     return Number.isFinite(stored) ? stored : 0;
   });
+  const [verificationStatusLastSeen, setVerificationStatusLastSeen] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem(VERIFICATION_STATUS_KEY) || '';
+  });
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsError, setReviewsError] = useState<string | null>(null);
   const [reviewProducts, setReviewProducts] = useState<Record<string, Product>>({});
+
+  const isB2B = user?.clientType === 'B2B';
+  const isC2B = user?.clientType === 'C2B';
+  const verificationStatus = user?.verificationStatus ?? (user?.verificationFileUrl ? 'pending' : 'none');
 
   // Profile image states
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
@@ -248,6 +257,7 @@ export const ClientDashboardPage: React.FC = () => {
   const [isBottom, setIsBottom] = useState(false);
   const [mobileHeaderHeight, setMobileHeaderHeight] = useState(0);
   const [stickyHeaderHeight, setStickyHeaderHeight] = useState(120); // Default header height with promo banner
+  const verificationSeenTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const header = document.getElementById('main-header');
@@ -325,6 +335,14 @@ export const ClientDashboardPage: React.FC = () => {
     }).length;
   }, [orders, ordersLastSeenAt]);
 
+  const verificationBadgeCount = useMemo(() => {
+    if (!isB2B) return 0;
+    if (verificationStatus !== 'approved' && verificationStatus !== 'rejected') return 0;
+    return verificationStatusLastSeen === verificationStatus ? 0 : 1;
+  }, [isB2B, verificationStatus, verificationStatusLastSeen]);
+  const accountBadgeCount = verificationBadgeCount;
+  const ordersTabBadgeCount = ordersBadgeCount;
+
   const formatOrderDate = (value?: string | null) => {
     if (!value) return 'Just now';
     const date = new Date(value);
@@ -380,6 +398,48 @@ export const ClientDashboardPage: React.FC = () => {
       window.removeEventListener('ordersViewed', syncLastSeen as EventListener);
     };
   }, [ordersLastSeenAt]);
+
+  useEffect(() => {
+    const syncVerificationSeen = () => {
+      if (typeof window === 'undefined') return;
+      const stored = localStorage.getItem(VERIFICATION_STATUS_KEY) || '';
+      if (stored !== verificationStatusLastSeen) {
+        setVerificationStatusLastSeen(stored);
+      }
+    };
+    window.addEventListener('verificationStatusViewed', syncVerificationSeen as EventListener);
+    window.addEventListener('storage', syncVerificationSeen);
+    window.addEventListener('focus', syncVerificationSeen);
+    return () => {
+      window.removeEventListener('verificationStatusViewed', syncVerificationSeen as EventListener);
+      window.removeEventListener('storage', syncVerificationSeen);
+      window.removeEventListener('focus', syncVerificationSeen);
+    };
+  }, [verificationStatusLastSeen]);
+
+  useEffect(() => {
+    if (verificationSeenTimer.current) {
+      clearTimeout(verificationSeenTimer.current);
+      verificationSeenTimer.current = null;
+    }
+    if (!isB2B) return;
+    if (activeTab !== 'account') return;
+    if (verificationStatus !== 'approved' && verificationStatus !== 'rejected') return;
+    if (verificationStatusLastSeen === verificationStatus) return;
+    if (typeof window === 'undefined') return;
+    verificationSeenTimer.current = window.setTimeout(() => {
+      localStorage.setItem(VERIFICATION_STATUS_KEY, verificationStatus);
+      setVerificationStatusLastSeen(verificationStatus);
+      window.dispatchEvent(new CustomEvent('verificationStatusViewed', { detail: { status: verificationStatus } }));
+      verificationSeenTimer.current = null;
+    }, 2000);
+    return () => {
+      if (verificationSeenTimer.current) {
+        clearTimeout(verificationSeenTimer.current);
+        verificationSeenTimer.current = null;
+      }
+    };
+  }, [activeTab, isB2B, verificationStatus, verificationStatusLastSeen]);
 
   // Initialize profile image
   useEffect(() => {
@@ -917,8 +977,6 @@ export const ClientDashboardPage: React.FC = () => {
     );
   }
 
-  const isB2B = user.clientType === 'B2B';
-  const isC2B = user.clientType === 'C2B';
   const isUnitedStates = [
     'united states',
     'united states of america'
@@ -1012,9 +1070,14 @@ export const ClientDashboardPage: React.FC = () => {
                           <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-amber-400" />
                         )}
                       </button>
-                      {tab.id === 'orders' && ordersBadgeCount > 0 && (
+                      {tab.id === 'account' && accountBadgeCount > 0 && (
                         <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-md ring-2 ring-white">
-                          {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+                          {accountBadgeCount > 99 ? '99+' : accountBadgeCount}
+                        </span>
+                      )}
+                      {tab.id === 'orders' && ordersTabBadgeCount > 0 && (
+                        <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-md ring-2 ring-white">
+                          {ordersTabBadgeCount > 99 ? '99+' : ordersTabBadgeCount}
                         </span>
                       )}
                     </div>
@@ -1078,9 +1141,14 @@ export const ClientDashboardPage: React.FC = () => {
                             <span className="ml-auto inline-flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
                           )}
                         </button>
-                        {tab.id === 'orders' && ordersBadgeCount > 0 && (
+                        {tab.id === 'account' && accountBadgeCount > 0 && (
                           <span className="absolute -right-2 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-md ring-2 ring-white">
-                            {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+                            {accountBadgeCount > 99 ? '99+' : accountBadgeCount}
+                          </span>
+                        )}
+                        {tab.id === 'orders' && ordersTabBadgeCount > 0 && (
+                          <span className="absolute -right-2 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-md ring-2 ring-white">
+                            {ordersTabBadgeCount > 99 ? '99+' : ordersTabBadgeCount}
                           </span>
                         )}
                       </div>
@@ -1192,9 +1260,14 @@ export const ClientDashboardPage: React.FC = () => {
                                 <span className="ml-auto inline-flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
                               )}
                             </button>
-                            {tab.id === 'orders' && ordersBadgeCount > 0 && (
+                            {tab.id === 'account' && accountBadgeCount > 0 && (
                               <span className="absolute -right-2 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-md ring-2 ring-white">
-                                {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+                                {accountBadgeCount > 99 ? '99+' : accountBadgeCount}
+                              </span>
+                            )}
+                            {tab.id === 'orders' && ordersTabBadgeCount > 0 && (
+                              <span className="absolute -right-2 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-md ring-2 ring-white">
+                                {ordersTabBadgeCount > 99 ? '99+' : ordersTabBadgeCount}
                               </span>
                             )}
                           </div>
@@ -1688,20 +1761,42 @@ export const ClientDashboardPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {user.verificationFileUrl ? (
+                      {verificationStatus === 'approved' ? (
                         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                           <div className="flex items-center gap-3">
                             <svg className="h-8 w-8 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                             <div>
-                              <p className="font-semibold text-emerald-900">Verification Document Submitted</p>
-                              <p className="text-sm text-emerald-700">Your document is under review. We'll notify you once verified.</p>
+                              <p className="font-semibold text-emerald-900">Verification Approved</p>
+                              <p className="text-sm text-emerald-700">Your document has been approved.</p>
+                              {user.verificationFileUrl && (
+                                <a
+                                  href={user.verificationFileUrl.startsWith('http') ? user.verificationFileUrl : `/uploads/${user.verificationFileUrl}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm text-emerald-600 hover:underline mt-1 inline-block"
+                                >
+                                  View approved document
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : verificationStatus === 'pending' && user.verificationFileUrl ? (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                          <div className="flex items-center gap-3">
+                            <svg className="h-8 w-8 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V7a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            <div>
+                              <p className="font-semibold text-amber-900">Verification Under Review</p>
+                              <p className="text-sm text-amber-700">Your document is under review. We'll notify you once it's approved.</p>
                               <a
                                 href={user.verificationFileUrl.startsWith('http') ? user.verificationFileUrl : `/uploads/${user.verificationFileUrl}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-sm text-emerald-600 hover:underline mt-1 inline-block"
+                                className="text-sm text-amber-600 hover:underline mt-1 inline-block"
                               >
                                 View submitted document
                               </a>
@@ -1709,29 +1804,44 @@ export const ClientDashboardPage: React.FC = () => {
                           </div>
                         </div>
                       ) : (
-                        <form onSubmit={handleVerificationUpload} className="space-y-4">
-                          <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium text-slate-700">Upload Verification Document</label>
-                            <input
-                              type="file"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={(e) => setVerificationFile(e.target.files?.[0] || null)}
-                              className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
-                            />
-                            <p className="text-xs text-slate-500">Accepted formats: PDF, JPG, PNG (max 10MB)</p>
-                          </div>
-                          {verificationFile && (
-                            <div className="flex justify-end">
-                              <button
-                                type="submit"
-                                disabled={verificationLoading}
-                                className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
-                              >
-                                {verificationLoading ? 'Uploading...' : 'Upload Document'}
-                              </button>
+                        <>
+                          {verificationStatus === 'rejected' && (
+                            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                              <div className="flex items-center gap-3">
+                                <svg className="h-8 w-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.536-10.95a1 1 0 00-1.414-1.414L10 8.586 7.879 6.636a1 1 0 10-1.414 1.414L8.586 10l-2.121 2.121a1 1 0 101.414 1.414L10 11.414l2.121 2.121a1 1 0 001.414-1.414L11.414 10l2.122-2.122z" clipRule="evenodd" />
+                                </svg>
+                                <div>
+                                  <p className="font-semibold text-red-900">Verification Revoked</p>
+                                  <p className="text-sm text-red-700">Please upload a new document so we can review your account again.</p>
+                                </div>
+                              </div>
                             </div>
                           )}
-                        </form>
+                          <form onSubmit={handleVerificationUpload} className="space-y-4">
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-medium text-slate-700">Upload Verification Document</label>
+                              <input
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) => setVerificationFile(e.target.files?.[0] || null)}
+                                className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
+                              />
+                              <p className="text-xs text-slate-500">Accepted formats: PDF, JPG, PNG (max 10MB)</p>
+                            </div>
+                            {verificationFile && (
+                              <div className="flex justify-end">
+                                <button
+                                  type="submit"
+                                  disabled={verificationLoading}
+                                  className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
+                                >
+                                  {verificationLoading ? 'Uploading...' : 'Upload Document'}
+                                </button>
+                              </div>
+                            )}
+                          </form>
+                        </>
                       )}
                     </div>
                   )}

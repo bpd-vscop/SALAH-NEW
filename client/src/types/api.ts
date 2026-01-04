@@ -1,6 +1,7 @@
 export type UserRole = 'super_admin' | 'admin' | 'staff' | 'client';
 export type UserStatus = 'active' | 'inactive';
 export type ClientType = 'B2B' | 'C2B';
+export type VerificationStatus = 'none' | 'pending' | 'approved' | 'rejected';
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
 export type ProductTag = 'coming soon';
 export type ProductStatusTag =
@@ -218,6 +219,7 @@ export interface User {
   clientType?: ClientType | null;
   company?: CompanyInfo | null;
   verificationFileUrl?: string | null;
+  verificationStatus?: VerificationStatus | null;
   profileImage?: string | null;
   isEmailVerified?: boolean;
   shippingAddresses?: ShippingAddress[];
@@ -349,6 +351,7 @@ export interface OrderUserSummary {
   isEmailVerified: boolean | null;
   company: CompanyInfo | null;
   verificationFileUrl: string | null;
+  verificationStatus: VerificationStatus | null;
   profileImage: string | null;
   shippingAddresses: ShippingAddress[];
   accountCreated: string | null;

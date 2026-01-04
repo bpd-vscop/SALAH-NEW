@@ -115,6 +115,7 @@ const orderSchema = new mongoose.Schema(
               typeof rawUser.isEmailVerified === 'boolean' ? rawUser.isEmailVerified : null,
             company: rawUser.company ?? null,
             verificationFileUrl: rawUser.verificationFileUrl ?? null,
+            verificationStatus: rawUser.verificationStatus ?? null,
             profileImage: rawUser.profileImage ?? null,
             shippingAddresses: Array.isArray(rawUser.shippingAddresses)
               ? rawUser.shippingAddresses.map((addr) => ({
