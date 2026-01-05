@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Download, Eye, Plus, RefreshCw, Search, Trash2, X, ChevronDown } from 'lucide-react';
 import { invoicesApi } from '../../api/invoices';
 import { productsApi } from '../../api/products';
-import type { Invoice, InvoiceStatus, Product } from '../../types/api';
+import { usersApi } from '../../api/users';
+import type { Invoice, InvoiceStatus, Product, User } from '../../types/api';
 import { formatCurrency } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { Select } from '../ui/Select';
@@ -136,6 +137,69 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+const formatClientPhone = (client: User) => {
+  if (client.phoneNumber) {
+    const code = client.phoneCode ? `${client.phoneCode} ` : '';
+    return `${code}${client.phoneNumber}`.trim();
+  }
+  return '';
+};
+
+const parseCompanyAddress = (address?: string | null) => {
+  const trimmed = address?.trim();
+  if (!trimmed) {
+    return {
+      addressLine1: '',
+      city: '',
+      state: '',
+      country: '',
+    };
+  }
+  const parts = trimmed.split(',').map((part) => part.trim()).filter(Boolean);
+  if (parts.length >= 4) {
+    const [addressLine1, city, state, ...rest] = parts;
+    return {
+      addressLine1,
+      city,
+      state,
+      country: rest.join(', '),
+    };
+  }
+  if (parts.length === 3) {
+    const [addressLine1, city, state] = parts;
+    return { addressLine1, city, state, country: '' };
+  }
+  if (parts.length === 2) {
+    const [addressLine1, city] = parts;
+    return { addressLine1, city, state: '', country: '' };
+  }
+  return { addressLine1: trimmed, city: '', state: '', country: '' };
+};
+
+const getDefaultShipping = (client: User) => {
+  if (!client.shippingAddresses?.length) return null;
+  return client.shippingAddresses.find((address) => address.isDefault) ?? client.shippingAddresses[0];
+};
+
+const buildBillToFromClient = (client: User): InvoiceFormAddress => {
+  const fallback = createEmptyAddress();
+  const companyAddress = parseCompanyAddress(client.company?.address);
+  const shipping = getDefaultShipping(client);
+  const phone = client.company?.phone || formatClientPhone(client) || shipping?.phone || '';
+  return {
+    companyName: client.company?.name ?? '',
+    name: client.name ?? '',
+    email: client.email ?? '',
+    phone,
+    addressLine1: companyAddress.addressLine1 || shipping?.addressLine1 || '',
+    addressLine2: shipping?.addressLine2 || '',
+    city: companyAddress.city || shipping?.city || '',
+    state: companyAddress.state || shipping?.state || '',
+    postalCode: shipping?.postalCode || '',
+    country: companyAddress.country || shipping?.country || fallback.country,
+  };
+};
+
 export const InvoicesAdminSection: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -155,6 +219,10 @@ export const InvoicesAdminSection: React.FC = () => {
   const [productSearchQueries, setProductSearchQueries] = useState<Record<string, string>>({});
   const [productDropdownOpen, setProductDropdownOpen] = useState<Record<string, boolean>>({});
   const productDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [b2bClients, setB2bClients] = useState<User[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
+  const [clientLoadError, setClientLoadError] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState('');
   const statusOptions = useMemo(
     () => [
       { value: 'pending', label: 'Pending' },
@@ -162,6 +230,22 @@ export const InvoicesAdminSection: React.FC = () => {
       { value: 'canceled', label: 'Canceled' },
     ],
     []
+  );
+  const selectedClient = useMemo(
+    () => b2bClients.find((client) => client.id === selectedClientId) ?? null,
+    [b2bClients, selectedClientId]
+  );
+  const clientOptions = useMemo(
+    () => [
+      { value: '', label: 'Manual entry' },
+      ...b2bClients.map((client) => {
+        const company = client.company?.name?.trim();
+        const baseLabel = company ? `${company} - ${client.name}` : client.name;
+        const emailLabel = client.email ? ` | ${client.email}` : '';
+        return { value: client.id, label: `${baseLabel}${emailLabel}` };
+      }),
+    ],
+    [b2bClients]
   );
 
   // Check if country is United States
@@ -206,9 +290,37 @@ export const InvoicesAdminSection: React.FC = () => {
   }, [showCreateModal, products.length]);
 
   useEffect(() => {
+    if (!showCreateModal || b2bClients.length > 0) return;
+    const loadClients = async () => {
+      setClientsLoading(true);
+      setClientLoadError(null);
+      try {
+        const { users } = await usersApi.list({
+          role: 'client',
+          clientType: 'B2B',
+          status: 'active',
+          sort: 'name-asc',
+        });
+        setB2bClients(users);
+      } catch (err) {
+        setClientLoadError(err instanceof Error ? err.message : 'Unable to load B2B clients.');
+        setB2bClients([]);
+      } finally {
+        setClientsLoading(false);
+      }
+    };
+    void loadClients();
+  }, [showCreateModal, b2bClients.length]);
+
+  useEffect(() => {
     if (!sameAsBilling) return;
     setForm((state) => ({ ...state, shipTo: { ...state.billTo } }));
   }, [sameAsBilling, form.billTo]);
+
+  useEffect(() => {
+    if (!selectedClient) return;
+    setForm((state) => ({ ...state, billTo: buildBillToFromClient(selectedClient) }));
+  }, [selectedClient]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -273,6 +385,17 @@ export const InvoicesAdminSection: React.FC = () => {
     }));
   };
 
+  const handleSelectClient = (value: string) => {
+    setSelectedClientId(value);
+    if (!value) {
+      setForm((state) => ({ ...state, billTo: createEmptyAddress() }));
+      return;
+    }
+    const client = b2bClients.find((entry) => entry.id === value);
+    if (!client) return;
+    setForm((state) => ({ ...state, billTo: buildBillToFromClient(client) }));
+  };
+
   const updateItem = (id: string, updates: Partial<InvoiceFormItem>) => {
     setForm((state) => ({
       ...state,
@@ -315,6 +438,8 @@ export const InvoicesAdminSection: React.FC = () => {
     setForm(createEmptyForm());
     setSameAsBilling(true);
     setFormError(null);
+    setSelectedClientId('');
+    setClientLoadError(null);
   };
 
   const handleCloseCreate = () => {
@@ -351,11 +476,19 @@ export const InvoicesAdminSection: React.FC = () => {
   const handleCreateInvoice = async () => {
     setFormError(null);
     if (!form.billTo.name.trim()) {
-      setFormError('Billing name is required.');
+      setFormError(
+        selectedClientId
+          ? 'Selected client is missing a billing name. Clear the selection or update the client profile.'
+          : 'Billing name is required.'
+      );
       return;
     }
     if (!form.billTo.addressLine1.trim()) {
-      setFormError('Billing address is required.');
+      setFormError(
+        selectedClientId
+          ? 'Selected client is missing a billing address. Clear the selection or update the client profile.'
+          : 'Billing address is required.'
+      );
       return;
     }
     if (!form.shipTo.name.trim()) {
@@ -395,6 +528,7 @@ export const InvoicesAdminSection: React.FC = () => {
     setSaving(true);
     try {
       const payload = {
+        customerId: selectedClientId || undefined,
         billTo: {
           ...form.billTo,
           companyName: form.billTo.companyName || null,
@@ -1072,129 +1206,194 @@ export const InvoicesAdminSection: React.FC = () => {
                 </div>
               )}
 
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="space-y-3 rounded-xl border border-border bg-white p-4">
-                  <h4 className="text-sm font-semibold text-slate-900">Bill To <span className="text-red-500">*</span></h4>
-                <div className="space-y-2.5">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Company name</label>
-                    <input
-                      type="text"
-                      value={form.billTo.companyName}
-                      onChange={(event) => updateAddress('billTo', 'companyName', event.target.value)}
-                      placeholder="Company name"
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
+              <div className="space-y-4">
+                <div className="rounded-xl border border-border bg-white p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-900">Existing B2B client</h4>
+                      <p className="text-xs text-muted">Select a business client to auto-fill billing details.</p>
+                    </div>
+                    {selectedClientId && (
+                      <button
+                        type="button"
+                        onClick={() => handleSelectClient('')}
+                        className="text-xs font-semibold text-primary hover:text-primary-dark"
+                      >
+                        Use manual entry
+                      </button>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Name <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      value={form.billTo.name}
-                        onChange={(event) => updateAddress('billTo', 'name', event.target.value)}
-                        placeholder="Customer name"
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="w-full max-w-md">
+                      <Select
+                        value={selectedClientId}
+                        onChange={handleSelectClient}
+                        options={clientOptions}
+                        disabled={clientsLoading}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
-                        <input
-                          type="email"
-                          value={form.billTo.email}
-                          onChange={(event) => updateAddress('billTo', 'email', event.target.value)}
-                          placeholder="email@example.com"
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        />
+                    {clientsLoading && (
+                      <span className="text-xs text-muted">Loading clients...</span>
+                    )}
+                  </div>
+                  {clientLoadError && (
+                    <div className="mt-2 text-xs text-red-600">{clientLoadError}</div>
+                  )}
+                  {!clientsLoading && !clientLoadError && b2bClients.length === 0 && (
+                    <div className="mt-2 text-xs text-muted">No B2B clients found.</div>
+                  )}
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                {selectedClientId ? (
+                  <div className="space-y-3 rounded-xl border border-border bg-white p-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-slate-900">Bill To</h4>
+                      <span className="text-xs text-muted">From client profile</span>
+                    </div>
+                    <div className="space-y-1 text-sm text-slate-700">
+                      <div className="font-semibold">
+                        {form.billTo.companyName
+                          ? `${form.billTo.companyName} - ${form.billTo.name}`
+                          : form.billTo.name || '-'}
                       </div>
+                      {(form.billTo.phone || form.billTo.email) && (
+                        <div>{[form.billTo.phone, form.billTo.email].filter(Boolean).join(' | ')}</div>
+                      )}
+                      <div>{form.billTo.addressLine1 || '-'}</div>
+                      {form.billTo.addressLine2 && <div>{form.billTo.addressLine2}</div>}
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Phone</label>
-                        <input
-                          type="text"
-                          value={form.billTo.phone}
-                          onChange={(event) => updateAddress('billTo', 'phone', event.target.value)}
-                          placeholder="Phone number"
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        />
+                        {[form.billTo.city, form.billTo.state, form.billTo.postalCode]
+                          .filter(Boolean)
+                          .join(', ') || '-'}
                       </div>
+                      <div>{form.billTo.country || '-'}</div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Address Line 1 <span className="text-red-500">*</span></label>
-                      <input
-                        type="text"
-                        value={form.billTo.addressLine1}
-                        onChange={(event) => updateAddress('billTo', 'addressLine1', event.target.value)}
-                        placeholder="Street address"
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Address Line 2</label>
-                      <input
-                        type="text"
-                        value={form.billTo.addressLine2}
-                        onChange={(event) => updateAddress('billTo', 'addressLine2', event.target.value)}
-                        placeholder="Apt, suite, etc. (optional)"
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Country</label>
-                      <CountrySelect
-                        value={form.billTo.country}
-                        onChange={(value) => updateAddress('billTo', 'country', value)}
-                        placeholder="Select country"
-                        searchPlaceholder="Search countries..."
-                        placement="auto"
-                        className="w-full h-9"
-                      />
-                    </div>
-                    <div className="grid grid-cols-3 gap-2.5">
+                  </div>
+                ) : (
+                  <div className="space-y-3 rounded-xl border border-border bg-white p-4">
+                    <h4 className="text-sm font-semibold text-slate-900">Bill To <span className="text-red-500">*</span></h4>
+                    <div className="space-y-2.5">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">City</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Company name</label>
                         <input
                           type="text"
-                          value={form.billTo.city}
-                          onChange={(event) => updateAddress('billTo', 'city', event.target.value)}
-                          placeholder="City"
+                          value={form.billTo.companyName}
+                          onChange={(event) => updateAddress('billTo', 'companyName', event.target.value)}
+                          placeholder="Company name"
                           className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">State</label>
-                        {isBillToUnitedStates ? (
-                          <CountrySelect
-                            value={form.billTo.state}
-                            onChange={(value) => updateAddress('billTo', 'state', value)}
-                            options={US_STATES}
-                            placeholder="Select state"
-                            searchPlaceholder="Search states..."
-                            placement="auto"
-                            className="w-full h-9"
-                          />
-                        ) : (
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Name <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          value={form.billTo.name}
+                          onChange={(event) => updateAddress('billTo', 'name', event.target.value)}
+                          placeholder="Customer name"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
                           <input
-                            type="text"
-                            value={form.billTo.state}
-                            onChange={(event) => updateAddress('billTo', 'state', event.target.value)}
-                            placeholder="State / Province"
+                            type="email"
+                            value={form.billTo.email}
+                            onChange={(event) => updateAddress('billTo', 'email', event.target.value)}
+                            placeholder="email@example.com"
                             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                           />
-                        )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">Phone</label>
+                          <input
+                            type="text"
+                            value={form.billTo.phone}
+                            onChange={(event) => updateAddress('billTo', 'phone', event.target.value)}
+                            placeholder="Phone number"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">ZIP</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Address Line 1 <span className="text-red-500">*</span></label>
                         <input
                           type="text"
-                          value={form.billTo.postalCode}
-                          onChange={(event) => updateAddress('billTo', 'postalCode', event.target.value)}
-                          placeholder="ZIP"
+                          value={form.billTo.addressLine1}
+                          onChange={(event) => updateAddress('billTo', 'addressLine1', event.target.value)}
+                          placeholder="Street address"
                           className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Address Line 2</label>
+                        <input
+                          type="text"
+                          value={form.billTo.addressLine2}
+                          onChange={(event) => updateAddress('billTo', 'addressLine2', event.target.value)}
+                          placeholder="Apt, suite, etc. (optional)"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Country</label>
+                        <CountrySelect
+                          value={form.billTo.country}
+                          onChange={(value) => updateAddress('billTo', 'country', value)}
+                          placeholder="Select country"
+                          searchPlaceholder="Search countries..."
+                          placement="auto"
+                          className="w-full h-9"
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2.5">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">City</label>
+                          <input
+                            type="text"
+                            value={form.billTo.city}
+                            onChange={(event) => updateAddress('billTo', 'city', event.target.value)}
+                            placeholder="City"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">State</label>
+                          {isBillToUnitedStates ? (
+                            <CountrySelect
+                              value={form.billTo.state}
+                              onChange={(value) => updateAddress('billTo', 'state', value)}
+                              options={US_STATES}
+                              placeholder="Select state"
+                              searchPlaceholder="Search states..."
+                              placement="auto"
+                              className="w-full h-9"
+                            />
+                          ) : (
+                            <input
+                              type="text"
+                              value={form.billTo.state}
+                              onChange={(event) => updateAddress('billTo', 'state', event.target.value)}
+                              placeholder="State / Province"
+                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">ZIP</label>
+                          <input
+                            type="text"
+                            value={form.billTo.postalCode}
+                            onChange={(event) => updateAddress('billTo', 'postalCode', event.target.value)}
+                            placeholder="ZIP"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
               <div className="space-y-3 rounded-xl border border-border bg-white p-4">
                 <div className="flex items-center justify-between">
@@ -1370,6 +1569,7 @@ export const InvoicesAdminSection: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
 
             <div className="mt-6 space-y-4">
               <div className="flex items-center justify-between">
