@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useLayoutEffect, type CSSProperties } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 interface SelectOption {
@@ -18,6 +18,8 @@ interface SelectProps {
   buttonClassName?: string;
   disabled?: boolean;
   portal?: boolean;
+  searchable?: boolean;
+  searchPlaceholder?: string;
 }
 
 export const Select: React.FC<SelectProps> = ({
@@ -29,6 +31,8 @@ export const Select: React.FC<SelectProps> = ({
   buttonClassName,
   disabled = false,
   portal = false,
+  searchable = false,
+  searchPlaceholder = 'Search...',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -42,6 +46,7 @@ export const Select: React.FC<SelectProps> = ({
     zIndex: 1000,
     visibility: 'hidden',
   }));
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -63,6 +68,12 @@ export const Select: React.FC<SelectProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery('');
+    }
   }, [isOpen]);
 
   useLayoutEffect(() => {
@@ -92,10 +103,62 @@ export const Select: React.FC<SelectProps> = ({
   }, [isOpen, portal]);
 
   const selectedOption = options.find((opt) => opt.value === value);
+  const filteredOptions = useMemo(() => {
+    if (!searchable) return options;
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return options;
+    return options.filter((option) => {
+      if (option.value === '') return true;
+      const label = option.label.toLowerCase();
+      const valueText = option.value.toLowerCase();
+      return label.includes(query) || valueText.includes(query);
+    });
+  }, [options, searchQuery, searchable]);
   const menuClassName = cn(
     portal ? 'fixed z-[1000]' : 'absolute left-0 right-0 top-full z-[100]',
     'max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl',
     !portal && 'mt-1'
+  );
+  const menuOptions = searchable ? filteredOptions : options;
+  const menuContent = (
+    <div className="p-1">
+      {searchable && (
+        <div className="sticky top-0 z-10 bg-white pb-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={searchPlaceholder}
+              className="h-8 w-full rounded-md border border-slate-300 bg-white pl-7 pr-2 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+        </div>
+      )}
+      {menuOptions.length ? (
+        menuOptions.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => {
+              onChange(option.value);
+              setIsOpen(false);
+            }}
+            className={cn(
+              'flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium text-left transition-colors',
+              option.value === value
+                ? 'bg-red-50 text-red-600'
+                : 'text-slate-700 hover:bg-red-50 hover:text-red-600'
+            )}
+          >
+            {option.label}
+          </button>
+        ))
+      ) : (
+        <div className="px-3 py-2 text-xs text-slate-500">No results</div>
+      )}
+    </div>
   );
 
   return (
@@ -131,26 +194,7 @@ export const Select: React.FC<SelectProps> = ({
                 style={menuStyle}
                 ref={menuRef}
               >
-                <div className="p-1">
-                  {options.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        onChange(option.value);
-                        setIsOpen(false);
-                      }}
-                      className={cn(
-                        'flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium text-left transition-colors',
-                        option.value === value
-                          ? 'bg-red-50 text-red-600'
-                          : 'text-slate-700 hover:bg-red-50 hover:text-red-600'
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                {menuContent}
               </motion.div>,
               document.body
             ))
@@ -164,26 +208,7 @@ export const Select: React.FC<SelectProps> = ({
                   transition={{ duration: 0.15, ease: 'easeOut' }}
                   className={menuClassName}
                 >
-                  <div className="p-1">
-                    {options.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => {
-                          onChange(option.value);
-                          setIsOpen(false);
-                        }}
-                        className={cn(
-                          'flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium text-left transition-colors',
-                          option.value === value
-                            ? 'bg-red-50 text-red-600'
-                            : 'text-slate-700 hover:bg-red-50 hover:text-red-600'
-                        )}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
+                  {menuContent}
                 </motion.div>
               )}
             </AnimatePresence>

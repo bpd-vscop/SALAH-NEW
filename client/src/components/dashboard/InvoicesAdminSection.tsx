@@ -1230,6 +1230,8 @@ export const InvoicesAdminSection: React.FC = () => {
                         onChange={handleSelectClient}
                         options={clientOptions}
                         disabled={clientsLoading}
+                        searchable
+                        searchPlaceholder="Search B2B clients..."
                       />
                     </div>
                     {clientsLoading && (
