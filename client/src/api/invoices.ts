@@ -21,6 +21,10 @@ export interface CreateInvoicePayload {
   notes?: string;
 }
 
+export interface UpdateInvoicePayload {
+  status: InvoiceStatus;
+}
+
 export const invoicesApi = {
   list: (params?: ListInvoicesParams) => {
     const query = new URLSearchParams();
@@ -35,5 +39,7 @@ export const invoicesApi = {
   },
   get: (id: string) => http.get<{ invoice: Invoice }>(`/invoices/${id}`),
   create: (payload: CreateInvoicePayload) => http.post<{ invoice: Invoice }>('/invoices', payload),
+  update: (id: string, payload: UpdateInvoicePayload) =>
+    http.patch<{ invoice: Invoice }>(`/invoices/${id}`, payload),
   delete: (id: string) => http.delete<void>(`/invoices/${id}`),
 };

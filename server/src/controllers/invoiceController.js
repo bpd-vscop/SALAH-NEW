@@ -200,9 +200,32 @@ const deleteInvoice = async (req, res, next) => {
   }
 };
 
+const updateInvoiceStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw notFound('Invoice not found');
+    }
+    const invoice = await Invoice.findById(id);
+    if (!invoice) {
+      throw notFound('Invoice not found');
+    }
+    const { status } = req.body || {};
+    if (!['pending', 'completed', 'canceled'].includes(status)) {
+      throw badRequest('Invalid invoice status');
+    }
+    invoice.status = status;
+    await invoice.save();
+    res.json({ invoice: invoice.toJSON() });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   listInvoices,
   getInvoice,
   createInvoice,
   deleteInvoice,
+  updateInvoiceStatus,
 };

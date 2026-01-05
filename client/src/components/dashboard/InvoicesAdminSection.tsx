@@ -149,11 +149,20 @@ export const InvoicesAdminSection: React.FC = () => {
   const [sameAsBilling, setSameAsBilling] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [productSearchQueries, setProductSearchQueries] = useState<Record<string, string>>({});
   const [productDropdownOpen, setProductDropdownOpen] = useState<Record<string, boolean>>({});
   const productDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const statusOptions = useMemo(
+    () => [
+      { value: 'pending', label: 'Pending' },
+      { value: 'completed', label: 'Completed' },
+      { value: 'canceled', label: 'Canceled' },
+    ],
+    []
+  );
 
   // Check if country is United States
   const isBillToUnitedStates = ['united states', 'united states of america', 'usa', 'us'].includes(
@@ -438,6 +447,28 @@ export const InvoicesAdminSection: React.FC = () => {
       setInvoices((prev) => prev.filter((entry) => entry.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to delete invoice.');
+    }
+  };
+
+  const replaceInvoice = (updated: Invoice) => {
+    setInvoices((prev) => prev.map((entry) => (entry.id === updated.id ? updated : entry)));
+    setActiveInvoice((prev) => (prev && prev.id === updated.id ? updated : prev));
+  };
+
+  const handleStatusChange = async (invoice: Invoice, nextStatus: InvoiceStatus) => {
+    if (invoice.status === nextStatus) return;
+    const previousStatus = invoice.status;
+    setError(null);
+    setStatusUpdatingId(invoice.id);
+    replaceInvoice({ ...invoice, status: nextStatus });
+    try {
+      const { invoice: updated } = await invoicesApi.update(invoice.id, { status: nextStatus });
+      replaceInvoice(updated);
+    } catch (err) {
+      replaceInvoice({ ...invoice, status: previousStatus });
+      setError(err instanceof Error ? err.message : 'Unable to update invoice status.');
+    } finally {
+      setStatusUpdatingId(null);
     }
   };
 
@@ -896,19 +927,14 @@ export const InvoicesAdminSection: React.FC = () => {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search invoices"
-              className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-7 w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <div className="w-44">
             <Select
               value={statusFilter}
               onChange={(value) => setStatusFilter(value as InvoiceStatus | 'all')}
-              options={[
-                { value: 'all', label: 'All statuses' },
-                { value: 'pending', label: 'Pending' },
-                { value: 'completed', label: 'Completed' },
-                { value: 'canceled', label: 'Canceled' },
-              ]}
+              options={[{ value: 'all', label: 'All statuses' }, ...statusOptions]}
             />
           </div>
         </div>
@@ -966,7 +992,15 @@ export const InvoicesAdminSection: React.FC = () => {
                         {formatCurrency(invoice.total, invoice.currency ?? 'USD')}
                       </td>
                       <td className="px-4 py-3">
-                        <StatusPill label={invoice.status} tone={getStatusTone(invoice.status)} />
+                        <Select
+                          value={invoice.status}
+                          onChange={(value) => handleStatusChange(invoice, value as InvoiceStatus)}
+                          options={statusOptions}
+                          disabled={statusUpdatingId === invoice.id}
+                          className="w-36"
+                          buttonClassName="h-8 text-xs"
+                          portal
+                        />
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
