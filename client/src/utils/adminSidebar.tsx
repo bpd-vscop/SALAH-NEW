@@ -40,6 +40,11 @@ export const catalogTabs = [
   { id: 'tags' as const, label: 'Tags' },
 ];
 
+export const ordersTabs = [
+  { id: 'orders' as const, label: 'Orders' },
+  { id: 'invoices' as const, label: 'Invoices' },
+];
+
 export const getMenuIcon = (tabId: string) => {
   switch (tabId) {
     case 'users':
@@ -119,6 +124,10 @@ interface AdminSidebarOptions {
   setProductsView?: (view: 'all' | 'add' | 'inventory' | 'list' | 'coupons') => void;
   productsExpanded?: boolean;
   setProductsExpanded?: (expanded: boolean | ((prev: boolean) => boolean)) => void;
+  ordersSection?: 'orders' | 'invoices';
+  setOrdersSection?: (section: 'orders' | 'invoices') => void;
+  ordersExpanded?: boolean;
+  setOrdersExpanded?: (expanded: boolean | ((prev: boolean) => boolean)) => void;
 }
 
 export const createAdminSidebar = (options: AdminSidebarOptions) => {
@@ -138,6 +147,10 @@ export const createAdminSidebar = (options: AdminSidebarOptions) => {
     setProductsView,
     productsExpanded = false,
     setProductsExpanded,
+    ordersSection = 'orders',
+    setOrdersSection,
+    ordersExpanded = false,
+    setOrdersExpanded,
   } = options;
 
   return (sidebarExpanded: boolean) => (
@@ -356,6 +369,86 @@ export const createAdminSidebar = (options: AdminSidebarOptions) => {
           );
         }
 
+        if (tab.id === 'orders') {
+          const dropdownExpanded = ordersExpanded || activeTab === 'orders';
+          return (
+            <div key={tab.id} className="flex flex-col">
+              <button
+                type="button"
+                onClick={() => setOrdersExpanded?.((prev: boolean) => !prev)}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg py-3 text-left font-medium transition-all',
+                  sidebarExpanded ? 'px-4 justify-between' : 'px-0 justify-center',
+                  activeTab === 'orders'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-slate-700 hover:bg-slate-100'
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  {getMenuIcon(tab.id)}
+                  {sidebarExpanded && (
+                    <span className="relative text-sm">
+                      {tab.label}
+                      {ordersBadgeCount > 0 && (
+                        <span className="absolute -right-3 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
+                          {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
+                {sidebarExpanded && (
+                  <svg
+                    className={cn('h-4 w-4 transition-transform duration-200', dropdownExpanded ? 'rotate-90' : '')}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                )}
+              </button>
+              {dropdownExpanded && sidebarExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="mt-1 ml-3 flex flex-col gap-1 border-l-2 border-slate-200 pl-3"
+                >
+                  {ordersTabs.map((child) => {
+                    const selected = ordersSection === child.id && activeTab === 'orders';
+                    return (
+                      <button
+                        type="button"
+                        key={child.id}
+                        onClick={() => {
+                          setActiveTab('orders');
+                          setOrdersSection?.(child.id);
+                        }}
+                        className={cn(
+                          'relative rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-all',
+                          selected
+                            ? 'bg-red-50 text-red-600'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        )}
+                      >
+                        {selected && (
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r bg-red-600" />
+                        )}
+                        <span className={cn(selected && 'ml-2')}>{child.label}</span>
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </div>
+          );
+        }
+
         return (
           <button
             type="button"
@@ -370,16 +463,7 @@ export const createAdminSidebar = (options: AdminSidebarOptions) => {
             )}
           >
             {getMenuIcon(tab.id)}
-            {sidebarExpanded && (
-              <span className="relative">
-                {tab.label}
-                {tab.id === 'orders' && ordersBadgeCount > 0 && (
-                  <span className="absolute -right-3 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
-                    {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
-                  </span>
-                )}
-              </span>
-            )}
+            {sidebarExpanded && <span className="text-sm">{tab.label}</span>}
           </button>
         );
       })}

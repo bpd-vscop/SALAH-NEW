@@ -18,6 +18,7 @@ export type ProductVisibility = 'catalog' | 'search' | 'hidden' | 'catalog-and-s
 export type CouponType = 'percentage' | 'fixed';
 export type ConversationStatus = 'open' | 'closed';
 export type MessageSenderRole = 'client' | 'admin';
+export type InvoiceStatus = 'pending' | 'completed' | 'canceled';
 
 export interface TaxRate {
   id: string;
@@ -392,6 +393,49 @@ export interface Order {
   status: OrderStatus;
   createdAt: string | null;
   updatedAt: string | null;
+}
+
+export interface InvoiceAddress {
+  companyName?: string | null;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  addressLine1: string;
+  addressLine2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  country?: string | null;
+}
+
+export interface InvoiceItem {
+  productId?: string | null;
+  name: string;
+  sku?: string | null;
+  quantity: number;
+  price: number;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  customerId?: string | null;
+  status: InvoiceStatus;
+  billTo: InvoiceAddress;
+  shipTo: InvoiceAddress;
+  items: InvoiceItem[];
+  subtotal: number;
+  taxRate?: number | null;
+  taxAmount?: number | null;
+  shippingAmount?: number | null;
+  total: number;
+  currency?: string | null;
+  terms?: string | null;
+  dueDate?: string | null;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  createdBy?: string | null;
 }
 
 export interface ApiError {

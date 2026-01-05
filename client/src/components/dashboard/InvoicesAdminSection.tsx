@@ -1,0 +1,1809 @@
+import { useEffect, useMemo, useState, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Download, Eye, Plus, RefreshCw, Search, Trash2, X, ChevronDown } from 'lucide-react';
+import { invoicesApi } from '../../api/invoices';
+import { productsApi } from '../../api/products';
+import type { Invoice, InvoiceStatus, Product } from '../../types/api';
+import { formatCurrency } from '../../utils/format';
+import { cn } from '../../utils/cn';
+import { Select } from '../ui/Select';
+import { StatusPill } from '../common/StatusPill';
+import { CountrySelect } from '../common/CountrySelect';
+
+const US_STATES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware',
+  'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
+  'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota',
+  'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey',
+  'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon',
+  'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah',
+  'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming',
+];
+
+interface InvoiceFormItem {
+  id: string;
+  productId: string;
+  name: string;
+  sku: string;
+  quantity: string;
+  price: string;
+}
+
+interface InvoiceFormAddress {
+  companyName: string;
+  name: string;
+  email: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
+interface InvoiceForm {
+  billTo: InvoiceFormAddress;
+  shipTo: InvoiceFormAddress;
+  items: InvoiceFormItem[];
+  status: InvoiceStatus;
+  taxRate: string;
+  shippingAmount: string;
+  currency: string;
+  terms: string;
+  dueDate: string;
+  notes: string;
+}
+
+const COMPANY_DETAILS = {
+  name: 'ULK Supply LLC',
+  addressLine1: '1508 West Vine Street',
+  addressLine2: '',
+  city: 'Kissimmee',
+  state: 'FL',
+  postalCode: '34741',
+  country: 'United States',
+  phone: '',
+  email: '',
+};
+
+const makeTempId = () => Math.random().toString(36).slice(2, 10);
+
+const createEmptyAddress = (): InvoiceFormAddress => ({
+  companyName: '',
+  name: '',
+  email: '',
+  phone: '',
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  state: '',
+  postalCode: '',
+  country: 'United States',
+});
+
+const createEmptyItem = (): InvoiceFormItem => ({
+  id: makeTempId(),
+  productId: '',
+  name: '',
+  sku: '',
+  quantity: '1',
+  price: '',
+});
+
+const createEmptyForm = (): InvoiceForm => ({
+  billTo: createEmptyAddress(),
+  shipTo: createEmptyAddress(),
+  items: [createEmptyItem()],
+  status: 'pending',
+  taxRate: '',
+  shippingAmount: '',
+  currency: 'USD',
+  terms: '',
+  dueDate: '',
+  notes: '',
+});
+
+const formatDate = (value?: string | null) => {
+  if (!value) return '-';
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+};
+
+const getStatusTone = (status: InvoiceStatus) => {
+  switch (status) {
+    case 'completed':
+      return 'positive';
+    case 'canceled':
+      return 'critical';
+    default:
+      return 'warning';
+  }
+};
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+export const InvoicesAdminSection: React.FC = () => {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
+  const [form, setForm] = useState<InvoiceForm>(() => createEmptyForm());
+  const [sameAsBilling, setSameAsBilling] = useState(true);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productSearchQueries, setProductSearchQueries] = useState<Record<string, string>>({});
+  const [productDropdownOpen, setProductDropdownOpen] = useState<Record<string, boolean>>({});
+  const productDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Check if country is United States
+  const isBillToUnitedStates = ['united states', 'united states of america', 'usa', 'us'].includes(
+    form.billTo.country.trim().toLowerCase()
+  );
+  const isShipToUnitedStates = ['united states', 'united states of america', 'usa', 'us'].includes(
+    form.shipTo.country.trim().toLowerCase()
+  );
+
+  const loadInvoices = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { invoices: data } = await invoicesApi.list();
+      setInvoices(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load invoices.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadInvoices();
+  }, []);
+
+  useEffect(() => {
+    if (!showCreateModal || products.length > 0) return;
+    const loadProducts = async () => {
+      setProductsLoading(true);
+      try {
+        const { products: data } = await productsApi.list({ limit: 200 });
+        setProducts(data);
+      } catch {
+        setProducts([]);
+      } finally {
+        setProductsLoading(false);
+      }
+    };
+    void loadProducts();
+  }, [showCreateModal, products.length]);
+
+  useEffect(() => {
+    if (!sameAsBilling) return;
+    setForm((state) => ({ ...state, shipTo: { ...state.billTo } }));
+  }, [sameAsBilling, form.billTo]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      Object.entries(productDropdownRefs.current).forEach(([itemId, ref]) => {
+        if (ref && !ref.contains(event.target as Node)) {
+          setProductDropdownOpen((prev) => ({ ...prev, [itemId]: false }));
+        }
+      });
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredInvoices = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return invoices.filter((invoice) => {
+      if (statusFilter !== 'all' && invoice.status !== statusFilter) {
+        return false;
+      }
+      if (!query) return true;
+      const fields = [
+        invoice.invoiceNumber,
+        invoice.id,
+        invoice.billTo?.name,
+        invoice.billTo?.email,
+        invoice.shipTo?.name,
+        invoice.items?.map((item) => item.name).join(' '),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return fields.includes(query);
+    });
+  }, [invoices, searchQuery, statusFilter]);
+
+  const productOptions = useMemo(() => {
+    const options = products.map((product) => ({
+      value: product.id,
+      label: product.sku ? `${product.name} (${product.sku})` : product.name,
+    }));
+    return [{ value: '', label: 'Manual entry' }, ...options];
+  }, [products]);
+
+  const getFilteredProducts = (itemId: string) => {
+    const query = (productSearchQueries[itemId] || '').trim().toLowerCase();
+    return products.filter((product) => {
+      if (!query) return true;
+      const name = product.name?.toLowerCase() ?? '';
+      const sku = product.sku?.toLowerCase() ?? '';
+      return name.includes(query) || sku.includes(query);
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  const updateAddress = (target: 'billTo' | 'shipTo', field: keyof InvoiceFormAddress, value: string) => {
+    setForm((state) => ({
+      ...state,
+      [target]: {
+        ...state[target],
+        [field]: value,
+      },
+    }));
+  };
+
+  const updateItem = (id: string, updates: Partial<InvoiceFormItem>) => {
+    setForm((state) => ({
+      ...state,
+      items: state.items.map((item) => (item.id === id ? { ...item, ...updates } : item)),
+    }));
+  };
+
+  const addItem = () => {
+    setForm((state) => ({
+      ...state,
+      items: [...state.items, createEmptyItem()],
+    }));
+  };
+
+  const removeItem = (id: string) => {
+    setForm((state) => {
+      if (state.items.length === 1) return state;
+      return {
+        ...state,
+        items: state.items.filter((item) => item.id !== id),
+      };
+    });
+  };
+
+  const handleSelectProduct = (itemId: string, productId: string) => {
+    if (!productId) {
+      updateItem(itemId, { productId: '' });
+      return;
+    }
+    const product = products.find((entry) => entry.id === productId);
+    updateItem(itemId, {
+      productId,
+      name: product?.name ?? '',
+      sku: product?.sku ?? '',
+      price: product ? String(product.salePrice ?? product.price ?? '') : '',
+    });
+  };
+
+  const resetForm = () => {
+    setForm(createEmptyForm());
+    setSameAsBilling(true);
+    setFormError(null);
+  };
+
+  const handleCloseCreate = () => {
+    setShowCreateModal(false);
+    resetForm();
+  };
+
+  const parseNumber = (value: string) => {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const roundCurrency = (value: number) => Math.round(value * 100) / 100;
+
+  const summary = useMemo(() => {
+    const subtotal = form.items.reduce((sum, item) => {
+      const quantity = parseNumber(item.quantity);
+      const price = parseNumber(item.price);
+      return sum + quantity * price;
+    }, 0);
+    const taxRate = Math.max(0, parseNumber(form.taxRate));
+    const taxAmount = taxRate > 0 ? roundCurrency((subtotal * taxRate) / 100) : 0;
+    const shippingAmount = Math.max(0, parseNumber(form.shippingAmount));
+    const total = roundCurrency(subtotal + taxAmount + shippingAmount);
+    return {
+      subtotal: roundCurrency(subtotal),
+      taxRate,
+      taxAmount,
+      shippingAmount,
+      total,
+    };
+  }, [form.items, form.taxRate, form.shippingAmount]);
+
+  const handleCreateInvoice = async () => {
+    setFormError(null);
+    if (!form.billTo.name.trim()) {
+      setFormError('Billing name is required.');
+      return;
+    }
+    if (!form.billTo.addressLine1.trim()) {
+      setFormError('Billing address is required.');
+      return;
+    }
+    if (!form.shipTo.name.trim()) {
+      setFormError('Shipping name is required.');
+      return;
+    }
+    if (!form.shipTo.addressLine1.trim()) {
+      setFormError('Shipping address is required.');
+      return;
+    }
+
+    const items = form.items.map((item) => {
+      const name = item.name.trim();
+      const quantity = parseNumber(item.quantity);
+      const price = parseNumber(item.price);
+      return {
+        productId: item.productId ? item.productId : null,
+        name,
+        sku: item.sku.trim() || null,
+        quantity,
+        price,
+      };
+    });
+
+    const invalidIndex = items.findIndex(
+      (item) => !item.name || item.quantity <= 0 || !Number.isFinite(item.quantity) || item.price < 0
+    );
+    if (invalidIndex !== -1) {
+      setFormError(`Item ${invalidIndex + 1} needs a name, quantity, and price.`);
+      return;
+    }
+    if (items.length === 0) {
+      setFormError('At least one invoice item is required.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        billTo: {
+          ...form.billTo,
+          companyName: form.billTo.companyName || null,
+          email: form.billTo.email || null,
+          phone: form.billTo.phone || null,
+          addressLine2: form.billTo.addressLine2 || null,
+          city: form.billTo.city || null,
+          state: form.billTo.state || null,
+          postalCode: form.billTo.postalCode || null,
+          country: form.billTo.country || null,
+        },
+        shipTo: {
+          ...form.shipTo,
+          companyName: form.shipTo.companyName || null,
+          email: form.shipTo.email || null,
+          phone: form.shipTo.phone || null,
+          addressLine2: form.shipTo.addressLine2 || null,
+          city: form.shipTo.city || null,
+          state: form.shipTo.state || null,
+          postalCode: form.shipTo.postalCode || null,
+          country: form.shipTo.country || null,
+        },
+        items,
+        status: form.status,
+        taxRate: summary.taxRate,
+        taxAmount: summary.taxAmount,
+        shippingAmount: summary.shippingAmount,
+        currency: form.currency || 'USD',
+        terms: form.terms || undefined,
+        dueDate: form.dueDate || null,
+        notes: form.notes || undefined,
+      };
+      const { invoice } = await invoicesApi.create(payload);
+      setInvoices((prev) => [invoice, ...prev]);
+      handleCloseCreate();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Unable to create invoice.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteInvoice = async (id: string) => {
+    const invoice = invoices.find((entry) => entry.id === id);
+    if (!invoice) return;
+    const ok = window.confirm(`Delete invoice ${invoice.invoiceNumber}? This cannot be undone.`);
+    if (!ok) return;
+    try {
+      await invoicesApi.delete(id);
+      setInvoices((prev) => prev.filter((entry) => entry.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete invoice.');
+    }
+  };
+
+  const buildPrintHtml = (invoice: Invoice) => {
+    const logoUrl = `${window.location.origin}/logo-png.png`;
+    const createdDate = formatDate(invoice.createdAt);
+    const dueDate = invoice.dueDate ? formatDate(invoice.dueDate) : '';
+    const subtotal = formatCurrency(invoice.subtotal, invoice.currency ?? 'USD');
+    const taxAmount = formatCurrency(invoice.taxAmount ?? 0, invoice.currency ?? 'USD');
+    const shippingAmount = formatCurrency(invoice.shippingAmount ?? 0, invoice.currency ?? 'USD');
+    const amountDue = formatCurrency(invoice.total, invoice.currency ?? 'USD');
+    const companyCityState = [COMPANY_DETAILS.city, COMPANY_DETAILS.state].filter(Boolean).join(', ');
+    const companyCityLine = `${companyCityState}${COMPANY_DETAILS.postalCode ? ` ${COMPANY_DETAILS.postalCode}` : ''}`.trim();
+
+    const contactLine = (phone?: string | null, email?: string | null) => {
+      const parts = [phone, email].filter(Boolean).map((value) => escapeHtml(String(value)));
+      return parts.length ? `${parts.join(' | ')}<br>` : '';
+    };
+    const displayName = (companyName?: string | null, name?: string | null) => {
+      const company = companyName?.trim();
+      const person = name?.trim();
+      if (company && person) return `${company} - ${person}`;
+      return company || person || '';
+    };
+
+    const itemRows = invoice.items
+      .map((item) => {
+        const lineTotal = formatCurrency(item.price * item.quantity, invoice.currency ?? 'USD');
+        return `
+          <tr>
+            <td class="text-center">${escapeHtml(String(item.quantity))}</td>
+            <td>
+              <div class="item-name">${escapeHtml(item.name)}</div>
+              ${item.sku ? `<div class="item-sku">${escapeHtml(item.sku)}</div>` : ''}
+            </td>
+            <td class="text-right">${escapeHtml(formatCurrency(item.price, invoice.currency ?? 'USD'))}</td>
+            <td class="text-right">${escapeHtml(lineTotal)}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Invoice ${escapeHtml(invoice.invoiceNumber)}</title>
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+              font-family: Arial, Helvetica, sans-serif;
+              font-size: 11px;
+              color: #000;
+              padding: 50px 60px;
+              line-height: 1.4;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              margin-bottom: 30px;
+              padding-bottom: 20px;
+            }
+            .company {
+              display: flex;
+              flex-direction: row;
+              gap: 20px;
+              align-items: flex-start;
+            }
+            .company img {
+              max-width: 180px;
+              height: auto;
+            }
+            .company-address {
+              font-size: 10px;
+              color: #000;
+              border: 2px solid #d32f2f;
+              padding: 6px 10px;
+              display: inline-block;
+            }
+            .invoice-header {
+              text-align: right;
+            }
+            .invoice-header h1 {
+              font-size: 36px;
+              font-weight: normal;
+              color: #000;
+              margin-bottom: 4px;
+            }
+            .invoice-number {
+              font-size: 12px;
+              font-weight: bold;
+              color: #000;
+              background: #f0f0f0;
+              padding: 4px 8px;
+              display: inline-block;
+              margin-bottom: 8px;
+            }
+            .invoice-meta {
+              text-align: left;
+              font-size: 10px;
+              margin-top: 8px;
+            }
+            .invoice-meta table {
+              border-collapse: collapse;
+            }
+            .invoice-meta td {
+              padding: 2px 8px 2px 0;
+              border: none;
+            }
+            .invoice-meta td:first-child {
+              font-weight: bold;
+              min-width: 90px;
+            }
+            .invoice-total {
+              padding: 12px 16px;
+              background: #f3f3f3 !important;
+              border: 1px solid #ddd;
+              border-left: 3px solid #d32f2f;
+              text-align: right;
+              min-width: 200px;
+            }
+            .invoice-total .total-label {
+              font-size: 11px;
+              font-weight: bold;
+              color: #666;
+              margin-bottom: 4px;
+            }
+            .invoice-total .total-amount {
+              font-size: 24px;
+              font-weight: bold;
+              color: #000;
+              margin-bottom: 4px;
+            }
+            .invoice-total .due-date-label {
+              font-size: 9px;
+              color: #666;
+            }
+            .addresses-section {
+              display: flex;
+              gap: 40px;
+              margin-bottom: 24px;
+              align-items: flex-start;
+            }
+            .addresses {
+              display: flex;
+              gap: 40px;
+              flex: 1;
+            }
+            .address-block {
+              flex: 1;
+            }
+            .address-block h3 {
+              font-size: 11px;
+              font-weight: bold;
+              text-transform: uppercase;
+              margin-bottom: 8px;
+              background: #f5f5f5;
+              padding: 4px 8px;
+              border-left: 3px solid #d32f2f;
+            }
+            .address-content {
+              font-size: 10px;
+              line-height: 1.5;
+            }
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 24px 0;
+              border: 1px solid #ddd;
+            }
+            .items-table thead {
+              background: #f3f3f3 !important;
+            }
+            .items-table th {
+              text-align: left;
+              padding: 8px;
+              font-size: 10px;
+              font-weight: bold;
+              text-transform: uppercase;
+              border-bottom: 1px solid #ddd;
+              background: #f3f3f3 !important;
+            }
+            .items-table th:first-child {
+              border-left: 3px solid #d32f2f;
+            }
+            .items-table th.text-right {
+              text-align: right;
+            }
+            .items-table td.text-right {
+              text-align: right;
+            }
+            .items-table td.text-center {
+              text-align: center;
+            }
+            .items-table td {
+              padding: 10px 8px;
+              font-size: 10px;
+              border-bottom: 1px solid #ddd;
+              vertical-align: top;
+            }
+            .items-table tbody tr:last-child td {
+              border-bottom: 1px solid #ddd;
+            }
+            .item-name {
+              font-weight: bold;
+              color: #000;
+              margin-bottom: 2px;
+            }
+            .item-sku {
+              font-size: 9px;
+              color: #666;
+            }
+            .totals-section {
+              display: flex;
+              justify-content: flex-end;
+              margin-top: 20px;
+            }
+            .totals {
+              width: 280px;
+            }
+            .totals table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            .totals td {
+              padding: 6px 8px;
+              font-size: 11px;
+              border: none;
+            }
+            .totals td:first-child {
+              text-align: left;
+              color: #666;
+            }
+            .totals td:last-child {
+              text-align: right;
+              font-weight: bold;
+            }
+            .totals .total-row {
+              border-top: none;
+              padding-top: 8px;
+            }
+            .totals .total-row td {
+              font-size: 13px;
+              font-weight: bold;
+              padding-top: 8px;
+            }
+            .totals .amount-due {
+              background: #f3f3f3 !important;
+            }
+            .totals .amount-due td:first-child {
+              border-left: 3px solid #d32f2f;
+              padding-left: 8px;
+            }
+            .totals .amount-due td {
+              background: #f3f3f3 !important;
+            }
+            .footer {
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 1px solid #ddd;
+              font-size: 9px;
+              color: #666;
+              text-align: center;
+            }
+            @media print {
+              body { padding: 50px 60px; }
+              @page { margin: 0.75in; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="company">
+              <img src="${logoUrl}" alt="${escapeHtml(COMPANY_DETAILS.name)}" />
+              <div class="company-address">
+                <strong>${escapeHtml(COMPANY_DETAILS.name)}</strong><br>
+                ${escapeHtml(COMPANY_DETAILS.addressLine1)}<br>
+                ${escapeHtml(companyCityLine)}<br>
+                ${escapeHtml(COMPANY_DETAILS.country)}
+              </div>
+            </div>
+            <div class="invoice-header">
+              <h1>Invoice</h1>
+              <div class="invoice-number">#${escapeHtml(invoice.invoiceNumber)}</div>
+              <div class="invoice-meta">
+                <table>
+                  <tr>
+                    <td>Sales Order #</td>
+                    <td>SO${escapeHtml(invoice.invoiceNumber.slice(-6))}</td>
+                  </tr>
+                  <tr>
+                    <td>Date:</td>
+                    <td>${escapeHtml(createdDate)}</td>
+                  </tr>
+                  ${dueDate ? `<tr><td>Due Date:</td><td>${escapeHtml(dueDate)}</td></tr>` : ''}
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="addresses-section">
+            <div class="addresses">
+              <div class="address-block">
+                <h3>Bill To</h3>
+                <div class="address-content">
+                  <strong>${escapeHtml(displayName(invoice.billTo.companyName, invoice.billTo.name))}</strong><br>
+                  ${contactLine(invoice.billTo.phone, invoice.billTo.email)}
+                  ${invoice.billTo.addressLine1 ? escapeHtml(invoice.billTo.addressLine1) + '<br>' : ''}
+                  ${[invoice.billTo.city, invoice.billTo.state, invoice.billTo.postalCode].filter(Boolean).join(', ')}<br>
+                  ${invoice.billTo.country ? escapeHtml(invoice.billTo.country) : ''}
+                </div>
+              </div>
+              <div class="address-block">
+                <h3>Ship To</h3>
+                <div class="address-content">
+                  <strong>${escapeHtml(displayName(invoice.shipTo.companyName, invoice.shipTo.name))}</strong><br>
+                  ${contactLine(invoice.shipTo.phone, invoice.shipTo.email)}
+                  ${invoice.shipTo.addressLine1 ? escapeHtml(invoice.shipTo.addressLine1) + '<br>' : ''}
+                  ${[invoice.shipTo.city, invoice.shipTo.state, invoice.shipTo.postalCode].filter(Boolean).join(', ')}<br>
+                  ${invoice.shipTo.country ? escapeHtml(invoice.shipTo.country) : ''}
+                </div>
+              </div>
+            </div>
+            <div class="invoice-total">
+              <div class="total-label">TOTAL</div>
+              <div class="total-amount">${escapeHtml(amountDue)}</div>
+              ${dueDate ? `<div class="due-date-label">Due Date: ${escapeHtml(dueDate)}</div>` : ''}
+            </div>
+          </div>
+
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="width: 60px; text-align: center;">Qty</th>
+                <th>Item</th>
+                <th style="width: 100px;" class="text-right">Rate</th>
+                <th style="width: 100px;" class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemRows}
+            </tbody>
+          </table>
+
+          <div class="totals-section">
+            <div class="totals">
+              <table>
+                <tr>
+                  <td>Subtotal</td>
+                  <td>${escapeHtml(subtotal)}</td>
+                </tr>
+                <tr>
+                  <td>Tax Total (%)</td>
+                  <td>${escapeHtml(taxAmount)}</td>
+                </tr>
+                <tr>
+                  <td>Shipping + Handling</td>
+                  <td>${escapeHtml(shippingAmount)}</td>
+                </tr>
+                <tr class="total-row amount-due">
+                  <td>Amount Due</td>
+                  <td>${escapeHtml(amountDue)}</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          ${invoice.terms || invoice.notes ? `
+            <div class="footer">
+              ${invoice.terms ? `<div><strong>Terms:</strong> ${escapeHtml(invoice.terms)}</div>` : ''}
+              ${invoice.notes ? `<div style="margin-top: 8px;">${escapeHtml(invoice.notes)}</div>` : ''}
+            </div>
+          ` : ''}
+        </body>
+      </html>
+    `;
+  };
+
+  const handleDownloadInvoice = (invoice: Invoice) => {
+    const html = buildPrintHtml(invoice);
+
+    // Create a blob from the HTML content
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+
+    // Create a temporary iframe for printing
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.top = '-9999px';
+    iframe.style.left = '-9999px';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    document.body.appendChild(iframe);
+
+    // Write content to iframe and print
+    if (iframe.contentWindow) {
+      iframe.contentWindow.document.open();
+      iframe.contentWindow.document.write(html);
+      iframe.contentWindow.document.close();
+
+      // Wait for content to load, then print
+      iframe.onload = () => {
+        setTimeout(() => {
+          if (iframe.contentWindow) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+
+            // Clean up after a delay
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+              URL.revokeObjectURL(url);
+            }, 1000);
+          }
+        }, 250);
+      };
+    }
+  };
+
+  return (
+    <section className="space-y-6">
+      <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Invoices</h2>
+            <p className="text-sm text-muted">Create, track, and deliver invoices to customers.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void loadInvoices()}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark"
+            >
+              <Plus className="h-4 w-4" />
+              Create invoice
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="relative w-full max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search invoices"
+              className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          <div className="w-44">
+            <Select
+              value={statusFilter}
+              onChange={(value) => setStatusFilter(value as InvoiceStatus | 'all')}
+              options={[
+                { value: 'all', label: 'All statuses' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'canceled', label: 'Canceled' },
+              ]}
+            />
+          </div>
+        </div>
+
+        {error && (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-border bg-surface shadow-sm">
+        <div className="overflow-auto">
+          <table className="min-w-full divide-y divide-border text-left text-sm">
+            <thead className="bg-slate-50/80 text-xs uppercase tracking-wide text-muted">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Invoice ID</th>
+                <th className="px-4 py-3 font-semibold">Created</th>
+                <th className="px-4 py-3 font-semibold">Customer</th>
+                <th className="px-4 py-3 font-semibold">Items</th>
+                <th className="px-4 py-3 font-semibold text-right">Total</th>
+                <th className="px-4 py-3 font-semibold">Status</th>
+                <th className="px-4 py-3 font-semibold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border bg-surface">
+              {loading && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted">
+                    Loading invoices...
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                filteredInvoices.map((invoice) => {
+                  const itemsCount = invoice.items.reduce((sum, item) => sum + item.quantity, 0);
+                  return (
+                    <tr key={invoice.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-mono text-sm font-semibold text-primary">
+                        {invoice.invoiceNumber}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap">
+                        {formatDate(invoice.createdAt)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="space-y-1">
+                          <div className="font-medium text-slate-900">{invoice.billTo.name}</div>
+                          <div className="text-xs text-muted">{invoice.billTo.email || invoice.shipTo.email || '-'}</div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {itemsCount} item{itemsCount !== 1 ? 's' : ''}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                        {formatCurrency(invoice.total, invoice.currency ?? 'USD')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusPill label={invoice.status} tone={getStatusTone(invoice.status)} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-primary hover:text-primary"
+                            title="View invoice"
+                            onClick={() => {
+                              setActiveInvoice(invoice);
+                              setShowPreviewModal(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-primary hover:text-primary"
+                            title="Download invoice"
+                            onClick={() => handleDownloadInvoice(invoice)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-lg border border-slate-200 p-2 text-red-600 transition hover:border-red-500 hover:text-red-600"
+                            title="Delete invoice"
+                            onClick={() => void handleDeleteInvoice(invoice.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              {!loading && filteredInvoices.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted">
+                    {searchQuery ? 'No invoices match your search.' : 'No invoices created yet.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
+          <div className="max-h-full w-full max-w-6xl overflow-y-auto rounded-2xl border border-border bg-white shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-border bg-white px-6 py-4">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">Create New Invoice</h3>
+                <p className="mt-1 text-sm text-muted">Fill in customer details and invoice items to generate a professional invoice.</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseCreate}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {formError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {formError}
+                </div>
+              )}
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="space-y-3 rounded-xl border border-border bg-white p-4">
+                  <h4 className="text-sm font-semibold text-slate-900">Bill To <span className="text-red-500">*</span></h4>
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Company name</label>
+                    <input
+                      type="text"
+                      value={form.billTo.companyName}
+                      onChange={(event) => updateAddress('billTo', 'companyName', event.target.value)}
+                      placeholder="Company name"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Name <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={form.billTo.name}
+                        onChange={(event) => updateAddress('billTo', 'name', event.target.value)}
+                        placeholder="Customer name"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
+                        <input
+                          type="email"
+                          value={form.billTo.email}
+                          onChange={(event) => updateAddress('billTo', 'email', event.target.value)}
+                          placeholder="email@example.com"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Phone</label>
+                        <input
+                          type="text"
+                          value={form.billTo.phone}
+                          onChange={(event) => updateAddress('billTo', 'phone', event.target.value)}
+                          placeholder="Phone number"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Address Line 1 <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={form.billTo.addressLine1}
+                        onChange={(event) => updateAddress('billTo', 'addressLine1', event.target.value)}
+                        placeholder="Street address"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Address Line 2</label>
+                      <input
+                        type="text"
+                        value={form.billTo.addressLine2}
+                        onChange={(event) => updateAddress('billTo', 'addressLine2', event.target.value)}
+                        placeholder="Apt, suite, etc. (optional)"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Country</label>
+                      <CountrySelect
+                        value={form.billTo.country}
+                        onChange={(value) => updateAddress('billTo', 'country', value)}
+                        placeholder="Select country"
+                        searchPlaceholder="Search countries..."
+                        placement="auto"
+                        className="w-full h-9"
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2.5">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">City</label>
+                        <input
+                          type="text"
+                          value={form.billTo.city}
+                          onChange={(event) => updateAddress('billTo', 'city', event.target.value)}
+                          placeholder="City"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">State</label>
+                        {isBillToUnitedStates ? (
+                          <CountrySelect
+                            value={form.billTo.state}
+                            onChange={(value) => updateAddress('billTo', 'state', value)}
+                            options={US_STATES}
+                            placeholder="Select state"
+                            searchPlaceholder="Search states..."
+                            placement="auto"
+                            className="w-full h-9"
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            value={form.billTo.state}
+                            onChange={(event) => updateAddress('billTo', 'state', event.target.value)}
+                            placeholder="State / Province"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">ZIP</label>
+                        <input
+                          type="text"
+                          value={form.billTo.postalCode}
+                          onChange={(event) => updateAddress('billTo', 'postalCode', event.target.value)}
+                          placeholder="ZIP"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              <div className="space-y-3 rounded-xl border border-border bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-slate-900">Ship To</h4>
+                  <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={sameAsBilling}
+                      onChange={(event) => setSameAsBilling(event.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/20"
+                    />
+                    Same as billing
+                  </label>
+                </div>
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Company name</label>
+                    <input
+                      type="text"
+                      value={form.shipTo.companyName}
+                      onChange={(event) => updateAddress('shipTo', 'companyName', event.target.value)}
+                      disabled={sameAsBilling}
+                      placeholder="Company name"
+                      className={cn(
+                        'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+                        sameAsBilling && 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={form.shipTo.name}
+                      onChange={(event) => updateAddress('shipTo', 'name', event.target.value)}
+                      disabled={sameAsBilling}
+                      placeholder="Customer name"
+                      className={cn(
+                        'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+                        sameAsBilling && 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={form.shipTo.email}
+                        onChange={(event) => updateAddress('shipTo', 'email', event.target.value)}
+                        disabled={sameAsBilling}
+                        placeholder="email@example.com"
+                        className={cn(
+                          'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+                          sameAsBilling && 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Phone</label>
+                      <input
+                        type="text"
+                        value={form.shipTo.phone}
+                        onChange={(event) => updateAddress('shipTo', 'phone', event.target.value)}
+                        disabled={sameAsBilling}
+                        placeholder="Phone number"
+                        className={cn(
+                          'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+                          sameAsBilling && 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                        )}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Address Line 1</label>
+                    <input
+                      type="text"
+                      value={form.shipTo.addressLine1}
+                      onChange={(event) => updateAddress('shipTo', 'addressLine1', event.target.value)}
+                      disabled={sameAsBilling}
+                      placeholder="Street address"
+                      className={cn(
+                        'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+                        sameAsBilling && 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Address Line 2</label>
+                    <input
+                      type="text"
+                      value={form.shipTo.addressLine2}
+                      onChange={(event) => updateAddress('shipTo', 'addressLine2', event.target.value)}
+                      disabled={sameAsBilling}
+                      placeholder="Apt, suite, etc. (optional)"
+                      className={cn(
+                        'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+                        sameAsBilling && 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Country</label>
+                    <div className={cn(sameAsBilling && 'pointer-events-none opacity-60')}>
+                      <CountrySelect
+                        value={form.shipTo.country}
+                        onChange={(value) => updateAddress('shipTo', 'country', value)}
+                        placeholder="Select country"
+                        searchPlaceholder="Search countries..."
+                        placement="auto"
+                        className="w-full h-9"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">City</label>
+                      <input
+                        type="text"
+                        value={form.shipTo.city}
+                        onChange={(event) => updateAddress('shipTo', 'city', event.target.value)}
+                        disabled={sameAsBilling}
+                        placeholder="City"
+                        className={cn(
+                          'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+                          sameAsBilling && 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">State</label>
+                      {isShipToUnitedStates ? (
+                        <div className={cn(sameAsBilling && 'pointer-events-none opacity-60')}>
+                          <CountrySelect
+                            value={form.shipTo.state}
+                            onChange={(value) => updateAddress('shipTo', 'state', value)}
+                            options={US_STATES}
+                            placeholder="Select state"
+                            searchPlaceholder="Search states..."
+                            placement="auto"
+                            className="w-full h-9"
+                          />
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          value={form.shipTo.state}
+                          onChange={(event) => updateAddress('shipTo', 'state', event.target.value)}
+                          disabled={sameAsBilling}
+                          placeholder="State / Province"
+                          className={cn(
+                            'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+                            sameAsBilling && 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                          )}
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">ZIP</label>
+                      <input
+                        type="text"
+                        value={form.shipTo.postalCode}
+                        onChange={(event) => updateAddress('shipTo', 'postalCode', event.target.value)}
+                        disabled={sameAsBilling}
+                        placeholder="ZIP"
+                        className={cn(
+                          'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+                          sameAsBilling && 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                        )}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-800">Invoice items</h4>
+                  <p className="text-xs text-muted">Add products or custom line items.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
+                >
+                  Add item
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {form.items.map((item, index) => (
+                  <div key={item.id} className="rounded-2xl border border-border bg-white p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-700">Item {index + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.id)}
+                        disabled={form.items.length === 1}
+                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-500 transition hover:border-red-300 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                      <div className="md:col-span-2">
+                        <label className="text-xs font-medium text-muted">Product</label>
+                        <div className="relative mt-1" ref={(el) => { productDropdownRefs.current[item.id] = el; }}>
+                          <button
+                            type="button"
+                            onClick={() => setProductDropdownOpen((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
+                            disabled={productsLoading}
+                            className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                              {item.productId && products.find((p) => p.id === item.productId)?.images?.[0] && (
+                                <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-300">
+                                  <img
+                                    src={products.find((p) => p.id === item.productId)!.images![0]}
+                                    alt={item.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              )}
+                              <span className={cn('truncate text-sm font-medium', !item.productId && 'text-slate-400')}>
+                                {item.productId
+                                  ? products.find((p) => p.id === item.productId)?.name || 'Manual entry'
+                                  : 'Select product or manual entry'}
+                              </span>
+                            </div>
+                            <ChevronDown
+                              className={cn(
+                                'h-4 w-4 flex-shrink-0 text-slate-400 transition-transform',
+                                productDropdownOpen[item.id] && 'rotate-180'
+                              )}
+                            />
+                          </button>
+                          <AnimatePresence>
+                            {productDropdownOpen[item.id] && (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ duration: 0.1 }}
+                                className="absolute left-0 right-0 top-full z-[100] mt-1 max-h-96 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 shadow-xl"
+                              >
+                                <div className="sticky top-0 z-10 bg-white pb-2">
+                                  <div className="relative">
+                                    <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                                    <input
+                                      type="text"
+                                      placeholder="Search products..."
+                                      value={productSearchQueries[item.id] || ''}
+                                      onChange={(event) => setProductSearchQueries((prev) => ({ ...prev, [item.id]: event.target.value }))}
+                                      className="h-8 w-full rounded-md border border-slate-300 bg-white pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    />
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleSelectProduct(item.id, '');
+                                    setProductDropdownOpen((prev) => ({ ...prev, [item.id]: false }));
+                                    setProductSearchQueries((prev) => ({ ...prev, [item.id]: '' }));
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-md border border-slate-200 p-2 text-left text-xs transition hover:border-primary hover:bg-primary/5 mb-2"
+                                >
+                                  <span className="font-medium text-slate-600">Manual entry (no product)</span>
+                                </button>
+                                <div className="grid grid-cols-3 gap-2 sm:grid-cols-3">
+                                  {getFilteredProducts(item.id).length ? (
+                                    getFilteredProducts(item.id).map((product) => (
+                                      <button
+                                        key={product.id}
+                                        type="button"
+                                        onClick={() => {
+                                          handleSelectProduct(item.id, product.id);
+                                          setProductDropdownOpen((prev) => ({ ...prev, [item.id]: false }));
+                                          setProductSearchQueries((prev) => ({ ...prev, [item.id]: '' }));
+                                        }}
+                                        className="flex flex-col items-center gap-1 rounded-md border border-slate-200 p-2 text-center transition hover:border-primary hover:bg-primary/5"
+                                      >
+                                        {product.images?.[0] && (
+                                          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-slate-200">
+                                            <img
+                                              src={product.images[0]}
+                                              alt={product.name}
+                                              className="h-full w-full object-cover"
+                                            />
+                                          </div>
+                                        )}
+                                        <span className="text-[0.6rem] font-medium leading-tight line-clamp-2 text-slate-600">
+                                          {product.name}
+                                        </span>
+                                        {product.sku && (
+                                          <span className="text-[0.55rem] text-slate-400 line-clamp-1">
+                                            {product.sku}
+                                          </span>
+                                        )}
+                                      </button>
+                                    ))
+                                  ) : (
+                                    <div className="col-span-full rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                                      No products found.
+                                    </div>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted">SKU</label>
+                        <input
+                          type="text"
+                          value={item.sku}
+                          onChange={(event) => updateItem(item.id, { sku: event.target.value })}
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted">Quantity</label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={item.quantity}
+                          onChange={(event) => updateItem(item.id, { quantity: event.target.value })}
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-xs font-medium text-muted">Item name</label>
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(event) => updateItem(item.id, { name: event.target.value })}
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted">Price</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.price}
+                          onChange={(event) => updateItem(item.id, { price: event.target.value })}
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted">Line total</label>
+                        <div className="mt-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                          {formatCurrency(
+                            parseNumber(item.quantity) * parseNumber(item.price),
+                            form.currency
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-4">
+                <div className="lg:col-span-3 space-y-3 rounded-xl border border-border bg-white p-4">
+                  <h4 className="text-sm font-semibold text-slate-900">Payment & Additional Details</h4>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
+                      <Select
+                        value={form.status}
+                        onChange={(value) => setForm((state) => ({ ...state, status: value as InvoiceStatus }))}
+                        options={[
+                          { value: 'pending', label: 'Pending' },
+                          { value: 'completed', label: 'Completed' },
+                          { value: 'canceled', label: 'Canceled' },
+                        ]}
+                        buttonClassName="h-9"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Due Date</label>
+                      <input
+                        type="date"
+                        value={form.dueDate}
+                        onChange={(event) => setForm((state) => ({ ...state, dueDate: event.target.value }))}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Terms</label>
+                      <input
+                        type="text"
+                        value={form.terms}
+                        onChange={(event) => setForm((state) => ({ ...state, terms: event.target.value }))}
+                        placeholder="Net 30"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Tax Rate (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.taxRate}
+                        onChange={(event) => setForm((state) => ({ ...state, taxRate: event.target.value }))}
+                        placeholder="0.00"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Shipping ($)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.shippingAmount}
+                        onChange={(event) => setForm((state) => ({ ...state, shippingAmount: event.target.value }))}
+                        placeholder="0.00"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+                      <textarea
+                        value={form.notes}
+                        onChange={(event) => setForm((state) => ({ ...state, notes: event.target.value }))}
+                        rows={2}
+                        placeholder="Additional notes or payment instructions..."
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-border bg-slate-50 p-4">
+                    <h4 className="text-sm font-semibold text-slate-900 mb-3">Summary</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between text-slate-700">
+                        <span>Subtotal</span>
+                        <span className="font-medium">{formatCurrency(summary.subtotal, form.currency)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-700">
+                        <span>Tax ({summary.taxRate || 0}%)</span>
+                        <span className="font-medium">{formatCurrency(summary.taxAmount, form.currency)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-700">
+                        <span>Shipping</span>
+                        <span className="font-medium">{formatCurrency(summary.shippingAmount, form.currency)}</span>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-base font-bold text-slate-900">
+                        <span>Total</span>
+                        <span>{formatCurrency(summary.total, form.currency)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 z-10 flex items-center justify-end gap-3 border-t border-border bg-white px-6 py-4 mt-6">
+              <button
+                type="button"
+                onClick={handleCloseCreate}
+                className="rounded-lg border border-slate-200 px-6 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateInvoice}
+                disabled={saving}
+                className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Creating...' : 'Create Invoice'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPreviewModal && activeInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-10">
+          <div className="max-h-full w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Invoice {activeInvoice.invoiceNumber}
+                </h3>
+                <p className="text-sm text-muted">Created {formatDate(activeInvoice.createdAt)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPreviewModal(false);
+                  setActiveInvoice(null);
+                }}
+                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <StatusPill label={activeInvoice.status} tone={getStatusTone(activeInvoice.status)} />
+              <span className="text-xs text-muted">Due {formatDate(activeInvoice.dueDate)}</span>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-border bg-slate-50/60 p-4">
+                <h4 className="text-xs font-semibold text-slate-700">Bill To</h4>
+                <div className="mt-2 space-y-1 text-sm text-slate-700">
+                  <div className="font-semibold">
+                    {activeInvoice.billTo.companyName
+                      ? `${activeInvoice.billTo.companyName} - ${activeInvoice.billTo.name}`
+                      : activeInvoice.billTo.name}
+                  </div>
+                  {(activeInvoice.billTo.phone || activeInvoice.billTo.email) && (
+                    <div>
+                      {[activeInvoice.billTo.phone, activeInvoice.billTo.email].filter(Boolean).join(' | ')}
+                    </div>
+                  )}
+                  <div>{activeInvoice.billTo.addressLine1}</div>
+                  <div>
+                    {[activeInvoice.billTo.city, activeInvoice.billTo.state, activeInvoice.billTo.postalCode]
+                      .filter(Boolean)
+                      .join(', ')}
+                  </div>
+                  <div>{activeInvoice.billTo.country}</div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-border bg-slate-50/60 p-4">
+                <h4 className="text-xs font-semibold text-slate-700">Ship To</h4>
+                <div className="mt-2 space-y-1 text-sm text-slate-700">
+                  <div className="font-semibold">
+                    {activeInvoice.shipTo.companyName
+                      ? `${activeInvoice.shipTo.companyName} - ${activeInvoice.shipTo.name}`
+                      : activeInvoice.shipTo.name}
+                  </div>
+                  {(activeInvoice.shipTo.phone || activeInvoice.shipTo.email) && (
+                    <div>
+                      {[activeInvoice.shipTo.phone, activeInvoice.shipTo.email].filter(Boolean).join(' | ')}
+                    </div>
+                  )}
+                  <div>{activeInvoice.shipTo.addressLine1}</div>
+                  <div>
+                    {[activeInvoice.shipTo.city, activeInvoice.shipTo.state, activeInvoice.shipTo.postalCode]
+                      .filter(Boolean)
+                      .join(', ')}
+                  </div>
+                  <div>{activeInvoice.shipTo.country}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 overflow-auto rounded-2xl border border-border">
+              <table className="min-w-full divide-y divide-border text-left text-sm">
+                <thead className="bg-slate-50/80 text-xs uppercase tracking-wide text-muted">
+                  <tr>
+                    <th className="px-4 py-2 font-semibold">Qty</th>
+                    <th className="px-4 py-2 font-semibold">Item</th>
+                    <th className="px-4 py-2 font-semibold text-right">Rate</th>
+                    <th className="px-4 py-2 font-semibold text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border bg-white">
+                  {activeInvoice.items.map((item, index) => (
+                    <tr key={`${activeInvoice.id}-${index}`}>
+                      <td className="px-4 py-2 text-slate-700">{item.quantity}</td>
+                      <td className="px-4 py-2">
+                        <div className="font-medium text-slate-900">{item.name}</div>
+                        {item.sku && <div className="text-xs text-muted">{item.sku}</div>}
+                      </td>
+                      <td className="px-4 py-2 text-right text-slate-700">
+                        {formatCurrency(item.price, activeInvoice.currency ?? 'USD')}
+                      </td>
+                      <td className="px-4 py-2 text-right font-semibold text-slate-900">
+                        {formatCurrency(item.price * item.quantity, activeInvoice.currency ?? 'USD')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <div className="w-full max-w-sm rounded-2xl border border-border bg-slate-50/60 p-4 text-sm">
+                <div className="flex items-center justify-between text-slate-700">
+                  <span className="text-muted">Subtotal</span>
+                  <span>{formatCurrency(activeInvoice.subtotal, activeInvoice.currency ?? 'USD')}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-slate-700">
+                  <span className="text-muted">Tax</span>
+                  <span>{formatCurrency(activeInvoice.taxAmount ?? 0, activeInvoice.currency ?? 'USD')}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-slate-700">
+                  <span className="text-muted">Shipping</span>
+                  <span>{formatCurrency(activeInvoice.shippingAmount ?? 0, activeInvoice.currency ?? 'USD')}</span>
+                </div>
+                <div className="mt-3 flex items-center justify-between border-t border-dashed border-slate-200 pt-3 text-base font-semibold text-slate-900">
+                  <span>Total</span>
+                  <span>{formatCurrency(activeInvoice.total, activeInvoice.currency ?? 'USD')}</span>
+                </div>
+              </div>
+            </div>
+
+            {activeInvoice.notes && (
+              <div className="mt-4 rounded-2xl border border-border bg-white p-4 text-sm text-slate-700">
+                <div className="text-xs font-semibold text-muted">Notes</div>
+                <p className="mt-2 whitespace-pre-wrap">{activeInvoice.notes}</p>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => handleDownloadInvoice(activeInvoice)}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
+              >
+                <Download className="h-4 w-4" />
+                Download
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPreviewModal(false);
+                  setActiveInvoice(null);
+                }}
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};

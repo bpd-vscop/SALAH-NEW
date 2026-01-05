@@ -45,6 +45,7 @@ import { ModelsAdminSection } from '../components/dashboard/ModelsAdminSection';
 import { TagsAdminSection } from '../components/dashboard/TagsAdminSection';
 import { HomepageAdminSection } from '../components/dashboard/HomepageAdminSection';
 import { OrdersAdminSection } from '../components/dashboard/OrdersAdminSection';
+import { InvoicesAdminSection } from '../components/dashboard/InvoicesAdminSection';
 import { MessagesAdminSection } from '../components/dashboard/MessagesAdminSection';
 import { NavigationAdminSection } from '../components/dashboard/NavigationAdminSection';
 import type {
@@ -468,6 +469,7 @@ export const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<(typeof adminTabs)[number]['id']>('users');
   const [usersSection, setUsersSection] = useState<'staff' | 'clients'>('staff');
+  const [ordersSection, setOrdersSection] = useState<'orders' | 'invoices'>('orders');
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -1812,19 +1814,31 @@ export const AdminDashboardPage: React.FC = () => {
             activeLabel: activeTab === 'products' ? activeProductsLabel : undefined,
           };
         }
+        if (tab.id === 'orders') {
+          const activeOrdersLabel = ordersSection === 'invoices' ? 'Invoices' : 'Orders';
+          return {
+            id: tab.id,
+            label: tab.label,
+            icon: getMenuIcon(tab.id),
+            dropdown: {
+              items: [
+                { id: 'orders', label: 'Orders' },
+                { id: 'invoices', label: 'Invoices' },
+              ],
+              activeId: activeTab === 'orders' ? ordersSection : undefined,
+            },
+            activeLabel: activeTab === 'orders' ? activeOrdersLabel : undefined,
+            badgeCount: orders.filter((o) => o.status === 'pending').length,
+          };
+        }
         return {
           id: tab.id,
           label: tab.label,
           icon: getMenuIcon(tab.id),
-          badgeCount:
-            tab.id === 'orders'
-              ? orders.filter((o) => o.status === 'pending').length
-              : tab.id === 'messages'
-                ? messagesUnreadCount
-                : undefined,
+          badgeCount: tab.id === 'messages' ? messagesUnreadCount : undefined,
         };
       }),
-    [homepageSection, navigationSection, activeTab, catalogSection, usersSection, productsView, orders, messagesUnreadCount]
+    [homepageSection, navigationSection, activeTab, catalogSection, usersSection, productsView, ordersSection, orders, messagesUnreadCount]
   );
 
   const handleTopNavSelect = (id: string, dropdownId?: string) => {
@@ -1871,6 +1885,14 @@ export const AdminDashboardPage: React.FC = () => {
         setProductsView(dropdownId);
       }
       setActiveTab('products');
+      return;
+    }
+
+    if (id === 'orders') {
+      if (dropdownId === 'orders' || dropdownId === 'invoices') {
+        setOrdersSection(dropdownId);
+      }
+      setActiveTab('orders');
       return;
     }
 
@@ -2206,19 +2228,23 @@ export const AdminDashboardPage: React.FC = () => {
 
           {activeTab === 'orders' && (
             <motion.div
-              key="orders"
+              key={`orders-${ordersSection}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
-              <OrdersAdminSection
-                orders={orders}
-                canEditOrders={canEditOrders(role)}
-                orderStatuses={orderStatuses}
-                onUpdateStatus={updateOrderStatus}
-                onRefresh={refreshOrders}
-              />
+              {ordersSection === 'orders' ? (
+                <OrdersAdminSection
+                  orders={orders}
+                  canEditOrders={canEditOrders(role)}
+                  orderStatuses={orderStatuses}
+                  onUpdateStatus={updateOrderStatus}
+                  onRefresh={refreshOrders}
+                />
+              ) : (
+                <InvoicesAdminSection />
+              )}
             </motion.div>
           )}
         </AnimatePresence>

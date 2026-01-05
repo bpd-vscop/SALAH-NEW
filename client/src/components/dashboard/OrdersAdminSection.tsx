@@ -499,6 +499,13 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
 
   return (
     <section className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Orders</h2>
+          <p className="text-sm text-muted">Manage customer orders and track their progress.</p>
+        </div>
+      </div>
+
       {/* Statistics Cards with Animation */}
       <AnimatePresence>
         {showStatistics && (
