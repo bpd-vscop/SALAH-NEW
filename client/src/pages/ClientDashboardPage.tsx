@@ -370,6 +370,24 @@ export const ClientDashboardPage: React.FC = () => {
     return `${datePart} - ${timePart}`;
   };
 
+  const getReviewReplies = (review: ProductReview) => {
+    const legacyReply = review.adminComment
+      ? [
+          {
+            id: `legacy-${review.id}`,
+            authorRole: 'admin' as const,
+            authorName: 'ULKSupply Team',
+            message: review.adminComment,
+            createdAt: null,
+          },
+        ]
+      : [];
+    return [...legacyReply, ...(review.replies ?? [])];
+  };
+
+  const getReplyAuthor = (reply: { authorRole: 'client' | 'admin'; authorName?: string | null }) =>
+    reply.authorRole === 'admin' ? 'ULKSupply Team' : reply.authorName || 'Customer';
+
   // Check URL params for tab
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -2105,6 +2123,7 @@ export const ClientDashboardPage: React.FC = () => {
                     <div className="space-y-4">
                       {reviews.map((review) => {
                         const product = reviewProducts[review.productId];
+                        const displayReplies = getReviewReplies(review);
                         return (
                           <div
                             key={review.id}
@@ -2141,11 +2160,27 @@ export const ClientDashboardPage: React.FC = () => {
                               </div>
                             </div>
                             <p className="mt-3 text-sm text-slate-700">{review.comment}</p>
-                            {review.adminComment ? (
-                              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                                <span className="font-semibold text-slate-700">Admin reply:</span> {review.adminComment}
+                            {displayReplies.length > 0 && (
+                              <div className="mt-3 space-y-2">
+                                {displayReplies.map((reply) => (
+                                  <div
+                                    key={reply.id}
+                                    className={cn(
+                                      'rounded-xl border px-3 py-2 text-xs',
+                                      reply.authorRole === 'admin'
+                                        ? 'border-slate-200 bg-slate-50 text-slate-700'
+                                        : 'border-primary/20 bg-primary/5 text-slate-700'
+                                    )}
+                                  >
+                                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                                      <span className="font-semibold text-slate-700">{getReplyAuthor(reply)}</span>
+                                      {reply.createdAt ? <span>{formatReviewDate(reply.createdAt)}</span> : null}
+                                    </div>
+                                    <p className="mt-1 whitespace-pre-line">{reply.message}</p>
+                                  </div>
+                                ))}
                               </div>
-                            ) : null}
+                            )}
                           </div>
                         );
                       })}

@@ -1,5 +1,35 @@
 const mongoose = require('mongoose');
 
+const reviewReplySchema = new mongoose.Schema(
+  {
+    authorRole: {
+      type: String,
+      enum: ['client', 'admin'],
+      required: true,
+    },
+    authorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    authorName: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    message: {
+      type: String,
+      trim: true,
+      required: true,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true }
+);
+
 const productReviewSchema = new mongoose.Schema(
   {
     productId: {
@@ -34,6 +64,10 @@ const productReviewSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    replies: {
+      type: [reviewReplySchema],
+      default: [],
+    },
     isVerifiedPurchase: {
       type: Boolean,
       default: false,
@@ -49,6 +83,23 @@ const productReviewSchema = new mongoose.Schema(
         ret.userId = ret.userId ? ret.userId.toString() : null;
         ret.createdAt = ret.createdAt ? new Date(ret.createdAt).toISOString() : null;
         ret.updatedAt = ret.updatedAt ? new Date(ret.updatedAt).toISOString() : null;
+        ret.replies = Array.isArray(ret.replies)
+          ? ret.replies.map((reply) => {
+              const normalized = { ...reply };
+              if (normalized._id) {
+                normalized.id = normalized._id.toString();
+              }
+              if (normalized.authorId) {
+                normalized.authorId = normalized.authorId.toString();
+              }
+              normalized.createdAt = normalized.createdAt
+                ? new Date(normalized.createdAt).toISOString()
+                : null;
+              delete normalized._id;
+              delete normalized.__v;
+              return normalized;
+            })
+          : [];
         delete ret._id;
         delete ret.__v;
         return ret;

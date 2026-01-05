@@ -26,6 +26,13 @@ const resolveReviewerName = (reqUser, inputName) => {
   return normalizeText(inputName);
 };
 
+const resolveReplyAuthorName = (review, reqUser, authorRole) => {
+  if (authorRole === 'admin') {
+    return 'ULKSupply Team';
+  }
+  return reqUser?.name || review.reviewerName || reqUser?.email || 'Customer';
+};
+
 const createReview = async (req, res, next) => {
   try {
     const productId = req.params.id || req.body?.productId;
@@ -142,6 +149,52 @@ const listReviews = async (req, res, next) => {
   }
 };
 
+const addReviewReply = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw notFound('Review not found');
+    }
+
+    const review = await ProductReview.findById(id);
+    if (!review) {
+      throw notFound('Review not found');
+    }
+
+    const message = normalizeText(req.body?.message);
+    if (!message) {
+      throw badRequest('Reply message is required');
+    }
+
+    const role = req.user?.role;
+    const isAdmin = ['super_admin', 'admin', 'staff'].includes(role);
+    const isClient = role === 'client';
+    if (!isAdmin && !isClient) {
+      throw forbidden();
+    }
+
+    if (isClient) {
+      if (!review.userId || review.userId.toString() !== req.user._id.toString()) {
+        throw forbidden();
+      }
+    }
+
+    const authorRole = isAdmin ? 'admin' : 'client';
+    const authorName = resolveReplyAuthorName(review, req.user, authorRole);
+    review.replies.push({
+      authorRole,
+      authorId: req.user?._id ?? null,
+      authorName: authorName || null,
+      message,
+    });
+
+    await review.save();
+    res.status(201).json({ review: review.toJSON() });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const updateReview = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -230,6 +283,7 @@ module.exports = {
   createReview,
   listProductReviews,
   listReviews,
+  addReviewReply,
   updateReview,
   deleteReview,
   bulkDeleteReviews,

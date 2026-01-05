@@ -85,6 +85,8 @@ export const ProductDetailTabs: React.FC<ProductDetailTabsProps> = ({
   const [ratingInput, setRatingInput] = useState('5');
   const [commentInput, setCommentInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [replySavingIds, setReplySavingIds] = useState<Set<string>>(new Set());
 
   const tabs = useMemo(() => {
     const list: Array<{ id: TabId; label: string }> = [{ id: 'overview', label: 'Overview' }];
@@ -110,6 +112,8 @@ export const ProductDetailTabs: React.FC<ProductDetailTabsProps> = ({
   useEffect(() => {
     if (!productId) {
       setReviews([]);
+      setReplyDrafts({});
+      setReplySavingIds(new Set());
       return;
     }
     let cancelled = false;
@@ -120,6 +124,8 @@ export const ProductDetailTabs: React.FC<ProductDetailTabsProps> = ({
         const { reviews: data } = await reviewsApi.listByProduct(productId);
         if (cancelled) return;
         setReviews(data);
+        setReplyDrafts({});
+        setReplySavingIds(new Set());
       } catch (error) {
         if (!cancelled) {
           setReviewsError(error instanceof Error ? error.message : 'Unable to load reviews');
@@ -183,6 +189,31 @@ export const ProductDetailTabs: React.FC<ProductDetailTabsProps> = ({
     });
   };
 
+  const getReviewReplies = (review: ProductReview) => {
+    const legacyReply = review.adminComment
+      ? [
+          {
+            id: `legacy-${review.id}`,
+            authorRole: 'admin' as const,
+            authorName: 'ULKSupply Team',
+            message: review.adminComment,
+            createdAt: null,
+          },
+        ]
+      : [];
+    return [...legacyReply, ...(review.replies ?? [])];
+  };
+
+  const getReplyAuthor = (reply: { authorRole: 'client' | 'admin'; authorName?: string | null }) =>
+    reply.authorRole === 'admin' ? 'ULKSupply Team' : reply.authorName || 'Customer';
+
+  const canReplyToReview = (review: ProductReview) => {
+    if (!user) return false;
+    if (['super_admin', 'admin', 'staff'].includes(user.role)) return true;
+    if (user.role !== 'client') return false;
+    return Boolean(review.userId && user.id && review.userId === user.id);
+  };
+
   const handleSubmitReview = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!productId || !canReview) {
@@ -213,6 +244,32 @@ export const ProductDetailTabs: React.FC<ProductDetailTabsProps> = ({
       setReviewsError(error instanceof Error ? error.message : 'Unable to submit your review.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSendReply = async (reviewId: string) => {
+    const message = (replyDrafts[reviewId] ?? '').trim();
+    if (!message) {
+      setReviewsError('Please enter a reply before sending.');
+      return;
+    }
+    setReplySavingIds((current) => {
+      const next = new Set(current);
+      next.add(reviewId);
+      return next;
+    });
+    try {
+      const { review } = await reviewsApi.addReply(reviewId, { message });
+      setReviews((current) => current.map((item) => (item.id === reviewId ? review : item)));
+      setReplyDrafts((current) => ({ ...current, [reviewId]: '' }));
+    } catch (error) {
+      setReviewsError(error instanceof Error ? error.message : 'Unable to send reply.');
+    } finally {
+      setReplySavingIds((current) => {
+        const next = new Set(current);
+        next.delete(reviewId);
+        return next;
+      });
     }
   };
 
@@ -577,8 +634,12 @@ export const ProductDetailTabs: React.FC<ProductDetailTabsProps> = ({
                     Be the first to review this product. Share fitment tips or installation notes with the community.
                   </div>
                 )}
-                {reviews.map((review) => (
-                  <div key={review.id} className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+                {reviews.map((review) => {
+                  const displayReplies = getReviewReplies(review);
+                  const isReplyAllowed = canReplyToReview(review);
+                  const isReplySaving = replySavingIds.has(review.id);
+                  return (
+                    <div key={review.id} className="rounded-2xl border border-border bg-white p-4 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <p className="text-sm font-semibold text-slate-900">{review.reviewerName}</p>
@@ -605,13 +666,62 @@ export const ProductDetailTabs: React.FC<ProductDetailTabsProps> = ({
                       </div>
                     </div>
                     <p className="mt-3 text-sm text-slate-700">{review.comment}</p>
-                    {review.adminComment ? (
-                      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                        <span className="font-semibold text-slate-700">Admin reply:</span> {review.adminComment}
+                    {displayReplies.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {displayReplies.map((reply) => (
+                          <div
+                            key={reply.id}
+                            className={cn(
+                              'rounded-xl border px-3 py-2 text-xs',
+                              reply.authorRole === 'admin'
+                                ? 'border-slate-200 bg-slate-50 text-slate-700'
+                                : 'border-primary/20 bg-primary/5 text-slate-700'
+                            )}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                              <span className="font-semibold text-slate-700">{getReplyAuthor(reply)}</span>
+                              {reply.createdAt ? <span>{formatReviewDate(reply.createdAt)}</span> : null}
+                            </div>
+                            <p className="mt-1 whitespace-pre-line">{reply.message}</p>
+                          </div>
+                        ))}
                       </div>
-                    ) : null}
+                    )}
+                    {isReplyAllowed && (
+                      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <label className="text-xs font-semibold text-slate-600">Add a reply</label>
+                        <textarea
+                          value={replyDrafts[review.id] ?? ''}
+                          onChange={(event) =>
+                            setReplyDrafts((current) => ({
+                              ...current,
+                              [review.id]: event.target.value,
+                            }))
+                          }
+                          rows={3}
+                          className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          placeholder="Write your reply..."
+                        />
+                        <div className="mt-2 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => void handleSendReply(review.id)}
+                            disabled={isReplySaving || !(replyDrafts[review.id] ?? '').trim()}
+                            className={cn(
+                              'rounded-lg border px-3 py-1.5 text-xs font-semibold transition',
+                              isReplySaving || !(replyDrafts[review.id] ?? '').trim()
+                                ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                                : 'border-primary bg-primary text-white hover:bg-primary/90'
+                            )}
+                          >
+                            {isReplySaving ? 'Sending...' : 'Send reply'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">

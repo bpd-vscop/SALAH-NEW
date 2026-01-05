@@ -150,6 +150,15 @@ export interface ProductReviewsSummary {
   ratingBreakdown?: Record<string, number>;
 }
 
+export interface ProductReviewReply {
+  id: string;
+  authorRole: 'client' | 'admin';
+  authorId?: string | null;
+  authorName?: string | null;
+  message: string;
+  createdAt?: string | null;
+}
+
 export interface ProductReview {
   id: string;
   productId: string;
@@ -158,6 +167,7 @@ export interface ProductReview {
   rating: number;
   comment: string;
   adminComment?: string | null;
+  replies?: ProductReviewReply[];
   isVerifiedPurchase?: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;

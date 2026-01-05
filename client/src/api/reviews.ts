@@ -19,6 +19,8 @@ export const reviewsApi = {
   },
   update: (id: string, payload: { adminComment?: string; rating?: number; comment?: string }) =>
     http.patch<{ review: ProductReview; summary?: ProductReviewsSummary }>(`/reviews/${id}`, payload),
+  addReply: (id: string, payload: { message: string }) =>
+    http.post<{ review: ProductReview }>(`/reviews/${id}/replies`, payload),
   delete: (id: string) => http.delete<void>(`/reviews/${id}`),
   bulkDelete: (ids: string[]) => http.post<{ deleted: number }>('/reviews/bulk-delete', { ids }),
 };

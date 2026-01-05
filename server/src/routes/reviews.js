@@ -2,6 +2,7 @@ const express = require('express');
 const {
   listReviews,
   createReview,
+  addReviewReply,
   updateReview,
   deleteReview,
   bulkDeleteReviews,
@@ -13,6 +14,7 @@ const router = express.Router();
 router.use(requireAuth);
 router.get('/', listReviews);
 router.post('/', requireRole(['super_admin', 'admin', 'staff']), createReview);
+router.post('/:id/replies', requireRole(['super_admin', 'admin', 'staff', 'client']), addReviewReply);
 router.patch('/:id', requireRole(['super_admin', 'admin', 'staff']), updateReview);
 router.delete('/:id', requireRole(['super_admin', 'admin', 'staff']), deleteReview);
 router.post('/bulk-delete', requireRole(['super_admin', 'admin', 'staff']), bulkDeleteReviews);

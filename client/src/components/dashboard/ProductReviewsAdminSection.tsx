@@ -104,7 +104,8 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
     comment: '',
   });
   const [reviewSaving, setReviewSaving] = useState(false);
-  const [adminCommentDrafts, setAdminCommentDrafts] = useState<Record<string, string>>({});
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [replySavingIds, setReplySavingIds] = useState<Set<string>>(new Set());
 
   const categoryNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -166,7 +167,8 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
   useEffect(() => {
     if (!selectedProductId) {
       setReviews([]);
-      setAdminCommentDrafts({});
+      setReplyDrafts({});
+      setReplySavingIds(new Set());
       setSelectedReviewIds(new Set());
       return;
     }
@@ -179,12 +181,8 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
         const { reviews: data } = await reviewsApi.listByProduct(selectedProductId);
         if (cancelled) return;
         setReviews(data);
-        setAdminCommentDrafts(
-          data.reduce<Record<string, string>>((acc, review) => {
-            acc[review.id] = review.adminComment ?? '';
-            return acc;
-          }, {})
-        );
+        setReplyDrafts({});
+        setReplySavingIds(new Set());
       } catch (error) {
         if (!cancelled) {
           setReviewsError(error instanceof Error ? error.message : 'Unable to load reviews.');
@@ -334,14 +332,30 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
     }
   };
 
-  const handleSaveAdminComment = async (reviewId: string) => {
-    const comment = adminCommentDrafts[reviewId] ?? '';
+  const handleSendReply = async (reviewId: string) => {
+    const message = (replyDrafts[reviewId] ?? '').trim();
+    if (!message) {
+      setStatus(null, 'Reply message is required.');
+      return;
+    }
+    setReplySavingIds((current) => {
+      const next = new Set(current);
+      next.add(reviewId);
+      return next;
+    });
     try {
-      const { review } = await reviewsApi.update(reviewId, { adminComment: comment });
+      const { review } = await reviewsApi.addReply(reviewId, { message });
       setReviews((current) => current.map((item) => (item.id === reviewId ? review : item)));
-      setStatus('Admin comment saved.');
+      setReplyDrafts((current) => ({ ...current, [reviewId]: '' }));
+      setStatus('Reply sent.');
     } catch (error) {
-      setStatus(null, error instanceof Error ? error.message : 'Unable to save admin comment.');
+      setStatus(null, error instanceof Error ? error.message : 'Unable to send reply.');
+    } finally {
+      setReplySavingIds((current) => {
+        const next = new Set(current);
+        next.delete(reviewId);
+        return next;
+      });
     }
   };
 
@@ -462,12 +476,8 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
     try {
       const { reviews: data } = await reviewsApi.listByProduct(selectedProductId);
       setReviews(data);
-      setAdminCommentDrafts(
-        data.reduce<Record<string, string>>((acc, review) => {
-          acc[review.id] = review.adminComment ?? '';
-          return acc;
-        }, {})
-      );
+      setReplyDrafts({});
+      setReplySavingIds(new Set());
     } catch (error) {
       setReviewsError(error instanceof Error ? error.message : 'Unable to load reviews.');
     } finally {
@@ -488,6 +498,23 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
   };
 
   if (selectedProduct) {
+    const getReviewReplies = (review: ProductReview) => {
+      const legacyReply = review.adminComment
+        ? [
+            {
+              id: `legacy-${review.id}`,
+              authorRole: 'admin' as const,
+              authorName: 'ULKSupply Team',
+              message: review.adminComment,
+              createdAt: null,
+            },
+          ]
+        : [];
+      return [...legacyReply, ...(review.replies ?? [])];
+    };
+
+    const getReplyAuthor = (reply: { authorRole: 'client' | 'admin'; authorName?: string | null }) =>
+      reply.authorRole === 'admin' ? 'ULKSupply Team' : reply.authorName || 'Customer';
     const stockStatus = getEffectiveInventoryStatus(selectedProduct);
     const stockLabel = stockOptions.find((option) => option.value === stockStatus)?.label ?? 'In stock';
     const stockQuantity = typeof selectedProduct.inventory?.quantity === 'number' ? selectedProduct.inventory.quantity : 0;
@@ -634,6 +661,7 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
                 !reviewsError &&
                 reviews.map((review) => {
                   const isSelected = selectedReviewIds.has(review.id);
+                  const displayReplies = getReviewReplies(review);
                   return (
                     <div
                       key={review.id}
@@ -684,27 +712,49 @@ export const ProductReviewsAdminSection: React.FC<ProductReviewsAdminSectionProp
                         </button>
                       </div>
                       <p className="mt-3 text-sm text-slate-700 whitespace-pre-line">{review.comment}</p>
+                      {displayReplies.length > 0 && (
+                        <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-xs font-semibold text-slate-600">Conversation</p>
+                          {displayReplies.map((reply) => (
+                            <div key={reply.id} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                                <span className="font-semibold text-slate-700">{getReplyAuthor(reply)}</span>
+                                {reply.createdAt ? (
+                                  <span>{formatReviewDate(reply.createdAt)}</span>
+                                ) : null}
+                              </div>
+                              <p className="mt-1 whitespace-pre-line text-xs text-slate-700">{reply.message}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <label className="text-xs font-semibold text-slate-600">Admin comment</label>
+                        <label className="text-xs font-semibold text-slate-600">Add reply</label>
                         <textarea
-                          value={adminCommentDrafts[review.id] ?? ''}
+                          value={replyDrafts[review.id] ?? ''}
                           onChange={(event) =>
-                            setAdminCommentDrafts((current) => ({
+                            setReplyDrafts((current) => ({
                               ...current,
                               [review.id]: event.target.value,
                             }))
                           }
                           rows={3}
                           className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                          placeholder="Add a reply or internal note..."
+                          placeholder="Write a reply..."
                         />
                         <div className="mt-2 flex justify-end">
                           <button
                             type="button"
-                            onClick={() => void handleSaveAdminComment(review.id)}
-                            className="rounded-lg border border-primary bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary/90"
+                            onClick={() => void handleSendReply(review.id)}
+                            disabled={replySavingIds.has(review.id) || !(replyDrafts[review.id] ?? '').trim()}
+                            className={cn(
+                              'rounded-lg border px-3 py-1.5 text-xs font-semibold transition',
+                              replySavingIds.has(review.id) || !(replyDrafts[review.id] ?? '').trim()
+                                ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                                : 'border-primary bg-primary text-white hover:bg-primary/90'
+                            )}
                           >
-                            Save comment
+                            {replySavingIds.has(review.id) ? 'Sending...' : 'Send reply'}
                           </button>
                         </div>
                       </div>
