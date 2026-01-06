@@ -271,6 +271,7 @@ interface VehicleSearchProps {
   onFindParts: () => void;
   vehicleMakes: string[];
   vehicleModels: string[];
+  vehicleYears: number[];
   loading?: boolean;
 }
 
@@ -286,6 +287,7 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
   onFindParts,
   vehicleMakes,
   vehicleModels,
+  vehicleYears,
   loading = false,
 }) => {
   const handleMakeChange = (newMake: string) => {
@@ -363,17 +365,21 @@ const VehicleSearchBar: React.FC<VehicleSearchProps> = ({
                   </select>
                 </label>
                 <label>
-                  <input
+                  <select
                     value={year}
                     onChange={(event) => setYear(event.target.value)}
-                    disabled={loading || !make || !model}
+                    disabled={loading || !make || !model || vehicleYears.length === 0}
                     className="h-10 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder={loading ? 'Loading...' : !make || !model ? 'Select brand & model first' : 'Enter year'}
-                    type="number"
-                    inputMode="numeric"
-                    min={1900}
-                    max={new Date().getFullYear() + 1}
-                  />
+                  >
+                    <option value="" disabled>
+                      {loading ? 'Loading...' : !make || !model ? 'Select brand & model first' : vehicleYears.length === 0 ? 'No years available' : 'Select year'}
+                    </option>
+                    {vehicleYears.map((yearOption) => (
+                      <option key={yearOption} value={yearOption} className="text-slate-900">
+                        {yearOption}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <button
                   type="button"
@@ -427,9 +433,10 @@ export const Header: React.FC = () => {
   const [vehicleYear, setVehicleYear] = useState('');
   const [vehicleMake, setVehicleMake] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
-  const [vehicleOptions, setVehicleOptions] = useState<{ makes: string[]; models: string[] }>({
+  const [vehicleOptions, setVehicleOptions] = useState<{ makes: string[]; models: string[]; years: number[] }>({
     makes: [],
     models: [],
+    years: [],
   });
   const [vehicleOptionsLoading, setVehicleOptionsLoading] = useState(false);
 
@@ -543,15 +550,16 @@ export const Header: React.FC = () => {
     const loadVehicleOptions = async () => {
       setVehicleOptionsLoading(true);
       try {
-        const { makes, models } = await productsApi.getVehicleCompatibilityOptions({
+        const { makes, models, years } = await productsApi.getVehicleCompatibilityOptions({
           make: vehicleMake || undefined,
+          model: vehicleModel || undefined,
         });
         if (!active) return;
-        setVehicleOptions({ makes, models });
+        setVehicleOptions({ makes, models, years });
       } catch (error) {
         console.warn('Failed to load vehicle compatibility options', error);
         if (active) {
-          setVehicleOptions({ makes: [], models: [] });
+          setVehicleOptions({ makes: [], models: [], years: [] });
         }
       } finally {
         if (active) {
@@ -563,7 +571,7 @@ export const Header: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [vehicleMake]);
+  }, [vehicleMake, vehicleModel]);
 
   useEffect(() => {
     let active = true;
@@ -1503,6 +1511,7 @@ export const Header: React.FC = () => {
               setModel={setVehicleModel}
               vehicleMakes={vehicleOptions.makes}
               vehicleModels={vehicleOptions.models}
+              vehicleYears={vehicleOptions.years}
               loading={vehicleOptionsLoading}
               onFindParts={() => {
                 const params = new URLSearchParams();
