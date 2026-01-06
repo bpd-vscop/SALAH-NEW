@@ -175,9 +175,7 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
                           >
                             <span>{option.label}</span>
                             {selected && (
-                              <span className="text-xs font-semibold uppercase tracking-wide text-primary">
-                                active
-                              </span>
+                              <span className="inline-flex h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
                             )}
                           </button>
                           {option.separatorAfter && item.dropdown && index < item.dropdown.items.length - 1 && (
