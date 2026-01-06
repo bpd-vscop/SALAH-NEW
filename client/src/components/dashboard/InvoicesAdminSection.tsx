@@ -1080,7 +1080,7 @@ export const InvoicesAdminSection: React.FC = () => {
         )}
       </div>
 
-      <div className="rounded-2xl border border-border bg-surface shadow-sm">
+      <div className="rounded-2xl border border-border bg-surface shadow-sm overflow-hidden">
         <div className="overflow-auto">
           <table className="min-w-full divide-y divide-border text-left text-sm">
             <thead className="bg-slate-50/80 text-xs uppercase tracking-wide text-muted">
