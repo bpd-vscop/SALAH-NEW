@@ -287,7 +287,13 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
       const detail = event instanceof CustomEvent ? event.detail : null;
       setIsOpen(false);
       if (detail?.view === 'chat') {
-        setActiveView('chat-select');
+        // If a specific email is provided, open chat directly with that email
+        if (detail?.email && isSignedInClient) {
+          setActiveView('chat');
+          void openChatForRecipient(detail.email);
+        } else {
+          setActiveView('chat-select');
+        }
       } else {
         setActiveView('email-select');
       }
@@ -297,7 +303,7 @@ export function ContactWidget({ showBackToTop = false }: ContactWidgetProps) {
     return () => {
       window.removeEventListener('openContactWidget', handleOpen as EventListener);
     };
-  }, []);
+  }, [isSignedInClient]);
 
   useEffect(() => {
     void refreshChatUnread();

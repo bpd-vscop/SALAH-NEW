@@ -1,11 +1,13 @@
 import { useMemo, useState, useEffect, type FC, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ContactWidget } from '../common/ContactWidget';
+import { useAuth } from '../../context/useAuth';
 
 const corporateLinks = [
-  { label: 'Track Your Order', href: '#' },
-  { label: 'Help / FAQ', href: '#' },
+  { label: 'Track Your Order', href: '#', requiresAuth: true, action: 'track-order' },
+  { label: 'Help / FAQ', href: '/faq' },
   { label: 'About Us', href: '/about' },
-  { label: 'Contact Us', href: '#' },
+  { label: 'Contact Us', href: '#', requiresAuth: true, action: 'contact' },
 ];
 
 const legalLinks = [
@@ -69,6 +71,8 @@ const MapPinIcon = ({ className }: { className?: string }) => (
 export const Footer: FC = () => {
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -95,6 +99,36 @@ export const Footer: FC = () => {
       return;
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, link: typeof corporateLinks[0]) => {
+    if (link.action) {
+      e.preventDefault();
+
+      if (link.action === 'contact') {
+        // Contact Us logic
+        if (user) {
+          // If logged in, open live chat with random email selection
+          const emails = ['sales@ulk-supply.com', 'ulksupply@hotmail.com', 'bprod.digital@gmail.com'];
+          const randomEmail = emails[Math.floor(Math.random() * emails.length)];
+          window.dispatchEvent(new CustomEvent('openContactWidget', {
+            detail: { view: 'chat', email: randomEmail }
+          }));
+        } else {
+          // If not logged in, redirect to login page
+          navigate('/login');
+        }
+      } else if (link.action === 'track-order') {
+        // Track Your Order logic
+        if (user) {
+          // If logged in, navigate to dashboard orders tab
+          navigate('/dashboard?tab=orders');
+        } else {
+          // If not logged in, redirect to login page
+          navigate('/login');
+        }
+      }
+    }
   };
 
   return (
@@ -125,7 +159,11 @@ export const Footer: FC = () => {
             <ul className="space-y-2 text-sm text-white/80">
               {corporateLinks.map((link) => (
                 <li key={link.label}>
-                  <a href={link.href} className="transition hover:text-white">
+                  <a
+                    href={link.href}
+                    onClick={(e) => handleLinkClick(e, link)}
+                    className="transition hover:text-white"
+                  >
                     {link.label}
                   </a>
                 </li>
