@@ -126,6 +126,15 @@ const DEFAULT_MENU_SECTIONS: PreparedMenuSection[] = [
   },
 ];
 
+const normalizeMenuLabel = (value?: string) =>
+  (value || '')
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+const isManufacturersLabel = (value?: string) => {
+  const normalized = normalizeMenuLabel(value);
+  return normalized.includes('manufactur') || normalized.includes('brand');
+};
+
 const isSaleActive = (product: Product) => {
   if (typeof product.salePrice !== 'number' || product.salePrice >= product.price) {
     return false;
@@ -602,7 +611,7 @@ export const Header: React.FC = () => {
             .map((link, index) => ({
               id: link.id ?? `link-${index}`,
               label: link.label,
-              href: link.href,
+              href: isManufacturersLabel(link.label) ? '/manufacturers' : link.href,
               visible: link.visible !== false,
             }));
           const visibleLinks = preparedLinks.filter((link) => link.visible);
@@ -881,13 +890,14 @@ export const Header: React.FC = () => {
                 const Icon = ICON_MAP[section.icon] ?? Sparkles;
                 const isActive = openMegaMenu === section.id;
                 const hasItems = section.items.length > 0;
+                const fallbackHref = isManufacturersLabel(section.name) ? '/manufacturers' : '/products';
 
-                // If section has no items, render as a link to /products
+                // If section has no items, render as a direct link
                 if (!hasItems) {
                   return (
                     <Link
                       key={section.id}
-                      to="/products"
+                      to={fallbackHref}
                       className={cn(
                         'flex items-center gap-1 rounded-full px-3 py-2 transition hover:bg-white/10',
                         menuLoading && 'pointer-events-none opacity-60'
@@ -1674,13 +1684,14 @@ export const Header: React.FC = () => {
                   const Icon = ICON_MAP[section.icon] ?? Sparkles;
                   const isOpen = openMobileCategory === section.id;
                   const hasItems = section.items.length > 0;
+                  const fallbackHref = isManufacturersLabel(section.name) ? '/manufacturers' : '/products';
 
                   // If section has no items, render as a direct link
                   if (!hasItems) {
                     return (
                       <Link
                         key={section.id}
-                        to="/products"
+                        to={fallbackHref}
                         onClick={closeMobileMenu}
                         className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-500 hover:text-red-600"
                       >

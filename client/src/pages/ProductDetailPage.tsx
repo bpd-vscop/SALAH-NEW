@@ -624,7 +624,7 @@ export const ProductDetailPage: React.FC = () => {
                     <dt className="font-medium text-slate-600">Manufacturer</dt>
                     <dd>
                       <Link
-                        to={`/manufacturers/${manufacturer.slug}`}
+                        to={`/products?manufacturerId=${manufacturer.id}`}
                         className="font-semibold text-primary underline-offset-4 hover:underline"
                       >
                         {manufacturer.name}

@@ -247,7 +247,7 @@ export function ManufacturerLogos() {
           {trackItems.map((m, idx) => (
             <Link
               key={`${m.slug}-${idx}`}
-              to={`/manufacturers/${m.slug}`}
+              to={`/products?manufacturerId=${m.id}`}
               className="group mx-1 sm:mx-2 flex h-16 flex-shrink-0 items-center justify-center px-4"
               aria-label={`View ${m.name}`}
               onDragStart={(e) => e.preventDefault()}

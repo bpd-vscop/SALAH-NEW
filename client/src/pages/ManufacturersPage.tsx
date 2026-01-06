@@ -88,7 +88,7 @@ export const ManufacturersPage: React.FC = () => {
           {items.map((m) => (
             <Link
               key={m.id}
-              to={`/manufacturers/${m.slug}`}
+              to={`/products?manufacturerId=${m.id}`}
               className="flex items-center justify-center rounded-2xl border border-border bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
             >
               <img src={m.logoImage} alt={m.name} className="h-16 w-full object-contain" />

@@ -34,6 +34,7 @@ export const ProductCatalogPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const urlSearch = searchParams.get('search') || '';
+  const urlManufacturerId = searchParams.get('manufacturerId') || '';
   const vehicleYear = searchParams.get('vehicleYear') || '';
   const vehicleMake = searchParams.get('vehicleMake') || '';
   const vehicleModel = searchParams.get('vehicleModel') || '';
@@ -77,7 +78,9 @@ export const ProductCatalogPage: React.FC = () => {
   // State
   const [search, setSearch] = useState(urlSearch);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedManufacturers, setSelectedManufacturers] = useState<Set<string>>(new Set());
+  const [selectedManufacturers, setSelectedManufacturers] = useState<Set<string>>(
+    () => (urlManufacturerId ? new Set([urlManufacturerId]) : new Set())
+  );
   const [selectedAvailability, setSelectedAvailability] = useState<Set<AvailabilityFilter>>(new Set());
   const [selectedBadges, setSelectedBadges] = useState<Set<BadgeFilter>>(() => buildBadgeSelection());
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(() => buildBrandSelection());
@@ -119,6 +122,16 @@ export const ProductCatalogPage: React.FC = () => {
     setSelectedModels(buildModelSelection());
   }, [vehicleModel]);
 
+  useEffect(() => {
+    if (!urlManufacturerId) return;
+    setSelectedManufacturers((current) => {
+      if (current.size === 1 && current.has(urlManufacturerId)) {
+        return current;
+      }
+      return new Set([urlManufacturerId]);
+    });
+  }, [urlManufacturerId]);
+
   // Load categories
   useEffect(() => {
     const loadCategories = async () => {
@@ -137,7 +150,7 @@ export const ProductCatalogPage: React.FC = () => {
     const loadManufacturers = async () => {
       try {
         const { manufacturers: data } = await manufacturersApi.list();
-        setManufacturers(data.filter(m => m.isActive));
+        setManufacturers(data.filter((m) => m.isActive !== false));
       } catch (err) {
         console.error(err);
       }
@@ -269,6 +282,7 @@ export const ProductCatalogPage: React.FC = () => {
     newParams.delete('featured');
     newParams.delete('newArrival');
     newParams.delete('tags');
+    newParams.delete('manufacturerId');
     setSearchParams(newParams);
     // Products will auto-refresh via useEffect
   };
