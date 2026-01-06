@@ -18,6 +18,8 @@ import { CategoriesPage } from '../pages/CategoriesPage';
 import { ClientRegistrationPage } from '../pages/ClientRegistrationPage';
 import { ClientDashboardPage } from '../pages/ClientDashboardPage';
 import { WishlistPage } from '../pages/WishlistPage';
+import { DownloadsPage } from '../pages/DownloadsPage';
+import { DownloadDetailPage } from '../pages/DownloadDetailPage';
 
 export const AppRouter: React.FC = () => (
   <BrowserRouter>
@@ -28,6 +30,8 @@ export const AppRouter: React.FC = () => (
       <Route path="/products/:id" element={<ProductDetailPage />} />
       <Route path="/manufacturers" element={<ManufacturersPage />} />
       <Route path="/manufacturers/:slug" element={<ManufacturerDetailPage />} />
+      <Route path="/downloads" element={<DownloadsPage />} />
+      <Route path="/downloads/:slug" element={<DownloadDetailPage />} />
       <Route path="/categories" element={<CategoriesPage />} />
       <Route path="/categories/:categoryId" element={<CategoryPage />} />
       <Route path="/cart" element={<CartPage />} />

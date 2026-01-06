@@ -331,6 +331,22 @@ export interface Category {
   updatedAt?: string | null;
 }
 
+export interface DownloadLink {
+  label?: string | null;
+  url: string;
+}
+
+export interface DownloadEntry {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  image?: string | null;
+  links: DownloadLink[];
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
 export type BannerType = 'slide' | 'row' | 'advertising';
 
 export interface Banner {

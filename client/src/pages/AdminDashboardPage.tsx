@@ -43,6 +43,7 @@ import { ManufacturersDisplayAdminSection } from '../components/dashboard/Manufa
 import { BrandsAdminSection } from '../components/dashboard/BrandsAdminSection';
 import { ModelsAdminSection } from '../components/dashboard/ModelsAdminSection';
 import { TagsAdminSection } from '../components/dashboard/TagsAdminSection';
+import { DownloadsAdminSection } from '../components/dashboard/DownloadsAdminSection';
 import { HomepageAdminSection } from '../components/dashboard/HomepageAdminSection';
 import { OrdersAdminSection } from '../components/dashboard/OrdersAdminSection';
 import { InvoicesAdminSection } from '../components/dashboard/InvoicesAdminSection';
@@ -532,7 +533,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [featureForm, setFeatureForm] = useState<FeatureFormState>(() => emptyFeatureForm('feature'));
 
   const [homepageSection, setHomepageSection] = useState<'hero' | 'featured' | 'categorydisplay' | 'manufacturers'>('hero');
-  const [catalogSection, setCatalogSection] = useState<'categories' | 'manufacturers' | 'brands' | 'models' | 'tags'>('categories');
+  const [catalogSection, setCatalogSection] = useState<'categories' | 'manufacturers' | 'brands' | 'models' | 'tags' | 'downloads'>('categories');
   const [navigationSection, setNavigationSection] = useState<'topnav' | 'sections' | 'quicklinks' | 'visible'>('topnav');
   const [productsView, setProductsView] = useState<'all' | 'add' | 'inventory' | 'list' | 'coupons' | 'taxes'>('all');
   const [activeFeatureTab, setActiveFeatureTab] = useState<'feature' | 'tile'>('feature');
@@ -1743,7 +1744,8 @@ export const AdminDashboardPage: React.FC = () => {
             catalogSection === 'manufacturers' ? 'Manufacturers' :
             catalogSection === 'brands' ? 'Brands' :
             catalogSection === 'models' ? 'Models' :
-            catalogSection === 'tags' ? 'Tags' : 'Categories';
+            catalogSection === 'tags' ? 'Tags' :
+            catalogSection === 'downloads' ? 'Downloads' : 'Categories';
           return {
             id: tab.id,
             label: tab.label,
@@ -1755,6 +1757,7 @@ export const AdminDashboardPage: React.FC = () => {
                 { id: 'brands', label: 'Brands' },
                 { id: 'models', label: 'Models' },
                 { id: 'tags', label: 'Tags' },
+                { id: 'downloads', label: 'Downloads' },
               ],
               activeId: activeTab === 'categories' ? catalogSection : undefined,
               groupLabel: 'Catalog',
@@ -1857,13 +1860,20 @@ export const AdminDashboardPage: React.FC = () => {
       return;
     }
 
-    if (id === 'categories') {
-      if (dropdownId === 'categories' || dropdownId === 'manufacturers' || dropdownId === 'brands' || dropdownId === 'models' || dropdownId === 'tags') {
-        setCatalogSection(dropdownId);
+      if (id === 'categories') {
+        if (
+          dropdownId === 'categories' ||
+          dropdownId === 'manufacturers' ||
+          dropdownId === 'brands' ||
+          dropdownId === 'models' ||
+          dropdownId === 'tags' ||
+          dropdownId === 'downloads'
+        ) {
+          setCatalogSection(dropdownId);
+        }
+        setActiveTab('categories');
+        return;
       }
-      setActiveTab('categories');
-      return;
-    }
 
     if (id === 'navigation') {
       if (dropdownId === 'topnav' || dropdownId === 'sections' || dropdownId === 'quicklinks' || dropdownId === 'visible') {
@@ -2042,6 +2052,17 @@ export const AdminDashboardPage: React.FC = () => {
                 }
                 setStatus={setStatus}
               />
+            </motion.div>
+          )}
+          {activeTab === 'categories' && catalogSection === 'downloads' && (
+            <motion.div
+              key="downloads-manage"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <DownloadsAdminSection setStatus={setStatus} />
             </motion.div>
           )}
 

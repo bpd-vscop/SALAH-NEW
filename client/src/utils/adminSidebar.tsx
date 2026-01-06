@@ -38,6 +38,7 @@ export const catalogTabs = [
   { id: 'brands' as const, label: 'Brands' },
   { id: 'models' as const, label: 'Models' },
   { id: 'tags' as const, label: 'Tags' },
+  { id: 'downloads' as const, label: 'Downloads' },
 ];
 
 export const ordersTabs = [
@@ -116,8 +117,8 @@ interface AdminSidebarOptions {
   setHomepageSection?: (section: 'hero' | 'featured' | 'categorydisplay' | 'manufacturers') => void;
   homepageExpanded?: boolean;
   setHomepageExpanded?: (expanded: boolean | ((prev: boolean) => boolean)) => void;
-  catalogSection?: 'categories' | 'manufacturers' | 'brands' | 'models' | 'tags';
-  setCatalogSection?: (section: 'categories' | 'manufacturers' | 'brands' | 'models' | 'tags') => void;
+  catalogSection?: 'categories' | 'manufacturers' | 'brands' | 'models' | 'tags' | 'downloads';
+  setCatalogSection?: (section: 'categories' | 'manufacturers' | 'brands' | 'models' | 'tags' | 'downloads') => void;
   catalogExpanded?: boolean;
   setCatalogExpanded?: (expanded: boolean | ((prev: boolean) => boolean)) => void;
   productsView?: 'all' | 'add' | 'inventory' | 'list' | 'coupons';
