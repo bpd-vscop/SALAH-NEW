@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { legalDocumentsApi } from '../../api/legalDocuments';
 import type { LegalDocument, LegalDocumentType } from '../../types/api';
+import { Select } from '../ui/Select';
 
 const DOCUMENT_OPTIONS: Array<{ type: LegalDocumentType; title: string }> = [
   { type: 'privacy-policy', title: 'Privacy Policy' },
@@ -75,6 +76,10 @@ export const LegalDocumentsAdminSection: React.FC = () => {
   }, [content, showSource]);
 
   const toolbarDisabled = loading || saving || showSource;
+  const documentOptions = DOCUMENT_OPTIONS.map((option) => ({
+    value: option.type,
+    label: option.title,
+  }));
 
   const saveSelection = () => {
     const selection = window.getSelection();
@@ -293,21 +298,18 @@ export const LegalDocumentsAdminSection: React.FC = () => {
         <div className="space-y-6">
           {/* Document Selector */}
           <div>
-            <label className="block text-sm font-medium text-slate-700">
+            <label className="block text-xs font-semibold text-slate-600">
               Select Document
             </label>
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value as LegalDocumentType)}
-              disabled={loading || saving}
-              className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-            >
-              {DOCUMENT_OPTIONS.map(opt => (
-                <option key={opt.type} value={opt.type}>
-                  {opt.title}
-                </option>
-              ))}
-            </select>
+            <div className="mt-2">
+              <Select
+                value={selectedType}
+                onChange={(value) => setSelectedType(value as LegalDocumentType)}
+                options={documentOptions}
+                disabled={loading || saving}
+                buttonClassName="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm"
+              />
+            </div>
           </div>
 
           {/* Title Input */}
