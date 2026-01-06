@@ -27,6 +27,7 @@ const reviewRoutes = require('./reviews');
 const reviewerNameRoutes = require('./reviewerNames');
 const invoiceRoutes = require('./invoices');
 const downloadRoutes = require('./downloads');
+const legalDocumentRoutes = require('./legalDocuments');
 
 module.exports = () => {
   const router = express.Router();
@@ -59,6 +60,7 @@ module.exports = () => {
   router.use('/reviewer-names', reviewerNameRoutes);
   router.use('/invoices', invoiceRoutes);
   router.use('/downloads', downloadRoutes);
+  router.use('/legal-documents', legalDocumentRoutes);
 
   return router;
 };

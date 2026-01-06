@@ -454,6 +454,18 @@ export interface Invoice {
   createdBy?: string | null;
 }
 
+export type LegalDocumentType = 'privacy-policy' | 'terms-of-service' | 'return-policy' | 'shipping-policy';
+
+export interface LegalDocument {
+  id: string;
+  type: LegalDocumentType;
+  title: string;
+  content: string;
+  lastUpdated?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
 export interface ApiError {
   error: {
     message: string;

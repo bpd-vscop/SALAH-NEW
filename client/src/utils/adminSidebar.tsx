@@ -16,6 +16,7 @@ export const homepageTabs = [
   { id: 'featured' as const, label: 'Featured highlights' },
   { id: 'categorydisplay' as const, label: 'Categories display' },
   { id: 'manufacturers' as const, label: 'Manufacturers display' },
+  { id: 'legal' as const, label: 'Legal Documents' },
 ];
 
 export const navigationTabs = [
@@ -113,8 +114,8 @@ interface AdminSidebarOptions {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   ordersBadgeCount?: number;
-  homepageSection?: 'hero' | 'featured' | 'categorydisplay' | 'manufacturers';
-  setHomepageSection?: (section: 'hero' | 'featured' | 'categorydisplay' | 'manufacturers') => void;
+  homepageSection?: 'hero' | 'featured' | 'categorydisplay' | 'manufacturers' | 'legal';
+  setHomepageSection?: (section: 'hero' | 'featured' | 'categorydisplay' | 'manufacturers' | 'legal') => void;
   homepageExpanded?: boolean;
   setHomepageExpanded?: (expanded: boolean | ((prev: boolean) => boolean)) => void;
   catalogSection?: 'categories' | 'manufacturers' | 'brands' | 'models' | 'tags' | 'downloads';

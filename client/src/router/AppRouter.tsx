@@ -20,6 +20,7 @@ import { ClientDashboardPage } from '../pages/ClientDashboardPage';
 import { WishlistPage } from '../pages/WishlistPage';
 import { DownloadsPage } from '../pages/DownloadsPage';
 import { DownloadDetailPage } from '../pages/DownloadDetailPage';
+import { LegalDocumentPage } from '../pages/LegalDocumentPage';
 
 export const AppRouter: React.FC = () => (
   <BrowserRouter>
@@ -34,6 +35,7 @@ export const AppRouter: React.FC = () => (
       <Route path="/downloads/:slug" element={<DownloadDetailPage />} />
       <Route path="/categories" element={<CategoriesPage />} />
       <Route path="/categories/:categoryId" element={<CategoryPage />} />
+      <Route path="/legal/:type" element={<LegalDocumentPage />} />
       <Route path="/cart" element={<CartPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/reset-password/:token" element={<LoginPage initialTab="login" />} />

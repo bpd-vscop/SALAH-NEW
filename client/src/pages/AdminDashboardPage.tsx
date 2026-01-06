@@ -49,6 +49,7 @@ import { OrdersAdminSection } from '../components/dashboard/OrdersAdminSection';
 import { InvoicesAdminSection } from '../components/dashboard/InvoicesAdminSection';
 import { MessagesAdminSection } from '../components/dashboard/MessagesAdminSection';
 import { NavigationAdminSection } from '../components/dashboard/NavigationAdminSection';
+import { LegalDocumentsAdminSection } from '../components/dashboard/LegalDocumentsAdminSection';
 import type {
   // BannerFormState,
   CategoryFormState,
@@ -532,7 +533,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [selectedFeatureId, setSelectedFeatureId] = useState<string>('');
   const [featureForm, setFeatureForm] = useState<FeatureFormState>(() => emptyFeatureForm('feature'));
 
-  const [homepageSection, setHomepageSection] = useState<'hero' | 'featured' | 'categorydisplay' | 'manufacturers'>('hero');
+  const [homepageSection, setHomepageSection] = useState<'hero' | 'featured' | 'categorydisplay' | 'manufacturers' | 'legal'>('hero');
   const [catalogSection, setCatalogSection] = useState<'categories' | 'manufacturers' | 'brands' | 'models' | 'tags' | 'downloads'>('categories');
   const [navigationSection, setNavigationSection] = useState<'topnav' | 'sections' | 'quicklinks' | 'visible'>('topnav');
   const [productsView, setProductsView] = useState<'all' | 'add' | 'inventory' | 'list' | 'coupons' | 'taxes'>('all');
@@ -1722,7 +1723,8 @@ export const AdminDashboardPage: React.FC = () => {
           const activeHomepageLabel =
             homepageSection === 'featured' ? 'Featured highlights' :
             homepageSection === 'categorydisplay' ? 'Categories display' :
-            homepageSection === 'manufacturers' ? 'Manufacturers display' : 'Hero slider';
+            homepageSection === 'manufacturers' ? 'Manufacturers display' :
+            homepageSection === 'legal' ? 'Legal Documents' : 'Hero slider';
           return {
             id: tab.id,
             label: tab.label,
@@ -1853,7 +1855,7 @@ export const AdminDashboardPage: React.FC = () => {
       return;
     }
     if (id === 'homepage') {
-      if (dropdownId === 'hero' || dropdownId === 'featured' || dropdownId === 'categorydisplay' || dropdownId === 'manufacturers') {
+      if (dropdownId === 'hero' || dropdownId === 'featured' || dropdownId === 'categorydisplay' || dropdownId === 'manufacturers' || dropdownId === 'legal') {
         setHomepageSection(dropdownId);
       }
       setActiveTab('homepage');
@@ -2243,6 +2245,9 @@ export const AdminDashboardPage: React.FC = () => {
                   }
                   setStatus={setStatus}
                 />
+              )}
+              {homepageSection === 'legal' && (
+                <LegalDocumentsAdminSection />
               )}
             </motion.div>
           )}

@@ -9,10 +9,10 @@ const corporateLinks = [
 ];
 
 const legalLinks = [
-  { label: 'Terms & Conditions', href: '#' },
-  { label: 'Return Policy', href: '#' },
-  { label: 'Privacy Policy', href: '#' },
-  { label: 'Terms of Service', href: '#' },
+  { label: 'Privacy Policy', href: '/legal/privacy-policy' },
+  { label: 'Terms of Service', href: '/legal/terms-of-service' },
+  { label: 'Return Policy', href: '/legal/return-policy' },
+  { label: 'Shipping Policy', href: '/legal/shipping-policy' },
 ];
 
 const socialLinks = [
