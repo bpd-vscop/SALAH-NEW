@@ -4,7 +4,7 @@ import { ContactWidget } from '../common/ContactWidget';
 const corporateLinks = [
   { label: 'Track Your Order', href: '#' },
   { label: 'Help / FAQ', href: '#' },
-  { label: 'About Us', href: '#' },
+  { label: 'About Us', href: '/about' },
   { label: 'Contact Us', href: '#' },
 ];
 
