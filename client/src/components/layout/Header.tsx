@@ -231,7 +231,6 @@ const PromoBanner: React.FC<{ text: string; visible: boolean; loading?: boolean 
 
 const MenuCard: React.FC<{ item: PreparedMenuItem }> = ({ item }) => {
   const imageSrc = item.imageUrl || 'https://placehold.co/80x80/eee/ccc?text=Item';
-  const productCount = item.productCount ?? 0;
   return (
     <Link
       to={item.href}
@@ -251,7 +250,6 @@ const MenuCard: React.FC<{ item: PreparedMenuItem }> = ({ item }) => {
         <span className="text-sm font-semibold text-slate-800 transition group-hover:text-red-700">
           {item.label}
         </span>
-        <span className="text-xs text-slate-500">{productCount} {productCount === 1 ? 'product' : 'products'}</span>
       </div>
     </Link>
   );
