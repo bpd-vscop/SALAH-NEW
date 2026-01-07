@@ -9,6 +9,7 @@ import { useCart } from '../context/CartContext';
 import type { Coupon, Product } from '../types/api';
 import { clearStoredCouponCode, readStoredCouponCode, writeStoredCouponCode } from '../utils/couponStorage';
 import { formatCurrency } from '../utils/format';
+import { getEffectivePrice } from '../utils/productStatus';
 
 export const CartPage: React.FC = () => {
   const { items, updateItem, removeItem, clearCart } = useCart();
@@ -57,7 +58,7 @@ export const CartPage: React.FC = () => {
   const subtotal = useMemo(() => {
     return items.reduce((sum, line) => {
       const product = productMap[line.productId];
-      const price = product?.price ?? 0;
+      const price = getEffectivePrice(product);
       return sum + price * line.quantity;
     }, 0);
   }, [items, productMap]);
@@ -228,7 +229,8 @@ export const CartPage: React.FC = () => {
                     <tbody>
                       {items.map((line) => {
                         const product = productMap[line.productId];
-                        const itemTotal = (product?.price ?? 0) * line.quantity;
+                        const unitPrice = getEffectivePrice(product);
+                        const itemTotal = unitPrice * line.quantity;
                         return (
                           <tr key={line.productId} className="border-b border-slate-200">
                             <td className="px-4 py-4 text-sm text-slate-700">
@@ -254,7 +256,7 @@ export const CartPage: React.FC = () => {
                               </div>
                             </td>
                             <td className="px-4 py-4 text-sm font-semibold text-slate-900">
-                              {formatCurrency(product?.price ?? 0)}
+                              {formatCurrency(unitPrice)}
                             </td>
                             <td className="px-4 py-4">
                               <div className="flex items-center gap-2">

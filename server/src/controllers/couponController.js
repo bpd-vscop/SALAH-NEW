@@ -8,6 +8,23 @@ const normalizeIds = (ids) => {
   return Array.from(new Set(ids.filter(Boolean).map((id) => id.toString())));
 };
 
+const isProductOnSale = (product) => {
+  if (typeof product.salePrice !== 'number' || product.salePrice >= product.price) {
+    return false;
+  }
+  const now = new Date();
+  const startOk = product.saleStartDate ? now >= new Date(product.saleStartDate) : true;
+  const endOk = product.saleEndDate ? now <= new Date(product.saleEndDate) : true;
+  return startOk && endOk;
+};
+
+const getProductUnitPrice = (product) => {
+  if (isProductOnSale(product) && typeof product.salePrice === 'number') {
+    return product.salePrice;
+  }
+  return typeof product.price === 'number' ? product.price : 0;
+};
+
 const listCoupons = async (_req, res, next) => {
   try {
     const coupons = await Coupon.find().sort({ createdAt: -1 });
@@ -99,7 +116,7 @@ const applyCoupon = async (req, res, next) => {
     const requestedIds = items.map((item) => item.productId);
     const products = await Product.find(
       { _id: { $in: requestedIds } },
-      '_id price categoryId categoryIds'
+      '_id price salePrice saleStartDate saleEndDate categoryId categoryIds'
     );
     const productMap = new Map(products.map((product) => [product._id.toString(), product]));
 
@@ -117,7 +134,7 @@ const applyCoupon = async (req, res, next) => {
         return;
       }
       const quantity = item.quantity;
-      const unitPrice = typeof product.price === 'number' ? product.price : 0;
+      const unitPrice = getProductUnitPrice(product);
       const lineTotal = unitPrice * quantity;
       subtotal += lineTotal;
 

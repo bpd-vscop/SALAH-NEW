@@ -14,6 +14,7 @@ import { useCart } from '../context/CartContext';
 import type { Coupon, Product } from '../types/api';
 import { clearStoredCouponCode, readStoredCouponCode, writeStoredCouponCode } from '../utils/couponStorage';
 import { formatCurrency } from '../utils/format';
+import { getEffectivePrice } from '../utils/productStatus';
 
 type ShippingMethod = 'standard' | 'express' | 'overnight';
 type PaymentMethod = 'credit-card' | 'paypal' | 'bank-transfer';
@@ -209,7 +210,7 @@ export const CheckoutPage: React.FC = () => {
 
   const subtotal = useMemo(() => {
     return items.reduce((sum, line) => {
-      const price = productMap[line.productId]?.price ?? 0;
+      const price = getEffectivePrice(productMap[line.productId]);
       return sum + price * line.quantity;
     }, 0);
   }, [items, productMap]);
@@ -1129,6 +1130,7 @@ export const CheckoutPage: React.FC = () => {
                   <div className="space-y-4">
                     {items.map((line) => {
                       const product = productMap[line.productId];
+                      const unitPrice = getEffectivePrice(product);
                       return (
                         <div key={line.productId} className="flex gap-4 pb-4 border-b border-slate-200">
                           <img
@@ -1140,7 +1142,7 @@ export const CheckoutPage: React.FC = () => {
                             <h3 className="font-medium text-slate-900">{product?.name ?? 'Loading...'}</h3>
                             <p className="text-sm text-slate-600">Quantity: {line.quantity}</p>
                             <p className="text-sm font-semibold text-slate-900 mt-1">
-                              {formatCurrency((product?.price ?? 0) * line.quantity)}
+                              {formatCurrency(unitPrice * line.quantity)}
                             </p>
                           </div>
                         </div>

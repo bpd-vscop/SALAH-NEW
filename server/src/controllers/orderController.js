@@ -92,7 +92,7 @@ const computeCouponDiscount = (coupon, items, productMap) => {
     }
 
     const quantity = item.quantity;
-    const unitPrice = typeof product.price === 'number' ? product.price : 0;
+    const unitPrice = getProductUnitPrice(product);
     const lineTotal = unitPrice * quantity;
 
     let isEligible = appliesToAll || couponProductIds.has(product._id.toString());
@@ -135,6 +135,13 @@ const isProductOnSale = (product) => {
   const startOk = product.saleStartDate ? now >= new Date(product.saleStartDate) : true;
   const endOk = product.saleEndDate ? now <= new Date(product.saleEndDate) : true;
   return startOk && endOk;
+};
+
+const getProductUnitPrice = (product) => {
+  if (isProductOnSale(product) && typeof product.salePrice === 'number') {
+    return product.salePrice;
+  }
+  return typeof product.price === 'number' ? product.price : 0;
 };
 
 const isProductNewArrival = (product) => {
@@ -364,7 +371,7 @@ const createOrder = async (req, res, next) => {
         productId: product._id,
         name: product.name,
         quantity,
-        price: product.price || 0,
+        price: getProductUnitPrice(product),
         tagsAtPurchase: getOrderItemTags(product),
       };
     });

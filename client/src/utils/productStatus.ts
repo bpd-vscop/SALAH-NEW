@@ -19,6 +19,16 @@ export const isOnSale = (product: Product, now: Date = new Date()): boolean => {
   return startOk && endOk;
 };
 
+export const getEffectivePrice = (product?: Product, now: Date = new Date()): number => {
+  if (!product) {
+    return 0;
+  }
+  if (isOnSale(product, now) && typeof product.salePrice === 'number') {
+    return product.salePrice;
+  }
+  return typeof product.price === 'number' ? product.price : 0;
+};
+
 export const isNewArrival = (product: Product, now: Date = new Date()): boolean => {
   if (isComingSoon(product)) {
     return false;
