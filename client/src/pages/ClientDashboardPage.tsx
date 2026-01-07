@@ -351,8 +351,8 @@ export const ClientDashboardPage: React.FC = () => {
     if (!user.taxExempt || !user.taxExemptUpdatedAt) return 0;
     return taxExemptLastSeenAt === user.taxExemptUpdatedAt ? 0 : 1;
   }, [taxExemptLastSeenAt, user]);
-  const accountBadgeCount = verificationBadgeCount + taxExemptBadgeCount;
-  const ordersTabBadgeCount = ordersBadgeCount;
+  const accountBadgeCount = verificationBadgeCount;
+  const ordersTabBadgeCount = ordersBadgeCount + taxExemptBadgeCount;
 
   const formatOrderDate = (value?: string | null) => {
     if (!value) return 'Just now';
@@ -470,7 +470,7 @@ export const ClientDashboardPage: React.FC = () => {
       verificationSeenTimer.current = null;
     }
     if (!isB2B) return;
-    if (activeTab !== 'account') return;
+    if (activeTab !== 'orders') return;
     if (verificationStatus !== 'approved' && verificationStatus !== 'rejected') return;
     if (verificationStatusLastSeen === verificationStatus) return;
     if (typeof window === 'undefined') return;
@@ -494,7 +494,7 @@ export const ClientDashboardPage: React.FC = () => {
       taxExemptSeenTimer.current = null;
     }
     if (!user || user.role !== 'client') return;
-    if (activeTab !== 'account') return;
+    if (activeTab !== 'orders') return;
     if (!user.taxExempt || !user.taxExemptUpdatedAt) return;
     if (taxExemptLastSeenAt === user.taxExemptUpdatedAt) return;
     if (typeof window === 'undefined') return;
