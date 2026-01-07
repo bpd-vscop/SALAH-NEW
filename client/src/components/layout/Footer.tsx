@@ -107,17 +107,7 @@ export const Footer: FC = () => {
 
       if (link.action === 'contact') {
         // Contact Us logic
-        if (user) {
-          // If logged in, open live chat with random email selection
-          const emails = ['sales@ulk-supply.com', 'ulksupply@hotmail.com', 'bprod.digital@gmail.com'];
-          const randomEmail = emails[Math.floor(Math.random() * emails.length)];
-          window.dispatchEvent(new CustomEvent('openContactWidget', {
-            detail: { view: 'chat', email: randomEmail }
-          }));
-        } else {
-          // If not logged in, redirect to login page
-          navigate('/login');
-        }
+        window.dispatchEvent(new CustomEvent('openContactWidget', { detail: { view: 'email' } }));
       } else if (link.action === 'track-order') {
         // Track Your Order logic
         if (user) {
