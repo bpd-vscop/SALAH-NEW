@@ -239,6 +239,7 @@ export interface User {
   clientType?: ClientType | null;
   company?: CompanyInfo | null;
   taxExempt?: boolean | null;
+  taxExemptUpdatedAt?: string | null;
   verificationFileUrl?: string | null;
   verificationStatus?: VerificationStatus | null;
   profileImage?: string | null;

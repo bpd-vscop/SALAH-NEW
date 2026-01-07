@@ -39,6 +39,7 @@ import { formatCurrency } from '../../utils/format';
 
 const phoneNumbers = ['+1-407-449-6740', '+1-407-452-7149', '+1-407-978-6077'];
 const VERIFICATION_STATUS_KEY = 'verificationStatusLastSeen';
+const TAX_EXEMPT_STATUS_KEY = 'taxExemptStatusLastSeen';
 
 function FacebookIcon({ className }: { className?: string }) {
   return (
@@ -449,6 +450,10 @@ export const Header: React.FC = () => {
     if (typeof window === 'undefined') return '';
     return localStorage.getItem(VERIFICATION_STATUS_KEY) || '';
   });
+  const [taxExemptLastSeenAt, setTaxExemptLastSeenAt] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem(TAX_EXEMPT_STATUS_KEY) || '';
+  });
 
   const ordersBadgeCount = useMemo(() => {
     if (!user || user.role !== 'client') return 0;
@@ -467,7 +472,13 @@ export const Header: React.FC = () => {
     return verificationStatusLastSeen === status ? 0 : 1;
   }, [user, verificationStatusLastSeen]);
 
-  const accountBadgeCount = ordersBadgeCount + verificationBadgeCount;
+  const taxExemptBadgeCount = useMemo(() => {
+    if (!user || user.role !== 'client') return 0;
+    if (!user.taxExempt || !user.taxExemptUpdatedAt) return 0;
+    return taxExemptLastSeenAt === user.taxExemptUpdatedAt ? 0 : 1;
+  }, [taxExemptLastSeenAt, user]);
+
+  const accountBadgeCount = ordersBadgeCount + verificationBadgeCount + taxExemptBadgeCount;
 
   useEffect(() => {
     const updateViewed = (event?: Event) => {
@@ -509,6 +520,24 @@ export const Header: React.FC = () => {
       window.removeEventListener('focus', syncVerificationSeen);
     };
   }, [verificationStatusLastSeen]);
+
+  useEffect(() => {
+    const syncTaxExemptSeen = () => {
+      if (typeof window === 'undefined') return;
+      const stored = localStorage.getItem(TAX_EXEMPT_STATUS_KEY) || '';
+      if (stored !== taxExemptLastSeenAt) {
+        setTaxExemptLastSeenAt(stored);
+      }
+    };
+    window.addEventListener('taxExemptViewed', syncTaxExemptSeen as EventListener);
+    window.addEventListener('storage', syncTaxExemptSeen);
+    window.addEventListener('focus', syncTaxExemptSeen);
+    return () => {
+      window.removeEventListener('taxExemptViewed', syncTaxExemptSeen as EventListener);
+      window.removeEventListener('storage', syncTaxExemptSeen);
+      window.removeEventListener('focus', syncTaxExemptSeen);
+    };
+  }, [taxExemptLastSeenAt]);
 
   // Load orders for notification badge (initial, on focus, periodic refresh)
   useEffect(() => {

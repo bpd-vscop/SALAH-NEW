@@ -51,6 +51,7 @@ const DASHBOARD_TOP_MARGIN = 28; // matches hero/search stack height
 const DESKTOP_SIDEBAR_HEIGHT = `calc(100vh - ${DASHBOARD_TOP_MARGIN}px)`;
 const COMPANY_WEBSITE_PATTERN = /^[^\s]+\.[^\s]+$/;
 const VERIFICATION_STATUS_KEY = 'verificationStatusLastSeen';
+const TAX_EXEMPT_STATUS_KEY = 'taxExemptStatusLastSeen';
 
 const US_STATES = [
   'Alabama',
@@ -168,6 +169,10 @@ export const ClientDashboardPage: React.FC = () => {
     if (typeof window === 'undefined') return '';
     return localStorage.getItem(VERIFICATION_STATUS_KEY) || '';
   });
+  const [taxExemptLastSeenAt, setTaxExemptLastSeenAt] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem(TAX_EXEMPT_STATUS_KEY) || '';
+  });
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsError, setReviewsError] = useState<string | null>(null);
@@ -258,6 +263,7 @@ export const ClientDashboardPage: React.FC = () => {
   const [mobileHeaderHeight, setMobileHeaderHeight] = useState(0);
   const [stickyHeaderHeight, setStickyHeaderHeight] = useState(120); // Default header height with promo banner
   const verificationSeenTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const taxExemptSeenTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const header = document.getElementById('main-header');
@@ -340,7 +346,12 @@ export const ClientDashboardPage: React.FC = () => {
     if (verificationStatus !== 'approved' && verificationStatus !== 'rejected') return 0;
     return verificationStatusLastSeen === verificationStatus ? 0 : 1;
   }, [isB2B, verificationStatus, verificationStatusLastSeen]);
-  const accountBadgeCount = verificationBadgeCount;
+  const taxExemptBadgeCount = useMemo(() => {
+    if (!user || user.role !== 'client') return 0;
+    if (!user.taxExempt || !user.taxExemptUpdatedAt) return 0;
+    return taxExemptLastSeenAt === user.taxExemptUpdatedAt ? 0 : 1;
+  }, [taxExemptLastSeenAt, user]);
+  const accountBadgeCount = verificationBadgeCount + taxExemptBadgeCount;
   const ordersTabBadgeCount = ordersBadgeCount;
 
   const formatOrderDate = (value?: string | null) => {
@@ -436,6 +447,24 @@ export const ClientDashboardPage: React.FC = () => {
   }, [verificationStatusLastSeen]);
 
   useEffect(() => {
+    const syncTaxExemptSeen = () => {
+      if (typeof window === 'undefined') return;
+      const stored = localStorage.getItem(TAX_EXEMPT_STATUS_KEY) || '';
+      if (stored !== taxExemptLastSeenAt) {
+        setTaxExemptLastSeenAt(stored);
+      }
+    };
+    window.addEventListener('taxExemptViewed', syncTaxExemptSeen as EventListener);
+    window.addEventListener('storage', syncTaxExemptSeen);
+    window.addEventListener('focus', syncTaxExemptSeen);
+    return () => {
+      window.removeEventListener('taxExemptViewed', syncTaxExemptSeen as EventListener);
+      window.removeEventListener('storage', syncTaxExemptSeen);
+      window.removeEventListener('focus', syncTaxExemptSeen);
+    };
+  }, [taxExemptLastSeenAt]);
+
+  useEffect(() => {
     if (verificationSeenTimer.current) {
       clearTimeout(verificationSeenTimer.current);
       verificationSeenTimer.current = null;
@@ -458,6 +487,30 @@ export const ClientDashboardPage: React.FC = () => {
       }
     };
   }, [activeTab, isB2B, verificationStatus, verificationStatusLastSeen]);
+
+  useEffect(() => {
+    if (taxExemptSeenTimer.current) {
+      clearTimeout(taxExemptSeenTimer.current);
+      taxExemptSeenTimer.current = null;
+    }
+    if (!user || user.role !== 'client') return;
+    if (activeTab !== 'account') return;
+    if (!user.taxExempt || !user.taxExemptUpdatedAt) return;
+    if (taxExemptLastSeenAt === user.taxExemptUpdatedAt) return;
+    if (typeof window === 'undefined') return;
+    taxExemptSeenTimer.current = window.setTimeout(() => {
+      localStorage.setItem(TAX_EXEMPT_STATUS_KEY, user.taxExemptUpdatedAt);
+      setTaxExemptLastSeenAt(user.taxExemptUpdatedAt);
+      window.dispatchEvent(new CustomEvent('taxExemptViewed', { detail: { at: user.taxExemptUpdatedAt } }));
+      taxExemptSeenTimer.current = null;
+    }, 2000);
+    return () => {
+      if (taxExemptSeenTimer.current) {
+        clearTimeout(taxExemptSeenTimer.current);
+        taxExemptSeenTimer.current = null;
+      }
+    };
+  }, [activeTab, taxExemptLastSeenAt, user]);
 
   // Initialize profile image
   useEffect(() => {
@@ -1891,6 +1944,12 @@ export const ClientDashboardPage: React.FC = () => {
                       </button>
                     </div>
                   </div>
+
+                  {user.taxExempt && (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                      Your account is tax exempt. Taxes will not be applied to your orders.
+                    </div>
+                  )}
 
                   {ordersError && (
                     <div className="rounded-lg border border-red-200 bg-red-50 p-4">

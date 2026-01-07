@@ -283,6 +283,7 @@ const updateUser = async (req, res, next) => {
     const previousVerificationFileUrl = user.verificationFileUrl;
     const previousStatus = user.status;
     const previousClientType = user.clientType;
+    const previousTaxExempt = user.taxExempt;
     const isDowngradingToC2B =
       Object.prototype.hasOwnProperty.call(data, 'clientType') &&
       previousClientType === 'B2B' &&
@@ -460,6 +461,9 @@ const updateUser = async (req, res, next) => {
 
     if (taxExemptProvided) {
       user.taxExempt = Boolean(data.taxExempt);
+      if (previousTaxExempt !== user.taxExempt) {
+        user.taxExemptUpdatedAt = new Date();
+      }
     }
 
     if (Object.prototype.hasOwnProperty.call(payload, 'companyName')) {

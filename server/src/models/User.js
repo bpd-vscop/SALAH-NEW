@@ -144,6 +144,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    taxExemptUpdatedAt: {
+      type: Date,
+      default: null,
+    },
     profileImage: {
       type: String,
       default: null,
@@ -218,6 +222,7 @@ const userSchema = new mongoose.Schema(
         ret.profileImage = ret.profileImage || null;
         ret.verificationStatus = ret.verificationStatus || (ret.verificationFileUrl ? 'pending' : 'none');
         ret.taxExempt = Boolean(ret.taxExempt);
+        ret.taxExemptUpdatedAt = ret.taxExemptUpdatedAt ? new Date(ret.taxExemptUpdatedAt).toISOString() : null;
         ret.isEmailVerified =
           typeof ret.isEmailVerified === 'boolean' ? ret.isEmailVerified : true;
         ret.company = ret.company
