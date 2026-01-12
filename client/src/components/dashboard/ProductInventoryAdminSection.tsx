@@ -403,6 +403,10 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
         : edit.inventoryBadgeOverride === 'preorder'
           ? 'preorder'
           : undefined;
+    const currentStatus = baseInventory.status;
+    const shouldClearStatusOverride =
+      !inventoryStatusOverride && (currentStatus === 'out_of_stock' || currentStatus === 'preorder');
+    const nextStatus = inventoryStatusOverride ?? (shouldClearStatusOverride ? 'in_stock' : currentStatus);
     const allowBackorder =
       edit.inventoryBadgeOverride === 'out_of_stock'
         ? false
@@ -432,7 +436,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
             quantity,
             lowStockThreshold,
             allowBackorder,
-            ...(inventoryStatusOverride ? { status: inventoryStatusOverride } : {}),
+            status: nextStatus,
             leadTime: normalizedLeadTime,
           };
 
