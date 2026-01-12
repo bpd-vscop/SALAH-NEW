@@ -387,6 +387,26 @@ export const ProductDetailPage: React.FC = () => {
   const categoriesToShow = productCategories.length ? productCategories : categoryTrail;
   const categoryLabel = categoriesToShow.length > 1 ? 'Categories' : 'Category';
   const statusTags = product ? getProductStatusTags(product) : [];
+  const availabilityMessage =
+    !comingSoon
+      ? availableQuantity !== null && Number.isFinite(availableQuantity)
+        ? isStaffUser
+          ? allowBackorder
+            ? `Backorder available. ${availableQuantity} unit${availableQuantity === 1 ? '' : 's'} in next allocation.`
+            : `${availableQuantity} unit${availableQuantity === 1 ? '' : 's'} available.`
+          : null
+        : allowBackorder
+          ? 'Backorder allowed; ships as soon as stock is replenished.'
+          : null
+      : null;
+  const variationMessage =
+    activeVariation && (activeVariation.attributes || activeVariation.name)
+      ? `Selected: ${variationLabel(activeVariation, 0)}`
+      : null;
+  const returnPolicyMessage = product?.support?.returnPolicy
+    ? `Returns: ${product.support.returnPolicy}`
+    : null;
+  const showPurchaseDetails = Boolean(availabilityMessage || variationMessage || returnPolicyMessage);
 
   return (
     <SiteLayout>
@@ -563,27 +583,15 @@ export const ProductDetailPage: React.FC = () => {
                     {comingSoon ? 'Coming soon' : disableAddToCart ? 'Currently unavailable' : 'Add to cart'}
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-3 text-xs text-muted">
-                  {!comingSoon ? (
-                    availableQuantity !== null && Number.isFinite(availableQuantity) ? (
-                      <span>
-                        {allowBackorder
-                          ? `Backorder available. ${availableQuantity} unit${availableQuantity === 1 ? '' : 's'} in next allocation.`
-                          : `${availableQuantity} unit${availableQuantity === 1 ? '' : 's'} available.`}
-                      </span>
-                    ) : allowBackorder ? (
-                      <span>Backorder allowed; ships as soon as stock is replenished.</span>
-                    ) : null
-                  ) : null}
-                  {activeVariation && (activeVariation.attributes || activeVariation.name) ? (
-                    <span className="font-medium text-slate-700">
-                      Selected: {variationLabel(activeVariation, 0)}
-                    </span>
-                  ) : null}
-                  {product.support?.returnPolicy ? (
-                    <span>Returns: {product.support.returnPolicy}</span>
-                  ) : null}
-                </div>
+                {showPurchaseDetails ? (
+                  <div className="flex flex-wrap gap-3 text-xs text-muted">
+                    {availabilityMessage ? <span>{availabilityMessage}</span> : null}
+                    {variationMessage ? (
+                      <span className="font-medium text-slate-700">{variationMessage}</span>
+                    ) : null}
+                    {returnPolicyMessage ? <span>{returnPolicyMessage}</span> : null}
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex flex-wrap gap-3 text-sm text-slate-700">
