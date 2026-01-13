@@ -44,7 +44,7 @@ export const catalogTabs = [
 
 export const ordersTabs = [
   { id: 'orders' as const, label: 'Orders' },
-  { id: 'invoices' as const, label: 'Invoices' },
+  { id: 'invoices' as const, label: 'Invoices & Estimates' },
 ];
 
 export const getMenuIcon = (tabId: string) => {

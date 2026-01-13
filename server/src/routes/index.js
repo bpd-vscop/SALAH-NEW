@@ -26,6 +26,7 @@ const adminMessageRoutes = require('./adminMessages');
 const reviewRoutes = require('./reviews');
 const reviewerNameRoutes = require('./reviewerNames');
 const invoiceRoutes = require('./invoices');
+const estimateRoutes = require('./estimates');
 const downloadRoutes = require('./downloads');
 const legalDocumentRoutes = require('./legalDocuments');
 
@@ -59,6 +60,7 @@ module.exports = () => {
   router.use('/reviews', reviewRoutes);
   router.use('/reviewer-names', reviewerNameRoutes);
   router.use('/invoices', invoiceRoutes);
+  router.use('/estimates', estimateRoutes);
   router.use('/downloads', downloadRoutes);
   router.use('/legal-documents', legalDocumentRoutes);
 

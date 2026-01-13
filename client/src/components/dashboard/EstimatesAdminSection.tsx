@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Download, Eye, Plus, RefreshCw, Search, Trash2, X, ChevronDown } from 'lucide-react';
-import { invoicesApi } from '../../api/invoices';
 import { estimatesApi } from '../../api/estimates';
 import { productsApi } from '../../api/products';
 import { usersApi } from '../../api/users';
-import type { Estimate, Invoice, InvoiceStatus, Product, User } from '../../types/api';
+import type { Estimate, EstimateStatus, Product, User } from '../../types/api';
 import { formatCurrency } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { Select } from '../ui/Select';
@@ -22,7 +21,7 @@ const US_STATES = [
   'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming',
 ];
 
-interface InvoiceFormItem {
+interface EstimateFormItem {
   id: string;
   productId: string;
   name: string;
@@ -31,7 +30,7 @@ interface InvoiceFormItem {
   price: string;
 }
 
-interface InvoiceFormAddress {
+interface EstimateFormAddress {
   companyName: string;
   name: string;
   email: string;
@@ -44,42 +43,17 @@ interface InvoiceFormAddress {
   country: string;
 }
 
-interface InvoiceForm {
-  billTo: InvoiceFormAddress;
-  shipTo: InvoiceFormAddress;
-  items: InvoiceFormItem[];
-  status: InvoiceStatus;
+interface EstimateForm {
+  billTo: EstimateFormAddress;
+  shipTo: EstimateFormAddress;
+  items: EstimateFormItem[];
+  status: EstimateStatus;
   taxRate: string;
   shippingAmount: string;
   currency: string;
   terms: string;
   dueDate: string;
   notes: string;
-}
-
-type DocumentType = 'invoice' | 'estimate';
-
-interface BillingDocument {
-  id: string;
-  documentType: DocumentType;
-  documentNumber: string;
-  customerId?: string | null;
-  status: InvoiceStatus;
-  billTo: Invoice['billTo'];
-  shipTo: Invoice['shipTo'];
-  items: Invoice['items'];
-  subtotal: number;
-  taxRate?: number | null;
-  taxAmount?: number | null;
-  shippingAmount?: number | null;
-  total: number;
-  currency?: string | null;
-  terms?: string | null;
-  dueDate?: string | null;
-  notes?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-  createdBy?: string | null;
 }
 
 const COMPANY_DETAILS = {
@@ -96,7 +70,7 @@ const COMPANY_DETAILS = {
 
 const makeTempId = () => Math.random().toString(36).slice(2, 10);
 
-const createEmptyAddress = (): InvoiceFormAddress => ({
+const createEmptyAddress = (): EstimateFormAddress => ({
   companyName: '',
   name: '',
   email: '',
@@ -109,7 +83,7 @@ const createEmptyAddress = (): InvoiceFormAddress => ({
   country: 'United States',
 });
 
-const createEmptyItem = (): InvoiceFormItem => ({
+const createEmptyItem = (): EstimateFormItem => ({
   id: makeTempId(),
   productId: '',
   name: '',
@@ -118,7 +92,7 @@ const createEmptyItem = (): InvoiceFormItem => ({
   price: '',
 });
 
-const createEmptyForm = (): InvoiceForm => ({
+const createEmptyForm = (): EstimateForm => ({
   billTo: createEmptyAddress(),
   shipTo: createEmptyAddress(),
   items: [createEmptyItem()],
@@ -130,21 +104,6 @@ const createEmptyForm = (): InvoiceForm => ({
   dueDate: '',
   notes: '',
 });
-
-const mapInvoiceToDocument = (invoice: Invoice): BillingDocument => ({
-  ...invoice,
-  documentType: 'invoice',
-  documentNumber: invoice.invoiceNumber,
-});
-
-const mapEstimateToDocument = (estimate: Estimate): BillingDocument => ({
-  ...estimate,
-  documentType: 'estimate',
-  documentNumber: estimate.estimateNumber,
-});
-
-const getDocumentLabel = (documentType: DocumentType) =>
-  documentType === 'invoice' ? 'Invoice' : 'Estimate';
 
 const formatDate = (value?: string | null) => {
   if (!value) return '-';
@@ -159,7 +118,7 @@ const formatDate = (value?: string | null) => {
   }
 };
 
-const getStatusTone = (status: InvoiceStatus) => {
+const getStatusTone = (status: EstimateStatus) => {
   switch (status) {
     case 'completed':
       return 'positive';
@@ -222,7 +181,7 @@ const getDefaultShipping = (client: User) => {
   return client.shippingAddresses.find((address) => address.isDefault) ?? client.shippingAddresses[0];
 };
 
-const buildBillToFromClient = (client: User): InvoiceFormAddress => {
+const buildBillToFromClient = (client: User): EstimateFormAddress => {
   const fallback = createEmptyAddress();
   const shipping = getDefaultShipping(client);
   const phone = client.company?.phone || formatClientPhone(client) || shipping?.phone || '';
@@ -256,21 +215,20 @@ const buildBillToFromClient = (client: User): InvoiceFormAddress => {
   };
 };
 
-export const InvoicesAdminSection: React.FC = () => {
-  const [documents, setDocuments] = useState<BillingDocument[]>([]);
+export const EstimatesAdminSection: React.FC = () => {
+  const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<EstimateStatus | 'all'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [activeDocument, setActiveDocument] = useState<BillingDocument | null>(null);
-  const [createMode, setCreateMode] = useState<DocumentType>('invoice');
-  const [form, setForm] = useState<InvoiceForm>(() => createEmptyForm());
+  const [activeEstimate, setActiveEstimate] = useState<Estimate | null>(null);
+  const [form, setForm] = useState<EstimateForm>(() => createEmptyForm());
   const [sameAsBilling, setSameAsBilling] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [statusUpdatingKey, setStatusUpdatingKey] = useState<string | null>(null);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [productSearchQueries, setProductSearchQueries] = useState<Record<string, string>>({});
@@ -313,32 +271,21 @@ export const InvoicesAdminSection: React.FC = () => {
     form.shipTo.country.trim().toLowerCase()
   );
 
-  const loadDocuments = async () => {
+  const loadEstimates = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [invoicesResponse, estimatesResponse] = await Promise.all([
-        invoicesApi.list(),
-        estimatesApi.list(),
-      ]);
-      const combined = [
-        ...invoicesResponse.invoices.map(mapInvoiceToDocument),
-        ...estimatesResponse.estimates.map(mapEstimateToDocument),
-      ].sort((a, b) => {
-        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bTime - aTime;
-      });
-      setDocuments(combined);
+      const { estimates: data } = await estimatesApi.list();
+      setEstimates(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load invoices and estimates.');
+      setError(err instanceof Error ? err.message : 'Unable to load estimates.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    void loadDocuments();
+    void loadEstimates();
   }, []);
 
   useEffect(() => {
@@ -403,27 +350,27 @@ export const InvoicesAdminSection: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredDocuments = useMemo(() => {
+  const filteredEstimates = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return documents.filter((document) => {
-      if (statusFilter !== 'all' && document.status !== statusFilter) {
+    return estimates.filter((estimate) => {
+      if (statusFilter !== 'all' && estimate.status !== statusFilter) {
         return false;
       }
       if (!query) return true;
       const fields = [
-        document.documentNumber,
-        document.id,
-        document.billTo?.name,
-        document.billTo?.email,
-        document.shipTo?.name,
-        document.items?.map((item) => item.name).join(' '),
+        estimate.estimateNumber,
+        estimate.id,
+        estimate.billTo?.name,
+        estimate.billTo?.email,
+        estimate.shipTo?.name,
+        estimate.items?.map((item) => item.name).join(' '),
       ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
       return fields.includes(query);
     });
-  }, [documents, searchQuery, statusFilter]);
+  }, [estimates, searchQuery, statusFilter]);
 
   const productOptions = useMemo(() => {
     const options = products.map((product) => ({
@@ -443,7 +390,7 @@ export const InvoicesAdminSection: React.FC = () => {
     }).sort((a, b) => a.name.localeCompare(b.name));
   };
 
-  const updateAddress = (target: 'billTo' | 'shipTo', field: keyof InvoiceFormAddress, value: string) => {
+  const updateAddress = (target: 'billTo' | 'shipTo', field: keyof EstimateFormAddress, value: string) => {
     setForm((state) => ({
       ...state,
       [target]: {
@@ -464,7 +411,7 @@ export const InvoicesAdminSection: React.FC = () => {
     setForm((state) => ({ ...state, billTo: buildBillToFromClient(client) }));
   };
 
-  const updateItem = (id: string, updates: Partial<InvoiceFormItem>) => {
+  const updateItem = (id: string, updates: Partial<EstimateFormItem>) => {
     setForm((state) => ({
       ...state,
       items: state.items.map((item) => (item.id === id ? { ...item, ...updates } : item)),
@@ -510,12 +457,6 @@ export const InvoicesAdminSection: React.FC = () => {
     setClientLoadError(null);
   };
 
-  const handleOpenCreate = (mode: DocumentType) => {
-    setCreateMode(mode);
-    resetForm();
-    setShowCreateModal(true);
-  };
-
   const handleCloseCreate = () => {
     setShowCreateModal(false);
     resetForm();
@@ -547,9 +488,7 @@ export const InvoicesAdminSection: React.FC = () => {
     };
   }, [form.items, form.taxRate, form.shippingAmount]);
 
-  const handleCreateDocument = async () => {
-    const documentLabel = getDocumentLabel(createMode);
-    const documentLabelLower = documentLabel.toLowerCase();
+  const handleCreateEstimate = async () => {
     setFormError(null);
     if (!form.billTo.name.trim()) {
       setFormError(
@@ -597,7 +536,7 @@ export const InvoicesAdminSection: React.FC = () => {
       return;
     }
     if (items.length === 0) {
-      setFormError(`At least one ${documentLabelLower} item is required.`);
+      setFormError('At least one estimate item is required.');
       return;
     }
 
@@ -637,94 +576,59 @@ export const InvoicesAdminSection: React.FC = () => {
         dueDate: form.dueDate || null,
         notes: form.notes || undefined,
       };
-      if (createMode === 'invoice') {
-        const { invoice } = await invoicesApi.create(payload);
-        setDocuments((prev) => [mapInvoiceToDocument(invoice), ...prev]);
-      } else {
-        const { estimate } = await estimatesApi.create(payload);
-        setDocuments((prev) => [mapEstimateToDocument(estimate), ...prev]);
-      }
+      const { estimate } = await estimatesApi.create(payload);
+      setEstimates((prev) => [estimate, ...prev]);
       handleCloseCreate();
     } catch (err) {
-      setFormError(
-        err instanceof Error ? err.message : `Unable to create ${documentLabelLower}.`
-      );
+      setFormError(err instanceof Error ? err.message : 'Unable to create estimate.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteDocument = async (document: BillingDocument) => {
-    const documentLabel = getDocumentLabel(document.documentType);
-    const documentLabelLower = documentLabel.toLowerCase();
-    const ok = window.confirm(
-      `Delete ${documentLabelLower} ${document.documentNumber}? This cannot be undone.`
-    );
+  const handleDeleteEstimate = async (id: string) => {
+    const estimate = estimates.find((entry) => entry.id === id);
+    if (!estimate) return;
+    const ok = window.confirm(`Delete estimate ${estimate.estimateNumber}? This cannot be undone.`);
     if (!ok) return;
     try {
-      if (document.documentType === 'invoice') {
-        await invoicesApi.delete(document.id);
-      } else {
-        await estimatesApi.delete(document.id);
-      }
-      setDocuments((prev) =>
-        prev.filter((entry) => !(entry.id === document.id && entry.documentType === document.documentType))
-      );
+      await estimatesApi.delete(id);
+      setEstimates((prev) => prev.filter((entry) => entry.id !== id));
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : `Unable to delete ${documentLabelLower}.`
-      );
+      setError(err instanceof Error ? err.message : 'Unable to delete estimate.');
     }
   };
 
-  const replaceDocument = (updated: BillingDocument) => {
-    setDocuments((prev) =>
-      prev.map((entry) =>
-        entry.id === updated.id && entry.documentType === updated.documentType ? updated : entry
-      )
-    );
-    setActiveDocument((prev) =>
-      prev && prev.id === updated.id && prev.documentType === updated.documentType ? updated : prev
-    );
+  const replaceEstimate = (updated: Estimate) => {
+    setEstimates((prev) => prev.map((entry) => (entry.id === updated.id ? updated : entry)));
+    setActiveEstimate((prev) => (prev && prev.id === updated.id ? updated : prev));
   };
 
-  const handleStatusChange = async (document: BillingDocument, nextStatus: InvoiceStatus) => {
-    if (document.status === nextStatus) return;
-    const previousStatus = document.status;
+  const handleStatusChange = async (estimate: Estimate, nextStatus: EstimateStatus) => {
+    if (estimate.status === nextStatus) return;
+    const previousStatus = estimate.status;
     setError(null);
-    const documentKey = `${document.documentType}-${document.id}`;
-    setStatusUpdatingKey(documentKey);
-    replaceDocument({ ...document, status: nextStatus });
+    setStatusUpdatingId(estimate.id);
+    replaceEstimate({ ...estimate, status: nextStatus });
     try {
-      if (document.documentType === 'invoice') {
-        const { invoice: updated } = await invoicesApi.update(document.id, { status: nextStatus });
-        replaceDocument(mapInvoiceToDocument(updated));
-      } else {
-        const { estimate: updated } = await estimatesApi.update(document.id, { status: nextStatus });
-        replaceDocument(mapEstimateToDocument(updated));
-      }
+      const { estimate: updated } = await estimatesApi.update(estimate.id, { status: nextStatus });
+      replaceEstimate(updated);
     } catch (err) {
-      replaceDocument({ ...document, status: previousStatus });
-      const documentLabelLower = getDocumentLabel(document.documentType).toLowerCase();
-      setError(
-        err instanceof Error ? err.message : `Unable to update ${documentLabelLower} status.`
-      );
+      replaceEstimate({ ...estimate, status: previousStatus });
+      setError(err instanceof Error ? err.message : 'Unable to update estimate status.');
     } finally {
-      setStatusUpdatingKey(null);
+      setStatusUpdatingId(null);
     }
   };
 
-  const buildPrintHtml = (document: BillingDocument) => {
-    const invoice = document;
-    const documentLabel = getDocumentLabel(document.documentType);
-    const documentNumber = document.documentNumber;
+  const buildPrintHtml = (estimate: Estimate) => {
     const logoUrl = `${window.location.origin}/logo-png.png`;
-    const createdDate = formatDate(invoice.createdAt);
-    const dueDate = invoice.dueDate ? formatDate(invoice.dueDate) : '';
-    const subtotal = formatCurrency(invoice.subtotal, invoice.currency ?? 'USD');
-    const taxAmount = formatCurrency(invoice.taxAmount ?? 0, invoice.currency ?? 'USD');
-    const shippingAmount = formatCurrency(invoice.shippingAmount ?? 0, invoice.currency ?? 'USD');
-    const amountDue = formatCurrency(invoice.total, invoice.currency ?? 'USD');
+    const createdDate = formatDate(estimate.createdAt);
+    const dueDate = estimate.dueDate ? formatDate(estimate.dueDate) : '';
+    const subtotal = formatCurrency(estimate.subtotal, estimate.currency ?? 'USD');
+    const taxAmount = formatCurrency(estimate.taxAmount ?? 0, estimate.currency ?? 'USD');
+    const shippingAmount = formatCurrency(estimate.shippingAmount ?? 0, estimate.currency ?? 'USD');
+    const amountDue = formatCurrency(estimate.total, estimate.currency ?? 'USD');
     const companyCityState = [COMPANY_DETAILS.city, COMPANY_DETAILS.state].filter(Boolean).join(', ');
     const companyCityLine = `${companyCityState}${COMPANY_DETAILS.postalCode ? ` ${COMPANY_DETAILS.postalCode}` : ''}`.trim();
 
@@ -739,9 +643,9 @@ export const InvoicesAdminSection: React.FC = () => {
       return company || person || '';
     };
 
-    const itemRows = invoice.items
+    const itemRows = estimate.items
       .map((item) => {
-        const lineTotal = formatCurrency(item.price * item.quantity, invoice.currency ?? 'USD');
+        const lineTotal = formatCurrency(item.price * item.quantity, estimate.currency ?? 'USD');
         return `
           <tr>
             <td class="text-center">${escapeHtml(String(item.quantity))}</td>
@@ -749,7 +653,7 @@ export const InvoicesAdminSection: React.FC = () => {
               <div class="item-name">${escapeHtml(item.name)}</div>
               ${item.sku ? `<div class="item-sku">${escapeHtml(item.sku)}</div>` : ''}
             </td>
-            <td class="text-right">${escapeHtml(formatCurrency(item.price, invoice.currency ?? 'USD'))}</td>
+            <td class="text-right">${escapeHtml(formatCurrency(item.price, estimate.currency ?? 'USD'))}</td>
             <td class="text-right">${escapeHtml(lineTotal)}</td>
           </tr>
         `;
@@ -761,7 +665,7 @@ export const InvoicesAdminSection: React.FC = () => {
       <html>
         <head>
           <meta charset="utf-8" />
-          <title>${escapeHtml(documentLabel)} ${escapeHtml(documentNumber)}</title>
+          <title>Estimate ${escapeHtml(estimate.estimateNumber)}</title>
           <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
@@ -797,16 +701,16 @@ export const InvoicesAdminSection: React.FC = () => {
               padding: 6px 10px;
               display: inline-block;
             }
-            .invoice-header {
+            .estimate-header {
               text-align: right;
             }
-            .invoice-header h1 {
+            .estimate-header h1 {
               font-size: 36px;
               font-weight: normal;
               color: #000;
               margin-bottom: 4px;
             }
-            .invoice-number {
+            .estimate-number {
               font-size: 12px;
               font-weight: bold;
               color: #000;
@@ -815,23 +719,23 @@ export const InvoicesAdminSection: React.FC = () => {
               display: inline-block;
               margin-bottom: 8px;
             }
-            .invoice-meta {
+            .estimate-meta {
               text-align: left;
               font-size: 10px;
               margin-top: 8px;
             }
-            .invoice-meta table {
+            .estimate-meta table {
               border-collapse: collapse;
             }
-            .invoice-meta td {
+            .estimate-meta td {
               padding: 2px 8px 2px 0;
               border: none;
             }
-            .invoice-meta td:first-child {
+            .estimate-meta td:first-child {
               font-weight: bold;
               min-width: 90px;
             }
-            .invoice-total {
+            .estimate-total {
               padding: 12px 16px;
               background: #f3f3f3 !important;
               border: 1px solid #ddd;
@@ -839,19 +743,19 @@ export const InvoicesAdminSection: React.FC = () => {
               text-align: right;
               min-width: 200px;
             }
-            .invoice-total .total-label {
+            .estimate-total .total-label {
               font-size: 11px;
               font-weight: bold;
               color: #666;
               margin-bottom: 4px;
             }
-            .invoice-total .total-amount {
+            .estimate-total .total-amount {
               font-size: 24px;
               font-weight: bold;
               color: #000;
               margin-bottom: 4px;
             }
-            .invoice-total .due-date-label {
+            .estimate-total .due-date-label {
               font-size: 9px;
               color: #666;
             }
@@ -999,14 +903,14 @@ export const InvoicesAdminSection: React.FC = () => {
                 ${escapeHtml(COMPANY_DETAILS.country)}
               </div>
             </div>
-            <div class="invoice-header">
-              <h1>${escapeHtml(documentLabel)}</h1>
-              <div class="invoice-number">#${escapeHtml(documentNumber)}</div>
-              <div class="invoice-meta">
+            <div class="estimate-header">
+              <h1>Estimate</h1>
+              <div class="estimate-number">#${escapeHtml(estimate.estimateNumber)}</div>
+              <div class="estimate-meta">
                 <table>
                   <tr>
                     <td>Sales Order #</td>
-                    <td>SO${escapeHtml(documentNumber.slice(-6))}</td>
+                    <td>SO${escapeHtml(estimate.estimateNumber.slice(-6))}</td>
                   </tr>
                   <tr>
                     <td>Date:</td>
@@ -1023,25 +927,25 @@ export const InvoicesAdminSection: React.FC = () => {
               <div class="address-block">
                 <h3>Bill To</h3>
                 <div class="address-content">
-                  <strong>${escapeHtml(displayName(invoice.billTo.companyName, invoice.billTo.name))}</strong><br>
-                  ${contactLine(invoice.billTo.phone, invoice.billTo.email)}
-                  ${invoice.billTo.addressLine1 ? escapeHtml(invoice.billTo.addressLine1) + '<br>' : ''}
-                  ${[invoice.billTo.city, invoice.billTo.state, invoice.billTo.postalCode].filter(Boolean).join(', ')}<br>
-                  ${invoice.billTo.country ? escapeHtml(invoice.billTo.country) : ''}
+                  <strong>${escapeHtml(displayName(estimate.billTo.companyName, estimate.billTo.name))}</strong><br>
+                  ${contactLine(estimate.billTo.phone, estimate.billTo.email)}
+                  ${estimate.billTo.addressLine1 ? escapeHtml(estimate.billTo.addressLine1) + '<br>' : ''}
+                  ${[estimate.billTo.city, estimate.billTo.state, estimate.billTo.postalCode].filter(Boolean).join(', ')}<br>
+                  ${estimate.billTo.country ? escapeHtml(estimate.billTo.country) : ''}
                 </div>
               </div>
               <div class="address-block">
                 <h3>Ship To</h3>
                 <div class="address-content">
-                  <strong>${escapeHtml(displayName(invoice.shipTo.companyName, invoice.shipTo.name))}</strong><br>
-                  ${contactLine(invoice.shipTo.phone, invoice.shipTo.email)}
-                  ${invoice.shipTo.addressLine1 ? escapeHtml(invoice.shipTo.addressLine1) + '<br>' : ''}
-                  ${[invoice.shipTo.city, invoice.shipTo.state, invoice.shipTo.postalCode].filter(Boolean).join(', ')}<br>
-                  ${invoice.shipTo.country ? escapeHtml(invoice.shipTo.country) : ''}
+                  <strong>${escapeHtml(displayName(estimate.shipTo.companyName, estimate.shipTo.name))}</strong><br>
+                  ${contactLine(estimate.shipTo.phone, estimate.shipTo.email)}
+                  ${estimate.shipTo.addressLine1 ? escapeHtml(estimate.shipTo.addressLine1) + '<br>' : ''}
+                  ${[estimate.shipTo.city, estimate.shipTo.state, estimate.shipTo.postalCode].filter(Boolean).join(', ')}<br>
+                  ${estimate.shipTo.country ? escapeHtml(estimate.shipTo.country) : ''}
                 </div>
               </div>
             </div>
-            <div class="invoice-total">
+            <div class="estimate-total">
               <div class="total-label">TOTAL</div>
               <div class="total-amount">${escapeHtml(amountDue)}</div>
               ${dueDate ? `<div class="due-date-label">Due Date: ${escapeHtml(dueDate)}</div>` : ''}
@@ -1085,10 +989,10 @@ export const InvoicesAdminSection: React.FC = () => {
             </div>
           </div>
 
-          ${invoice.terms || invoice.notes ? `
+          ${estimate.terms || estimate.notes ? `
             <div class="footer">
-              ${invoice.terms ? `<div><strong>Terms:</strong> ${escapeHtml(invoice.terms)}</div>` : ''}
-              ${invoice.notes ? `<div style="margin-top: 8px;">${escapeHtml(invoice.notes)}</div>` : ''}
+              ${estimate.terms ? `<div><strong>Terms:</strong> ${escapeHtml(estimate.terms)}</div>` : ''}
+              ${estimate.notes ? `<div style="margin-top: 8px;">${escapeHtml(estimate.notes)}</div>` : ''}
             </div>
           ` : ''}
         </body>
@@ -1096,8 +1000,8 @@ export const InvoicesAdminSection: React.FC = () => {
     `;
   };
 
-  const handleDownloadDocument = (billingDocument: BillingDocument) => {
-    const html = buildPrintHtml(billingDocument);
+  const handleDownloadEstimate = (estimate: Estimate) => {
+    const html = buildPrintHtml(estimate);
 
     // Create a blob from the HTML content
     const blob = new Blob([html], { type: 'text/html' });
@@ -1136,21 +1040,18 @@ export const InvoicesAdminSection: React.FC = () => {
     }
   };
 
-  const createLabel = getDocumentLabel(createMode);
-  const createLabelLower = createLabel.toLowerCase();
-
   return (
     <section className="space-y-6">
       <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Invoices & Estimates</h2>
-            <p className="text-sm text-muted">Create, track, and deliver invoices and estimates to customers.</p>
+            <h2 className="text-lg font-semibold text-slate-900">Estimates</h2>
+            <p className="text-sm text-muted">Create, track, and deliver estimates to customers.</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => void loadDocuments()}
+              onClick={() => void loadEstimates()}
               className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
             >
               <RefreshCw className="h-4 w-4" />
@@ -1158,16 +1059,8 @@ export const InvoicesAdminSection: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => handleOpenCreate('invoice')}
+              onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark"
-            >
-              <Plus className="h-4 w-4" />
-              Create invoice
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOpenCreate('estimate')}
-              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
             >
               <Plus className="h-4 w-4" />
               Create estimate
@@ -1182,14 +1075,14 @@ export const InvoicesAdminSection: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search invoices and estimates"
+              placeholder="Search estimates"
               className="h-7 w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <div className="w-44">
             <Select
               value={statusFilter}
-              onChange={(value) => setStatusFilter(value as InvoiceStatus | 'all')}
+              onChange={(value) => setStatusFilter(value as EstimateStatus | 'all')}
               options={[{ value: 'all', label: 'All statuses' }, ...statusOptions]}
             />
           </div>
@@ -1207,7 +1100,7 @@ export const InvoicesAdminSection: React.FC = () => {
           <table className="min-w-full divide-y divide-border text-left text-sm">
             <thead className="bg-slate-50/80 text-xs uppercase tracking-wide text-muted">
               <tr>
-                <th className="px-4 py-3 font-semibold">Document ID</th>
+                <th className="px-4 py-3 font-semibold">Estimate ID</th>
                 <th className="px-4 py-3 font-semibold">Created</th>
                 <th className="px-4 py-3 font-semibold">Customer</th>
                 <th className="px-4 py-3 font-semibold">Items</th>
@@ -1220,41 +1113,39 @@ export const InvoicesAdminSection: React.FC = () => {
               {loading && (
                 <tr>
                   <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted">
-                    Loading invoices and estimates...
+                    Loading estimates...
                   </td>
                 </tr>
               )}
               {!loading &&
-                filteredDocuments.map((document) => {
-                  const itemsCount = document.items.reduce((sum, item) => sum + item.quantity, 0);
-                  const documentKey = `${document.documentType}-${document.id}`;
-                  const documentLabel = getDocumentLabel(document.documentType);
+                filteredEstimates.map((estimate) => {
+                  const itemsCount = estimate.items.reduce((sum, item) => sum + item.quantity, 0);
                   return (
-                    <tr key={documentKey} className="hover:bg-slate-50">
+                    <tr key={estimate.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-mono text-sm font-semibold text-primary">
-                        {document.documentNumber}
+                        {estimate.estimateNumber}
                       </td>
                       <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap">
-                        {formatDate(document.createdAt)}
+                        {formatDate(estimate.createdAt)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="space-y-1">
-                          <div className="font-medium text-slate-900">{document.billTo.name}</div>
-                          <div className="text-xs text-muted">{document.billTo.email || document.shipTo.email || '-'}</div>
+                          <div className="font-medium text-slate-900">{estimate.billTo.name}</div>
+                          <div className="text-xs text-muted">{estimate.billTo.email || estimate.shipTo.email || '-'}</div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-slate-700">
                         {itemsCount} item{itemsCount !== 1 ? 's' : ''}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-slate-900">
-                        {formatCurrency(document.total, document.currency ?? 'USD')}
+                        {formatCurrency(estimate.total, estimate.currency ?? 'USD')}
                       </td>
                       <td className="px-4 py-3">
                         <Select
-                          value={document.status}
-                          onChange={(value) => handleStatusChange(document, value as InvoiceStatus)}
+                          value={estimate.status}
+                          onChange={(value) => handleStatusChange(estimate, value as EstimateStatus)}
                           options={statusOptions}
-                          disabled={statusUpdatingKey === documentKey}
+                          disabled={statusUpdatingId === estimate.id}
                           className="w-36"
                           buttonClassName="h-8 text-xs"
                           portal
@@ -1265,9 +1156,9 @@ export const InvoicesAdminSection: React.FC = () => {
                           <button
                             type="button"
                             className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-primary hover:text-primary"
-                            title={`View ${documentLabel.toLowerCase()}`}
+                            title="View estimate"
                             onClick={() => {
-                              setActiveDocument(document);
+                              setActiveEstimate(estimate);
                               setShowPreviewModal(true);
                             }}
                           >
@@ -1276,16 +1167,16 @@ export const InvoicesAdminSection: React.FC = () => {
                           <button
                             type="button"
                             className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-primary hover:text-primary"
-                            title={`Download ${documentLabel.toLowerCase()}`}
-                            onClick={() => handleDownloadDocument(document)}
+                            title="Download estimate"
+                            onClick={() => handleDownloadEstimate(estimate)}
                           >
                             <Download className="h-4 w-4" />
                           </button>
                           <button
                             type="button"
                             className="rounded-lg border border-slate-200 p-2 text-red-600 transition hover:border-red-500 hover:text-red-600"
-                            title={`Delete ${documentLabel.toLowerCase()}`}
-                            onClick={() => void handleDeleteDocument(document)}
+                            title="Delete estimate"
+                            onClick={() => void handleDeleteEstimate(estimate.id)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -1294,12 +1185,10 @@ export const InvoicesAdminSection: React.FC = () => {
                     </tr>
                   );
                 })}
-              {!loading && filteredDocuments.length === 0 && (
+              {!loading && filteredEstimates.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted">
-                    {searchQuery
-                      ? 'No invoices or estimates match your search.'
-                      : 'No invoices or estimates created yet.'}
+                    {searchQuery ? 'No estimates match your search.' : 'No estimates created yet.'}
                   </td>
                 </tr>
               )}
@@ -1313,8 +1202,8 @@ export const InvoicesAdminSection: React.FC = () => {
           <div className="max-h-full w-full max-w-6xl overflow-y-auto rounded-2xl border border-border bg-white shadow-2xl">
             <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-border bg-white px-6 py-4">
               <div>
-                <h3 className="text-xl font-semibold text-slate-900">Create New {createLabel}</h3>
-                <p className="mt-1 text-sm text-muted">Fill in customer details and items to generate a professional {createLabelLower}.</p>
+                <h3 className="text-xl font-semibold text-slate-900">Create New Estimate</h3>
+                <p className="mt-1 text-sm text-muted">Fill in customer details and estimate items to generate a professional estimate.</p>
               </div>
               <button
                 type="button"
@@ -1702,7 +1591,7 @@ export const InvoicesAdminSection: React.FC = () => {
             <div className="mt-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-800">Items</h4>
+                  <h4 className="text-sm font-semibold text-slate-800">Estimate items</h4>
                   <p className="text-xs text-muted">Add products or custom line items.</p>
                 </div>
                 <button
@@ -1899,7 +1788,7 @@ export const InvoicesAdminSection: React.FC = () => {
                       <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
                       <Select
                         value={form.status}
-                        onChange={(value) => setForm((state) => ({ ...state, status: value as InvoiceStatus }))}
+                        onChange={(value) => setForm((state) => ({ ...state, status: value as EstimateStatus }))}
                         options={[
                           { value: 'pending', label: 'Pending' },
                           { value: 'completed', label: 'Completed' },
@@ -2000,32 +1889,32 @@ export const InvoicesAdminSection: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={handleCreateDocument}
+                onClick={handleCreateEstimate}
                 disabled={saving}
                 className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {saving ? 'Creating...' : `Create ${createLabel}`}
+                {saving ? 'Creating...' : 'Create Estimate'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {showPreviewModal && activeDocument && (
+      {showPreviewModal && activeEstimate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-10">
           <div className="max-h-full w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">
-                  {getDocumentLabel(activeDocument.documentType)} {activeDocument.documentNumber}
+                  Estimate {activeEstimate.estimateNumber}
                 </h3>
-                <p className="text-sm text-muted">Created {formatDate(activeDocument.createdAt)}</p>
+                <p className="text-sm text-muted">Created {formatDate(activeEstimate.createdAt)}</p>
               </div>
               <button
                 type="button"
                 onClick={() => {
                   setShowPreviewModal(false);
-                  setActiveDocument(null);
+                  setActiveEstimate(null);
                 }}
                 className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
               >
@@ -2034,8 +1923,8 @@ export const InvoicesAdminSection: React.FC = () => {
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <StatusPill label={activeDocument.status} tone={getStatusTone(activeDocument.status)} />
-              <span className="text-xs text-muted">Due {formatDate(activeDocument.dueDate)}</span>
+              <StatusPill label={activeEstimate.status} tone={getStatusTone(activeEstimate.status)} />
+              <span className="text-xs text-muted">Due {formatDate(activeEstimate.dueDate)}</span>
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -2043,44 +1932,44 @@ export const InvoicesAdminSection: React.FC = () => {
                 <h4 className="text-xs font-semibold text-slate-700">Bill To</h4>
                 <div className="mt-2 space-y-1 text-sm text-slate-700">
                   <div className="font-semibold">
-                    {activeDocument.billTo.companyName
-                      ? `${activeDocument.billTo.companyName} - ${activeDocument.billTo.name}`
-                      : activeDocument.billTo.name}
+                    {activeEstimate.billTo.companyName
+                      ? `${activeEstimate.billTo.companyName} - ${activeEstimate.billTo.name}`
+                      : activeEstimate.billTo.name}
                   </div>
-                  {(activeDocument.billTo.phone || activeDocument.billTo.email) && (
+                  {(activeEstimate.billTo.phone || activeEstimate.billTo.email) && (
                     <div>
-                      {[activeDocument.billTo.phone, activeDocument.billTo.email].filter(Boolean).join(' | ')}
+                      {[activeEstimate.billTo.phone, activeEstimate.billTo.email].filter(Boolean).join(' | ')}
                     </div>
                   )}
-                  <div>{activeDocument.billTo.addressLine1}</div>
+                  <div>{activeEstimate.billTo.addressLine1}</div>
                   <div>
-                    {[activeDocument.billTo.city, activeDocument.billTo.state, activeDocument.billTo.postalCode]
+                    {[activeEstimate.billTo.city, activeEstimate.billTo.state, activeEstimate.billTo.postalCode]
                       .filter(Boolean)
                       .join(', ')}
                   </div>
-                  <div>{activeDocument.billTo.country}</div>
+                  <div>{activeEstimate.billTo.country}</div>
                 </div>
               </div>
               <div className="rounded-2xl border border-border bg-slate-50/60 p-4">
                 <h4 className="text-xs font-semibold text-slate-700">Ship To</h4>
                 <div className="mt-2 space-y-1 text-sm text-slate-700">
                   <div className="font-semibold">
-                    {activeDocument.shipTo.companyName
-                      ? `${activeDocument.shipTo.companyName} - ${activeDocument.shipTo.name}`
-                      : activeDocument.shipTo.name}
+                    {activeEstimate.shipTo.companyName
+                      ? `${activeEstimate.shipTo.companyName} - ${activeEstimate.shipTo.name}`
+                      : activeEstimate.shipTo.name}
                   </div>
-                  {(activeDocument.shipTo.phone || activeDocument.shipTo.email) && (
+                  {(activeEstimate.shipTo.phone || activeEstimate.shipTo.email) && (
                     <div>
-                      {[activeDocument.shipTo.phone, activeDocument.shipTo.email].filter(Boolean).join(' | ')}
+                      {[activeEstimate.shipTo.phone, activeEstimate.shipTo.email].filter(Boolean).join(' | ')}
                     </div>
                   )}
-                  <div>{activeDocument.shipTo.addressLine1}</div>
+                  <div>{activeEstimate.shipTo.addressLine1}</div>
                   <div>
-                    {[activeDocument.shipTo.city, activeDocument.shipTo.state, activeDocument.shipTo.postalCode]
+                    {[activeEstimate.shipTo.city, activeEstimate.shipTo.state, activeEstimate.shipTo.postalCode]
                       .filter(Boolean)
                       .join(', ')}
                   </div>
-                  <div>{activeDocument.shipTo.country}</div>
+                  <div>{activeEstimate.shipTo.country}</div>
                 </div>
               </div>
             </div>
@@ -2096,18 +1985,18 @@ export const InvoicesAdminSection: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border bg-white">
-                  {activeDocument.items.map((item, index) => (
-                    <tr key={`${activeDocument.id}-${index}`}>
+                  {activeEstimate.items.map((item, index) => (
+                    <tr key={`${activeEstimate.id}-${index}`}>
                       <td className="px-4 py-2 text-slate-700">{item.quantity}</td>
                       <td className="px-4 py-2">
                         <div className="font-medium text-slate-900">{item.name}</div>
                         {item.sku && <div className="text-xs text-muted">{item.sku}</div>}
                       </td>
                       <td className="px-4 py-2 text-right text-slate-700">
-                        {formatCurrency(item.price, activeDocument.currency ?? 'USD')}
+                        {formatCurrency(item.price, activeEstimate.currency ?? 'USD')}
                       </td>
                       <td className="px-4 py-2 text-right font-semibold text-slate-900">
-                        {formatCurrency(item.price * item.quantity, activeDocument.currency ?? 'USD')}
+                        {formatCurrency(item.price * item.quantity, activeEstimate.currency ?? 'USD')}
                       </td>
                     </tr>
                   ))}
@@ -2119,34 +2008,34 @@ export const InvoicesAdminSection: React.FC = () => {
               <div className="w-full max-w-sm rounded-2xl border border-border bg-slate-50/60 p-4 text-sm">
                 <div className="flex items-center justify-between text-slate-700">
                   <span className="text-muted">Subtotal</span>
-                  <span>{formatCurrency(activeDocument.subtotal, activeDocument.currency ?? 'USD')}</span>
+                  <span>{formatCurrency(activeEstimate.subtotal, activeEstimate.currency ?? 'USD')}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between text-slate-700">
                   <span className="text-muted">Tax</span>
-                  <span>{formatCurrency(activeDocument.taxAmount ?? 0, activeDocument.currency ?? 'USD')}</span>
+                  <span>{formatCurrency(activeEstimate.taxAmount ?? 0, activeEstimate.currency ?? 'USD')}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between text-slate-700">
                   <span className="text-muted">Shipping</span>
-                  <span>{formatCurrency(activeDocument.shippingAmount ?? 0, activeDocument.currency ?? 'USD')}</span>
+                  <span>{formatCurrency(activeEstimate.shippingAmount ?? 0, activeEstimate.currency ?? 'USD')}</span>
                 </div>
                 <div className="mt-3 flex items-center justify-between border-t border-dashed border-slate-200 pt-3 text-base font-semibold text-slate-900">
                   <span>Total</span>
-                  <span>{formatCurrency(activeDocument.total, activeDocument.currency ?? 'USD')}</span>
+                  <span>{formatCurrency(activeEstimate.total, activeEstimate.currency ?? 'USD')}</span>
                 </div>
               </div>
             </div>
 
-            {activeDocument.notes && (
+            {activeEstimate.notes && (
               <div className="mt-4 rounded-2xl border border-border bg-white p-4 text-sm text-slate-700">
                 <div className="text-xs font-semibold text-muted">Notes</div>
-                <p className="mt-2 whitespace-pre-wrap">{activeDocument.notes}</p>
+                <p className="mt-2 whitespace-pre-wrap">{activeEstimate.notes}</p>
               </div>
             )}
 
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => handleDownloadDocument(activeDocument)}
+                onClick={() => handleDownloadEstimate(activeEstimate)}
                 className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary"
               >
                 <Download className="h-4 w-4" />
@@ -2156,7 +2045,7 @@ export const InvoicesAdminSection: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setShowPreviewModal(false);
-                  setActiveDocument(null);
+                  setActiveEstimate(null);
                 }}
                 className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark"
               >
@@ -2169,3 +2058,4 @@ export const InvoicesAdminSection: React.FC = () => {
     </section>
   );
 };
+

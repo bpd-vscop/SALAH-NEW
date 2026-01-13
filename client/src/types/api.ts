@@ -19,6 +19,7 @@ export type CouponType = 'percentage' | 'fixed';
 export type ConversationStatus = 'open' | 'closed';
 export type MessageSenderRole = 'client' | 'admin';
 export type InvoiceStatus = 'pending' | 'completed' | 'canceled';
+export type EstimateStatus = InvoiceStatus;
 
 export interface TaxRate {
   id: string;
@@ -451,6 +452,28 @@ export interface Invoice {
   invoiceNumber: string;
   customerId?: string | null;
   status: InvoiceStatus;
+  billTo: InvoiceAddress;
+  shipTo: InvoiceAddress;
+  items: InvoiceItem[];
+  subtotal: number;
+  taxRate?: number | null;
+  taxAmount?: number | null;
+  shippingAmount?: number | null;
+  total: number;
+  currency?: string | null;
+  terms?: string | null;
+  dueDate?: string | null;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  createdBy?: string | null;
+}
+
+export interface Estimate {
+  id: string;
+  estimateNumber: string;
+  customerId?: string | null;
+  status: EstimateStatus;
   billTo: InvoiceAddress;
   shipTo: InvoiceAddress;
   items: InvoiceItem[];

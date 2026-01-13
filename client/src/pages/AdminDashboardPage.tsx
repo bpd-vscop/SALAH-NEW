@@ -46,7 +46,7 @@ import { TagsAdminSection } from '../components/dashboard/TagsAdminSection';
 import { DownloadsAdminSection } from '../components/dashboard/DownloadsAdminSection';
 import { HomepageAdminSection } from '../components/dashboard/HomepageAdminSection';
 import { OrdersAdminSection } from '../components/dashboard/OrdersAdminSection';
-import { InvoicesAdminSection } from '../components/dashboard/InvoicesAdminSection';
+import { BillingDocumentsAdminSection } from '../components/dashboard/BillingDocumentsAdminSection';
 import { MessagesAdminSection } from '../components/dashboard/MessagesAdminSection';
 import { NavigationAdminSection } from '../components/dashboard/NavigationAdminSection';
 import { LegalDocumentsAdminSection } from '../components/dashboard/LegalDocumentsAdminSection';
@@ -1922,7 +1922,7 @@ export const AdminDashboardPage: React.FC = () => {
           };
         }
         if (tab.id === 'orders') {
-          const activeOrdersLabel = ordersSection === 'invoices' ? 'Invoices' : 'Orders';
+          const activeOrdersLabel = ordersSection === 'invoices' ? 'Invoices & Estimates' : 'Orders';
           return {
             id: tab.id,
             label: tab.label,
@@ -1930,7 +1930,7 @@ export const AdminDashboardPage: React.FC = () => {
             dropdown: {
               items: [
                 { id: 'orders', label: 'Orders' },
-                { id: 'invoices', label: 'Invoices' },
+                { id: 'invoices', label: 'Invoices & Estimates' },
               ],
               activeId: activeTab === 'orders' ? ordersSection : undefined,
             },
@@ -2373,7 +2373,7 @@ export const AdminDashboardPage: React.FC = () => {
                   onRefresh={refreshOrders}
                 />
               ) : (
-                <InvoicesAdminSection />
+                <BillingDocumentsAdminSection />
               )}
             </motion.div>
           )}
