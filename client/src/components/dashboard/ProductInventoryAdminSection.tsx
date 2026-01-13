@@ -719,7 +719,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
             No products match the current filters.
           </div>
         ) : (
-          <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden px-2 py-2">
+          <div className="rounded-2xl border border-border bg-white shadow-sm overflow-visible px-2 py-2">
             <table className="w-full table-fixed text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
@@ -748,6 +748,8 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                   const rowHasEdits = hasEdits(product);
                   const isSaving = savingId === product.id;
                   const isHiddenSelected = selectedHiddenIds.has(product.id);
+                  const rowHasOpenDropdown =
+                    openBadgeDropdownId === product.id || openSaleTypeDropdownId === product.id;
                   const currentQuantity = product.inventory?.quantity ?? 0;
                   const parsedNextQuantity = Number.parseInt(edit.quantity, 10);
                   const hasPendingQuantity =
@@ -781,6 +783,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                       key={product.id}
                       className={cn(
                         'transition-colors',
+                        rowHasOpenDropdown && 'relative z-30',
                         outOfStock ? 'bg-rose-50/40' : hasThresholdAlert ? 'bg-amber-50/40' : 'hover:bg-slate-50'
                       )}
                     >
@@ -890,7 +893,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                           </div>
                         </div>
                       </td>
-                      <td className="px-2 py-3 align-top">
+                      <td className={cn('px-2 py-3 align-top', openSaleTypeDropdownId === product.id && 'relative z-40')}>
                         {product.manageStock === false ? (
                           <div className="flex items-center justify-center px-3 py-2">
                             <span className="text-xs font-medium text-slate-500">Stock not managed</span>
@@ -967,7 +970,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                           </div>
                         )}
                       </td>
-                      <td className="px-2 py-3 align-top">
+                      <td className={cn('px-2 py-3 align-top', openBadgeDropdownId === product.id && 'relative z-40')}>
                         <input
                           type="number"
                           min={0}
@@ -1007,7 +1010,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                               </svg>
                             </button>
                             {openSaleTypeDropdownId === product.id && (
-                              <div className="absolute left-0 top-full z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
+                              <div className="absolute left-0 top-full z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
                                 <div className="flex flex-col py-1">
                                   <button
                                     type="button"
@@ -1207,7 +1210,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                             </svg>
                           </button>
                           {openBadgeDropdownId === product.id && (
-                            <div className="absolute left-0 top-full z-10 mt-1 w-full min-w-[180px] rounded-lg border border-slate-200 bg-white shadow-lg">
+                            <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[180px] rounded-lg border border-slate-200 bg-white shadow-lg">
                               <div className="flex flex-col py-1">
                                 <button
                                   type="button"
