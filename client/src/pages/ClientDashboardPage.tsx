@@ -147,6 +147,12 @@ export const ClientDashboardPage: React.FC = () => {
 
   const isB2B = user?.clientType === 'B2B';
   const isC2B = user?.clientType === 'C2B';
+  const hasBillingAddress = Boolean(
+    user?.billingAddress?.addressLine1?.trim() &&
+      user?.billingAddress?.city?.trim() &&
+      user?.billingAddress?.state?.trim() &&
+      user?.billingAddress?.country?.trim()
+  );
   const verificationStatus = user?.verificationStatus ?? (user?.verificationFileUrl ? 'pending' : 'none');
 
   // Profile image states
@@ -194,6 +200,7 @@ export const ClientDashboardPage: React.FC = () => {
     postalCode: '',
     country: 'United States',
   });
+  const [showBillingForm, setShowBillingForm] = useState(false);
   const [billingSaving, setBillingSaving] = useState(false);
 
   // Shipping address states
@@ -887,11 +894,52 @@ export const ClientDashboardPage: React.FC = () => {
       await usersApi.updateBillingAddress(user.id, payload);
       await refresh();
       setStatusMessage('Billing address updated successfully');
+      setShowBillingForm(false);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Failed to save billing address');
     } finally {
       setBillingSaving(false);
+    }
+  };
+
+  const handleCancelBillingAddress = () => {
+    if (!user) {
+      return;
+    }
+    setBillingForm({
+      addressLine1: user.billingAddress?.addressLine1 ?? '',
+      addressLine2: user.billingAddress?.addressLine2 ?? '',
+      city: user.billingAddress?.city ?? '',
+      state: user.billingAddress?.state ?? '',
+      postalCode: user.billingAddress?.postalCode ?? '',
+      country: user.billingAddress?.country ?? 'United States',
+    });
+    setShowBillingForm(false);
+  };
+
+  const handleDeleteBillingAddress = async () => {
+    if (!user) return;
+    if (!confirm('Are you sure you want to delete this billing address?')) return;
+
+    setStatusMessage(null);
+    setError(null);
+
+    try {
+      await usersApi.updateBillingAddress(user.id, {
+        addressLine1: '',
+        addressLine2: '',
+        city: '',
+        state: '',
+        postalCode: '',
+        country: '',
+      });
+      await refresh();
+      setShowBillingForm(false);
+      setStatusMessage('Billing address deleted successfully');
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to delete billing address');
     }
   };
 
@@ -2323,100 +2371,162 @@ export const ClientDashboardPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <form onSubmit={handleSaveBillingAddress} className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 1 *</label>
-              <input
-                type="text"
-                required
-                value={billingForm.addressLine1 ?? ''}
-                onChange={(e) => setBillingForm({ ...billingForm, addressLine1: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                placeholder="Street address, P.O. box"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 2</label>
-              <input
-                type="text"
-                value={billingForm.addressLine2 ?? ''}
-                onChange={(e) => setBillingForm({ ...billingForm, addressLine2: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                placeholder="Apartment, suite, unit, building, floor, etc."
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Country *</label>
-              <CountrySelect
-                value={billingForm.country || 'United States'}
-                onChange={(countryName) => {
-                  setBillingForm({ ...billingForm, country: countryName });
-                }}
-                portalZIndex={30}
-                className="w-full"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {showBillingForm ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <form onSubmit={handleSaveBillingAddress} className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">State/Province *</label>
-                {isUnitedStatesBilling ? (
-                  <CountrySelect
-                    value={billingForm.state || ''}
-                    onChange={(stateName) => setBillingForm({ ...billingForm, state: stateName })}
-                    options={US_STATES}
-                    placeholder="Select state"
-                    searchPlaceholder="Search states..."
-                    portalZIndex={30}
-                    className="w-full"
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={billingForm.state ?? ''}
-                    onChange={(e) => setBillingForm({ ...billingForm, state: e.target.value })}
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                    placeholder="State / Province"
-                  />
-                )}
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">City *</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 1 *</label>
                 <input
                   type="text"
                   required
-                  value={billingForm.city ?? ''}
-                  onChange={(e) => setBillingForm({ ...billingForm, city: e.target.value })}
+                  value={billingForm.addressLine1 ?? ''}
+                  onChange={(e) => setBillingForm({ ...billingForm, addressLine1: e.target.value })}
                   className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                  placeholder="City name"
+                  placeholder="Street address, P.O. box"
                 />
               </div>
+
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Postal Code</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 2</label>
                 <input
                   type="text"
-                  value={billingForm.postalCode ?? ''}
-                  onChange={(e) => setBillingForm({ ...billingForm, postalCode: e.target.value })}
+                  value={billingForm.addressLine2 ?? ''}
+                  onChange={(e) => setBillingForm({ ...billingForm, addressLine2: e.target.value })}
                   className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                  placeholder="20000"
+                  placeholder="Apartment, suite, unit, building, floor, etc."
                 />
               </div>
-            </div>
 
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={billingSaving || !billingFormComplete}
-                className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
-              >
-                {billingSaving ? 'Saving...' : 'Save Billing Address'}
-              </button>
-            </div>
-          </form>
-        </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Country *</label>
+                <CountrySelect
+                  value={billingForm.country || 'United States'}
+                  onChange={(countryName) => {
+                    setBillingForm({ ...billingForm, country: countryName });
+                  }}
+                  portalZIndex={30}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">State/Province *</label>
+                  {isUnitedStatesBilling ? (
+                    <CountrySelect
+                      value={billingForm.state || ''}
+                      onChange={(stateName) => setBillingForm({ ...billingForm, state: stateName })}
+                      options={US_STATES}
+                      placeholder="Select state"
+                      searchPlaceholder="Search states..."
+                      portalZIndex={30}
+                      className="w-full"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={billingForm.state ?? ''}
+                      onChange={(e) => setBillingForm({ ...billingForm, state: e.target.value })}
+                      className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                      placeholder="State / Province"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">City *</label>
+                  <input
+                    type="text"
+                    required
+                    value={billingForm.city ?? ''}
+                    onChange={(e) => setBillingForm({ ...billingForm, city: e.target.value })}
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                    placeholder="City name"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">Postal Code</label>
+                  <input
+                    type="text"
+                    value={billingForm.postalCode ?? ''}
+                    onChange={(e) => setBillingForm({ ...billingForm, postalCode: e.target.value })}
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                    placeholder="20000"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={billingSaving || !billingFormComplete}
+                  className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
+                >
+                  {billingSaving ? 'Saving...' : 'Save Billing Address'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelBillingAddress}
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : (
+          <>
+            {hasBillingAddress ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-slate-400" />
+                      <span className="font-semibold text-slate-900">Billing address</span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">
+                      {user.billingAddress?.addressLine1}
+                      {user.billingAddress?.addressLine2 && `, ${user.billingAddress.addressLine2}`}
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      {user.billingAddress?.city}, {user.billingAddress?.state} {user.billingAddress?.postalCode}
+                    </p>
+                    <p className="text-sm text-slate-600">{user.billingAddress?.country}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowBillingForm(true)}
+                      className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100"
+                      title="Edit billing address"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={handleDeleteBillingAddress}
+                      className="rounded-lg p-2 text-rose-600 transition hover:bg-rose-50"
+                      title="Delete billing address"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+                <MapPin className="mx-auto h-10 w-10 text-slate-400" />
+                <p className="mt-2 font-semibold text-slate-900">No billing address yet</p>
+                <p className="mt-1 text-sm text-slate-600">Add your billing address to calculate taxes.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowBillingForm(true)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Billing Address
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     )}
 
