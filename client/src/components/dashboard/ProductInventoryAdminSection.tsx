@@ -64,6 +64,16 @@ const DEFAULT_VISIBILITY: NonNullable<Product['visibility']> = 'catalog-and-sear
 const COMING_SOON_TAG = 'coming soon';
 const INVENTORY_BANNER_SEEN_IDS_KEY = 'adminInventoryBannerSeenLowStockIds';
 
+const parseStoredIds = (value: string | null): string[] => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
 const getDefaultEditState = (product: Product): ProductInventoryEditState => ({
   quantity: String(product.inventory?.quantity ?? 0),
   replenishBy: '',
@@ -234,31 +244,15 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
   const lowStockCount = lowStockIds.length;
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !productsLoaded || products.length === 0) return;
+    if (typeof window === 'undefined' || !productsLoaded) return;
 
-    // Get previously seen low-stock IDs
-    const seenIdsJson = localStorage.getItem(INVENTORY_BANNER_SEEN_IDS_KEY);
-    const seenIds: string[] = seenIdsJson ? JSON.parse(seenIdsJson) : [];
-    const seenSet = new Set(seenIds);
+    const previousIds = parseStoredIds(localStorage.getItem(INVENTORY_BANNER_SEEN_IDS_KEY));
+    const previousSet = new Set(previousIds);
+    const hasNewLowStockItems = lowStockIds.some((id) => !previousSet.has(id));
 
-    // Clean up seen IDs - remove IDs that are no longer low stock
-    const currentSet = new Set(lowStockIds);
-    const cleanedSeenIds = seenIds.filter((id) => currentSet.has(id));
-    if (cleanedSeenIds.length !== seenIds.length) {
-      localStorage.setItem(INVENTORY_BANNER_SEEN_IDS_KEY, JSON.stringify(cleanedSeenIds));
-    }
-
-    // Check if there are NEW low-stock items (not in seen list)
-    const hasNewLowStockItems = lowStockIds.some((id) => !seenSet.has(id));
-
-    // Only show banner if there are NEW low stock items
     if (hasNewLowStockItems && lowStockCount > 0) {
       setShowLowStockBanner(true);
 
-      // Mark current items as seen
-      localStorage.setItem(INVENTORY_BANNER_SEEN_IDS_KEY, JSON.stringify(lowStockIds));
-
-      // Auto-dismiss after 7 seconds
       if (bannerTimerRef.current !== null) {
         window.clearTimeout(bannerTimerRef.current);
       }
@@ -270,13 +264,15 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
       setShowLowStockBanner(false);
     }
 
+    localStorage.setItem(INVENTORY_BANNER_SEEN_IDS_KEY, JSON.stringify(lowStockIds));
+
     return () => {
       if (bannerTimerRef.current !== null) {
         window.clearTimeout(bannerTimerRef.current);
         bannerTimerRef.current = null;
       }
     };
-  }, [lowStockIds, lowStockCount, products.length, productsLoaded]);
+  }, [lowStockIds, lowStockCount, productsLoaded]);
 
   useEffect(() => {
     if (!hiddenFilterActive) {

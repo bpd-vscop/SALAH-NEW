@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
+const ProductRestockSubscription = require('../models/ProductRestockSubscription');
 const Category = require('../models/Category');
 const Manufacturer = require('../models/Manufacturer');
 const { validateCreateProduct, validateUpdateProduct } = require('../validators/product');
 const { notFound, badRequest } = require('../utils/appError');
+const { sendRestockAvailableEmail } = require('../services/emailService');
 const { saveProductImage, ImageOptimizationError } = require('../services/productImageService');
 const path = require('path');
 const fs = require('fs');
@@ -63,6 +65,46 @@ const sanitizeTags = (tags) => {
   }
   const filtered = tags.filter((tag) => tag === COMING_SOON_TAG);
   return Array.from(new Set(filtered));
+};
+
+const notifyRestockSubscribers = async (product) => {
+  const subscriptions = await ProductRestockSubscription.find({
+    productId: product._id,
+    notifiedAt: null,
+  }).populate({ path: 'userId', select: 'email name' });
+
+  if (!subscriptions.length) {
+    return;
+  }
+
+  const notifiedIds = [];
+  await Promise.all(
+    subscriptions.map(async (subscription) => {
+      const user = subscription.userId;
+      if (!user || !user.email) {
+        notifiedIds.push(subscription._id);
+        return;
+      }
+      try {
+        await sendRestockAvailableEmail({
+          to: user.email,
+          fullName: user.name,
+          productName: product.name,
+          productId: product._id.toString(),
+        });
+        notifiedIds.push(subscription._id);
+      } catch (error) {
+        console.error('Failed to send restock notification email', error);
+      }
+    })
+  );
+
+  if (notifiedIds.length) {
+    await ProductRestockSubscription.updateMany(
+      { _id: { $in: notifiedIds } },
+      { $set: { notifiedAt: new Date() } }
+    );
+  }
 };
 
 const PRODUCT_UPLOADS_PREFIX = '/uploads/products/';
@@ -664,6 +706,8 @@ const updateProduct = async (req, res, next) => {
 
     const previousQuantity =
       product.inventory && typeof product.inventory.quantity === 'number' ? product.inventory.quantity : 0;
+    const wasComingSoon = Array.isArray(product.tags) && product.tags.includes(COMING_SOON_TAG);
+    const wasOrderable = !wasComingSoon && previousQuantity > 1;
     const previousName = product.name;
     const previousUploads = collectProductUploadPaths(product);
 
@@ -790,6 +834,8 @@ const updateProduct = async (req, res, next) => {
 
     const nextQuantity =
       product.inventory && typeof product.inventory.quantity === 'number' ? product.inventory.quantity : 0;
+    const isComingSoon = Array.isArray(product.tags) && product.tags.includes(COMING_SOON_TAG);
+    const isOrderable = !isComingSoon && nextQuantity > 1;
     if (previousQuantity <= 0 && nextQuantity > 0) {
       product.restockedAt = new Date();
     }
@@ -801,6 +847,12 @@ const updateProduct = async (req, res, next) => {
     product.markModified('seo');
 
     await product.save();
+
+    if (!wasOrderable && isOrderable) {
+      void notifyRestockSubscribers(product).catch((error) => {
+        console.error('Failed to send restock notifications', error);
+      });
+    }
 
     const nextUploads = collectProductUploadPaths(product);
     const toRemove = Array.from(previousUploads).filter((uploadsUrlPath) => {

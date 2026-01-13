@@ -184,5 +184,7 @@ export const productsApi = {
     const response = await http.post<{ data: { path: string } }>('/products/upload-document', formData);
     return response.data.path;
   },
+  notify: (id: string) =>
+    http.post<{ subscribed: boolean; alreadySubscribed?: boolean }>(`/products/${id}/notify`),
   delete: (id: string) => http.delete<void>(`/products/${id}`),
 };

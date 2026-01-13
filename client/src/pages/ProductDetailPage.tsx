@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { CreditCard, Headphones, Heart, Shield, ShoppingCart } from 'lucide-react';
 import { categoriesApi } from '../api/categories';
 import { manufacturersApi, type Manufacturer } from '../api/manufacturers';
@@ -142,6 +142,8 @@ const formatDate = (iso?: string | null): string | null => {
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -153,6 +155,8 @@ export const ProductDetailPage: React.FC = () => {
   const [crossSellProducts, setCrossSellProducts] = useState<Product[]>([]);
   const [selectedVariationId, setSelectedVariationId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
+  const [notifyStatus, setNotifyStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
 
   const { user } = useAuth();
   const { addItem } = useCart();
@@ -201,6 +205,8 @@ export const ProductDetailPage: React.FC = () => {
       setCrossSellProducts([]);
       setSelectedVariationId(null);
       setQuantity(1);
+      setNotifyStatus('idle');
+      setNotifyMessage(null);
       return;
     }
 
@@ -238,6 +244,8 @@ export const ProductDetailPage: React.FC = () => {
         setCrossSellProducts(crossSell);
         setSelectedVariationId(product.variations?.[0]?.id ?? null);
         setQuantity(1);
+        setNotifyStatus('idle');
+        setNotifyMessage(null);
       } catch (err) {
         console.error('Unable to load supporting data', err);
       }
@@ -352,6 +360,36 @@ export const ProductDetailPage: React.FC = () => {
   const handleAddToCart = () => {
     if (!product) return;
     addItem({ productId: product.id, quantity }, product);
+  };
+
+  const handleNotifyMe = async () => {
+    if (!product) return;
+    if (!isSignedInClient) {
+      if (user) {
+        setNotifyStatus('error');
+        setNotifyMessage('Only client accounts can request notifications.');
+        return;
+      }
+      const target = `${location.pathname}${location.search}`;
+      navigate('/login', { state: { from: target } });
+      return;
+    }
+    setNotifyStatus('loading');
+    setNotifyMessage(null);
+    try {
+      const response = await productsApi.notify(product.id);
+      const alreadySubscribed = Boolean(response?.alreadySubscribed);
+      setNotifyStatus('success');
+      setNotifyMessage(
+        alreadySubscribed
+          ? 'You are already on the notify list for this product.'
+          : 'We will email you when this product is ready to order.'
+      );
+    } catch (err) {
+      console.error(err);
+      setNotifyStatus('error');
+      setNotifyMessage(err instanceof Error ? err.message : 'Failed to set notification.');
+    }
   };
 
   const isInWishlist = Boolean(product && wishlistItems.some((line) => line.productId === product.id));
@@ -582,6 +620,21 @@ export const ProductDetailPage: React.FC = () => {
                   >
                     {comingSoon ? 'Coming soon' : disableAddToCart ? 'Currently unavailable' : 'Add to cart'}
                   </button>
+                  {comingSoon && (
+                    <button
+                      type="button"
+                      onClick={() => void handleNotifyMe()}
+                      disabled={notifyStatus === 'loading' || notifyStatus === 'success'}
+                      className={cn(
+                        'inline-flex items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-500/20',
+                        notifyStatus === 'loading' || notifyStatus === 'success'
+                          ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                          : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                      )}
+                    >
+                      {notifyStatus === 'loading' ? 'Notifying...' : notifyStatus === 'success' ? 'Notified' : 'Notify me'}
+                    </button>
+                  )}
                 </div>
                 {showPurchaseDetails ? (
                   <div className="flex flex-wrap gap-3 text-xs text-muted">
@@ -591,6 +644,11 @@ export const ProductDetailPage: React.FC = () => {
                     ) : null}
                     {returnPolicyMessage ? <span>{returnPolicyMessage}</span> : null}
                   </div>
+                ) : null}
+                {notifyMessage ? (
+                  <p className={cn('text-xs font-medium', notifyStatus === 'error' ? 'text-red-600' : 'text-emerald-600')}>
+                    {notifyMessage}
+                  </p>
                 ) : null}
               </div>
 

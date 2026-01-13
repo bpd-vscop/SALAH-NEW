@@ -10,6 +10,7 @@ const {
   uploadProductDocument,
   getVehicleCompatibilityOptions,
 } = require('../controllers/productController');
+const { requestRestockNotification } = require('../controllers/productNotificationController');
 const { createReview, listProductReviews } = require('../controllers/reviewController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { productImageUpload, productDocumentUpload } = require('../middleware/upload');
@@ -56,6 +57,7 @@ router.get('/', listProducts);
 router.get('/vehicle-compatibility-options', getVehicleCompatibilityOptions);
 router.get('/:id/reviews', listProductReviews);
 router.get('/:id', getProduct);
+router.post('/:id/notify', requireAuth, requireRole(['client']), requestRestockNotification);
 router.post('/:id/reviews', requireAuth, requireRole(['client', 'super_admin', 'admin', 'staff']), createReview);
 router.post('/', requireAuth, requireRole(['super_admin', 'admin', 'staff']), createProduct);
 router.post(

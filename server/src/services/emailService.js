@@ -107,6 +107,13 @@ const getWebConfigBaseUrl = () => {
   }
 };
 
+const buildProductUrl = (productId) => {
+  if (!productId) return null;
+  const baseUrl = getWebConfigBaseUrl();
+  if (!baseUrl) return null;
+  return `${baseUrl}/products/${productId}`;
+};
+
 const buildContactRows = (baseUrl) => {
   const rows = [
     {
@@ -739,6 +746,91 @@ const buildSupportMessageHtml = ({ title, subtitle, metaRows, message, ctaLabel,
 </html>`;
 };
 
+const sendRestockSubscriptionEmail = async ({ to, fullName, productName, productId }) => {
+  if (!to) return;
+  const displayName = fullName || 'there';
+  const productLabel = productName || 'this product';
+  const baseUrl = getWebConfigBaseUrl();
+  const contactRows = buildContactRows(baseUrl);
+  const productUrl = buildProductUrl(productId);
+
+  const messageLines = [
+    `Hi ${displayName},`,
+    '',
+    `You are on the notify list for ${productLabel}.`,
+    'We will email you as soon as it is back in stock.',
+    'You will also receive another email when it is ready to order.',
+  ];
+
+  const text = [...messageLines, '', ...buildContactText(baseUrl)].join('\n');
+  const html = buildSupportMessageHtml({
+    title: 'Restock notification confirmed',
+    subtitle: `We will notify you when ${productLabel} is ready to order.`,
+    metaRows: [{ label: 'Product', value: productLabel }, ...contactRows],
+    message: messageLines.join('\n'),
+    ctaLabel: productUrl ? 'View product' : undefined,
+    ctaUrl: productUrl || undefined,
+  });
+
+  await sendMail({
+    to,
+    subject: `You will be notified about ${productLabel}`,
+    text,
+    html,
+    attachments: hasLogoFile
+      ? [
+          {
+            filename: LOGO_FILENAME,
+            path: logoPath,
+            cid: LOGO_CID,
+          },
+        ]
+      : undefined,
+  });
+};
+
+const sendRestockAvailableEmail = async ({ to, fullName, productName, productId }) => {
+  if (!to) return;
+  const displayName = fullName || 'there';
+  const productLabel = productName || 'this product';
+  const baseUrl = getWebConfigBaseUrl();
+  const contactRows = buildContactRows(baseUrl);
+  const productUrl = buildProductUrl(productId);
+
+  const messageLines = [
+    `Hi ${displayName},`,
+    '',
+    `Good news! ${productLabel} is ready to order.`,
+    'Stock is now available, so you can place your order.',
+  ];
+
+  const text = [...messageLines, '', ...buildContactText(baseUrl)].join('\n');
+  const html = buildSupportMessageHtml({
+    title: 'Product ready to order',
+    subtitle: `${productLabel} is now available.`,
+    metaRows: [{ label: 'Product', value: productLabel }, ...contactRows],
+    message: messageLines.join('\n'),
+    ctaLabel: productUrl ? 'Order now' : undefined,
+    ctaUrl: productUrl || undefined,
+  });
+
+  await sendMail({
+    to,
+    subject: `${productLabel} is now in stock`,
+    text,
+    html,
+    attachments: hasLogoFile
+      ? [
+          {
+            filename: LOGO_FILENAME,
+            path: logoPath,
+            cid: LOGO_CID,
+          },
+        ]
+      : undefined,
+  });
+};
+
 const sendClientAccountDeletedEmail = async ({ to, fullName, reason }) => {
   if (!to) return;
   const displayName = fullName || 'there';
@@ -1001,6 +1093,8 @@ module.exports = {
   sendPasswordChangedConfirmation,
   sendOrderConfirmationEmail,
   sendAdminNewOrderEmail,
+  sendRestockSubscriptionEmail,
+  sendRestockAvailableEmail,
   sendClientAccountDeletedEmail,
   sendClientAccountInactivatedEmail,
   sendClientAccountActivatedEmail,
