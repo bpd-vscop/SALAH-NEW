@@ -183,9 +183,24 @@ const getDefaultShipping = (client: User) => {
 
 const buildBillToFromClient = (client: User): InvoiceFormAddress => {
   const fallback = createEmptyAddress();
-  const companyAddress = parseCompanyAddress(client.company?.address);
   const shipping = getDefaultShipping(client);
   const phone = client.company?.phone || formatClientPhone(client) || shipping?.phone || '';
+  if (client.clientType === 'C2B') {
+    const billing = client.billingAddress;
+    return {
+      companyName: '',
+      name: client.name ?? '',
+      email: client.email ?? '',
+      phone,
+      addressLine1: billing?.addressLine1 || shipping?.addressLine1 || '',
+      addressLine2: billing?.addressLine2 || shipping?.addressLine2 || '',
+      city: billing?.city || shipping?.city || '',
+      state: billing?.state || shipping?.state || '',
+      postalCode: billing?.postalCode || shipping?.postalCode || '',
+      country: billing?.country || shipping?.country || fallback.country,
+    };
+  }
+  const companyAddress = parseCompanyAddress(client.company?.address);
   return {
     companyName: client.company?.name ?? '',
     name: client.name ?? '',
@@ -219,7 +234,7 @@ export const InvoicesAdminSection: React.FC = () => {
   const [productSearchQueries, setProductSearchQueries] = useState<Record<string, string>>({});
   const [productDropdownOpen, setProductDropdownOpen] = useState<Record<string, boolean>>({});
   const productDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [b2bClients, setB2bClients] = useState<User[]>([]);
+  const [clients, setClients] = useState<User[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
   const [clientLoadError, setClientLoadError] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState('');
@@ -232,20 +247,20 @@ export const InvoicesAdminSection: React.FC = () => {
     []
   );
   const selectedClient = useMemo(
-    () => b2bClients.find((client) => client.id === selectedClientId) ?? null,
-    [b2bClients, selectedClientId]
+    () => clients.find((client) => client.id === selectedClientId) ?? null,
+    [clients, selectedClientId]
   );
   const clientOptions = useMemo(
     () => [
       { value: '', label: 'Manual entry' },
-      ...b2bClients.map((client) => {
+      ...clients.map((client) => {
         const company = client.company?.name?.trim();
         const baseLabel = company ? `${company} - ${client.name}` : client.name;
         const emailLabel = client.email ? ` | ${client.email}` : '';
         return { value: client.id, label: `${baseLabel}${emailLabel}` };
       }),
     ],
-    [b2bClients]
+    [clients]
   );
 
   // Check if country is United States
@@ -290,27 +305,27 @@ export const InvoicesAdminSection: React.FC = () => {
   }, [showCreateModal, products.length]);
 
   useEffect(() => {
-    if (!showCreateModal || b2bClients.length > 0) return;
+    if (!showCreateModal || clients.length > 0) return;
     const loadClients = async () => {
       setClientsLoading(true);
       setClientLoadError(null);
       try {
         const { users } = await usersApi.list({
           role: 'client',
-          clientType: 'B2B',
+          clientType: ['B2B', 'C2B'],
           status: 'active',
           sort: 'name-asc',
         });
-        setB2bClients(users);
+        setClients(users);
       } catch (err) {
-        setClientLoadError(err instanceof Error ? err.message : 'Unable to load B2B clients.');
-        setB2bClients([]);
+        setClientLoadError(err instanceof Error ? err.message : 'Unable to load clients.');
+        setClients([]);
       } finally {
         setClientsLoading(false);
       }
     };
     void loadClients();
-  }, [showCreateModal, b2bClients.length]);
+  }, [showCreateModal, clients.length]);
 
   useEffect(() => {
     if (!sameAsBilling) return;
@@ -391,7 +406,7 @@ export const InvoicesAdminSection: React.FC = () => {
       setForm((state) => ({ ...state, billTo: createEmptyAddress() }));
       return;
     }
-    const client = b2bClients.find((entry) => entry.id === value);
+    const client = clients.find((entry) => entry.id === value);
     if (!client) return;
     setForm((state) => ({ ...state, billTo: buildBillToFromClient(client) }));
   };
@@ -1210,8 +1225,8 @@ export const InvoicesAdminSection: React.FC = () => {
                 <div className="rounded-xl border border-border bg-white p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <h4 className="text-sm font-semibold text-slate-900">Existing B2B client</h4>
-                      <p className="text-xs text-muted">Select a business client to auto-fill billing details.</p>
+                      <h4 className="text-sm font-semibold text-slate-900">Existing client</h4>
+                      <p className="text-xs text-muted">Select a client to auto-fill billing details.</p>
                     </div>
                     {selectedClientId && (
                       <button
@@ -1231,7 +1246,7 @@ export const InvoicesAdminSection: React.FC = () => {
                         options={clientOptions}
                         disabled={clientsLoading}
                         searchable
-                        searchPlaceholder="Search B2B clients..."
+                        searchPlaceholder="Search clients..."
                       />
                     </div>
                     {clientsLoading && (
@@ -1241,8 +1256,8 @@ export const InvoicesAdminSection: React.FC = () => {
                   {clientLoadError && (
                     <div className="mt-2 text-xs text-red-600">{clientLoadError}</div>
                   )}
-                  {!clientsLoading && !clientLoadError && b2bClients.length === 0 && (
-                    <div className="mt-2 text-xs text-muted">No B2B clients found.</div>
+                  {!clientsLoading && !clientLoadError && clients.length === 0 && (
+                    <div className="mt-2 text-xs text-muted">No clients found.</div>
                   )}
                 </div>
 
