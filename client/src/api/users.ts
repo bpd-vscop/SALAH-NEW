@@ -59,6 +59,17 @@ export type ShippingAddressPayload = {
   isDefault?: boolean;
 };
 
+export type BillingAddressPayload = {
+  fullName?: string;
+  phone?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+};
+
 const serializeParam = (value: unknown): string | undefined => {
   if (Array.isArray(value)) {
     const filtered = value.map(String).filter(Boolean);
@@ -112,6 +123,10 @@ export const usersApi = {
     http.put<{ user: User }>(`/users/${userId}/shipping-addresses/${addressId}`, payload),
   deleteShippingAddress: (userId: string, addressId: string) =>
     http.delete<{ user: User }>(`/users/${userId}/shipping-addresses/${addressId}`),
+
+  // Billing address
+  updateBillingAddress: (userId: string, payload: BillingAddressPayload) =>
+    http.put<{ user: User }>(`/users/${userId}/billing-address`, payload),
 
   // Password change
   requestPasswordChange: (userId: string) =>

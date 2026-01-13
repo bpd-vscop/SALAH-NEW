@@ -25,6 +25,19 @@ export const ProfileCompletionBar: React.FC<ProfileCompletionBarProps> = ({ user
       );
     }
 
+    if (user.clientType === 'C2B') {
+      checks.push({
+        field: 'billingAddress',
+        label: 'Billing Address',
+        completed: Boolean(
+          user.billingAddress?.addressLine1 &&
+            user.billingAddress?.city &&
+            user.billingAddress?.state &&
+            user.billingAddress?.country
+        ),
+      });
+    }
+
     const completed = checks.filter(check => check.completed).length;
     const total = checks.length;
     const percentage = Math.round((completed / total) * 100);

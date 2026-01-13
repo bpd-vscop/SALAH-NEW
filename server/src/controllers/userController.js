@@ -815,6 +815,59 @@ const deleteShippingAddress = async (req, res, next) => {
   }
 };
 
+const updateBillingAddress = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const data = req.body || {};
+
+    const user = await User.findById(id);
+    if (!user) {
+      throw notFound('User not found');
+    }
+
+    const isSelf = req.user && (req.user.id === id || req.user._id?.toString() === id);
+    if (!isSelf) {
+      throw forbidden('You can only manage your own billing address');
+    }
+
+    if (!user.billingAddress) {
+      user.billingAddress = {};
+    }
+
+    if (Object.prototype.hasOwnProperty.call(data, 'fullName')) {
+      user.billingAddress.fullName = data.fullName || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'phone')) {
+      user.billingAddress.phone = data.phone || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'addressLine1')) {
+      user.billingAddress.addressLine1 = data.addressLine1 || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'addressLine2')) {
+      user.billingAddress.addressLine2 = data.addressLine2 || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'city')) {
+      user.billingAddress.city = data.city || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'state')) {
+      user.billingAddress.state = data.state || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'postalCode')) {
+      user.billingAddress.postalCode = data.postalCode || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'country')) {
+      user.billingAddress.country = data.country || null;
+    }
+
+    user.markModified('billingAddress');
+    await user.save();
+
+    res.json({ user: user.toJSON() });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const requestPasswordChange = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -994,6 +1047,7 @@ module.exports = {
   addShippingAddress,
   updateShippingAddress,
   deleteShippingAddress,
+  updateBillingAddress,
   requestPasswordChange,
   changePassword,
   sendClientVerification,

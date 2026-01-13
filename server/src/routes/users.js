@@ -7,6 +7,7 @@ const {
   addShippingAddress,
   updateShippingAddress,
   deleteShippingAddress,
+  updateBillingAddress,
   requestPasswordChange,
   changePassword,
   convertToB2B,
@@ -40,6 +41,9 @@ router.post('/:id/send-verification', requireRole(['super_admin', 'admin']), sen
 router.post('/:id/shipping-addresses', addShippingAddress);
 router.put('/:id/shipping-addresses/:addressId', updateShippingAddress);
 router.delete('/:id/shipping-addresses/:addressId', deleteShippingAddress);
+
+// Billing address route (clients can manage their own)
+router.put('/:id/billing-address', updateBillingAddress);
 
 // Password change routes (users can change their own password)
 router.post('/:id/request-password-change', requestPasswordChange);

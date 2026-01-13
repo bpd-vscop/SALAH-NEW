@@ -135,6 +135,18 @@ const orderSchema = new mongoose.Schema(
             isEmailVerified:
               typeof rawUser.isEmailVerified === 'boolean' ? rawUser.isEmailVerified : null,
             company: rawUser.company ?? null,
+            billingAddress: rawUser.billingAddress
+              ? {
+                  fullName: rawUser.billingAddress.fullName || null,
+                  phone: rawUser.billingAddress.phone || null,
+                  addressLine1: rawUser.billingAddress.addressLine1 || null,
+                  addressLine2: rawUser.billingAddress.addressLine2 || null,
+                  city: rawUser.billingAddress.city || null,
+                  state: rawUser.billingAddress.state || null,
+                  postalCode: rawUser.billingAddress.postalCode || null,
+                  country: rawUser.billingAddress.country || 'Morocco',
+                }
+              : null,
             taxExempt: typeof rawUser.taxExempt === 'boolean' ? rawUser.taxExempt : null,
             verificationFileUrl: rawUser.verificationFileUrl ?? null,
             verificationStatus: rawUser.verificationStatus ?? null,

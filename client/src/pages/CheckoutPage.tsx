@@ -5,7 +5,7 @@ import { couponsApi } from '../api/coupons';
 import { ordersApi } from '../api/orders';
 import { productsApi } from '../api/products';
 import { taxRatesApi } from '../api/taxRates';
-import { usersApi, type ShippingAddressPayload } from '../api/users';
+import { usersApi, type BillingAddressPayload, type ShippingAddressPayload } from '../api/users';
 import { CountrySelect } from '../components/common/CountrySelect';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
 import { SiteLayout } from '../components/layout/SiteLayout';
@@ -131,6 +131,17 @@ export const CheckoutPage: React.FC = () => {
     country: 'United States',
     isDefault: true,
   });
+  const [showBillingModal, setShowBillingModal] = useState(false);
+  const [billingSaving, setBillingSaving] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
+  const [billingForm, setBillingForm] = useState<BillingAddressPayload>({
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: 'United States',
+  });
   const navigate = useNavigate();
   const scrollLockRef = useRef<{
     bodyOverflow: string;
@@ -142,7 +153,7 @@ export const CheckoutPage: React.FC = () => {
   } | null>(null);
   const lastValidatedSignatureRef = useRef('');
   const storedCouponLoadedRef = useRef(false);
-  const isCheckoutModalOpen = showRequirementsModal || showShippingModal;
+  const isCheckoutModalOpen = showRequirementsModal || showShippingModal || showBillingModal;
 
   // Auto-select first address if available
   useEffect(() => {
@@ -235,21 +246,29 @@ export const CheckoutPage: React.FC = () => {
   }, [selectedShipping]);
 
   const isB2BUser = user?.clientType === 'B2B';
+  const isC2BUser = user?.clientType === 'C2B';
   const hasCompanyAddress = Boolean(user?.company?.address && user.company.address.trim());
+  const hasBillingAddress = Boolean(
+    user?.billingAddress?.addressLine1?.trim() &&
+      user?.billingAddress?.city?.trim() &&
+      user?.billingAddress?.state?.trim() &&
+      user?.billingAddress?.country?.trim()
+  );
   const hasVerificationFile = Boolean(user?.verificationFileUrl);
   const needsCompanyAddress = Boolean(isB2BUser && !hasCompanyAddress);
   const needsVerification = Boolean(isB2BUser && !hasVerificationFile);
 
   const tax = useMemo(() => {
-    if (!isB2BUser || user?.taxExempt || taxRate <= 0) return 0;
+    if ((!isB2BUser && !isC2BUser) || user?.taxExempt || taxRate <= 0) return 0;
     return Math.round(discountedSubtotal * (taxRate / 100) * 100) / 100;
-  }, [discountedSubtotal, isB2BUser, taxRate, user?.taxExempt]);
+  }, [discountedSubtotal, isB2BUser, isC2BUser, taxRate, user?.taxExempt]);
 
   const total = discountedSubtotal + shippingCost + tax;
 
   const selectedAddressData = useMemo(() => {
     return user?.shippingAddresses?.find((addr) => addr.id === selectedAddress);
   }, [user, selectedAddress]);
+  const billingAddressData = useMemo(() => user?.billingAddress ?? null, [user]);
 
   const validateCoupon = useCallback(async (code: string, silent = false) => {
     const normalizedCode = code.trim();
@@ -324,6 +343,8 @@ export const CheckoutPage: React.FC = () => {
   const hasShippingAddress = Boolean(user?.shippingAddresses && user.shippingAddresses.length > 0);
   const needsShippingAddress = !hasShippingAddress;
   const needsShippingAddressAfterB2B = !needsB2BRequirements && needsShippingAddress;
+  const needsBillingAddress = Boolean(isC2BUser && !hasBillingAddress);
+  const needsBillingAddressAfterB2B = !needsB2BRequirements && needsBillingAddress;
   const missingRequirementLabels: string[] = [];
   if (needsCompanyAddress) missingRequirementLabels.push('company address');
   if (needsVerification) missingRequirementLabels.push('verification document');
@@ -337,16 +358,24 @@ export const CheckoutPage: React.FC = () => {
   const isShippingUnitedStates = ['united states', 'united states of america'].includes(
     (shippingForm.country ?? '').trim().toLowerCase()
   );
+  const isBillingUnitedStates = ['united states', 'united states of america'].includes(
+    (billingForm.country ?? '').trim().toLowerCase()
+  );
 
   useEffect(() => {
-    if ((needsB2BRequirements || needsShippingAddressAfterB2B) && currentStep > 1) {
+    if ((needsB2BRequirements || needsShippingAddressAfterB2B || needsBillingAddressAfterB2B) && currentStep > 1) {
       setCurrentStep(1);
     }
-  }, [needsB2BRequirements, needsShippingAddressAfterB2B, currentStep]);
+  }, [needsB2BRequirements, needsShippingAddressAfterB2B, needsBillingAddressAfterB2B, currentStep]);
 
   useEffect(() => {
     let active = true;
-    if (!user || !isB2BUser || user.taxExempt || !user.company?.address) {
+    const canLookupTax =
+      user &&
+      !user.taxExempt &&
+      ((isB2BUser && Boolean(user.company?.address?.trim())) || (isC2BUser && hasBillingAddress));
+
+    if (!canLookupTax) {
       setTaxRate(0);
       return () => {
         active = false;
@@ -355,7 +384,14 @@ export const CheckoutPage: React.FC = () => {
 
     const loadTaxRate = async () => {
       try {
-        const { taxRate: matched } = await taxRatesApi.lookup();
+        const params =
+          isC2BUser && user?.billingAddress
+            ? {
+                country: user.billingAddress.country ?? undefined,
+                state: user.billingAddress.state ?? undefined,
+              }
+            : undefined;
+        const { taxRate: matched } = await taxRatesApi.lookup(params);
         if (!active) return;
         setTaxRate(matched?.rate ?? 0);
       } catch (err) {
@@ -368,7 +404,7 @@ export const CheckoutPage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [isB2BUser, user?.company?.address, user]);
+  }, [hasBillingAddress, isB2BUser, isC2BUser, user?.billingAddress, user?.company?.address, user?.taxExempt, user]);
 
   const steps = [
     { label: 'Cart', active: false, completed: true },
@@ -430,6 +466,13 @@ export const CheckoutPage: React.FC = () => {
       };
     }
 
+    if (needsBillingAddressAfterB2B) {
+      return {
+        valid: false,
+        error: 'Please add a billing address before checkout.'
+      };
+    }
+
     return { valid: true };
   };
 
@@ -441,6 +484,11 @@ export const CheckoutPage: React.FC = () => {
     if (needsShippingAddressAfterB2B) {
       setError('Please add a shipping address before checkout.');
       openShippingModal();
+      return;
+    }
+    if (needsBillingAddressAfterB2B) {
+      setError('Please add a billing address before checkout.');
+      openBillingModal();
       return;
     }
     if (!selectedAddress) {
@@ -483,7 +531,7 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const canProceedToNextStep = () => {
-    if (needsB2BRequirements || needsShippingAddressAfterB2B) return false;
+    if (needsB2BRequirements || needsShippingAddressAfterB2B || needsBillingAddressAfterB2B) return false;
     if (currentStep === 1) return !!selectedAddress;
     if (currentStep === 2) return !!selectedShipping;
     if (currentStep === 3) return !!selectedPayment;
@@ -603,9 +651,35 @@ export const CheckoutPage: React.FC = () => {
     setShippingError(null);
   };
 
+  const resetBillingForm = () => {
+    setBillingForm({
+      addressLine1: '',
+      addressLine2: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      country: 'United States',
+    });
+    setBillingError(null);
+  };
+
   const openShippingModal = () => {
     resetShippingForm();
     setShowShippingModal(true);
+  };
+
+  const openBillingModal = () => {
+    const seed = user?.billingAddress ?? selectedAddressData;
+    setBillingForm({
+      addressLine1: seed?.addressLine1 ?? '',
+      addressLine2: seed?.addressLine2 ?? '',
+      city: seed?.city ?? '',
+      state: seed?.state ?? '',
+      postalCode: seed?.postalCode ?? '',
+      country: seed?.country ?? 'United States',
+    });
+    setBillingError(null);
+    setShowBillingModal(true);
   };
 
   const closeShippingModal = () => {
@@ -614,6 +688,14 @@ export const CheckoutPage: React.FC = () => {
     }
     setShowShippingModal(false);
     setShippingError(null);
+  };
+
+  const closeBillingModal = () => {
+    if (billingSaving) {
+      return;
+    }
+    setShowBillingModal(false);
+    setBillingError(null);
   };
 
   const handleSaveShippingAddress = async () => {
@@ -671,6 +753,65 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
+  const handleUseShippingAsBilling = () => {
+    if (!selectedAddressData) {
+      return;
+    }
+    setBillingForm({
+      addressLine1: selectedAddressData.addressLine1 ?? '',
+      addressLine2: selectedAddressData.addressLine2 ?? '',
+      city: selectedAddressData.city ?? '',
+      state: selectedAddressData.state ?? '',
+      postalCode: selectedAddressData.postalCode ?? '',
+      country: selectedAddressData.country ?? 'United States',
+    });
+    setBillingError(null);
+  };
+
+  const handleSaveBillingAddress = async () => {
+    if (!user) {
+      return;
+    }
+
+    const trimmedAddress = (billingForm.addressLine1 ?? '').trim();
+    const trimmedCity = (billingForm.city ?? '').trim();
+    const trimmedState = (billingForm.state ?? '').trim();
+    const trimmedCountry = (billingForm.country ?? '').trim();
+
+    if (!trimmedAddress || !trimmedCity || !trimmedState || !trimmedCountry) {
+      setBillingError('Billing address, country, state, and city are required.');
+      return;
+    }
+
+    setBillingSaving(true);
+    setBillingError(null);
+
+    try {
+      const payload: BillingAddressPayload = {
+        addressLine1: trimmedAddress,
+        addressLine2: billingForm.addressLine2?.trim() || undefined,
+        city: trimmedCity,
+        state: trimmedState,
+        postalCode: billingForm.postalCode?.trim() || undefined,
+        country: trimmedCountry,
+      };
+
+      await usersApi.updateBillingAddress(user.id, payload);
+      await refresh();
+
+      setShowBillingModal(false);
+      resetBillingForm();
+      setStatusMessage('Billing address saved. You can continue checkout.');
+      setError(null);
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err) {
+      console.error(err);
+      setBillingError(err instanceof Error ? err.message : 'Failed to save billing address.');
+    } finally {
+      setBillingSaving(false);
+    }
+  };
+
   const normalizedError = error?.toLowerCase() ?? '';
   const needsProfileCompletion =
     normalizedError.includes('company profile') ||
@@ -680,6 +821,7 @@ export const CheckoutPage: React.FC = () => {
   const needsB2BSwitch =
     normalizedError.includes('switch your account to b2b') || normalizedError.includes('b2b account');
   const needsShippingAddressCompletion = normalizedError.includes('shipping address');
+  const needsBillingAddressCompletion = normalizedError.includes('billing address');
   const requirementsAddressComplete =
     !needsCompanyAddress ||
     (requirementsForm.address.trim() &&
@@ -695,6 +837,12 @@ export const CheckoutPage: React.FC = () => {
     (shippingForm.city ?? '').trim() &&
     (shippingForm.country ?? '').trim();
   const canSaveShippingAddress = Boolean(shippingFormComplete);
+  const billingFormComplete =
+    (billingForm.addressLine1 ?? '').trim() &&
+    (billingForm.city ?? '').trim() &&
+    (billingForm.state ?? '').trim() &&
+    (billingForm.country ?? '').trim();
+  const canSaveBillingAddress = Boolean(billingFormComplete);
 
   return (
     <SiteLayout>
@@ -792,6 +940,15 @@ export const CheckoutPage: React.FC = () => {
                       Add shipping address
                     </button>
                   )}
+                  {needsBillingAddressCompletion && needsBillingAddressAfterB2B && (
+                    <button
+                      type="button"
+                      onClick={openBillingModal}
+                      className="mt-2 text-sm font-semibold text-red-700 hover:text-red-900 underline"
+                    >
+                      Add billing address
+                    </button>
+                  )}
                   {/* Show dashboard link for C2B users who need to switch to B2B */}
                   {needsB2BSwitch && user?.clientType === 'C2B' && (
                     <button
@@ -859,24 +1016,6 @@ export const CheckoutPage: React.FC = () => {
                           <span className="relative z-10">Fill now</span>
                         </button>
                       </div>
-                    ) : needsShippingAddressAfterB2B ? (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                        <p className="text-sm font-semibold text-amber-900">
-                          Add a shipping address to continue checkout.
-                        </p>
-                        <p className="text-xs text-amber-800 mt-1">
-                          We will use it for delivery and order updates.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={openShippingModal}
-                          className="mt-4 relative inline-flex items-center justify-center rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-                        >
-                          <span aria-hidden="true" className="fill-now-wave" />
-                          <span aria-hidden="true" className="fill-now-wave fill-now-wave-delay" />
-                          <span className="relative z-10">Add shipping address</span>
-                        </button>
-                      </div>
                     ) : (
                       <>
                         {user.shippingAddresses && user.shippingAddresses.length > 0 ? (
@@ -932,6 +1071,52 @@ export const CheckoutPage: React.FC = () => {
                           </div>
                         )}
 
+                        {isC2BUser && (
+                          <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex items-center justify-between gap-4">
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900">Billing address</p>
+                                <p className="text-xs text-slate-600">
+                                  We use this address to calculate taxes for your order.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={openBillingModal}
+                                className="text-sm font-semibold text-red-600 hover:text-red-700"
+                              >
+                                {hasBillingAddress ? 'Edit' : 'Add'}
+                              </button>
+                            </div>
+
+                            {hasBillingAddress && billingAddressData ? (
+                              <div className="mt-3 text-sm text-slate-700">
+                                <p>
+                                  {billingAddressData.addressLine1}
+                                  {billingAddressData.addressLine2 && `, ${billingAddressData.addressLine2}`}
+                                </p>
+                                <p>
+                                  {billingAddressData.city}, {billingAddressData.state} {billingAddressData.postalCode}
+                                </p>
+                                <p>{billingAddressData.country}</p>
+                              </div>
+                            ) : (
+                              <div className="mt-3">
+                                <p className="text-xs text-amber-800">
+                                  Add a billing address to continue checkout.
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={openBillingModal}
+                                  className="mt-3 inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-red-700"
+                                >
+                                  Add billing address
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <button
                           onClick={() => currentStep === 1 && canProceedToNextStep() && setCurrentStep(2)}
                           disabled={!canProceedToNextStep()}
@@ -948,6 +1133,11 @@ export const CheckoutPage: React.FC = () => {
                   <div className="px-6 pb-4 text-sm text-slate-600">
                     <p className="font-medium text-slate-900">{selectedAddressData.fullName}</p>
                     <p>{selectedAddressData.addressLine1}, {selectedAddressData.city}, {selectedAddressData.state} {selectedAddressData.postalCode}</p>
+                    {isC2BUser && billingAddressData && (
+                      <p className="mt-2 text-xs text-slate-500">
+                        Billing: {billingAddressData.addressLine1}, {billingAddressData.city}, {billingAddressData.state} {billingAddressData.postalCode}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -957,7 +1147,11 @@ export const CheckoutPage: React.FC = () => {
                 <div
                   className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50"
                   onClick={() =>
-                    !needsB2BRequirements && !needsShippingAddressAfterB2B && currentStep > 1 && setCurrentStep(2)
+                    !needsB2BRequirements &&
+                    !needsShippingAddressAfterB2B &&
+                    !needsBillingAddressAfterB2B &&
+                    currentStep > 1 &&
+                    setCurrentStep(2)
                   }
                 >
                   <div className="flex items-center gap-3">
@@ -1042,7 +1236,11 @@ export const CheckoutPage: React.FC = () => {
                 <div
                   className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50"
                   onClick={() =>
-                    !needsB2BRequirements && !needsShippingAddressAfterB2B && currentStep > 2 && setCurrentStep(3)
+                    !needsB2BRequirements &&
+                    !needsShippingAddressAfterB2B &&
+                    !needsBillingAddressAfterB2B &&
+                    currentStep > 2 &&
+                    setCurrentStep(3)
                   }
                 >
                   <div className="flex items-center gap-3">
@@ -1161,6 +1359,8 @@ export const CheckoutPage: React.FC = () => {
                       const isB2BUserNeedsProfile = isB2BUser && needsB2BRequirements;
                       const isShippingAddressMissing =
                         needsShippingAddressAfterB2B && lowerMessage.includes('shipping address');
+                      const isBillingAddressMissing =
+                        needsBillingAddressAfterB2B && lowerMessage.includes('billing address');
 
                       return (
                         <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
@@ -1189,6 +1389,17 @@ export const CheckoutPage: React.FC = () => {
                                   <span aria-hidden="true" className="fill-now-wave" />
                                   <span aria-hidden="true" className="fill-now-wave fill-now-wave-delay" />
                                   <span className="relative z-10">Add shipping address</span>
+                                </button>
+                              )}
+                              {isBillingAddressMissing && (
+                                <button
+                                  type="button"
+                                  onClick={openBillingModal}
+                                  className="relative inline-flex items-center justify-center rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                                >
+                                  <span aria-hidden="true" className="fill-now-wave" />
+                                  <span aria-hidden="true" className="fill-now-wave fill-now-wave-delay" />
+                                  <span className="relative z-10">Add billing address</span>
                                 </button>
                               )}
                               {isC2BUserNeedsB2B && (
@@ -1462,6 +1673,155 @@ export const CheckoutPage: React.FC = () => {
                 className="flex-1 px-4 py-2.5 rounded-lg font-semibold transition bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {requirementsSaving ? 'Saving...' : 'Save & Continue'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Billing Address Modal */}
+      {showBillingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900">Add billing address</h3>
+              <button
+                type="button"
+                onClick={closeBillingModal}
+                className="text-slate-400 hover:text-slate-600 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <p className="text-sm text-slate-600">
+                Add your billing details so we can calculate tax correctly.
+              </p>
+
+              {billingError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">{billingError}</p>
+                </div>
+              )}
+
+              {selectedAddressData && (
+                <button
+                  type="button"
+                  onClick={handleUseShippingAsBilling}
+                  className="text-sm font-semibold text-red-600 hover:text-red-700 underline"
+                >
+                  Use selected shipping address
+                </button>
+              )}
+
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Address line 1
+                <input
+                  type="text"
+                  value={billingForm.addressLine1 ?? ''}
+                  onChange={(event) =>
+                    setBillingForm((prev) => ({ ...prev, addressLine1: event.target.value }))
+                  }
+                  placeholder="Street address, P.O. box"
+                  disabled={billingSaving}
+                  className="h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm text-slate-600">
+                Address line 2
+                <input
+                  type="text"
+                  value={billingForm.addressLine2 ?? ''}
+                  onChange={(event) =>
+                    setBillingForm((prev) => ({ ...prev, addressLine2: event.target.value }))
+                  }
+                  placeholder="Apartment, suite, unit, building, floor, etc."
+                  disabled={billingSaving}
+                  className="h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+
+              <div className="flex flex-col gap-2 text-sm text-slate-600">
+                <span>Country</span>
+                <CountrySelect
+                  value={billingForm.country || 'United States'}
+                  onChange={(value) => setBillingForm((prev) => ({ ...prev, country: value }))}
+                  placement="auto"
+                  className="w-full"
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  State / Province
+                  {isBillingUnitedStates ? (
+                    <CountrySelect
+                      value={billingForm.state || ''}
+                      onChange={(value) => setBillingForm((prev) => ({ ...prev, state: value }))}
+                      options={US_STATES}
+                      placeholder="Select state"
+                      searchPlaceholder="Search states..."
+                      placement="auto"
+                      className="w-full"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={billingForm.state ?? ''}
+                      onChange={(event) =>
+                        setBillingForm((prev) => ({ ...prev, state: event.target.value }))
+                      }
+                      placeholder="State / Province"
+                      disabled={billingSaving}
+                      className="h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  )}
+                </label>
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  City
+                  <input
+                    type="text"
+                    value={billingForm.city ?? ''}
+                    onChange={(event) => setBillingForm((prev) => ({ ...prev, city: event.target.value }))}
+                    placeholder="City"
+                    disabled={billingSaving}
+                    className="h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  Postal code
+                  <input
+                    type="text"
+                    value={billingForm.postalCode ?? ''}
+                    onChange={(event) =>
+                      setBillingForm((prev) => ({ ...prev, postalCode: event.target.value }))
+                    }
+                    placeholder="Postal code"
+                    disabled={billingSaving}
+                    className="h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex gap-3 p-6 border-t border-slate-200 bg-slate-50">
+              <button
+                type="button"
+                onClick={closeBillingModal}
+                disabled={billingSaving}
+                className="flex-1 px-4 py-2.5 border-2 border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveBillingAddress}
+                disabled={billingSaving || !canSaveBillingAddress}
+                className="flex-1 px-4 py-2.5 rounded-lg font-semibold transition bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {billingSaving ? 'Saving...' : 'Save & Continue'}
               </button>
             </div>
           </div>

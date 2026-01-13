@@ -100,7 +100,14 @@ const resolveTaxRate = async (req, res, next) => {
     const country = typeof req.query.country === 'string' ? req.query.country : '';
     const state = typeof req.query.state === 'string' ? req.query.state : '';
     const hasQuery = Boolean(country || state);
-    const location = hasQuery ? { country, state } : extractCompanyLocation(req.user?.company);
+    let location = { country, state };
+    if (!hasQuery) {
+      if (req.user?.clientType === 'C2B') {
+        location = extractCompanyLocation(req.user?.billingAddress);
+      } else {
+        location = extractCompanyLocation(req.user?.company);
+      }
+    }
     const match = await findMatchingTaxRate(location);
     res.json({ taxRate: match ? match.toJSON() : null });
   } catch (err) {

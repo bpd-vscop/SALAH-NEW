@@ -12,7 +12,7 @@ const {
 } = require('../services/emailService');
 
 const ORDER_USER_SELECT =
-  'name email phoneCode phoneNumber clientType status isEmailVerified company verificationFileUrl verificationStatus profileImage shippingAddresses accountCreated accountUpdated';
+  'name email phoneCode phoneNumber clientType status isEmailVerified company billingAddress verificationFileUrl verificationStatus profileImage shippingAddresses accountCreated accountUpdated';
 
 const specialInventoryStatuses = new Set(['backorder', 'preorder']);
 
@@ -274,6 +274,26 @@ const createOrder = async (req, res, next) => {
       }
     }
 
+    if (req.user.clientType === 'C2B') {
+      const billing = req.user.billingAddress;
+      const hasBillingAddress = Boolean(
+        billing &&
+          typeof billing.addressLine1 === 'string' &&
+          billing.addressLine1.trim() &&
+          typeof billing.city === 'string' &&
+          billing.city.trim() &&
+          typeof billing.state === 'string' &&
+          billing.state.trim() &&
+          typeof billing.country === 'string' &&
+          billing.country.trim()
+      );
+      if (!hasBillingAddress) {
+        throw badRequest('Billing address is required before placing an order', [
+          { code: 'billing_address_required' },
+        ]);
+      }
+    }
+
     const comingSoonIssues = [];
     const stockIssues = [];
     for (const [productId, requestedQuantity] of requestedByProductId.entries()) {
@@ -384,8 +404,13 @@ const createOrder = async (req, res, next) => {
     let taxCountry = null;
     let taxState = null;
 
-    if (req.user.clientType === 'B2B' && !req.user.taxExempt) {
-      const location = extractCompanyLocation(req.user.company);
+    const isB2BUser = req.user.clientType === 'B2B';
+    const isC2BUser = req.user.clientType === 'C2B';
+
+    if ((isB2BUser || isC2BUser) && !req.user.taxExempt) {
+      const location = isB2BUser
+        ? extractCompanyLocation(req.user.company)
+        : extractCompanyLocation(req.user.billingAddress);
       const match = await findMatchingTaxRate(location);
       if (match) {
         taxRate = typeof match.rate === 'number' ? match.rate : 0;

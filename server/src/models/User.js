@@ -62,6 +62,20 @@ const shippingAddressSchema = new mongoose.Schema(
   { _id: true }
 );
 
+const billingAddressSchema = new mongoose.Schema(
+  {
+    fullName: { type: String, trim: true },
+    phone: { type: String, trim: true },
+    addressLine1: { type: String, trim: true },
+    addressLine2: { type: String, trim: true },
+    city: { type: String, trim: true },
+    state: { type: String, trim: true },
+    postalCode: { type: String, trim: true },
+    country: { type: String, trim: true, default: 'Morocco' },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -165,6 +179,10 @@ const userSchema = new mongoose.Schema(
       type: companyInfoSchema,
       default: undefined,
     },
+    billingAddress: {
+      type: billingAddressSchema,
+      default: undefined,
+    },
     shippingAddresses: {
       type: [shippingAddressSchema],
       default: [],
@@ -233,6 +251,18 @@ const userSchema = new mongoose.Schema(
               businessType: ret.company.businessType || null,
               taxId: ret.company.taxId || null,
               website: ret.company.website || null,
+            }
+          : null;
+        ret.billingAddress = ret.billingAddress
+          ? {
+              fullName: ret.billingAddress.fullName || null,
+              phone: ret.billingAddress.phone || null,
+              addressLine1: ret.billingAddress.addressLine1 || null,
+              addressLine2: ret.billingAddress.addressLine2 || null,
+              city: ret.billingAddress.city || null,
+              state: ret.billingAddress.state || null,
+              postalCode: ret.billingAddress.postalCode || null,
+              country: ret.billingAddress.country || 'Morocco',
             }
           : null;
         ret.shippingAddresses = Array.isArray(ret.shippingAddresses)

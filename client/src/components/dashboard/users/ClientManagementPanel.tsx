@@ -185,11 +185,23 @@ const normalizeLocation = (value?: string | null) => {
   return trimmed ? trimmed.toLowerCase() : null;
 };
 
-const extractCompanyLocation = (company?: User['company'] | null) => {
-  if (!company) {
+const extractLocation = (
+  source?: {
+    country?: string | null;
+    state?: string | null;
+    address?: string | null;
+  } | null
+) => {
+  if (!source) {
     return { country: null, state: null };
   }
-  const address = typeof company.address === 'string' ? company.address : '';
+  if (source.country || source.state) {
+    return {
+      country: source.country || null,
+      state: source.state || null,
+    };
+  }
+  const address = typeof source.address === 'string' ? source.address : '';
   if (!address) {
     return { country: null, state: null };
   }
@@ -376,14 +388,15 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
 
   const resolveTaxRateForClient = useCallback(
     (client: User) => {
-      if (client.clientType !== 'B2B') {
-        return { rate: 0, locationLabel: 'C2B tax-free' };
-      }
       if (client.taxExempt) {
         return { rate: 0, locationLabel: 'Tax exempt' };
       }
-      const location = extractCompanyLocation(client.company);
-      const locationLabel = formatLocationLabel(location) || 'No company address';
+      const isC2B = client.clientType === 'C2B';
+      const location = isC2B
+        ? extractLocation(client.billingAddress)
+        : extractLocation(client.company);
+      const locationLabel =
+        formatLocationLabel(location) || (isC2B ? 'No billing address' : 'No company address');
       const countryKey = normalizeLocation(location.country);
       const stateKey = normalizeLocation(location.state);
       let matched: TaxRate | undefined;
@@ -1724,14 +1737,11 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                     const verificationInputId = `verification-upload-${client.id}`;
                     const isTaxExemptUpdating = taxExemptUpdatingIds.has(client.id);
                     const taxStatus = resolveTaxRateForClient(client);
-                    const taxLabel =
-                      client.clientType === 'B2B'
-                        ? client.taxExempt
-                          ? '0%'
-                          : taxRateLoading
-                            ? '...'
-                            : `${taxStatus.rate}%`
-                        : '0%';
+                    const taxLabel = client.taxExempt
+                      ? '0%'
+                      : taxRateLoading
+                        ? '...'
+                        : `${taxStatus.rate}%`;
                     return (
                       <tr
                         key={client.id}
@@ -1878,7 +1888,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <div className="text-sm font-semibold text-slate-900">
-                                  {client.clientType === 'B2B' ? taxLabel : '0%'}
+                                  {taxLabel}
                                 </div>
                               </div>
                               {client.clientType === 'B2B' && canManageClients && (

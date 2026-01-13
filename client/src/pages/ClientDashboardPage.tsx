@@ -31,7 +31,7 @@ import {
 import { ClientDashboardLayout } from '../components/layout/ClientDashboardLayout';
 import { ProfileCompletionBar } from '../components/dashboard/ProfileCompletionBar';
 import { useAuth } from '../context/AuthContext';
-import { usersApi, type ShippingAddressPayload } from '../api/users';
+import { usersApi, type BillingAddressPayload, type ShippingAddressPayload } from '../api/users';
 import { ordersApi } from '../api/orders';
 import { reviewsApi } from '../api/reviews';
 import { productsApi } from '../api/products';
@@ -105,39 +105,6 @@ const US_STATES = [
   'West Virginia',
   'Wisconsin',
   'Wyoming',
-];
-
-const US_CITIES = [
-  'New York',
-  'Los Angeles',
-  'Chicago',
-  'Houston',
-  'Phoenix',
-  'Philadelphia',
-  'San Antonio',
-  'San Diego',
-  'Dallas',
-  'San Jose',
-  'Austin',
-  'Jacksonville',
-  'Fort Worth',
-  'Columbus',
-  'Charlotte',
-  'San Francisco',
-  'Indianapolis',
-  'Seattle',
-  'Denver',
-  'Washington',
-  'Boston',
-  'El Paso',
-  'Nashville',
-  'Detroit',
-  'Oklahoma City',
-  'Portland',
-  'Las Vegas',
-  'Memphis',
-  'Louisville',
-  'Baltimore',
 ];
 
 const resolveProfileImage = (value: string | null | undefined): string | null => {
@@ -217,6 +184,17 @@ export const ClientDashboardPage: React.FC = () => {
   const [companyDetailsLoading, setCompanyDetailsLoading] = useState(false);
   const [companyDetailsError, setCompanyDetailsError] = useState<string | null>(null);
   const [companyDetailsSuccess, setCompanyDetailsSuccess] = useState<string | null>(null);
+
+  // Billing address states (C2B)
+  const [billingForm, setBillingForm] = useState<BillingAddressPayload>({
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: 'United States',
+  });
+  const [billingSaving, setBillingSaving] = useState(false);
 
   // Shipping address states
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -523,6 +501,26 @@ export const ClientDashboardPage: React.FC = () => {
     setPreviewObjectUrl(null);
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    setBillingForm({
+      addressLine1: user.billingAddress?.addressLine1 ?? '',
+      addressLine2: user.billingAddress?.addressLine2 ?? '',
+      city: user.billingAddress?.city ?? '',
+      state: user.billingAddress?.state ?? '',
+      postalCode: user.billingAddress?.postalCode ?? '',
+      country: user.billingAddress?.country ?? 'United States',
+    });
+  }, [
+    user,
+    user?.billingAddress?.addressLine1,
+    user?.billingAddress?.addressLine2,
+    user?.billingAddress?.city,
+    user?.billingAddress?.state,
+    user?.billingAddress?.postalCode,
+    user?.billingAddress?.country,
+  ]);
+
   const loadOrders = useCallback(async () => {
     if (!user) return;
     setOrdersLoading(true);
@@ -688,6 +686,24 @@ export const ClientDashboardPage: React.FC = () => {
     setB2bFormData((prev) => ({ ...prev, businessType: value }));
   };
 
+  const handleUseBillingAddress = () => {
+    const billing = user?.billingAddress;
+    if (!billing) {
+      return;
+    }
+    const addressLine1 = billing.addressLine1 ?? '';
+    const addressLine2 = billing.addressLine2 ?? '';
+    const street = [addressLine1, addressLine2].filter(Boolean).join(', ');
+
+    setB2bFormData((prev) => ({
+      ...prev,
+      companyAddress: street,
+      companyCity: billing.city ?? '',
+      companyState: billing.state ?? '',
+      companyCountry: billing.country ?? 'United States',
+    }));
+  };
+
   const handleSaveCompanyTaxId = async () => {
     if (!user) {
       return;
@@ -837,6 +853,45 @@ export const ClientDashboardPage: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to upload verification document');
     } finally {
       setVerificationLoading(false);
+    }
+  };
+
+  // Billing address handlers (C2B)
+  const handleSaveBillingAddress = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user) return;
+
+    const trimmedAddress = (billingForm.addressLine1 ?? '').trim();
+    const trimmedCity = (billingForm.city ?? '').trim();
+    const trimmedState = (billingForm.state ?? '').trim();
+    const trimmedCountry = (billingForm.country ?? '').trim();
+
+    if (!trimmedAddress || !trimmedCity || !trimmedState || !trimmedCountry) {
+      setError('Billing address, country, state, and city are required.');
+      return;
+    }
+
+    setBillingSaving(true);
+    setStatusMessage(null);
+    setError(null);
+
+    try {
+      const payload: BillingAddressPayload = {
+        addressLine1: trimmedAddress,
+        addressLine2: billingForm.addressLine2?.trim() || undefined,
+        city: trimmedCity,
+        state: trimmedState,
+        postalCode: billingForm.postalCode?.trim() || undefined,
+        country: trimmedCountry,
+      };
+      await usersApi.updateBillingAddress(user.id, payload);
+      await refresh();
+      setStatusMessage('Billing address updated successfully');
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to save billing address');
+    } finally {
+      setBillingSaving(false);
     }
   };
 
@@ -1060,6 +1115,15 @@ export const ClientDashboardPage: React.FC = () => {
     'united states',
     'united states of america'
   ].includes((addressForm.country || '').trim().toLowerCase());
+  const isUnitedStatesBilling = [
+    'united states',
+    'united states of america'
+  ].includes((billingForm.country || '').trim().toLowerCase());
+  const billingFormComplete =
+    (billingForm.addressLine1 ?? '').trim() &&
+    (billingForm.city ?? '').trim() &&
+    (billingForm.state ?? '').trim() &&
+    (billingForm.country ?? '').trim();
 
   const getTabIcon = (tabId: TabType): ReactNode => {
     const baseClass = 'h-5 w-5';
@@ -2250,6 +2314,112 @@ export const ClientDashboardPage: React.FC = () => {
 
               {activeTab === 'settings' && (
   <div className="space-y-8">
+    {isC2B && (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">Billing Address</h2>
+            <p className="mt-1 text-sm text-slate-600">Used to calculate taxes at checkout</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <form onSubmit={handleSaveBillingAddress} className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 1 *</label>
+              <input
+                type="text"
+                required
+                value={billingForm.addressLine1 ?? ''}
+                onChange={(e) => setBillingForm({ ...billingForm, addressLine1: e.target.value })}
+                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                placeholder="Street address, P.O. box"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 2</label>
+              <input
+                type="text"
+                value={billingForm.addressLine2 ?? ''}
+                onChange={(e) => setBillingForm({ ...billingForm, addressLine2: e.target.value })}
+                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                placeholder="Apartment, suite, unit, building, floor, etc."
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Country *</label>
+              <CountrySelect
+                value={billingForm.country || 'United States'}
+                onChange={(countryName) => {
+                  setBillingForm({ ...billingForm, country: countryName });
+                }}
+                portalZIndex={30}
+                className="w-full"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">State/Province *</label>
+                {isUnitedStatesBilling ? (
+                  <CountrySelect
+                    value={billingForm.state || ''}
+                    onChange={(stateName) => setBillingForm({ ...billingForm, state: stateName })}
+                    options={US_STATES}
+                    placeholder="Select state"
+                    searchPlaceholder="Search states..."
+                    portalZIndex={30}
+                    className="w-full"
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={billingForm.state ?? ''}
+                    onChange={(e) => setBillingForm({ ...billingForm, state: e.target.value })}
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                    placeholder="State / Province"
+                  />
+                )}
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">City *</label>
+                <input
+                  type="text"
+                  required
+                  value={billingForm.city ?? ''}
+                  onChange={(e) => setBillingForm({ ...billingForm, city: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                  placeholder="City name"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Postal Code</label>
+                <input
+                  type="text"
+                  value={billingForm.postalCode ?? ''}
+                  onChange={(e) => setBillingForm({ ...billingForm, postalCode: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                  placeholder="20000"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={billingSaving || !billingFormComplete}
+                className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
+              >
+                {billingSaving ? 'Saving...' : 'Save Billing Address'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+
     {/* Shipping Addresses Section */}
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -2887,9 +3057,20 @@ export const ClientDashboardPage: React.FC = () => {
 
                           <div className="grid gap-4 md:grid-cols-3">
                             <div className="space-y-2 md:col-span-3">
-                              <label htmlFor="companyAddress" className="block text-sm font-medium text-slate-700">
-                                Company Address <span className="text-red-600">*</span>
-                              </label>
+                              <div className="flex items-center justify-between">
+                                <label htmlFor="companyAddress" className="block text-sm font-medium text-slate-700">
+                                  Company Address <span className="text-red-600">*</span>
+                                </label>
+                                {user.billingAddress?.addressLine1?.trim() && (
+                                  <button
+                                    type="button"
+                                    onClick={handleUseBillingAddress}
+                                    className="text-xs font-semibold text-red-600 hover:text-red-700"
+                                  >
+                                    Use billing address
+                                  </button>
+                                )}
+                              </div>
                               <input
                                 id="companyAddress"
                                 type="text"
@@ -2953,23 +3134,14 @@ export const ClientDashboardPage: React.FC = () => {
                               <input
                                 id="companyCity"
                                 type="text"
-                                list={isUnitedStates ? 'b2b-city-options' : undefined}
                                 value={b2bFormData.companyCity}
                                 onChange={(e) => setB2bFormData({ ...b2bFormData, companyCity: e.target.value })}
                                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                placeholder={isUnitedStates ? 'Select or type city' : 'City'}
+                                placeholder="City"
                                 required
                               />
                             </div>
                           </div>
-
-                          {isUnitedStates && (
-                            <datalist id="b2b-city-options">
-                              {US_CITIES.map((city) => (
-                                <option key={city} value={city} />
-                              ))}
-                            </datalist>
-                          )}
 
                           <div className="space-y-2">
                             <label htmlFor="taxId" className="block text-sm font-medium text-slate-700">

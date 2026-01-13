@@ -227,6 +227,17 @@ export interface ShippingAddress {
   isDefault: boolean;
 }
 
+export interface BillingAddress {
+  fullName: string | null;
+  phone: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -238,6 +249,7 @@ export interface User {
   phoneNumber?: string | null;
   clientType?: ClientType | null;
   company?: CompanyInfo | null;
+  billingAddress?: BillingAddress | null;
   taxExempt?: boolean | null;
   taxExemptUpdatedAt?: string | null;
   verificationFileUrl?: string | null;
@@ -388,6 +400,7 @@ export interface OrderUserSummary {
   status: UserStatus | null;
   isEmailVerified: boolean | null;
   company: CompanyInfo | null;
+  billingAddress?: BillingAddress | null;
   taxExempt?: boolean | null;
   verificationFileUrl: string | null;
   verificationStatus: VerificationStatus | null;
