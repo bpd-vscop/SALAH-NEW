@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 // import { bannersApi } from '../api/banners';
@@ -70,6 +70,7 @@ import { ClientManagementPanel } from '../components/dashboard/users/ClientManag
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_HOMEPAGE_CATEGORIES = 18;
 const MAX_MENU_QUICK_LINKS = 6;
+const INVENTORY_SEEN_LOW_STOCK_IDS_KEY = 'adminInventorySeenLowStockIds';
 
 const emptyFeatureForm = (variant: FeaturedVariant): FeatureFormState => ({
   variant,
@@ -540,6 +541,8 @@ export const AdminDashboardPage: React.FC = () => {
   const [activeFeatureTab, setActiveFeatureTab] = useState<'feature' | 'tile'>('feature');
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>(null);
   const [orderConflict, setOrderConflict] = useState<OrderConflictState>(null);
+  const [inventoryBadgeVisible, setInventoryBadgeVisible] = useState(false);
+  const badgeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const state = (location.state ?? null) as
@@ -1700,6 +1703,82 @@ export const AdminDashboardPage: React.FC = () => {
     return { feature, tiles };
   }, [featuredItems]);
 
+  const lowStockIds = useMemo(() => {
+    return products
+      .filter((product) => {
+        if (product.manageStock === false) return false;
+        const quantity = typeof product.inventory?.quantity === 'number' ? product.inventory.quantity : 0;
+        const threshold =
+          typeof product.inventory?.lowStockThreshold === 'number' ? product.inventory.lowStockThreshold : 0;
+        return threshold > 0 && quantity <= threshold;
+      })
+      .map((product) => product.id)
+      .sort();
+  }, [products]);
+
+  const lowStockCount = lowStockIds.length;
+
+  // Profile badge only shows when NOT on inventory page
+  const inventoryAlertCount =
+    productsView !== 'inventory' && inventoryBadgeVisible ? lowStockCount : 0;
+
+  useEffect(() => {
+    if (productsView === 'inventory') {
+      // When ON inventory page, mark all current low-stock items as seen
+      if (lowStockCount > 0) {
+        // Clear any existing timer
+        if (badgeTimerRef.current !== null) {
+          window.clearTimeout(badgeTimerRef.current);
+        }
+
+        // Hide badge immediately when entering inventory
+        setInventoryBadgeVisible(false);
+
+        // Store the current low-stock IDs as seen
+        localStorage.setItem(INVENTORY_SEEN_LOW_STOCK_IDS_KEY, JSON.stringify(lowStockIds));
+      }
+
+      return () => {
+        if (badgeTimerRef.current !== null) {
+          window.clearTimeout(badgeTimerRef.current);
+          badgeTimerRef.current = null;
+        }
+      };
+    }
+
+    // When NOT on inventory page
+    if (typeof window === 'undefined') return;
+
+    // Get previously seen low-stock IDs
+    const seenIdsJson = localStorage.getItem(INVENTORY_SEEN_LOW_STOCK_IDS_KEY);
+    const seenIds: string[] = seenIdsJson ? JSON.parse(seenIdsJson) : [];
+    const seenSet = new Set(seenIds);
+
+    // Clean up seen IDs - remove IDs that are no longer low stock
+    const currentSet = new Set(lowStockIds);
+    const cleanedSeenIds = seenIds.filter((id) => currentSet.has(id));
+    if (cleanedSeenIds.length !== seenIds.length) {
+      localStorage.setItem(INVENTORY_SEEN_LOW_STOCK_IDS_KEY, JSON.stringify(cleanedSeenIds));
+    }
+
+    // Check if there are NEW low-stock items (not in seen list)
+    const hasNewLowStockItems = lowStockIds.some((id) => !seenSet.has(id));
+
+    // Show badge only if there are NEW low stock items
+    if (hasNewLowStockItems && lowStockCount > 0) {
+      setInventoryBadgeVisible(true);
+    } else {
+      setInventoryBadgeVisible(false);
+    }
+
+    return () => {
+      if (badgeTimerRef.current !== null) {
+        window.clearTimeout(badgeTimerRef.current);
+        badgeTimerRef.current = null;
+      }
+    };
+  }, [productsView, lowStockIds, lowStockCount]);
+
   const topNavItems = useMemo(
     () =>
       adminTabs.map((tab) => {
@@ -1801,6 +1880,8 @@ export const AdminDashboardPage: React.FC = () => {
                     : productsView === 'taxes'
                       ? 'Tax rates'
                     : 'All Products';
+          // Only show badge when NOT on inventory page
+          const inventoryBadgeCount = productsView === 'inventory' ? 0 : lowStockCount;
           return {
             id: tab.id,
             label: tab.label,
@@ -1810,7 +1891,7 @@ export const AdminDashboardPage: React.FC = () => {
                 { id: 'all', label: 'All Products' },
                 { id: 'list', label: 'Product list' },
                 { id: 'add', label: 'Add Product' },
-                { id: 'inventory', label: 'Inventory' },
+                { id: 'inventory', label: 'Inventory', badgeCount: inventoryBadgeCount },
                 { id: 'coupons', label: 'Coupons' },
                 { id: 'taxes', label: 'Tax rates' },
               ],
@@ -1843,7 +1924,7 @@ export const AdminDashboardPage: React.FC = () => {
           badgeCount: tab.id === 'messages' ? messagesUnreadCount : undefined,
         };
       }),
-    [homepageSection, navigationSection, activeTab, catalogSection, usersSection, productsView, ordersSection, orders, messagesUnreadCount]
+    [homepageSection, navigationSection, activeTab, catalogSection, usersSection, productsView, ordersSection, orders, messagesUnreadCount, lowStockCount]
   );
 
   const handleTopNavSelect = (id: string, dropdownId?: string) => {
@@ -1926,6 +2007,7 @@ export const AdminDashboardPage: React.FC = () => {
   return (
     <AdminLayout
       topNav={<AdminTopNav items={topNavItems} activeId={activeTab} onSelect={handleTopNavSelect} />}
+      inventoryAlertCount={inventoryAlertCount}
       contentKey={activeTab === 'users' ? `users-${usersSection}` : activeTab}
     >
       <div className="space-y-6">

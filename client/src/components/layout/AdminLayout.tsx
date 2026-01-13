@@ -11,14 +11,16 @@ interface AdminLayoutProps {
   children: ReactNode;
   topNav?: ReactNode;
   contentKey?: string;
+  inventoryAlertCount?: number;
 }
 
-export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, contentKey }) => {
+export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, contentKey, inventoryAlertCount }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [helpPopupOpen, setHelpPopupOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const alertCount = Math.max(0, inventoryAlertCount ?? 0);
   const profileImageUrl = useMemo(() => {
     if (!user?.profileImage) {
       return null;
@@ -290,6 +292,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
                   profileInitial
                 )}
               </button>
+              {alertCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
+                  {alertCount > 99 ? '99+' : alertCount}
+                </span>
+              )}
 
               <AnimatePresence>
                 {profileDropdownOpen && (
@@ -450,6 +457,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
                   profileInitial
                 )}
               </button>
+              {alertCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white shadow-sm">
+                  {alertCount > 99 ? '99+' : alertCount}
+                </span>
+              )}
 
               <AnimatePresence>
                 {profileDropdownOpen && (

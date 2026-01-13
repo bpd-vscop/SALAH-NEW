@@ -7,6 +7,7 @@ interface AdminTopNavDropdownItem {
   id: string;
   label: string;
   separatorAfter?: boolean;
+  badgeCount?: number;
 }
 
 export interface AdminTopNavItem {
@@ -163,17 +164,25 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({ items, activeId, onSel
                   <ul className="py-2 text-sm text-slate-600">
                     {item.dropdown.items.map((option, index) => {
                       const selected = option.id === item.dropdown?.activeId;
+                      const optionBadgeCount = option.badgeCount ?? 0;
                       return (
                         <li key={option.id}>
                           <button
                             type="button"
                             onClick={() => handleOptionClick(option.id)}
                             className={cn(
-                              'flex w-full items-center justify-between px-4 py-2 transition',
+                              'relative flex w-full items-center justify-between px-4 py-2 transition',
                               selected ? 'text-primary' : 'hover:bg-primary/5 hover:text-primary'
                             )}
                           >
-                            <span>{option.label}</span>
+                            <span className="flex items-center gap-2">
+                              {option.label}
+                              {optionBadgeCount > 0 && (
+                                <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white shadow-sm">
+                                  {optionBadgeCount > 99 ? '99+' : optionBadgeCount}
+                                </span>
+                              )}
+                            </span>
                             {selected && (
                               <span className="inline-flex h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
                             )}

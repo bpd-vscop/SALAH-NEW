@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { productsApi, type UpdateProductInput } from '../../api/products';
 import type { Product, ProductInventory, ProductInventoryStatus, ProductTag } from '../../types/api';
 import { cn } from '../../utils/cn';
@@ -62,6 +62,7 @@ const toDateLocal = (iso?: string | null) => {
 
 const DEFAULT_VISIBILITY: NonNullable<Product['visibility']> = 'catalog-and-search';
 const COMING_SOON_TAG = 'coming soon';
+const INVENTORY_BANNER_DISMISSED_KEY = 'adminInventoryBannerDismissedAt';
 
 const getDefaultEditState = (product: Product): ProductInventoryEditState => ({
   quantity: String(product.inventory?.quantity ?? 0),
@@ -89,6 +90,16 @@ const getDefaultEditState = (product: Product): ProductInventoryEditState => ({
   saleStartDate: toDateLocal(product.saleStartDate ?? null),
   saleEndDate: toDateLocal(product.saleEndDate ?? null),
 });
+
+const getThresholdAlert = (product: Product): { quantity: number; threshold: number } | null => {
+  if (product.manageStock === false) return null;
+  const quantity = typeof product.inventory?.quantity === 'number' ? product.inventory.quantity : 0;
+  const threshold =
+    typeof product.inventory?.lowStockThreshold === 'number' ? product.inventory.lowStockThreshold : 0;
+  if (!Number.isFinite(threshold) || threshold <= 0) return null;
+  if (quantity > threshold) return null;
+  return { quantity, threshold };
+};
 
 const statusRank = (product: Product) => {
   const status = getEffectiveInventoryStatus(product);
@@ -122,6 +133,8 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
   const [selectedHiddenIds, setSelectedHiddenIds] = useState<Set<string>>(new Set());
   const [openBadgeDropdownId, setOpenBadgeDropdownId] = useState<string | null>(null);
   const [openSaleTypeDropdownId, setOpenSaleTypeDropdownId] = useState<string | null>(null);
+  const [showLowStockBanner, setShowLowStockBanner] = useState(false);
+  const bannerTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     setEdits((current) => {
@@ -208,6 +221,70 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
 
   const hasActiveFilters = stockFilter !== 'all' || badgeFilter !== 'all';
   const hiddenFilterActive = badgeFilter === 'hidden';
+  const lowStockCount = useMemo(() => {
+    return products.reduce((total, product) => {
+      return getThresholdAlert(product) ? total + 1 : total;
+    }, 0);
+  }, [products]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Check if banner was dismissed in the last 7 seconds
+    const dismissedAt = localStorage.getItem(INVENTORY_BANNER_DISMISSED_KEY);
+    if (dismissedAt) {
+      const dismissedTime = Number.parseInt(dismissedAt, 10);
+      const now = Date.now();
+      if (now - dismissedTime < 7000) {
+        // Banner was dismissed recently, don't show it
+        setShowLowStockBanner(false);
+
+        // Set a timeout to allow showing again after the 7 second period
+        const remainingTime = 7000 - (now - dismissedTime);
+        if (bannerTimerRef.current !== null) {
+          window.clearTimeout(bannerTimerRef.current);
+        }
+        bannerTimerRef.current = window.setTimeout(() => {
+          localStorage.removeItem(INVENTORY_BANNER_DISMISSED_KEY);
+          bannerTimerRef.current = null;
+        }, remainingTime);
+
+        return () => {
+          if (bannerTimerRef.current !== null) {
+            window.clearTimeout(bannerTimerRef.current);
+            bannerTimerRef.current = null;
+          }
+        };
+      } else {
+        // Dismissal period has expired, remove it
+        localStorage.removeItem(INVENTORY_BANNER_DISMISSED_KEY);
+      }
+    }
+
+    // Show banner if there are any low stock items
+    if (lowStockCount > 0) {
+      setShowLowStockBanner(true);
+
+      // Auto-dismiss after 7 seconds and store the dismissal time
+      if (bannerTimerRef.current !== null) {
+        window.clearTimeout(bannerTimerRef.current);
+      }
+      bannerTimerRef.current = window.setTimeout(() => {
+        setShowLowStockBanner(false);
+        localStorage.setItem(INVENTORY_BANNER_DISMISSED_KEY, String(Date.now()));
+        bannerTimerRef.current = null;
+      }, 7000);
+    } else {
+      setShowLowStockBanner(false);
+    }
+
+    return () => {
+      if (bannerTimerRef.current !== null) {
+        window.clearTimeout(bannerTimerRef.current);
+        bannerTimerRef.current = null;
+      }
+    };
+  }, [lowStockCount]);
 
   useEffect(() => {
     if (!hiddenFilterActive) {
@@ -644,6 +721,11 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
       </div>
 
       <div className="mt-6">
+        {lowStockCount > 0 && showLowStockBanner && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <span className="font-semibold">Restock alert:</span> {lowStockCount} product{lowStockCount === 1 ? '' : 's'} at or below the stock threshold.
+          </div>
+        )}
         {!filteredProducts.length ? (
           <div className="rounded-xl border border-dashed border-border bg-background px-4 py-8 text-center text-sm text-muted">
             No products match the current filters.
@@ -703,17 +785,24 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
                         ? 'border-amber-200 bg-amber-50 text-amber-800'
                         : 'border-emerald-200 bg-emerald-50 text-emerald-700';
                   const displayQuantityPillClass = hasPendingQuantity ? 'border-amber-200 bg-amber-50 text-amber-800' : quantityPillClass;
+                  const thresholdAlert = getThresholdAlert(product);
+                  const hasThresholdAlert = Boolean(thresholdAlert);
 
                   return (
                     <tr
                       key={product.id}
                       className={cn(
                         'transition-colors',
-                        outOfStock ? 'bg-rose-50/40' : 'hover:bg-slate-50'
+                        outOfStock ? 'bg-rose-50/40' : hasThresholdAlert ? 'bg-amber-50/40' : 'hover:bg-slate-50'
                       )}
                     >
                       <td className="px-2 py-3 align-top min-w-0">
                         <div className="flex flex-col gap-2">
+                          {thresholdAlert ? (
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[0.7rem] font-semibold text-amber-800">
+                              Restock alert: {thresholdAlert.quantity} left (threshold {thresholdAlert.threshold}).
+                            </div>
+                          ) : null}
                           <div className="flex gap-3">
                             {hiddenFilterActive && (
                               <label className="mt-1 flex h-5 w-5 items-center justify-center">
