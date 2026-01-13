@@ -62,7 +62,7 @@ const toDateLocal = (iso?: string | null) => {
 
 const DEFAULT_VISIBILITY: NonNullable<Product['visibility']> = 'catalog-and-search';
 const COMING_SOON_TAG = 'coming soon';
-const INVENTORY_BANNER_DISMISSED_KEY = 'adminInventoryBannerDismissedAt';
+const INVENTORY_BANNER_SEEN_IDS_KEY = 'adminInventoryBannerSeenLowStockIds';
 
 const getDefaultEditState = (product: Product): ProductInventoryEditState => ({
   quantity: String(product.inventory?.quantity ?? 0),
@@ -112,6 +112,7 @@ const statusRank = (product: Product) => {
 
 interface ProductInventoryAdminSectionProps {
   products: Product[];
+  productsLoaded: boolean;
   onRefresh: () => Promise<void>;
   setStatus: StatusSetter;
   onOpenProduct: (id: string) => void;
@@ -119,6 +120,7 @@ interface ProductInventoryAdminSectionProps {
 
 export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSectionProps> = ({
   products,
+  productsLoaded,
   onRefresh,
   setStatus,
   onOpenProduct,
@@ -221,57 +223,47 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
 
   const hasActiveFilters = stockFilter !== 'all' || badgeFilter !== 'all';
   const hiddenFilterActive = badgeFilter === 'hidden';
-  const lowStockCount = useMemo(() => {
-    return products.reduce((total, product) => {
-      return getThresholdAlert(product) ? total + 1 : total;
-    }, 0);
+
+  const lowStockIds = useMemo(() => {
+    return products
+      .filter((product) => Boolean(getThresholdAlert(product)))
+      .map((product) => product.id)
+      .sort();
   }, [products]);
 
+  const lowStockCount = lowStockIds.length;
+
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !productsLoaded || products.length === 0) return;
 
-    // Check if banner was dismissed in the last 7 seconds
-    const dismissedAt = localStorage.getItem(INVENTORY_BANNER_DISMISSED_KEY);
-    if (dismissedAt) {
-      const dismissedTime = Number.parseInt(dismissedAt, 10);
-      const now = Date.now();
-      if (now - dismissedTime < 7000) {
-        // Banner was dismissed recently, don't show it
-        setShowLowStockBanner(false);
+    // Get previously seen low-stock IDs
+    const seenIdsJson = localStorage.getItem(INVENTORY_BANNER_SEEN_IDS_KEY);
+    const seenIds: string[] = seenIdsJson ? JSON.parse(seenIdsJson) : [];
+    const seenSet = new Set(seenIds);
 
-        // Set a timeout to allow showing again after the 7 second period
-        const remainingTime = 7000 - (now - dismissedTime);
-        if (bannerTimerRef.current !== null) {
-          window.clearTimeout(bannerTimerRef.current);
-        }
-        bannerTimerRef.current = window.setTimeout(() => {
-          localStorage.removeItem(INVENTORY_BANNER_DISMISSED_KEY);
-          bannerTimerRef.current = null;
-        }, remainingTime);
-
-        return () => {
-          if (bannerTimerRef.current !== null) {
-            window.clearTimeout(bannerTimerRef.current);
-            bannerTimerRef.current = null;
-          }
-        };
-      } else {
-        // Dismissal period has expired, remove it
-        localStorage.removeItem(INVENTORY_BANNER_DISMISSED_KEY);
-      }
+    // Clean up seen IDs - remove IDs that are no longer low stock
+    const currentSet = new Set(lowStockIds);
+    const cleanedSeenIds = seenIds.filter((id) => currentSet.has(id));
+    if (cleanedSeenIds.length !== seenIds.length) {
+      localStorage.setItem(INVENTORY_BANNER_SEEN_IDS_KEY, JSON.stringify(cleanedSeenIds));
     }
 
-    // Show banner if there are any low stock items
-    if (lowStockCount > 0) {
+    // Check if there are NEW low-stock items (not in seen list)
+    const hasNewLowStockItems = lowStockIds.some((id) => !seenSet.has(id));
+
+    // Only show banner if there are NEW low stock items
+    if (hasNewLowStockItems && lowStockCount > 0) {
       setShowLowStockBanner(true);
 
-      // Auto-dismiss after 7 seconds and store the dismissal time
+      // Mark current items as seen
+      localStorage.setItem(INVENTORY_BANNER_SEEN_IDS_KEY, JSON.stringify(lowStockIds));
+
+      // Auto-dismiss after 7 seconds
       if (bannerTimerRef.current !== null) {
         window.clearTimeout(bannerTimerRef.current);
       }
       bannerTimerRef.current = window.setTimeout(() => {
         setShowLowStockBanner(false);
-        localStorage.setItem(INVENTORY_BANNER_DISMISSED_KEY, String(Date.now()));
         bannerTimerRef.current = null;
       }, 7000);
     } else {
@@ -284,7 +276,7 @@ export const ProductInventoryAdminSection: React.FC<ProductInventoryAdminSection
         bannerTimerRef.current = null;
       }
     };
-  }, [lowStockCount]);
+  }, [lowStockIds, lowStockCount, products.length, productsLoaded]);
 
   useEffect(() => {
     if (!hiddenFilterActive) {

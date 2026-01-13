@@ -71,6 +71,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_HOMEPAGE_CATEGORIES = 18;
 const MAX_MENU_QUICK_LINKS = 6;
 const INVENTORY_SEEN_LOW_STOCK_IDS_KEY = 'adminInventorySeenLowStockIds';
+const INVENTORY_BANNER_SEEN_IDS_KEY = 'adminInventoryBannerSeenLowStockIds';
 
 const emptyFeatureForm = (variant: FeaturedVariant): FeatureFormState => ({
   variant,
@@ -97,6 +98,16 @@ const canDeleteHomepage = (role: UserRole) => role === 'super_admin' || role ===
 const isObjectId = (value?: string | null) => Boolean(value && /^[0-9a-fA-F]{24}$/.test(value));
 
 const makeTempId = () => Math.random().toString(36).slice(2, 10);
+
+const parseStoredIds = (value: string | null): string[] => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+};
 
 const normalizeComposeClients = (input: unknown): ComposeClientRef[] => {
   if (!Array.isArray(input)) return [];
@@ -476,6 +487,7 @@ export const AdminDashboardPage: React.FC = () => {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoaded, setProductsLoaded] = useState(false);
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
   // const [banners] = useState<Banner[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -595,6 +607,7 @@ export const AdminDashboardPage: React.FC = () => {
   const refreshProducts = async () => {
     const { products: data } = await productsApi.list({ includeSerials: true });
     setProducts(data);
+    setProductsLoaded(true);
   };
 
   const refreshManufacturers = async () => {
@@ -1717,67 +1730,77 @@ export const AdminDashboardPage: React.FC = () => {
   }, [products]);
 
   const lowStockCount = lowStockIds.length;
+  const isInventoryView = activeTab === 'products' && productsView === 'inventory';
 
-  // Profile badge only shows when NOT on inventory page
+  // State to track if there are unacknowledged low-stock items
+  const [hasNewLowStockItems, setHasNewLowStockItems] = useState(false);
+
+  // Dropdown badge: show count when there are new items
+  const inventoryDropdownBadgeCount =
+    hasNewLowStockItems && lowStockCount > 0 ? lowStockCount : 0;
+
+  // Profile badge: show count when badge is visible
   const inventoryAlertCount =
-    productsView !== 'inventory' && inventoryBadgeVisible ? lowStockCount : 0;
+    inventoryBadgeVisible && lowStockCount > 0 ? lowStockCount : 0;
 
   useEffect(() => {
-    if (productsView === 'inventory') {
-      // When ON inventory page, mark all current low-stock items as seen
-      if (lowStockCount > 0) {
-        // Clear any existing timer
-        if (badgeTimerRef.current !== null) {
-          window.clearTimeout(badgeTimerRef.current);
-        }
+    if (typeof window === 'undefined' || !productsLoaded) return;
 
-        // Hide badge immediately when entering inventory
-        setInventoryBadgeVisible(false);
-
-        // Store the current low-stock IDs as seen
-        localStorage.setItem(INVENTORY_SEEN_LOW_STOCK_IDS_KEY, JSON.stringify(lowStockIds));
-      }
-
-      return () => {
-        if (badgeTimerRef.current !== null) {
-          window.clearTimeout(badgeTimerRef.current);
-          badgeTimerRef.current = null;
-        }
-      };
-    }
-
-    // When NOT on inventory page
-    if (typeof window === 'undefined') return;
-
-    // Get previously seen low-stock IDs
-    const seenIdsJson = localStorage.getItem(INVENTORY_SEEN_LOW_STOCK_IDS_KEY);
-    const seenIds: string[] = seenIdsJson ? JSON.parse(seenIdsJson) : [];
-    const seenSet = new Set(seenIds);
-
-    // Clean up seen IDs - remove IDs that are no longer low stock
     const currentSet = new Set(lowStockIds);
+
+    const seenIds = parseStoredIds(localStorage.getItem(INVENTORY_SEEN_LOW_STOCK_IDS_KEY));
     const cleanedSeenIds = seenIds.filter((id) => currentSet.has(id));
     if (cleanedSeenIds.length !== seenIds.length) {
       localStorage.setItem(INVENTORY_SEEN_LOW_STOCK_IDS_KEY, JSON.stringify(cleanedSeenIds));
     }
+    const cleanedSeenSet = new Set(cleanedSeenIds);
 
-    // Check if there are NEW low-stock items (not in seen list)
-    const hasNewLowStockItems = lowStockIds.some((id) => !seenSet.has(id));
-
-    // Show badge only if there are NEW low stock items
-    if (hasNewLowStockItems && lowStockCount > 0) {
-      setInventoryBadgeVisible(true);
-    } else {
-      setInventoryBadgeVisible(false);
+    const bannerSeenIds = parseStoredIds(localStorage.getItem(INVENTORY_BANNER_SEEN_IDS_KEY));
+    const cleanedBannerIds = bannerSeenIds.filter((id) => currentSet.has(id));
+    if (cleanedBannerIds.length !== bannerSeenIds.length) {
+      localStorage.setItem(INVENTORY_BANNER_SEEN_IDS_KEY, JSON.stringify(cleanedBannerIds));
     }
 
+    if (lowStockCount === 0) {
+      setHasNewLowStockItems(false);
+      setInventoryBadgeVisible(false);
+      if (badgeTimerRef.current !== null) {
+        window.clearTimeout(badgeTimerRef.current);
+        badgeTimerRef.current = null;
+      }
+      return;
+    }
+
+    const newItemsDetected = lowStockIds.some((id) => !cleanedSeenSet.has(id));
+    if (newItemsDetected) {
+      localStorage.setItem(INVENTORY_SEEN_LOW_STOCK_IDS_KEY, JSON.stringify(lowStockIds));
+      setHasNewLowStockItems(true);
+      setInventoryBadgeVisible(true);
+    }
+  }, [lowStockIds, lowStockCount, productsLoaded]);
+
+  useEffect(() => {
+    if (!isInventoryView || !inventoryBadgeVisible) return;
+
+    if (badgeTimerRef.current !== null) {
+      window.clearTimeout(badgeTimerRef.current);
+    }
+
+    badgeTimerRef.current = window.setTimeout(() => {
+      setInventoryBadgeVisible(false);
+      setHasNewLowStockItems(false);
+      badgeTimerRef.current = null;
+    }, 5000);
+  }, [isInventoryView, inventoryBadgeVisible]);
+
+  useEffect(() => {
     return () => {
       if (badgeTimerRef.current !== null) {
         window.clearTimeout(badgeTimerRef.current);
         badgeTimerRef.current = null;
       }
     };
-  }, [productsView, lowStockIds, lowStockCount]);
+  }, []);
 
   const topNavItems = useMemo(
     () =>
@@ -1880,8 +1903,6 @@ export const AdminDashboardPage: React.FC = () => {
                     : productsView === 'taxes'
                       ? 'Tax rates'
                     : 'All Products';
-          // Only show badge when NOT on inventory page
-          const inventoryBadgeCount = productsView === 'inventory' ? 0 : lowStockCount;
           return {
             id: tab.id,
             label: tab.label,
@@ -1891,7 +1912,7 @@ export const AdminDashboardPage: React.FC = () => {
                 { id: 'all', label: 'All Products' },
                 { id: 'list', label: 'Product list' },
                 { id: 'add', label: 'Add Product' },
-                { id: 'inventory', label: 'Inventory', badgeCount: inventoryBadgeCount },
+                { id: 'inventory', label: 'Inventory', badgeCount: inventoryDropdownBadgeCount },
                 { id: 'coupons', label: 'Coupons' },
                 { id: 'taxes', label: 'Tax rates' },
               ],
@@ -1924,7 +1945,7 @@ export const AdminDashboardPage: React.FC = () => {
           badgeCount: tab.id === 'messages' ? messagesUnreadCount : undefined,
         };
       }),
-    [homepageSection, navigationSection, activeTab, catalogSection, usersSection, productsView, ordersSection, orders, messagesUnreadCount, lowStockCount]
+    [homepageSection, navigationSection, activeTab, catalogSection, usersSection, productsView, ordersSection, orders, messagesUnreadCount, inventoryDropdownBadgeCount]
   );
 
   const handleTopNavSelect = (id: string, dropdownId?: string) => {
@@ -2161,6 +2182,7 @@ export const AdminDashboardPage: React.FC = () => {
               {productsView === 'inventory' ? (
                 <ProductInventoryAdminSection
                   products={products}
+                  productsLoaded={productsLoaded}
                   onRefresh={refreshProducts}
                   setStatus={setStatus}
                   onOpenProduct={(id) => {
