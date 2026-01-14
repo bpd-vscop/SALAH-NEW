@@ -55,6 +55,7 @@ interface InvoiceForm {
   terms: string;
   dueDate: string;
   notes: string;
+  secondPageContent: string;
 }
 
 type DocumentType = 'invoice' | 'estimate';
@@ -77,6 +78,7 @@ interface BillingDocument {
   terms?: string | null;
   dueDate?: string | null;
   notes?: string | null;
+  secondPageContent?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   createdBy?: string | null;
@@ -129,6 +131,7 @@ const createEmptyForm = (): InvoiceForm => ({
   terms: '',
   dueDate: '',
   notes: '',
+  secondPageContent: '',
 });
 
 const mapInvoiceToDocument = (invoice: Invoice): BillingDocument => ({
@@ -717,6 +720,7 @@ export const InvoicesAdminSection: React.FC = () => {
         terms: form.terms || undefined,
         dueDate: form.dueDate || null,
         notes: form.notes || undefined,
+        secondPageContent: form.secondPageContent || undefined,
       };
       if (createMode === 'invoice') {
         const { invoice } = await invoicesApi.create(payload);
@@ -922,6 +926,36 @@ export const InvoicesAdminSection: React.FC = () => {
               font-weight: bold;
               min-width: 90px;
             }
+            .page-header {
+              position: fixed;
+              top: 90px;
+              right: 60px;
+              text-align: right;
+              font-size: 9px;
+              line-height: 1.2;
+              z-index: 2;
+            }
+            .page-header-id {
+              font-weight: bold;
+              font-size: 12px;
+              color: #000;
+              background: #f0f0f0;
+              padding: 4px 8px;
+              display: inline-block;
+              margin-bottom: 8px;
+            }
+            .page-header-row {
+              display: flex;
+              justify-content: flex-end;
+              gap: 6px;
+            }
+            .page-header-label {
+              color: #555;
+            }
+            .invoice-number,
+            .invoice-meta {
+              visibility: hidden;
+            }
             .invoice-total {
               padding: 12px 16px;
               background: #f3f3f3 !important;
@@ -1074,8 +1108,9 @@ export const InvoicesAdminSection: React.FC = () => {
               text-align: center;
             }
             .barcode {
-              position: absolute;
+              position: fixed;
               left: 60px;
+              right: auto;
               bottom: 40px;
               display: inline-flex;
               flex-direction: column;
@@ -1110,6 +1145,23 @@ export const InvoicesAdminSection: React.FC = () => {
           </style>
         </head>
         <body>
+          <div class="page-header">
+            <div class="page-header-id">#${escapeHtml(documentNumber)}</div>
+            <div class="page-header-row">
+              <span class="page-header-label">Sales Order #</span>
+              <span>SO${escapeHtml(documentNumber.slice(-6))}</span>
+            </div>
+            <div class="page-header-row">
+              <span class="page-header-label">Date:</span>
+              <span>${escapeHtml(createdDate)}</span>
+            </div>
+            ${dueDate ? `
+              <div class="page-header-row">
+                <span class="page-header-label">Due Date:</span>
+                <span>${escapeHtml(dueDate)}</span>
+              </div>
+            ` : ''}
+          </div>
           <div class="header">
             <div class="company">
               <img src="${logoUrl}" alt="${escapeHtml(COMPANY_DETAILS.name)}" />
@@ -1216,6 +1268,35 @@ export const InvoicesAdminSection: React.FC = () => {
             <img src="${barcodeDataUrl}" alt="Barcode" />
             <div>${escapeHtml(documentNumber)}</div>
           </div>
+
+          ${document.secondPageContent ? `
+            <div style="page-break-before: always; padding-top: 50px;">
+              <div class="header">
+                <div class="company">
+                  <img src="${logoUrl}" alt="${escapeHtml(COMPANY_DETAILS.name)}" />
+                  <div class="company-address">
+                    <strong>${escapeHtml(COMPANY_DETAILS.name)}</strong><br>
+                    ${escapeHtml(COMPANY_DETAILS.addressLine1)}<br>
+                    ${escapeHtml(companyCityLine)}<br>
+                    ${escapeHtml(COMPANY_DETAILS.country)}
+                  </div>
+                </div>
+                <div class="invoice-header">
+                  <h1>${escapeHtml(documentLabel)}</h1>
+                  <div class="invoice-number">#${escapeHtml(documentNumber)}</div>
+                </div>
+              </div>
+
+              <div style="margin-top: 40px; margin-bottom: 120px; white-space: pre-wrap; line-height: 1.6;">
+                ${escapeHtml(document.secondPageContent)}
+              </div>
+
+              <div class="barcode">
+                <img src="${barcodeDataUrl}" alt="Barcode" />
+                <div>${escapeHtml(documentNumber)}</div>
+              </div>
+            </div>
+          ` : ''}
         </body>
       </html>
     `;
@@ -2085,6 +2166,17 @@ export const InvoicesAdminSection: React.FC = () => {
                         placeholder="Additional notes or payment instructions..."
                         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Second Page Content</label>
+                      <textarea
+                        value={form.secondPageContent}
+                        onChange={(event) => setForm((state) => ({ ...state, secondPageContent: event.target.value }))}
+                        rows={6}
+                        placeholder="Content for the second page (terms, conditions, additional information, etc.)..."
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                      <p className="mt-1 text-xs text-slate-500">This content will appear on a separate page with the invoice header and barcode</p>
                     </div>
                   </div>
                 </div>

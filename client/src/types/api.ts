@@ -464,6 +464,7 @@ export interface Invoice {
   terms?: string | null;
   dueDate?: string | null;
   notes?: string | null;
+  secondPageContent?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   createdBy?: string | null;
@@ -486,6 +487,7 @@ export interface Estimate {
   terms?: string | null;
   dueDate?: string | null;
   notes?: string | null;
+  secondPageContent?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   createdBy?: string | null;

@@ -161,6 +161,11 @@ const estimateSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    secondPageContent: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

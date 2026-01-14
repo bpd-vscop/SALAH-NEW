@@ -174,6 +174,7 @@ const createInvoice = async (req, res, next) => {
       terms: normalizeOptionalText(payload.terms),
       dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
       notes: normalizeOptionalText(payload.notes),
+      secondPageContent: normalizeOptionalText(payload.secondPageContent),
       createdBy: req.user?._id ?? null,
     });
 
