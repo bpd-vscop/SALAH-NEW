@@ -146,6 +146,85 @@ const mapEstimateToDocument = (estimate: Estimate): BillingDocument => ({
 const getDocumentLabel = (documentType: DocumentType) =>
   documentType === 'invoice' ? 'Invoice' : 'Estimate';
 
+const CODE39_PATTERNS: Record<string, string> = {
+  '0': 'nnnwwnwnn',
+  '1': 'wnnwnnnnw',
+  '2': 'nnwwnnnnw',
+  '3': 'wnwwnnnnn',
+  '4': 'nnnwwnnnw',
+  '5': 'wnnwwnnnn',
+  '6': 'nnwwwnnnn',
+  '7': 'nnnwnnwnw',
+  '8': 'wnnwnnwnn',
+  '9': 'nnwwnnwnn',
+  A: 'wnnnnwnnw',
+  B: 'nnwnnwnnw',
+  C: 'wnwnnwnnn',
+  D: 'nnnnwwnnw',
+  E: 'wnnnwwnnn',
+  F: 'nnwnwwnnn',
+  G: 'nnnnnwwnn',
+  H: 'wnnnnwwnn',
+  I: 'nnwnnwwnn',
+  J: 'nnnnwwwnn',
+  K: 'wnnnnnnww',
+  L: 'nnwnnnnww',
+  M: 'wnwnnnnwn',
+  N: 'nnnnwnnww',
+  O: 'wnnnwnnwn',
+  P: 'nnwnwnnwn',
+  Q: 'nnnnnnwww',
+  R: 'wnnnnnwwn',
+  S: 'nnwnnnwwn',
+  T: 'nnnnwnwwn',
+  U: 'wwnnnnnnw',
+  V: 'nwwnnnnnw',
+  W: 'wwwnnnnnn',
+  X: 'nwnnwnnnw',
+  Y: 'wwnnwnnnn',
+  Z: 'nwwnwnnnn',
+  '-': 'nwnnnnwnw',
+  '.': 'wwnnnnwnn',
+  ' ': 'nwwnnnwnn',
+  $: 'nwnwnwnnn',
+  '/': 'nwnwnnnwn',
+  '+': 'nwnnnwnwn',
+  '%': 'nnnwnwnwn',
+  '*': 'nwnnwnwnn',
+};
+
+const buildBarcodeSvg = (value: string) => {
+  const normalized = value
+    .toUpperCase()
+    .split('')
+    .filter((char) => CODE39_PATTERNS[char])
+    .join('');
+  const encoded = normalized || 'NA';
+  const narrow = 2.5;
+  const wide = narrow * 2.5;
+  const height = 110;
+  const quietZone = narrow * 10;
+  let x = quietZone;
+  let bars = '';
+  const addPattern = (pattern: string) => {
+    for (let index = 0; index < pattern.length; index += 1) {
+      const unitWidth = pattern[index] === 'w' ? wide : narrow;
+      if (index % 2 === 0) {
+        bars += `<rect x="${x}" y="0" width="${unitWidth}" height="${height}" fill="#000" />`;
+      }
+      x += unitWidth;
+    }
+    x += narrow;
+  };
+  addPattern(CODE39_PATTERNS['*']);
+  for (const char of encoded) {
+    addPattern(CODE39_PATTERNS[char]);
+  }
+  addPattern(CODE39_PATTERNS['*']);
+  const totalWidth = x + quietZone;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${height}" viewBox="0 0 ${totalWidth} ${height}" aria-label="Barcode">${bars}</svg>`;
+};
+
 const formatDate = (value?: string | null) => {
   if (!value) return '-';
   try {
@@ -718,6 +797,8 @@ export const InvoicesAdminSection: React.FC = () => {
     const invoice = document;
     const documentLabel = getDocumentLabel(document.documentType);
     const documentNumber = document.documentNumber;
+    const barcodeSvg = buildBarcodeSvg(documentNumber);
+    const barcodeDataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(barcodeSvg)}`;
     const logoUrl = `${window.location.origin}/logo-png.png`;
     const createdDate = formatDate(invoice.createdAt);
     const dueDate = invoice.dueDate ? formatDate(invoice.dueDate) : '';
@@ -772,6 +853,8 @@ export const InvoicesAdminSection: React.FC = () => {
               line-height: 1.4;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
+              position: relative;
+              min-height: 100vh;
             }
             .header {
               display: flex;
@@ -982,6 +1065,36 @@ export const InvoicesAdminSection: React.FC = () => {
               color: #666;
               text-align: center;
             }
+            .barcode {
+              position: absolute;
+              left: 60px;
+              bottom: 40px;
+              display: inline-flex;
+              flex-direction: column;
+              gap: 0px;
+              align-items: center;
+              color: #000;
+              font-size: 9px;
+              letter-spacing: 0.3px;
+              font-weight: 400;
+              font-family: Arial, Helvetica, sans-serif;
+            }
+            .barcode svg,
+            .barcode img {
+              display: block;
+              height: 110px;
+              width: auto;
+              max-width: 260px;
+            }
+            .barcode div {
+              white-space: nowrap;
+              margin-top: -30px;
+              line-height: 1;
+              font-size: 13px;
+              font-weight: 300;
+              letter-spacing: 0;
+              font-family: inherit;
+            }
             @media print {
               body { padding: 50px 60px; }
               @page { margin: 0.75in; }
@@ -1091,6 +1204,10 @@ export const InvoicesAdminSection: React.FC = () => {
               ${invoice.notes ? `<div style="margin-top: 8px;">${escapeHtml(invoice.notes)}</div>` : ''}
             </div>
           ` : ''}
+          <div class="barcode">
+            <img src="${barcodeDataUrl}" alt="Barcode" />
+            <div>${escapeHtml(documentNumber)}</div>
+          </div>
         </body>
       </html>
     `;
