@@ -424,7 +424,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
   );
 
   const toggleTaxExempt = async (client: User) => {
-    if (!canManageClients || client.clientType !== 'B2B') return;
+    if (!canManageClients) return;
     setTaxExemptUpdatingIds((prev) => new Set(prev).add(client.id));
     try {
       const nextValue = !client.taxExempt;
@@ -1891,7 +1891,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                                   {taxLabel}
                                 </div>
                               </div>
-                              {client.clientType === 'B2B' && canManageClients && (
+                              {canManageClients && (
                                 <button
                                   type="button"
                                   role="switch"
@@ -1915,7 +1915,7 @@ export const ClientManagementPanel: React.FC<ClientManagementPanelProps> = ({ ro
                                 </button>
                               )}
                             </div>
-                            {client.clientType === 'B2B' && client.taxExempt && (
+                            {client.taxExempt && (
                               <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
                                 Tax exempt
                               </span>
