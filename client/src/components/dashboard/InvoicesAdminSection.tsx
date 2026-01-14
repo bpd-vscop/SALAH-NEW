@@ -356,6 +356,8 @@ export const InvoicesAdminSection: React.FC = () => {
   const [productDropdownOpen, setProductDropdownOpen] = useState<Record<string, boolean>>({});
   const productDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [clients, setClients] = useState<User[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<BillingDocument | null>(null);
   const [clientsLoading, setClientsLoading] = useState(false);
   const [clientLoadError, setClientLoadError] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState('');
@@ -733,26 +735,32 @@ export const InvoicesAdminSection: React.FC = () => {
     }
   };
 
-  const handleDeleteDocument = async (document: BillingDocument) => {
-    const documentLabel = getDocumentLabel(document.documentType);
+  const handleDeleteDocument = (document: BillingDocument) => {
+    setDocumentToDelete(document);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteDocument = async () => {
+    if (!documentToDelete) return;
+    const documentLabel = getDocumentLabel(documentToDelete.documentType);
     const documentLabelLower = documentLabel.toLowerCase();
-    const ok = window.confirm(
-      `Delete ${documentLabelLower} ${document.documentNumber}? This cannot be undone.`
-    );
-    if (!ok) return;
     try {
-      if (document.documentType === 'invoice') {
-        await invoicesApi.delete(document.id);
+      if (documentToDelete.documentType === 'invoice') {
+        await invoicesApi.delete(documentToDelete.id);
       } else {
-        await estimatesApi.delete(document.id);
+        await estimatesApi.delete(documentToDelete.id);
       }
       setDocuments((prev) =>
-        prev.filter((entry) => !(entry.id === document.id && entry.documentType === document.documentType))
+        prev.filter((entry) => !(entry.id === documentToDelete.id && entry.documentType === documentToDelete.documentType))
       );
+      setShowDeleteModal(false);
+      setDocumentToDelete(null);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : `Unable to delete ${documentLabelLower}.`
       );
+      setShowDeleteModal(false);
+      setDocumentToDelete(null);
     }
   };
 
@@ -2278,6 +2286,51 @@ export const InvoicesAdminSection: React.FC = () => {
                 className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && documentToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-white shadow-xl">
+            <div className="border-b border-slate-200 p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                  <Trash2 className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Delete {getDocumentLabel(documentToDelete.documentType)}</h3>
+                  <p className="text-sm text-slate-600">This action cannot be undone</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <p className="text-sm text-slate-700">
+                Are you sure you want to delete <span className="font-semibold">{getDocumentLabel(documentToDelete.documentType)} {documentToDelete.documentNumber}</span>?
+                This will permanently remove it from your records.
+              </p>
+            </div>
+
+            <div className="flex gap-3 border-t border-slate-200 p-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDocumentToDelete(null);
+                }}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeleteDocument()}
+                className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
+              >
+                Delete
               </button>
             </div>
           </div>
