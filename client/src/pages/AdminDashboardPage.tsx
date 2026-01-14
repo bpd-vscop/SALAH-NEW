@@ -50,6 +50,7 @@ import { BillingDocumentsAdminSection } from '../components/dashboard/BillingDoc
 import { MessagesAdminSection } from '../components/dashboard/MessagesAdminSection';
 import { NavigationAdminSection } from '../components/dashboard/NavigationAdminSection';
 import { LegalDocumentsAdminSection } from '../components/dashboard/LegalDocumentsAdminSection';
+import { DashboardAdminSection } from '../components/dashboard/DashboardAdminSection';
 import type {
   // BannerFormState,
   CategoryFormState,
@@ -481,7 +482,7 @@ export const AdminDashboardPage: React.FC = () => {
   const role = user?.role ?? 'client';
   const location = useLocation();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<(typeof adminTabs)[number]['id']>('users');
+  const [activeTab, setActiveTab] = useState<(typeof adminTabs)[number]['id']>('dashboard');
   const [usersSection, setUsersSection] = useState<'staff' | 'clients'>('staff');
   const [ordersSection, setOrdersSection] = useState<'orders' | 'invoices'>('orders');
 
@@ -2042,6 +2043,25 @@ export const AdminDashboardPage: React.FC = () => {
         )}
 
         <AnimatePresence mode="wait">
+          {activeTab === 'dashboard' && (
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <DashboardAdminSection
+                orders={orders}
+                products={products}
+                categoriesCount={categories.length}
+                manufacturersCount={manufacturers.length}
+                unreadMessages={messagesUnreadCount}
+                lowStockIds={lowStockIds}
+                onNavigate={handleTopNavSelect}
+              />
+            </motion.div>
+          )}
           {activeTab === 'users' && (
             <motion.div
               key={`users-${usersSection}`}
