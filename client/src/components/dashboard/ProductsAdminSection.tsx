@@ -67,6 +67,7 @@ const PRODUCT_IMAGE_ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'im
 const MAX_PRODUCT_IMAGE_SIZE_BYTES = 3 * 1024 * 1024;
 const MAX_PRODUCT_IMAGE_SIZE_MB = 3;
 const MAX_PRODUCT_IMAGES = 5;
+const MAX_RELATED_PRODUCTS = 6;
 
 const MAX_PRODUCT_DOCUMENT_SIZE_BYTES = 20 * 1024 * 1024;
 const MAX_PRODUCT_DOCUMENT_SIZE_MB = 20;
@@ -164,12 +165,21 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   const [allBrandsModelsAdded, setAllBrandsModelsAdded] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState<string | null>(null);
   const [categorySearchQuery, setCategorySearchQuery] = useState<Record<string, string>>({});
+  const [relatedProductSearch, setRelatedProductSearch] = useState('');
+  const [relatedProductDropdownOpen, setRelatedProductDropdownOpen] = useState(false);
+  const [upsellProductSearch, setUpsellProductSearch] = useState('');
+  const [upsellProductDropdownOpen, setUpsellProductDropdownOpen] = useState(false);
+  const [crossSellProductSearch, setCrossSellProductSearch] = useState('');
+  const [crossSellProductDropdownOpen, setCrossSellProductDropdownOpen] = useState(false);
 
   // Step navigation state
   const [currentStep, setCurrentStep] = useState(0);
   const [stepValidation, setStepValidation] = useState<Record<number, 'valid' | 'warning' | 'incomplete'>>({});
   const stepTabsRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  const relatedProductDropdownRef = useRef<HTMLDivElement>(null);
+  const upsellProductDropdownRef = useRef<HTMLDivElement>(null);
+  const crossSellProductDropdownRef = useRef<HTMLDivElement>(null);
   const [canScrollStepsLeft, setCanScrollStepsLeft] = useState(false);
   const [canScrollStepsRight, setCanScrollStepsRight] = useState(false);
 
@@ -178,6 +188,12 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     setCurrentStep(0);
     setStepValidation({});
     setAllBrandsModelsAdded(false);
+    setRelatedProductSearch('');
+    setRelatedProductDropdownOpen(false);
+    setUpsellProductSearch('');
+    setUpsellProductDropdownOpen(false);
+    setCrossSellProductSearch('');
+    setCrossSellProductDropdownOpen(false);
   }, [selectedProductId]);
 
   const updateStepScrollState = useCallback(() => {
@@ -198,6 +214,24 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
         setCategoryDropdownOpen(null);
+      }
+      if (
+        relatedProductDropdownRef.current &&
+        !relatedProductDropdownRef.current.contains(event.target as Node)
+      ) {
+        setRelatedProductDropdownOpen(false);
+      }
+      if (
+        upsellProductDropdownRef.current &&
+        !upsellProductDropdownRef.current.contains(event.target as Node)
+      ) {
+        setUpsellProductDropdownOpen(false);
+      }
+      if (
+        crossSellProductDropdownRef.current &&
+        !crossSellProductDropdownRef.current.contains(event.target as Node)
+      ) {
+        setCrossSellProductDropdownOpen(false);
       }
     };
 
@@ -251,6 +285,53 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
     () => new Map(sortedVehicleBrands.map((brand) => [brand.name.toLowerCase(), brand])),
     [sortedVehicleBrands]
   );
+
+  const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
+
+  const availableRelatedProducts = useMemo(() => {
+    const query = relatedProductSearch.trim().toLowerCase();
+    const selectedIds = new Set(form.relatedProductIds);
+    return products
+      .filter((product) => product.id !== selectedProductId)
+      .filter((product) => !selectedIds.has(product.id))
+      .filter((product) => {
+        if (!query) return true;
+        const name = product.name?.toLowerCase() ?? '';
+        const sku = product.sku?.toLowerCase() ?? '';
+        return name.includes(query) || sku.includes(query);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products, form.relatedProductIds, relatedProductSearch, selectedProductId]);
+
+  const availableUpsellProducts = useMemo(() => {
+    const query = upsellProductSearch.trim().toLowerCase();
+    const selectedIds = new Set(form.upsellProductIds);
+    return products
+      .filter((product) => product.id !== selectedProductId)
+      .filter((product) => !selectedIds.has(product.id))
+      .filter((product) => {
+        if (!query) return true;
+        const name = product.name?.toLowerCase() ?? '';
+        const sku = product.sku?.toLowerCase() ?? '';
+        return name.includes(query) || sku.includes(query);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products, form.upsellProductIds, upsellProductSearch, selectedProductId]);
+
+  const availableCrossSellProducts = useMemo(() => {
+    const query = crossSellProductSearch.trim().toLowerCase();
+    const selectedIds = new Set(form.crossSellProductIds);
+    return products
+      .filter((product) => product.id !== selectedProductId)
+      .filter((product) => !selectedIds.has(product.id))
+      .filter((product) => {
+        if (!query) return true;
+        const name = product.name?.toLowerCase() ?? '';
+        const sku = product.sku?.toLowerCase() ?? '';
+        return name.includes(query) || sku.includes(query);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products, form.crossSellProductIds, crossSellProductSearch, selectedProductId]);
 
   const resetCompatibilityToManual = () => {
     setAllBrandsModelsAdded(false);
@@ -404,6 +485,10 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   const hasAvailableCategories = categories.some((category) => !selectedCategoryIds.has(category.id));
   const canAddCategoryRow = form.categoryIds.every((categoryId) => categoryId.trim().length > 0);
   const canAddAnotherCategory = canAddCategoryRow && hasAvailableCategories;
+  const relatedProductCount = form.relatedProductIds.length;
+  const canAddRelatedProduct = relatedProductCount < MAX_RELATED_PRODUCTS;
+  const upsellProductCount = form.upsellProductIds.length;
+  const crossSellProductCount = form.crossSellProductIds.length;
 
   const toggleProductSelection = (productId: string) => {
     setSelectedProducts((prev) => {
@@ -3554,58 +3639,406 @@ const createSerialModalRow = (defaults?: Partial<SerialModalRow>): SerialModalRo
                 </p>
               )}
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Related product IDs
-                <textarea
-                  value={form.relatedProductIds.join(', ')}
-                  onChange={(event) =>
-                    setForm((state) => ({
-                      ...state,
-                      relatedProductIds: event.target.value
-                        .split(/[,|\n]/)
-                        .map((value) => value.trim())
-                        .filter(Boolean),
-                    }))
-                  }
-                  rows={2}
-                  className="rounded-xl border border-border bg-white px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Upsell product IDs
-                <textarea
-                  value={form.upsellProductIds.join(', ')}
-                  onChange={(event) =>
-                    setForm((state) => ({
-                      ...state,
-                      upsellProductIds: event.target.value
-                        .split(/[,|\n]/)
-                        .map((value) => value.trim())
-                        .filter(Boolean),
-                    }))
-                  }
-                  rows={2}
-                  className="rounded-xl border border-border bg-white px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                Cross-sell product IDs
-                <textarea
-                  value={form.crossSellProductIds.join(', ')}
-                  onChange={(event) =>
-                    setForm((state) => ({
-                      ...state,
-                      crossSellProductIds: event.target.value
-                        .split(/[,|\n]/)
-                        .map((value) => value.trim())
-                        .filter(Boolean),
-                    }))
-                  }
-                  rows={2}
-                  className="rounded-xl border border-border bg-white px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </label>
+            <div className="space-y-4">
+              <div className="rounded-xl border border-border bg-white/70 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Related products</p>
+                    <p className="text-xs text-slate-500">
+                      Select up to {MAX_RELATED_PRODUCTS}. Selection order controls display order.
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-500">
+                    {relatedProductCount}/{MAX_RELATED_PRODUCTS} selected
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-3">
+                  <div className="relative" ref={relatedProductDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!canAddRelatedProduct) return;
+                        setRelatedProductDropdownOpen((open) => !open);
+                      }}
+                      className={cn(
+                        'flex h-9 w-full items-center justify-between gap-2 rounded-lg border bg-white px-3 text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+                        canAddRelatedProduct ? 'border-slate-300 hover:border-primary' : 'border-slate-200 text-slate-400'
+                      )}
+                      aria-expanded={relatedProductDropdownOpen}
+                      aria-disabled={!canAddRelatedProduct}
+                    >
+                      <span className="truncate text-sm font-medium">
+                        {canAddRelatedProduct
+                          ? relatedProductCount
+                            ? 'Add another related product'
+                            : 'Select related products'
+                          : 'Related product limit reached'}
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          'h-4 w-4 flex-shrink-0 text-slate-400 transition-transform',
+                          relatedProductDropdownOpen && 'rotate-180'
+                        )}
+                      />
+                    </button>
+                    <AnimatePresence>
+                      {relatedProductDropdownOpen && canAddRelatedProduct && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.98 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.98 }}
+                          transition={{ duration: 0.1 }}
+                          className="absolute left-0 right-0 top-full z-[120] mt-2 max-h-96 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 shadow-xl"
+                        >
+                          <div className="sticky top-0 z-10 bg-white pb-2">
+                            <div className="relative">
+                              <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                              <input
+                                type="text"
+                                placeholder="Search products..."
+                                value={relatedProductSearch}
+                                onChange={(event) => setRelatedProductSearch(event.target.value)}
+                                className="h-8 w-full rounded-md border border-slate-300 bg-white pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {availableRelatedProducts.length ? (
+                              availableRelatedProducts.map((product) => (
+                                <button
+                                  key={product.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setForm((state) => ({
+                                      ...state,
+                                      relatedProductIds: [...state.relatedProductIds, product.id],
+                                    }));
+                                    setRelatedProductDropdownOpen(false);
+                                    setRelatedProductSearch('');
+                                  }}
+                                  className="flex w-full items-center gap-3 rounded-md border border-slate-200 px-3 py-2 text-left text-sm transition hover:border-primary hover:bg-primary/5"
+                                >
+                                  {product.images?.[0] ? (
+                                    <img
+                                      src={product.images[0]}
+                                      alt={product.name}
+                                      className="h-10 w-10 flex-shrink-0 rounded-md border border-slate-200 object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-[10px] text-slate-400">
+                                      No image
+                                    </div>
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold text-slate-700">{product.name}</p>
+                                    {product.sku ? (
+                                      <p className="text-xs text-slate-500">SKU: {product.sku}</p>
+                                    ) : null}
+                                  </div>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                                No products found.
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  {!canAddRelatedProduct ? (
+                    <p className="text-xs text-amber-700">Remove a related product to add another.</p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    {form.relatedProductIds.map((id, index) => {
+                      const relatedProduct = productById.get(id);
+                      const label = relatedProduct?.name ?? id;
+                      return (
+                        <span
+                          key={`${id}-${index}`}
+                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700"
+                        >
+                          <span className="text-[10px] font-semibold text-slate-400">#{index + 1}</span>
+                          <span className="truncate">{label}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setForm((state) => ({
+                                ...state,
+                                relatedProductIds: state.relatedProductIds.filter((productId) => productId !== id),
+                              }))
+                            }
+                            className="text-slate-400 hover:text-red-600"
+                            aria-label="Remove related product"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                    {!form.relatedProductIds.length ? (
+                      <span className="text-xs text-muted">
+                        No related products selected. We will auto-fill best sellers based on categories and brands.
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl border border-border bg-white/70 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Upsell products</p>
+                      <p className="text-xs text-slate-500">Show as frequently bought together.</p>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-500">{upsellProductCount} selected</span>
+                  </div>
+                  <div className="mt-3 grid gap-3">
+                    <div className="relative" ref={upsellProductDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setUpsellProductDropdownOpen((open) => !open)}
+                        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm transition hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        aria-expanded={upsellProductDropdownOpen}
+                      >
+                        <span className="truncate text-sm font-medium">
+                          {upsellProductCount ? 'Add another upsell product' : 'Select upsell products'}
+                        </span>
+                        <ChevronDown
+                          className={cn(
+                            'h-4 w-4 flex-shrink-0 text-slate-400 transition-transform',
+                            upsellProductDropdownOpen && 'rotate-180'
+                          )}
+                        />
+                      </button>
+                      <AnimatePresence>
+                        {upsellProductDropdownOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.98 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.98 }}
+                            transition={{ duration: 0.1 }}
+                            className="absolute left-0 right-0 top-full z-[120] mt-2 max-h-96 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 shadow-xl"
+                          >
+                            <div className="sticky top-0 z-10 bg-white pb-2">
+                              <div className="relative">
+                                <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                                <input
+                                  type="text"
+                                  placeholder="Search products..."
+                                  value={upsellProductSearch}
+                                  onChange={(event) => setUpsellProductSearch(event.target.value)}
+                                  className="h-8 w-full rounded-md border border-slate-300 bg-white pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              {availableUpsellProducts.length ? (
+                                availableUpsellProducts.map((product) => (
+                                  <button
+                                    key={product.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setForm((state) => ({
+                                        ...state,
+                                        upsellProductIds: [...state.upsellProductIds, product.id],
+                                      }));
+                                      setUpsellProductDropdownOpen(false);
+                                      setUpsellProductSearch('');
+                                    }}
+                                    className="flex w-full items-center gap-3 rounded-md border border-slate-200 px-3 py-2 text-left text-sm transition hover:border-primary hover:bg-primary/5"
+                                  >
+                                    {product.images?.[0] ? (
+                                      <img
+                                        src={product.images[0]}
+                                        alt={product.name}
+                                        className="h-10 w-10 flex-shrink-0 rounded-md border border-slate-200 object-cover"
+                                      />
+                                    ) : (
+                                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-[10px] text-slate-400">
+                                        No image
+                                      </div>
+                                    )}
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-semibold text-slate-700">{product.name}</p>
+                                      {product.sku ? (
+                                        <p className="text-xs text-slate-500">SKU: {product.sku}</p>
+                                      ) : null}
+                                    </div>
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                                  No products found.
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {form.upsellProductIds.map((id, index) => {
+                        const upsellProduct = productById.get(id);
+                        const label = upsellProduct?.name ?? id;
+                        return (
+                          <span
+                            key={`${id}-${index}`}
+                            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700"
+                          >
+                            <span className="text-[10px] font-semibold text-slate-400">#{index + 1}</span>
+                            <span className="truncate">{label}</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setForm((state) => ({
+                                  ...state,
+                                  upsellProductIds: state.upsellProductIds.filter((productId) => productId !== id),
+                                }))
+                              }
+                              className="text-slate-400 hover:text-red-600"
+                              aria-label="Remove upsell product"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        );
+                      })}
+                      {!form.upsellProductIds.length ? (
+                        <span className="text-xs text-muted">No upsell products selected.</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-white/70 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Cross-sell products</p>
+                      <p className="text-xs text-slate-500">Show as you might also like suggestions.</p>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-500">{crossSellProductCount} selected</span>
+                  </div>
+                  <div className="mt-3 grid gap-3">
+                    <div className="relative" ref={crossSellProductDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setCrossSellProductDropdownOpen((open) => !open)}
+                        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm transition hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        aria-expanded={crossSellProductDropdownOpen}
+                      >
+                        <span className="truncate text-sm font-medium">
+                          {crossSellProductCount ? 'Add another cross-sell product' : 'Select cross-sell products'}
+                        </span>
+                        <ChevronDown
+                          className={cn(
+                            'h-4 w-4 flex-shrink-0 text-slate-400 transition-transform',
+                            crossSellProductDropdownOpen && 'rotate-180'
+                          )}
+                        />
+                      </button>
+                      <AnimatePresence>
+                        {crossSellProductDropdownOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.98 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.98 }}
+                            transition={{ duration: 0.1 }}
+                            className="absolute left-0 right-0 top-full z-[120] mt-2 max-h-96 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 shadow-xl"
+                          >
+                            <div className="sticky top-0 z-10 bg-white pb-2">
+                              <div className="relative">
+                                <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                                <input
+                                  type="text"
+                                  placeholder="Search products..."
+                                  value={crossSellProductSearch}
+                                  onChange={(event) => setCrossSellProductSearch(event.target.value)}
+                                  className="h-8 w-full rounded-md border border-slate-300 bg-white pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              {availableCrossSellProducts.length ? (
+                                availableCrossSellProducts.map((product) => (
+                                  <button
+                                    key={product.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setForm((state) => ({
+                                        ...state,
+                                        crossSellProductIds: [...state.crossSellProductIds, product.id],
+                                      }));
+                                      setCrossSellProductDropdownOpen(false);
+                                      setCrossSellProductSearch('');
+                                    }}
+                                    className="flex w-full items-center gap-3 rounded-md border border-slate-200 px-3 py-2 text-left text-sm transition hover:border-primary hover:bg-primary/5"
+                                  >
+                                    {product.images?.[0] ? (
+                                      <img
+                                        src={product.images[0]}
+                                        alt={product.name}
+                                        className="h-10 w-10 flex-shrink-0 rounded-md border border-slate-200 object-cover"
+                                      />
+                                    ) : (
+                                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-[10px] text-slate-400">
+                                        No image
+                                      </div>
+                                    )}
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-semibold text-slate-700">{product.name}</p>
+                                      {product.sku ? (
+                                        <p className="text-xs text-slate-500">SKU: {product.sku}</p>
+                                      ) : null}
+                                    </div>
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                                  No products found.
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {form.crossSellProductIds.map((id, index) => {
+                        const crossSellProduct = productById.get(id);
+                        const label = crossSellProduct?.name ?? id;
+                        return (
+                          <span
+                            key={`${id}-${index}`}
+                            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700"
+                          >
+                            <span className="text-[10px] font-semibold text-slate-400">#{index + 1}</span>
+                            <span className="truncate">{label}</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setForm((state) => ({
+                                  ...state,
+                                  crossSellProductIds: state.crossSellProductIds.filter(
+                                    (productId) => productId !== id
+                                  ),
+                                }))
+                              }
+                              className="text-slate-400 hover:text-red-600"
+                              aria-label="Remove cross-sell product"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        );
+                      })}
+                      {!form.crossSellProductIds.length ? (
+                        <span className="text-xs text-muted">No cross-sell products selected.</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </FormPanel>
           )}

@@ -3,6 +3,7 @@ const multer = require('multer');
 const {
   listProducts,
   getProduct,
+  getRelatedProducts,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -56,6 +57,7 @@ const handleProductDocumentUpload = (req, res, next) => {
 router.get('/', listProducts);
 router.get('/vehicle-compatibility-options', getVehicleCompatibilityOptions);
 router.get('/:id/reviews', listProductReviews);
+router.get('/:id/related', getRelatedProducts);
 router.get('/:id', getProduct);
 router.post('/:id/notify', requireAuth, requireRole(['client']), requestRestockNotification);
 router.post('/:id/reviews', requireAuth, requireRole(['client', 'super_admin', 'admin', 'staff']), createReview);

@@ -98,6 +98,16 @@ const fetchProductsByIds = async (ids?: string[]): Promise<Product[]> => {
   return results.filter((item): item is Product => Boolean(item));
 };
 
+const fetchRelatedProducts = async (productId: string): Promise<Product[]> => {
+  try {
+    const { products } = await productsApi.getRelated(productId);
+    return products;
+  } catch (err) {
+    console.warn('Unable to load related products', err);
+    return [];
+  }
+};
+
 const fetchCategoriesByIds = async (ids?: string[]): Promise<Category[]> => {
   if (!ids?.length) return [];
   try {
@@ -229,7 +239,7 @@ export const ProductDetailPage: React.FC = () => {
         const [trail, manufacturerRecord, related, upsell, crossSell, categories] = await Promise.all([
           buildCategoryTrail(product.categoryId),
           fetchManufacturerById(product.manufacturerId),
-          fetchProductsByIds(product.relatedProductIds),
+          fetchRelatedProducts(product.id),
           fetchProductsByIds(product.upsellProductIds),
           fetchProductsByIds(product.crossSellProductIds),
           fetchCategoriesByIds(categoryIds),
@@ -837,19 +847,24 @@ export const ProductDetailPage: React.FC = () => {
           <div className="space-y-12">
             <ProductRecommendationRail
               title="Frequently bought together"
-              subtitle="Complementary tools and accessories that pair well with this product."
               products={upsellProducts}
-            />
-            <ProductRecommendationRail
-              title="Recommended alternatives"
-              subtitle="Explore related parts that fit similar vehicles or configurations."
-              products={relatedProducts}
+              columns={6}
+              showBrowseLink={false}
             />
             <ProductRecommendationRail
               title="You might also like"
-              subtitle="Cross-sell suggestions based on similar shopping journeys."
               products={crossSellProducts}
+              columns={6}
+              showBrowseLink={false}
             />
+            <div className="pb-12">
+              <ProductRecommendationRail
+                title="Related products"
+                products={relatedProducts}
+                columns={6}
+                showBrowseLink={false}
+              />
+            </div>
           </div>
         </article>
         )}

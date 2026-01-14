@@ -7,16 +7,26 @@ interface ProductRecommendationRailProps {
   title: string;
   subtitle?: string;
   products: Product[];
+  columns?: 4 | 6;
+  showBrowseLink?: boolean;
 }
 
 export const ProductRecommendationRail: React.FC<ProductRecommendationRailProps> = ({
   title,
   subtitle,
   products,
+  columns = 4,
+  showBrowseLink = true,
 }) => {
   if (!products.length) {
     return null;
   }
+
+  const gridClassName =
+    columns === 6
+      ? 'grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6'
+      : 'grid gap-5 sm:grid-cols-2 xl:grid-cols-4';
+  const displayProducts = columns === 6 ? products.slice(0, 6) : products;
 
   return (
     <section className="space-y-4">
@@ -25,16 +35,18 @@ export const ProductRecommendationRail: React.FC<ProductRecommendationRailProps>
           <h3 className="text-xl font-semibold text-slate-900">{title}</h3>
           {subtitle ? <p className="text-sm text-muted">{subtitle}</p> : null}
         </div>
-        <Link
-          to="/products"
-          className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
-        >
-          Browse catalog
-        </Link>
+        {showBrowseLink ? (
+          <Link
+            to="/products"
+            className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Browse catalog
+          </Link>
+        ) : null}
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {products.map((product) => {
+      <div className={gridClassName}>
+        {displayProducts.map((product) => {
           const displayTags = getProductStatusTags(product);
           return (
             <article

@@ -170,6 +170,7 @@ export const productsApi = {
     );
   },
   get: (id: string) => http.get<{ product: Product }>(`/products/${id}`),
+  getRelated: (id: string) => http.get<{ products: Product[] }>(`/products/${id}/related`),
   create: (payload: ProductInput) => http.post<{ product: Product }>('/products', payload),
   update: (id: string, payload: UpdateProductInput) => http.put<{ product: Product }>(`/products/${id}`, payload),
   uploadImage: async (file: File) => {

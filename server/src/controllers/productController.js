@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
+const Order = require('../models/Order');
 const ProductRestockSubscription = require('../models/ProductRestockSubscription');
 const Category = require('../models/Category');
 const Manufacturer = require('../models/Manufacturer');
@@ -58,6 +59,7 @@ const normalizeCategoryIds = (primaryId, categoryIds) => {
 
 const COMING_SOON_TAG = 'coming soon';
 const NEW_ARRIVAL_DAYS = 30;
+const MAX_RELATED_PRODUCTS = 6;
 
 const sanitizeTags = (tags) => {
   if (!Array.isArray(tags)) {
@@ -279,6 +281,96 @@ const sanitizeProductForPublic = (product) => {
     delete productData.notes.internal;
   }
   return productData;
+};
+
+const buildPublicProductFilter = (isPrivilegedRequest) => {
+  if (isPrivilegedRequest) {
+    return {};
+  }
+  return {
+    visibility: { $ne: 'hidden' },
+    tags: { $ne: COMING_SOON_TAG },
+  };
+};
+
+const toUniqueStringList = (values) => {
+  const seen = new Set();
+  const output = [];
+  (Array.isArray(values) ? values : []).forEach((value) => {
+    if (!value) return;
+    const stringValue = String(value).trim();
+    if (!stringValue || seen.has(stringValue)) return;
+    seen.add(stringValue);
+    output.push(stringValue);
+  });
+  return output;
+};
+
+const toObjectIdList = (values) =>
+  toUniqueStringList(values)
+    .filter((value) => mongoose.Types.ObjectId.isValid(value))
+    .map((value) => new mongoose.Types.ObjectId(value));
+
+const getSalesCounts = async (productIds) => {
+  const objectIds = toObjectIdList(productIds);
+  if (!objectIds.length) {
+    return new Map();
+  }
+
+  const rows = await Order.aggregate([
+    { $unwind: '$products' },
+    { $match: { 'products.productId': { $in: objectIds } } },
+    { $group: { _id: '$products.productId', quantity: { $sum: '$products.quantity' } } },
+  ]);
+
+  const counts = new Map();
+  rows.forEach((row) => {
+    if (!row || !row._id) return;
+    counts.set(row._id.toString(), row.quantity || 0);
+  });
+  return counts;
+};
+
+const sortBySalesThenCreatedAt = (products, salesCounts) =>
+  products.slice().sort((left, right) => {
+    const leftId = left._id ? left._id.toString() : '';
+    const rightId = right._id ? right._id.toString() : '';
+    const leftSales = salesCounts.get(leftId) ?? 0;
+    const rightSales = salesCounts.get(rightId) ?? 0;
+    if (leftSales !== rightSales) {
+      return rightSales - leftSales;
+    }
+    const leftDate = left.createdAt instanceof Date ? left.createdAt.getTime() : 0;
+    const rightDate = right.createdAt instanceof Date ? right.createdAt.getTime() : 0;
+    return rightDate - leftDate;
+  });
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildRelatedBrandFilter = (product) => {
+  const filters = [];
+
+  if (product.manufacturerId) {
+    filters.push({ manufacturerId: product.manufacturerId });
+  } else if (product.manufacturerName) {
+    filters.push({ manufacturerName: new RegExp(`^${escapeRegex(product.manufacturerName)}$`, 'i') });
+  }
+
+  const makeValues = Array.from(
+    new Set((product.compatibility || []).map((entry) => entry.make).filter(Boolean))
+  );
+  if (makeValues.length) {
+    const makeRegexes = makeValues.map((value) => new RegExp(`^${escapeRegex(value)}$`, 'i'));
+    filters.push({ 'compatibility.make': { $in: makeRegexes } });
+  }
+
+  if (!filters.length) {
+    return null;
+  }
+  if (filters.length === 1) {
+    return filters[0];
+  }
+  return { $or: filters };
 };
 
 const specialInventoryStatuses = new Set(['backorder', 'preorder']);
@@ -621,6 +713,86 @@ const getProduct = async (req, res, next) => {
       throw notFound('Product not found');
     }
     res.json({ product: sanitizeProductForPublic(product) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getRelatedProducts = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw notFound('Product not found');
+    }
+
+    const product = await Product.findById(id);
+    if (!product) {
+      throw notFound('Product not found');
+    }
+
+    const isPrivilegedRequest = Boolean(req.user && ['super_admin', 'admin', 'staff'].includes(req.user.role));
+    if (product.visibility === 'hidden' && !isPrivilegedRequest) {
+      throw notFound('Product not found');
+    }
+
+    const publicFilter = buildPublicProductFilter(isPrivilegedRequest);
+    const selectedProducts = [];
+    const selectedIds = new Set([product._id.toString()]);
+
+    const addProduct = (item) => {
+      if (!item || selectedProducts.length >= MAX_RELATED_PRODUCTS) {
+        return;
+      }
+      const itemId = item._id ? item._id.toString() : '';
+      if (!itemId || selectedIds.has(itemId)) {
+        return;
+      }
+      selectedIds.add(itemId);
+      selectedProducts.push(item);
+    };
+
+    const manualIds = toUniqueStringList(product.relatedProductIds)
+      .filter((value) => value !== product._id.toString())
+      .filter((value) => mongoose.Types.ObjectId.isValid(value));
+    if (manualIds.length) {
+      const manualProducts = await Product.find({
+        _id: { $in: manualIds },
+        ...publicFilter,
+      });
+      const manualById = new Map(manualProducts.map((item) => [item._id.toString(), item]));
+      manualIds.forEach((manualId) => addProduct(manualById.get(manualId)));
+    }
+
+    if (selectedProducts.length < MAX_RELATED_PRODUCTS) {
+      const categoryIds = normalizeCategoryIds(product.categoryId, product.categoryIds);
+      if (categoryIds.length) {
+        const categoryCandidates = await Product.find({
+          ...publicFilter,
+          _id: { $nin: Array.from(selectedIds) },
+          $or: [{ categoryId: { $in: categoryIds } }, { categoryIds: { $in: categoryIds } }],
+        });
+        const categorySales = await getSalesCounts(categoryCandidates.map((item) => item._id.toString()));
+        const sortedCategoryCandidates = sortBySalesThenCreatedAt(categoryCandidates, categorySales);
+        sortedCategoryCandidates.forEach((item) => addProduct(item));
+      }
+    }
+
+    if (selectedProducts.length < MAX_RELATED_PRODUCTS) {
+      const brandFilter = buildRelatedBrandFilter(product);
+      if (brandFilter) {
+        const brandCandidates = await Product.find({
+          ...publicFilter,
+          _id: { $nin: Array.from(selectedIds) },
+          ...brandFilter,
+        });
+        const brandSales = await getSalesCounts(brandCandidates.map((item) => item._id.toString()));
+        const sortedBrandCandidates = sortBySalesThenCreatedAt(brandCandidates, brandSales);
+        sortedBrandCandidates.forEach((item) => addProduct(item));
+      }
+    }
+
+    const products = selectedProducts.slice(0, MAX_RELATED_PRODUCTS).map((item) => sanitizeProductForPublic(item));
+    res.json({ products });
   } catch (error) {
     next(error);
   }
@@ -982,6 +1154,7 @@ const getVehicleCompatibilityOptions = async (req, res, next) => {
 module.exports = {
   listProducts,
   getProduct,
+  getRelatedProducts,
   createProduct,
   updateProduct,
   deleteProduct,
