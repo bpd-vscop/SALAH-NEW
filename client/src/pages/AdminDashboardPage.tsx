@@ -16,6 +16,7 @@ import { productsApi } from '../api/products';
 import { manufacturersApi, type Manufacturer } from '../api/manufacturers';
 import { menuApi, type MenuSectionInput, type MenuLinkInput } from '../api/menu';
 import { adminMessagesApi } from '../api/messages';
+import { usersApi } from '../api/users';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { SiteLayout } from '../components/layout/SiteLayout';
 import { useAuth } from '../context/AuthContext';
@@ -494,6 +495,8 @@ export const AdminDashboardPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [messagesUnreadCount, setMessagesUnreadCount] = useState(0);
   const [composeRequest, setComposeRequest] = useState<{ clients: ComposeClientRef[] } | null>(null);
+  const [clientTypeCounts, setClientTypeCounts] = useState({ b2b: 0, c2b: 0, total: 0 });
+  const [clientsLoading, setClientsLoading] = useState(false);
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
   const [featuredItems, setFeaturedItems] = useState<FeaturedShowcaseItem[]>([]);
   const [menuSectionsDraft, setMenuSectionsDraft] = useState<MenuSectionInput[]>([]);
@@ -643,6 +646,20 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  const refreshClientTypeCounts = async () => {
+    setClientsLoading(true);
+    try {
+      const { users } = await usersApi.list({ role: 'client' });
+      const b2b = users.filter((user) => user.clientType === 'B2B').length;
+      const c2b = users.filter((user) => user.clientType === 'C2B' || !user.clientType).length;
+      setClientTypeCounts({ b2b, c2b, total: users.length });
+    } catch (error) {
+      console.error('Failed to refresh client counts', error);
+    } finally {
+      setClientsLoading(false);
+    }
+  };
+
   const refreshMenu = async () => {
     const { menu } = await menuApi.get();
     const sections = menu.sections ?? [];
@@ -705,6 +722,7 @@ export const AdminDashboardPage: React.FC = () => {
           refreshFeaturedShowcase(),
           refreshOrders(),
           refreshMessagesUnread(),
+          refreshClientTypeCounts(),
           refreshMenu(),
           refreshCategoryDisplay(),
         ]);
@@ -2058,6 +2076,8 @@ export const AdminDashboardPage: React.FC = () => {
                 manufacturersCount={manufacturers.length}
                 unreadMessages={messagesUnreadCount}
                 lowStockIds={lowStockIds}
+                clientTypeCounts={clientTypeCounts}
+                clientsLoading={clientsLoading}
                 onNavigate={handleTopNavSelect}
               />
             </motion.div>
