@@ -338,7 +338,7 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
     return {
       title: formatShortDate(date),
       items: [
-        { label: 'Revenue', value: formatCurrency(revenueValue), color: '#8b5cf6' },
+        { label: 'Revenue', value: formatCurrency(revenueValue), color: '#b91c1c' },
         { label: 'Orders', value: orderCount.toString(), color: '#10b981' },
       ],
       left,
@@ -394,7 +394,7 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
   const b2bLength = donutCircumference * b2bShare;
   const c2bLength = donutCircumference * c2bShare;
   const b2bGradient = { from: '#f6b210', to: '#a00b0b' };
-  const c2bGradient = { from: '#1d4ed8', to: '#60a5fa' };
+  const c2bGradient = { from: '#0015d1ff', to: '#a7c3ffff' };
 
   const statCards = [
     {
@@ -486,7 +486,7 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
                     aria-pressed={isActive}
                     className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
                       isActive
-                        ? 'bg-violet-500 text-white shadow-sm'
+                        ? 'bg-gradient-to-r from-primary to-primary-dark shadow-md text-white'
                         : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
@@ -570,10 +570,10 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
                           : 'translate(-50%, 16px)',
                     }}
                   >
-                    <div className="rounded-2xl border border-violet-200/60 bg-gradient-to-br from-white via-violet-50/30 to-white px-4 py-3.5 text-xs shadow-2xl shadow-violet-500/20 ring-1 ring-violet-100/80 backdrop-blur-xl">
-                      <div className="mb-2.5 flex items-center justify-between gap-3 border-b border-violet-100/50 pb-2">
+                    <div className="rounded-2xl border border-red-200/60 bg-gradient-to-br from-white via-red-50/30 to-white px-4 py-3.5 text-xs shadow-2xl shadow-red-900/20 ring-1 ring-red-100/80 backdrop-blur-xl">
+                      <div className="mb-2.5 flex items-center justify-between gap-3 border-b border-red-100/50 pb-2">
                         <span className="text-[11px] font-bold text-slate-900">{chartTooltip.title}</span>
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-500" />
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#b91c1c]" />
                       </div>
                       <div className="space-y-2">
                         {chartTooltip.items.map((item) => (
@@ -591,7 +591,7 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
                       </div>
                     </div>
                     <span
-                      className="absolute left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border border-violet-200/60 bg-gradient-to-br from-white via-violet-50/30 to-white ring-1 ring-violet-100/80"
+                      className="absolute left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border border-red-200/60 bg-gradient-to-br from-white via-red-50/30 to-white ring-1 ring-red-100/80"
                       style={{
                         [chartTooltip.align === 'top' ? 'top' : 'bottom']: 'calc(100% - 6px)',
                         [chartTooltip.align === 'top' ? 'borderBottom' : 'borderTop']: 'none',
@@ -607,8 +607,8 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
                 >
                 <defs>
                   <linearGradient id="sales-chart-gradient" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.24" />
-                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.02" />
+                    <stop offset="0%" stopColor="#b91c1c" stopOpacity="0.24" />
+                    <stop offset="100%" stopColor="#b91c1c" stopOpacity="0.02" />
                   </linearGradient>
                 </defs>
                 <g>
@@ -651,7 +651,7 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
                 <path
                   d={salesChart.smoothLine}
                   fill="none"
-                  stroke="#8b5cf6"
+                  stroke="#b91c1c"
                   strokeWidth="2.4"
                   strokeLinejoin="round"
                   strokeLinecap="round"
@@ -666,7 +666,7 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
                         cx={point.x}
                         cy={point.y}
                         r={isHovered ? '4' : '2.5'}
-                        fill="#8b5cf6"
+                        fill="#b91c1c"
                         fillOpacity={isHovered ? '1' : '0.6'}
                         className="transition-all duration-200"
                       />
@@ -679,7 +679,7 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
                       cx={chartHoverPoint.x}
                       cy={chartHoverPoint.y}
                       r="6"
-                      fill="#8b5cf6"
+                      fill="#b91c1c"
                       fillOpacity="0.12"
                       className="animate-pulse"
                     />
@@ -687,7 +687,7 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
                       cx={chartHoverPoint.x}
                       cy={chartHoverPoint.y}
                       r="4"
-                      fill="#8b5cf6"
+                      fill="#b91c1c"
                       stroke="#ffffff"
                       strokeWidth="2"
                       className="drop-shadow-lg"
@@ -715,7 +715,7 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
                 <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-[#8b5cf6]" />
+                  <span className="h-2 w-2 rounded-full bg-[#b91c1c]" />
                   Revenue
                 </span>
                 <span className="flex items-center gap-2">
@@ -816,7 +816,7 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
             <button
               type="button"
               onClick={() => onNavigate?.('users', 'clients')}
-              className="mt-4 w-full rounded-full bg-gradient-to-r from-[#b91c1c] to-[#f59e0b] px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:from-[#991b1b] hover:to-[#d97706]"
+              className="mt-4 w-full rounded-full bg-gradient-to-r from-primary to-primary-dark px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:shadow-lg"
             >
               View details
             </button>
