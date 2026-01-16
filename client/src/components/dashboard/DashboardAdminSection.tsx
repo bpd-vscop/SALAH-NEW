@@ -1,7 +1,8 @@
-﻿import { useMemo, useState } from 'react';
-import { AlertTriangle, ChevronDown, MessageSquare, Package, ShoppingCart, Timer, TrendingUp } from 'lucide-react';
+﻿import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, MessageSquare, ShoppingCart, Timer, TrendingUp, Users, Globe } from 'lucide-react';
 import type { Order, OrderStatus, Product } from '../../types/api';
 import { formatCurrency, formatTimestamp } from '../../utils/format';
+import { analyticsApi, type AnalyticsSummary } from '../../api/analytics';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * DAY_MS;
@@ -13,6 +14,398 @@ const formatMonthLabel = (value: Date, includeYear: boolean) =>
   new Intl.DateTimeFormat('en-US', includeYear ? { month: 'short', year: 'numeric' } : { month: 'short' }).format(
     value
   );
+
+const visitorTrendStyle = { color: '#2563eb', gradient: { from: '#3b82f6', to: '#dbeafe' } };
+
+const deviceTrendPalette: Record<string, { color: string; gradient: { from: string; to: string } }> = {
+  mobile: { color: '#0ea5e9', gradient: { from: '#38bdf8', to: '#bae6fd' } },
+  desktop: { color: '#f97316', gradient: { from: '#fb923c', to: '#fed7aa' } },
+  tablet: { color: '#22c55e', gradient: { from: '#4ade80', to: '#dcfce7' } },
+  other: { color: '#64748b', gradient: { from: '#94a3b8', to: '#e2e8f0' } },
+};
+
+const buildChartTicks = (labels: string[]) => {
+  const totalDays = labels.length;
+  if (totalDays === 0) return [];
+
+  const formatLabel = (value: string) => {
+    const parsed = new Date(`${value}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? value : formatShortDate(parsed);
+  };
+
+  if (totalDays === 1) {
+    return [{ index: 0, label: formatLabel(labels[0]) }];
+  }
+
+  if (totalDays <= 45) {
+    const ticks: Array<{ index: number; label: string }> = [];
+    const step = Math.max(1, Math.floor(totalDays / 6));
+    for (let i = 0; i < totalDays; i += step) {
+      ticks.push({ index: i, label: formatLabel(labels[i]) });
+    }
+    if (ticks[ticks.length - 1]?.index !== totalDays - 1) {
+      ticks.push({ index: totalDays - 1, label: formatLabel(labels[totalDays - 1]) });
+    }
+    return ticks;
+  }
+
+  const start = new Date(`${labels[0]}T00:00:00`);
+  const end = new Date(`${labels[totalDays - 1]}T00:00:00`);
+  const spanYears = start.getFullYear() !== end.getFullYear();
+  const monthTicks: Array<{ index: number; label: string }> = [];
+
+  for (let i = 0; i < totalDays; i += 1) {
+    const date = new Date(`${labels[i]}T00:00:00`);
+    if (date.getDate() === 1 || i === 0) {
+      const includeYear = spanYears && (date.getMonth() === 0 || i === 0);
+      const label = Number.isNaN(date.getTime()) ? labels[i] : formatMonthLabel(date, includeYear);
+      monthTicks.push({ index: i, label });
+    }
+  }
+
+  const maxTicks = 7;
+  const step = Math.max(1, Math.ceil(monthTicks.length / maxTicks));
+  const filtered = monthTicks.filter((_, idx) => idx % step === 0);
+  if (filtered[filtered.length - 1]?.index !== totalDays - 1) {
+    const endDate = new Date(`${labels[totalDays - 1]}T00:00:00`);
+    const label = Number.isNaN(endDate.getTime())
+      ? labels[totalDays - 1]
+      : formatMonthLabel(endDate, spanYears);
+    filtered.push({ index: totalDays - 1, label });
+  }
+  return filtered;
+};
+
+const VisitorDeviceChart: React.FC<{
+  labels: string[];
+  totals: number[];
+  devices: Record<string, number[]>;
+}> = ({ labels, totals, devices }) => {
+  const width = 560;
+  const height = 160;
+  const padding = 6;
+
+  const deviceEntries = useMemo(() => {
+    const order = ['mobile', 'desktop', 'tablet'];
+    const merged: Record<string, number[]> = {};
+
+    order.forEach((device) => {
+      merged[device] = devices?.[device] ?? Array(labels.length).fill(0);
+    });
+
+    Object.entries(devices ?? {}).forEach(([device, values]) => {
+      if (!merged[device]) {
+        merged[device] = values;
+      }
+    });
+
+    const entries = Object.entries(merged).map(([device, values]) => {
+      const palette = deviceTrendPalette[device] ?? deviceTrendPalette.other;
+      const normalized = Array.from({ length: labels.length }, (_, index) => values[index] ?? 0);
+      return {
+        id: device,
+        label: device.charAt(0).toUpperCase() + device.slice(1),
+        color: palette.color,
+        values: normalized,
+        total: normalized.reduce((sum, value) => sum + value, 0),
+      };
+    });
+
+    const unknownValues = totals.map((total, index) => {
+      const knownSum = entries.reduce((sum, entry) => sum + (entry.values[index] ?? 0), 0);
+      return Math.max(0, total - knownSum);
+    });
+    const unknownTotal = unknownValues.reduce((sum, value) => sum + value, 0);
+    if (unknownTotal > 0) {
+      entries.push({
+        id: 'unknown',
+        label: 'Unknown',
+        color: deviceTrendPalette.other.color,
+        values: unknownValues,
+        total: unknownTotal,
+      });
+    }
+
+    return entries.sort((a, b) => {
+      const aIsUnknown = a.id === 'unknown';
+      const bIsUnknown = b.id === 'unknown';
+      if (aIsUnknown && bIsUnknown) return 0;
+      if (aIsUnknown) return 1;
+      if (bIsUnknown) return -1;
+      const aIndex = order.indexOf(a.id);
+      const bIndex = order.indexOf(b.id);
+      if (aIndex === -1 && bIndex === -1) {
+        return b.total - a.total;
+      }
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    });
+  }, [devices, labels.length, totals]);
+
+  const chart = useMemo(() => {
+    const xRange = Math.max(1, labels.length - 1);
+    const maxValue = Math.max(1, ...totals);
+    const points = totals.map((value, index) => {
+      const x = padding + (index / xRange) * (width - padding * 2);
+      const y = padding + (1 - value / maxValue) * (height - padding * 2);
+      return { x, y };
+    });
+
+    const createSmoothPath = (pts: Array<{ x: number; y: number }>) => {
+      if (pts.length === 0) return '';
+      if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+      let path = `M ${pts[0].x} ${pts[0].y}`;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const current = pts[i];
+        const next = pts[i + 1];
+        const controlPointDistance = (next.x - current.x) * 0.5;
+        const cp1x = current.x + controlPointDistance;
+        const cp1y = current.y;
+        const cp2x = next.x - controlPointDistance;
+        const cp2y = next.y;
+        path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${next.x} ${next.y}`;
+      }
+      return path;
+    };
+
+    const smoothLine = createSmoothPath(points);
+    const yBase = height - padding;
+    const areaPath = points.length
+      ? `${smoothLine} L ${points[points.length - 1].x} ${yBase} L ${points[0].x} ${yBase} Z`
+      : '';
+
+    return {
+      width,
+      height,
+      padding,
+      yBase,
+      points,
+      smoothLine,
+      areaPath,
+    };
+  }, [height, labels.length, padding, totals, width]);
+
+  const [hover, setHover] = useState<{
+    index: number;
+    left: number;
+    top: number;
+  } | null>(null);
+
+  const hoverPoint = hover ? chart.points[hover.index] : null;
+
+  const tooltip = useMemo(() => {
+    if (!hover || !labels[hover.index]) return null;
+    const dateValue = labels[hover.index];
+    const parsed = new Date(`${dateValue}T00:00:00`);
+    const title = Number.isNaN(parsed.getTime()) ? dateValue : formatShortDate(parsed);
+
+    let left = hover.left;
+    let top = hover.top;
+    let align: 'top' | 'bottom' = 'top';
+
+    if (top < 28) {
+      align = 'bottom';
+    }
+
+    left = Math.max(2, Math.min(98, left));
+
+    return {
+      title,
+      total: totals[hover.index] ?? 0,
+      devices: deviceEntries.map((entry) => ({
+        label: entry.label,
+        value: entry.values[hover.index] ?? 0,
+        color: entry.color,
+      })),
+      left,
+      top,
+      align,
+    };
+  }, [deviceEntries, hover, labels, totals]);
+
+  const ticks = useMemo(() => buildChartTicks(labels), [labels]);
+
+  return (
+    <div className="mx-auto w-full max-w-2xl">
+      <div
+        className="relative h-40 cursor-crosshair"
+        onMouseMove={(e) => {
+          if (!chart.points.length) return;
+          const rect = e.currentTarget.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left;
+          const relativeX = (mouseX / rect.width) * chart.width;
+
+          let closestIndex = 0;
+          let minDistance = Infinity;
+
+          chart.points.forEach((point, index) => {
+            const distance = Math.abs(point.x - relativeX);
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestIndex = index;
+            }
+          });
+
+          const closestPoint = chart.points[closestIndex];
+          if (closestPoint) {
+            const left = (closestPoint.x / chart.width) * 100;
+            const top = (closestPoint.y / chart.height) * 100;
+            setHover({ index: closestIndex, left, top });
+          }
+        }}
+        onMouseLeave={() => setHover(null)}
+        onTouchEnd={() => setHover(null)}
+      >
+        {tooltip && (
+          <div
+            className="pointer-events-none absolute z-20 animate-in fade-in zoom-in-95 duration-200"
+            style={{
+              left: `${tooltip.left}%`,
+              top: `${tooltip.top}%`,
+              transform:
+                tooltip.align === 'top'
+                  ? 'translate(-50%, calc(-100% - 16px))'
+                  : 'translate(-50%, 16px)',
+            }}
+          >
+            <div className="rounded-2xl border border-slate-200/70 bg-white/95 px-4 py-3.5 text-xs shadow-2xl shadow-slate-900/10 ring-1 ring-white/80 backdrop-blur-xl">
+              <div className="mb-2.5 flex items-center justify-between gap-3 border-b border-slate-100/70 pb-2">
+                <span className="text-[11px] font-bold text-slate-900">{tooltip.title}</span>
+                <span className="text-[11px] font-semibold text-blue-600">{formatCount(tooltip.total)} total</span>
+              </div>
+              {tooltip.devices.length ? (
+                <div className="space-y-2">
+                  {tooltip.devices.map((device) => (
+                    <div key={device.label} className="flex items-center justify-between gap-6">
+                      <span className="flex items-center gap-2 text-[11px] font-medium text-slate-600 whitespace-nowrap">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full ring-2 ring-white flex-shrink-0"
+                          style={{ backgroundColor: device.color }}
+                        />
+                        {device.label}
+                      </span>
+                      <span className="text-[12px] font-bold text-slate-900 whitespace-nowrap">
+                        {formatCount(device.value)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-400">No device data</p>
+              )}
+            </div>
+            <span
+              className="absolute left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border border-slate-200/70 bg-white/95 ring-1 ring-white/80"
+              style={{
+                [tooltip.align === 'top' ? 'top' : 'bottom']: 'calc(100% - 6px)',
+                [tooltip.align === 'top' ? 'borderBottom' : 'borderTop']: 'none',
+                [tooltip.align === 'top' ? 'borderRight' : 'borderLeft']: 'none',
+              }}
+            />
+          </div>
+        )}
+        <svg viewBox={`0 0 ${chart.width} ${chart.height}`} className="h-40 w-full" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="visitor-trend-gradient" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor={visitorTrendStyle.gradient.from} stopOpacity="0.25" />
+              <stop offset="100%" stopColor={visitorTrendStyle.gradient.to} stopOpacity="0.04" />
+            </linearGradient>
+          </defs>
+          <g>
+            {[0.2, 0.4, 0.6, 0.8].map((row) => (
+              <line
+                key={row}
+                x1={chart.padding}
+                x2={chart.width - chart.padding}
+                y1={chart.padding + row * (chart.height - chart.padding * 2)}
+                y2={chart.padding + row * (chart.height - chart.padding * 2)}
+                stroke="#e5e7eb"
+                strokeWidth="1"
+                strokeDasharray="4 6"
+              />
+            ))}
+          </g>
+          {hoverPoint && (
+            <line
+              x1={hoverPoint.x}
+              x2={hoverPoint.x}
+              y1={chart.padding}
+              y2={chart.yBase}
+              stroke="#cbd5e1"
+              strokeWidth="1"
+              strokeDasharray="4 6"
+            />
+          )}
+          {chart.areaPath && <path d={chart.areaPath} fill="url(#visitor-trend-gradient)" />}
+          <path
+            d={chart.smoothLine}
+            fill="none"
+            stroke={visitorTrendStyle.color}
+            strokeWidth="2.4"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            className="transition-all duration-300"
+          />
+          {chart.points.map((point, index) => {
+            const isHovered = hover?.index === index;
+            return (
+              <circle
+                key={`${point.x}-${point.y}-${index}`}
+                cx={point.x}
+                cy={point.y}
+                r={isHovered ? '4' : '2.5'}
+                fill={visitorTrendStyle.color}
+                fillOpacity={isHovered ? '1' : '0.6'}
+                className="transition-all duration-200"
+              />
+            );
+          })}
+          {hoverPoint && (
+            <g>
+              <circle
+                cx={hoverPoint.x}
+                cy={hoverPoint.y}
+                r="6"
+                fill={visitorTrendStyle.color}
+                fillOpacity="0.12"
+                className="animate-pulse"
+              />
+              <circle
+                cx={hoverPoint.x}
+                cy={hoverPoint.y}
+                r="4"
+                fill={visitorTrendStyle.color}
+                stroke="#ffffff"
+                strokeWidth="2"
+                className="drop-shadow-lg"
+              />
+            </g>
+          )}
+        </svg>
+      </div>
+      {ticks.length > 0 && (
+        <div className="relative mt-3 h-6">
+          <span className="absolute left-0 right-0 top-1.5 h-px bg-slate-200/70" />
+          {ticks.map((tick) => {
+            const divisor = Math.max(1, labels.length - 1);
+            const left = (tick.index / divisor) * 100;
+            return (
+              <div
+                key={`${tick.index}-${tick.label}`}
+                className="absolute top-0 -translate-x-1/2 text-[10px] text-slate-500"
+                style={{ left: `${left}%` }}
+              >
+                <span className="mx-auto mb-1 block h-1.5 w-1.5 rounded-full bg-slate-400" />
+                <span>{tick.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const getOrderSubtotal = (order: Order) =>
   order.products.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -155,6 +548,27 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
   const [chartRange, setChartRange] = useState<'all' | '1m' | '1y'>('1m');
   const [showUsStates, setShowUsStates] = useState(true);
   const [locationRange, setLocationRange] = useState<'all' | '1m' | '1y'>('all');
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsSummary | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
+
+  // Fetch analytics data
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        setAnalyticsLoading(true);
+        const response = await analyticsApi.getSummary({ period: analyticsPeriod });
+        setAnalyticsData(response.data);
+      } catch (error) {
+        console.error('Failed to fetch analytics:', error);
+        setAnalyticsData(null);
+      } finally {
+        setAnalyticsLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, [analyticsPeriod]);
 
   const salesTrend = useMemo(() => {
     const today = new Date();
@@ -375,21 +789,6 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
       .slice(0, 6);
   }, [products, lowStockIds]);
 
-  const outOfStockCount = useMemo(
-    () =>
-      products.filter((product) => {
-        if (product.manageStock === false) return false;
-        const quantity = typeof product.inventory?.quantity === 'number' ? product.inventory.quantity : 0;
-        return quantity <= 0;
-      }).length,
-    [products]
-  );
-
-  const trackedStockCount = useMemo(
-    () => products.filter((product) => product.manageStock !== false).length,
-    [products]
-  );
-
   const safeB2b = Math.max(0, clientTypeCounts.b2b);
   const safeC2b = Math.max(0, clientTypeCounts.c2b);
   const totalClients = Math.max(clientTypeCounts.total, safeB2b + safeC2b);
@@ -428,20 +827,6 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
       helper: `Avg ${formatCurrency(avgOrderValue)}`,
       icon: TrendingUp,
       tone: 'bg-emerald-100 text-emerald-700',
-    },
-    {
-      label: 'Products',
-      value: formatCount(products.length),
-      helper: `${formatCount(trackedStockCount)} tracked`,
-      icon: Package,
-      tone: 'bg-slate-100 text-slate-700',
-    },
-    {
-      label: 'Low stock',
-      value: formatCount(lowStockIds.length),
-      helper: `${formatCount(outOfStockCount)} out of stock`,
-      icon: AlertTriangle,
-      tone: 'bg-rose-100 text-rose-700',
     },
     {
       label: 'Unread messages',
@@ -582,6 +967,30 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
 
     return { total, countries, usStates, usOrders, hasCountryData, hasUsStateData, totalRevenue };
   }, [orders, locationRange]);
+
+  const analyticsTrends = useMemo(() => {
+    if (!analyticsData?.trends) return null;
+    const { labels, visitors, devices } = analyticsData.trends;
+    if (!labels?.length || !visitors?.total?.length) return null;
+
+    const length = Math.min(labels.length, visitors.total.length);
+    if (!length) return null;
+
+    const trimmedDevices: Record<string, number[]> = {};
+    Object.entries(devices ?? {}).forEach(([device, values]) => {
+      const normalized = Array.from({ length }, (_, index) => values[index] ?? 0);
+      trimmedDevices[device] = normalized;
+    });
+
+    return {
+      labels: labels.slice(0, length),
+      visitors: {
+        total: visitors.total.slice(0, length),
+        unique: visitors.unique?.slice(0, length) ?? [],
+      },
+      devices: trimmedDevices,
+    };
+  }, [analyticsData]);
 
   const rangeOptions: Array<{ id: 'all' | '1m' | '1y'; label: string }> = [
     { id: 'all', label: 'All' },
@@ -953,7 +1362,7 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
         </section>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card, index) => {
           const Icon = card.icon;
           return (
@@ -975,6 +1384,184 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
           );
         })}
       </div>
+
+
+      {/* Visitor Analytics Section */}
+      <section className={`rounded-3xl border border-slate-200/60 ${glassMedium} shadow-sm`}>
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Visitor Analytics</h2>
+            <p className="text-sm text-slate-500">Real-time tracking of website visitors and traffic sources.</p>
+          </div>
+          <div className={`flex items-center rounded-full ${glassLight} p-1 shadow-sm ring-1 ring-white/70`}>
+            {(['7d', '30d', '90d', '1y'] as const).map((period) => {
+              const isActive = analyticsPeriod === period;
+              const label = period === '7d' ? '7D' : period === '30d' ? '30D' : period === '90d' ? '90D' : '1Y';
+              return (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => setAnalyticsPeriod(period)}
+                  aria-pressed={isActive}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                    isActive
+                      ? 'bg-gradient-to-r from-primary to-primary-dark shadow-md text-white'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {analyticsLoading ? (
+          <div className="px-6 pb-6">
+            <div className="flex items-center justify-center py-12">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            </div>
+          </div>
+        ) : !analyticsData ? (
+          <div className="px-6 pb-6">
+            <div className={`rounded-xl border border-dashed border-slate-200/60 ${glassXLight} px-4 py-12 text-center text-sm text-slate-500`}>
+              No analytics data available yet.
+            </div>
+          </div>
+        ) : (
+          <div className="px-6 pb-6">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className={`rounded-xl border border-slate-200/60 ${glassXLight} p-4 shadow-sm`}>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                    <Users className="h-5 w-5 text-blue-700" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Total Visitors</p>
+                    <p className="text-xl font-bold text-slate-900">{formatCount(analyticsData.summary.totalVisitors)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`rounded-xl border border-slate-200/60 ${glassXLight} p-4 shadow-sm`}>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
+                    <Users className="h-5 w-5 text-emerald-700" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Unique Visitors</p>
+                    <p className="text-xl font-bold text-slate-900">{formatCount(analyticsData.summary.uniqueVisitors)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`rounded-xl border border-slate-200/60 ${glassXLight} p-4 shadow-sm`}>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
+                    <TrendingUp className="h-5 w-5 text-purple-700" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Conversion Rate</p>
+                    <p className="text-xl font-bold text-slate-900">{analyticsData.summary.conversionRate.toFixed(2)}%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
+                <div className={`rounded-2xl border border-slate-200/60 ${glassXLight} p-5`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">Visitor count</h3>
+                      <p className="text-xs text-slate-500">Daily totals with device mix on hover.</p>
+                    </div>
+                    <div className="text-xs font-medium text-slate-500">
+                      {formatCount(analyticsData.summary.totalVisitors)} visitors
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    {analyticsTrends ? (
+                      <VisitorDeviceChart
+                        labels={analyticsTrends.labels}
+                        totals={analyticsTrends.visitors.total}
+                        devices={analyticsTrends.devices}
+                      />
+                    ) : (
+                      <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-slate-200/60 bg-white/60 text-xs text-slate-400">
+                        No trend data yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-4 lg:h-full">
+                  {/* Top Referrers */}
+                  <div className={`flex flex-col rounded-xl border border-slate-200/60 ${glassXLight} p-4 lg:flex-1`}>
+                    <div className="mb-3 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-slate-600" />
+                      <h3 className="text-sm font-semibold text-slate-900">Traffic Sources</h3>
+                    </div>
+                    <div className="space-y-2">
+                      {analyticsData.topReferrers.length === 0 ? (
+                        <p className="text-xs text-slate-400">No data yet</p>
+                      ) : (
+                        analyticsData.topReferrers.slice(0, 5).map((item, index) => {
+                          const percentage = analyticsData.summary.totalVisitors
+                            ? ((item.visitors / analyticsData.summary.totalVisitors) * 100).toFixed(1)
+                            : '0';
+                          return (
+                            <div key={item.source} className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <span className="text-xs font-medium text-slate-400">#{index + 1}</span>
+                                <span className="text-xs font-medium text-slate-700 truncate">{item.source}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-slate-900">{formatCount(item.visitors)}</span>
+                                <span className="text-[10px] text-slate-400">{percentage}%</span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Top Countries */}
+                  <div className={`flex flex-col rounded-xl border border-slate-200/60 ${glassXLight} p-4 lg:flex-1`}>
+                    <div className="mb-3 flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-slate-600" />
+                      <h3 className="text-sm font-semibold text-slate-900">Top Countries</h3>
+                    </div>
+                    <div className="space-y-2">
+                      {analyticsData.topCountries.length === 0 ? (
+                        <p className="text-xs text-slate-400">No data yet</p>
+                      ) : (
+                        analyticsData.topCountries.slice(0, 5).map((item, index) => {
+                          const percentage = analyticsData.summary.totalVisitors
+                            ? ((item.visitors / analyticsData.summary.totalVisitors) * 100).toFixed(1)
+                            : '0';
+                          return (
+                            <div key={item.country} className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <span className="text-xs font-medium text-slate-400">#{index + 1}</span>
+                                <span className="text-xs font-medium text-slate-700 truncate">{item.country}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-slate-900">{formatCount(item.visitors)}</span>
+                                <span className="text-[10px] text-slate-400">{percentage}%</span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+          </div>
+        )}
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -1093,24 +1680,23 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
               ) : locationSummary.hasCountryData ? (
                 <div className="space-y-3">
                   {locationSummary.countries.map((item) => {
-                    // Map country names to flag emojis
-                    const countryFlags: Record<string, string> = {
-                      'United Kingdom': '🇬🇧',
-                      'Spain': '🇪🇸',
-                      'United States': '🇺🇸',
-                      'Germany': '🇩🇪',
-                      'France': '🇫🇷',
-                      'Italy': '🇮🇹',
-                      'Canada': '🇨🇦',
-                      'Australia': '🇦🇺',
-                      'Japan': '🇯🇵',
-                      'China': '🇨🇳',
+                    const countryCodes: Record<string, string> = {
+                      'United Kingdom': 'UK',
+                      'Spain': 'ES',
+                      'United States': 'US',
+                      'Germany': 'DE',
+                      'France': 'FR',
+                      'Italy': 'IT',
+                      'Canada': 'CA',
+                      'Australia': 'AU',
+                      'Japan': 'JP',
+                      'China': 'CN',
                     };
-                    const flag = countryFlags[item.label] || '🌍';
+                    const code = countryCodes[item.label] || item.label.slice(0, 2).toUpperCase();
                     const isPositiveGrowth = item.growth >= 0;
                     const isUnitedStates = item.label === US_COUNTRY_LABEL;
                     const hasStates = locationSummary.usStates.length > 0;
-
+  
                     return (
                       <div key={`country-${item.label}`}>
                         {/* Country row */}
@@ -1120,8 +1706,8 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
                             onClick={() => isUnitedStates && hasStates ? setShowUsStates((prev) => !prev) : undefined}
                             className={`flex items-center gap-3 min-w-0 flex-1 ${isUnitedStates && hasStates ? 'cursor-pointer' : 'cursor-default'}`}
                           >
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-slate-200/60 text-xl flex-shrink-0">
-                              {flag}
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-slate-200/60 text-xs font-semibold text-slate-700 flex-shrink-0">
+                              {code}
                             </div>
                             <div className="min-w-0 text-left">
                               <div className="flex items-center gap-2">
@@ -1144,7 +1730,7 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
                             </p>
                           </div>
                         </div>
-
+  
                         {/* Expandable US States section */}
                         {isUnitedStates && hasStates && showUsStates && (
                           <div className="mt-3 ml-14 space-y-2 max-h-64 overflow-y-auto pr-2">
@@ -1231,4 +1817,3 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
     </div>
   );
 };
-

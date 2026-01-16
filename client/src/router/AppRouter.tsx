@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from '../components/routing/ProtectedRoute';
 import { ScrollToTop } from '../components/routing/ScrollToTop';
+import { trackVisitor } from '../utils/analytics';
 import { AdminDashboardPage } from '../pages/AdminDashboardPage';
 import { CartPage } from '../pages/CartPage';
 import { CheckoutPage } from '../pages/CheckoutPage';
@@ -24,8 +26,18 @@ import { LegalDocumentPage } from '../pages/LegalDocumentPage';
 import { AboutPage } from '../pages/AboutPage';
 import { FAQPage } from '../pages/FAQPage';
 
+const AnalyticsTracker: React.FC = () => {
+  useEffect(() => {
+    // Track visitor when app loads
+    trackVisitor();
+  }, []);
+
+  return null;
+};
+
 export const AppRouter: React.FC = () => (
   <BrowserRouter>
+    <AnalyticsTracker />
     <ScrollToTop />
     <Routes>
       <Route path="/" element={<HomePage />} />
