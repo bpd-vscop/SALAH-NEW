@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState } from 'react';
-import { AlertTriangle, MessageSquare, Package, ShoppingCart, Timer, TrendingUp } from 'lucide-react';
+import { AlertTriangle, ChevronDown, MessageSquare, Package, ShoppingCart, Timer, TrendingUp } from 'lucide-react';
 import type { Order, OrderStatus, Product } from '../../types/api';
 import { formatCurrency, formatTimestamp } from '../../utils/format';
 
@@ -50,6 +50,17 @@ const glassMedium = 'bg-gradient-to-br from-white/85 via-white/75 to-white/60 ba
 const glassLight = 'bg-gradient-to-br from-white/80 via-white/70 to-white/55 backdrop-blur';
 const glassXLight = 'bg-gradient-to-br from-white/75 via-white/65 to-white/50 backdrop-blur';
 const glassCardBgs = [glassMedium, glassLight, glassXLight, glassLight];
+const UNKNOWN_LOCATION = 'Unknown';
+const US_COUNTRY_LABEL = 'United States';
+const normalizeCountry = (value?: string | null) => {
+  const cleaned = value?.trim();
+  if (!cleaned) return '';
+  const lowered = cleaned.toLowerCase();
+  if (['us', 'u.s.', 'usa', 'united states', 'united states of america'].includes(lowered)) {
+    return US_COUNTRY_LABEL;
+  }
+  return cleaned;
+};
 
 interface DashboardAdminSectionProps {
   orders: Order[];
@@ -66,8 +77,6 @@ interface DashboardAdminSectionProps {
 export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
   orders,
   products,
-  categoriesCount,
-  manufacturersCount,
   unreadMessages,
   lowStockIds,
   clientTypeCounts,
@@ -144,6 +153,8 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
   }, [orders]);
 
   const [chartRange, setChartRange] = useState<'all' | '1m' | '1y'>('1m');
+  const [showUsStates, setShowUsStates] = useState(true);
+  const [locationRange, setLocationRange] = useState<'all' | '1m' | '1y'>('all');
 
   const salesTrend = useMemo(() => {
     const today = new Date();
@@ -448,14 +459,129 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
     { id: 'cancelled', label: 'Cancelled', count: cancelledOrders },
   ];
 
-  const catalogStats = [
-    { label: 'Products', value: formatCount(products.length) },
-    { label: 'Categories', value: formatCount(categoriesCount) },
-    { label: 'Manufacturers', value: formatCount(manufacturersCount) },
-    { label: 'Stock tracked', value: formatCount(trackedStockCount) },
-    { label: 'Low stock', value: formatCount(lowStockIds.length) },
-    { label: 'Out of stock', value: formatCount(outOfStockCount) },
-  ];
+  const locationSummary = useMemo(() => {
+    const now = Date.now();
+
+    // Calculate period ranges based on locationRange
+    let periodMs: number | null = THIRTY_DAYS_MS;
+    if (locationRange === '1y') {
+      periodMs = 365 * DAY_MS;
+    } else if (locationRange === 'all') {
+      periodMs = null;
+    }
+
+    const currentPeriodStart = periodMs ? now - periodMs : 0;
+    const previousPeriodStart = periodMs ? currentPeriodStart - periodMs : 0;
+    const previousPeriodEnd = currentPeriodStart;
+
+    // Current period data
+    const countryCounts = new Map<string, number>();
+    const countryRevenue = new Map<string, number>();
+    const usStateCounts = new Map<string, number>();
+    const usStateRevenue = new Map<string, number>();
+
+    // Previous period data (for growth calculation)
+    const prevCountryRevenue = new Map<string, number>();
+    const prevUsStateRevenue = new Map<string, number>();
+
+    let usOrders = 0;
+    let totalOrdersInRange = 0;
+
+    orders.forEach((order) => {
+      if (order.status === 'cancelled') return;
+
+      const timestamp = getOrderTimestamp(order);
+      if (!timestamp) return;
+
+      const countryValue =
+        order.taxCountry ??
+        order.user?.billingAddress?.country ??
+        order.user?.shippingAddresses?.[0]?.country ??
+        '';
+      const stateValue =
+        order.taxState ??
+        order.user?.billingAddress?.state ??
+        order.user?.shippingAddresses?.[0]?.state ??
+        '';
+
+      const normalizedCountry = normalizeCountry(countryValue);
+      const countryLabel = normalizedCountry || UNKNOWN_LOCATION;
+      const stateLabel = stateValue?.trim() || UNKNOWN_LOCATION;
+
+      const orderTotal = getOrderTotal(order);
+
+      // Current period
+      if (!periodMs || timestamp >= currentPeriodStart) {
+        totalOrdersInRange += 1;
+        countryCounts.set(countryLabel, (countryCounts.get(countryLabel) ?? 0) + 1);
+        countryRevenue.set(countryLabel, (countryRevenue.get(countryLabel) ?? 0) + orderTotal);
+
+        if (countryLabel === US_COUNTRY_LABEL) {
+          usOrders += 1;
+          usStateCounts.set(stateLabel, (usStateCounts.get(stateLabel) ?? 0) + 1);
+          usStateRevenue.set(stateLabel, (usStateRevenue.get(stateLabel) ?? 0) + orderTotal);
+        }
+      }
+
+      // Previous period (for growth calculation)
+      if (periodMs && timestamp >= previousPeriodStart && timestamp < previousPeriodEnd) {
+        prevCountryRevenue.set(countryLabel, (prevCountryRevenue.get(countryLabel) ?? 0) + orderTotal);
+
+        if (countryLabel === US_COUNTRY_LABEL) {
+          prevUsStateRevenue.set(stateLabel, (prevUsStateRevenue.get(stateLabel) ?? 0) + orderTotal);
+        }
+      }
+    });
+
+    const total = totalOrdersInRange;
+    const totalRevenue = Array.from(countryRevenue.values()).reduce((sum, val) => sum + val, 0);
+
+    const calculateGrowth = (current: number, previous: number): number => {
+      if (!periodMs) return 0;
+      if (previous === 0) {
+        return current > 0 ? 100 : 0;
+      }
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    const toList = (countMap: Map<string, number>, revenueMap: Map<string, number>, baseTotal: number) =>
+      Array.from(countMap.entries())
+        .map(([label, count]) => {
+          const currentRevenue = revenueMap.get(label) ?? 0;
+          const previousRevenue = prevCountryRevenue.get(label) ?? 0;
+          const growth = calculateGrowth(currentRevenue, previousRevenue);
+
+          return {
+            label,
+            count,
+            revenue: currentRevenue,
+            percent: baseTotal ? Math.round((count / baseTotal) * 100) : 0,
+            growth,
+          };
+        })
+        .sort((a, b) => b.revenue - a.revenue);
+
+    const countries = toList(countryCounts, countryRevenue, total).slice(0, 5);
+    const usStates = Array.from(usStateCounts.entries())
+      .map(([label, count]) => {
+        const currentRevenue = usStateRevenue.get(label) ?? 0;
+        const previousRevenue = prevUsStateRevenue.get(label) ?? 0;
+        const growth = calculateGrowth(currentRevenue, previousRevenue);
+
+        return {
+          label,
+          count,
+          revenue: currentRevenue,
+          percent: usOrders ? Math.round((count / usOrders) * 100) : 0,
+          growth,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+    const hasCountryData = countries.some((item) => item.label !== UNKNOWN_LOCATION);
+    const hasUsStateData = usStates.some((item) => item.label !== UNKNOWN_LOCATION);
+
+    return { total, countries, usStates, usOrders, hasCountryData, hasUsStateData, totalRevenue };
+  }, [orders, locationRange]);
 
   const rangeOptions: Array<{ id: 'all' | '1m' | '1y'; label: string }> = [
     { id: 'all', label: 'All' },
@@ -936,6 +1062,133 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
           <section className={`rounded-2xl border border-slate-200/60 ${glassLight} shadow-sm`}>
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
               <div>
+                <h2 className="text-lg font-semibold text-slate-900">Geo Location</h2>
+              </div>
+              <div className={`flex items-center rounded-full ${glassLight} p-1 shadow-sm ring-1 ring-white/70`}>
+                {rangeOptions.map((option) => {
+                  const isActive = locationRange === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setLocationRange(option.id)}
+                      aria-pressed={isActive}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                        isActive
+                          ? 'bg-gradient-to-r from-primary to-primary-dark shadow-md text-white'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="p-6">
+              {locationSummary.total === 0 ? (
+                <div className={`rounded-xl border border-dashed border-slate-200/60 ${glassXLight} px-4 py-6 text-center text-sm text-slate-500`}>
+                  No orders yet.
+                </div>
+              ) : locationSummary.hasCountryData ? (
+                <div className="space-y-3">
+                  {locationSummary.countries.map((item) => {
+                    // Map country names to flag emojis
+                    const countryFlags: Record<string, string> = {
+                      'United Kingdom': '🇬🇧',
+                      'Spain': '🇪🇸',
+                      'United States': '🇺🇸',
+                      'Germany': '🇩🇪',
+                      'France': '🇫🇷',
+                      'Italy': '🇮🇹',
+                      'Canada': '🇨🇦',
+                      'Australia': '🇦🇺',
+                      'Japan': '🇯🇵',
+                      'China': '🇨🇳',
+                    };
+                    const flag = countryFlags[item.label] || '🌍';
+                    const isPositiveGrowth = item.growth >= 0;
+                    const isUnitedStates = item.label === US_COUNTRY_LABEL;
+                    const hasStates = locationSummary.usStates.length > 0;
+
+                    return (
+                      <div key={`country-${item.label}`}>
+                        {/* Country row */}
+                        <div className="flex items-center justify-between group">
+                          <button
+                            type="button"
+                            onClick={() => isUnitedStates && hasStates ? setShowUsStates((prev) => !prev) : undefined}
+                            className={`flex items-center gap-3 min-w-0 flex-1 ${isUnitedStates && hasStates ? 'cursor-pointer' : 'cursor-default'}`}
+                          >
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-slate-200/60 text-xl flex-shrink-0">
+                              {flag}
+                            </div>
+                            <div className="min-w-0 text-left">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold text-slate-900 truncate">{item.label}</p>
+                                {isUnitedStates && hasStates && (
+                                  <ChevronDown
+                                    className={`h-3.5 w-3.5 text-slate-500 transition-transform ${
+                                      showUsStates ? 'rotate-180' : ''
+                                    }`}
+                                  />
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-500">{formatCount(item.count)} Sales</p>
+                            </div>
+                          </button>
+                          <div className="text-right flex-shrink-0 ml-4">
+                            <p className="text-sm font-bold text-slate-900">{formatCurrency(item.revenue)}</p>
+                            <p className={`text-xs font-semibold ${isPositiveGrowth ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {isPositiveGrowth ? '+' : ''}{item.growth}%
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Expandable US States section */}
+                        {isUnitedStates && hasStates && showUsStates && (
+                          <div className="mt-3 ml-14 space-y-2 max-h-64 overflow-y-auto pr-2">
+                            {locationSummary.usStates.map((state) => {
+                              const isPositiveStateGrowth = state.growth >= 0;
+                              return (
+                                <div
+                                  key={`state-${state.label}`}
+                                  className={`flex items-center justify-between rounded-lg ${glassXLight} px-3 py-2.5`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 flex-shrink-0">
+                                      {state.label.slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-medium text-slate-700 truncate">{state.label}</p>
+                                      <p className="text-[10px] text-slate-400">{formatCount(state.count)} Sales</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right flex-shrink-0 ml-3">
+                                    <p className="text-xs font-bold text-slate-900">{formatCurrency(state.revenue)}</p>
+                                    <p className={`text-[10px] font-semibold ${isPositiveStateGrowth ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                      {isPositiveStateGrowth ? '+' : ''}{state.growth}%
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className={`rounded-xl border border-dashed border-slate-200/60 ${glassXLight} px-4 py-6 text-center text-sm text-slate-500`}>
+                  No country data yet.
+                </div>
+              )}
+            </div>
+          </section>
+          <section className={`rounded-2xl border border-slate-200/60 ${glassLight} shadow-sm`}>
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <div>
                 <h2 className="text-lg font-semibold text-slate-900">Inventory watch</h2>
                 <p className="text-sm text-slate-500">Low stock items to review.</p>
               </div>
@@ -971,30 +1224,6 @@ export const DashboardAdminSection: React.FC<DashboardAdminSectionProps> = ({
                   </div>
                 ))
               )}
-            </div>
-          </section>
-
-          <section className={`rounded-2xl border border-slate-200/60 ${glassXLight} shadow-sm`}>
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">Catalog snapshot</h2>
-                <p className="text-sm text-slate-500">Current catalog coverage.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onNavigate?.('categories')}
-                className="inline-flex items-center justify-center rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                Catalog
-              </button>
-            </div>
-            <div className="grid gap-1.5 p-2 sm:grid-cols-2">
-              {catalogStats.map((stat) => (
-                <div key={stat.label} className={`rounded-xl ${glassXLight} px-3 py-2`}>
-                  <p className="text-xs uppercase tracking-wide text-slate-500">{stat.label}</p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">{stat.value}</p>
-                </div>
-              ))}
             </div>
           </section>
         </aside>
