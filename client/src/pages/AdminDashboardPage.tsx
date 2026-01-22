@@ -52,6 +52,7 @@ import { MessagesAdminSection } from '../components/dashboard/MessagesAdminSecti
 import { NavigationAdminSection } from '../components/dashboard/NavigationAdminSection';
 import { LegalDocumentsAdminSection } from '../components/dashboard/LegalDocumentsAdminSection';
 import { DashboardAdminSection } from '../components/dashboard/DashboardAdminSection';
+import { ShipEngineSettingsSection } from '../components/dashboard/ShipEngineSettingsSection';
 import type {
   // BannerFormState,
   CategoryFormState,
@@ -91,7 +92,7 @@ const emptyFeatureForm = (variant: FeaturedVariant): FeatureFormState => ({
 });
 
 // const bannerTypes: BannerType[] = ['slide', 'row', 'advertising'];
-const orderStatuses: OrderStatus[] = ['pending', 'processing', 'completed', 'cancelled'];
+const orderStatuses: OrderStatus[] = ['pending', 'processing', 'shipped', 'completed', 'cancelled'];
 
 const canEditOrders = (role: UserRole) => role === 'super_admin' || role === 'admin' || role === 'staff';
 const canEditHomepage = (role: UserRole) => role === 'super_admin' || role === 'admin' || role === 'staff';
@@ -485,7 +486,7 @@ export const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<(typeof adminTabs)[number]['id']>('dashboard');
   const [usersSection, setUsersSection] = useState<'staff' | 'clients'>('staff');
-  const [ordersSection, setOrdersSection] = useState<'orders' | 'invoices'>('orders');
+  const [ordersSection, setOrdersSection] = useState<'orders' | 'invoices' | 'shipping'>('orders');
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -563,12 +564,12 @@ export const AdminDashboardPage: React.FC = () => {
   useEffect(() => {
     const state = (location.state ?? null) as
       | {
-          active?: string;
-          homepageSection?: 'hero' | 'featured';
-          usersSection?: 'staff' | 'clients';
-          openCompose?: boolean;
-          preselectedClients?: unknown;
-        }
+        active?: string;
+        homepageSection?: 'hero' | 'featured';
+        usersSection?: 'staff' | 'clients';
+        openCompose?: boolean;
+        preselectedClients?: unknown;
+      }
       | null;
 
     const preselectedClients = normalizeComposeClients(state?.preselectedClients);
@@ -1158,12 +1159,12 @@ export const AdminDashboardPage: React.FC = () => {
 
       const inventoryPayload = manageStock
         ? {
-            quantity: Number.isFinite(inventoryQuantity ?? NaN) ? inventoryQuantity ?? undefined : undefined,
-            lowStockThreshold: Number.isFinite(lowStock ?? NaN) ? lowStock ?? undefined : undefined,
-            status: productForm.inventory.status || undefined,
-            allowBackorder: productForm.inventory.allowBackorder,
-            leadTime: productForm.inventory.leadTime.trim() || undefined,
-          }
+          quantity: Number.isFinite(inventoryQuantity ?? NaN) ? inventoryQuantity ?? undefined : undefined,
+          lowStockThreshold: Number.isFinite(lowStock ?? NaN) ? lowStock ?? undefined : undefined,
+          status: productForm.inventory.status || undefined,
+          allowBackorder: productForm.inventory.allowBackorder,
+          leadTime: productForm.inventory.leadTime.trim() || undefined,
+        }
         : null;
 
       const payload = {
@@ -1254,13 +1255,13 @@ export const AdminDashboardPage: React.FC = () => {
         },
         reviewsSummary:
           productForm.reviewsSummary.averageRating.trim() ||
-          productForm.reviewsSummary.reviewCount.trim() ||
-          Object.keys(ratingBreakdownPayload).length
+            productForm.reviewsSummary.reviewCount.trim() ||
+            Object.keys(ratingBreakdownPayload).length
             ? {
-                averageRating: parseNumber(productForm.reviewsSummary.averageRating),
-                reviewCount: parseNumber(productForm.reviewsSummary.reviewCount),
-                ratingBreakdown: Object.keys(ratingBreakdownPayload).length ? ratingBreakdownPayload : undefined,
-              }
+              averageRating: parseNumber(productForm.reviewsSummary.averageRating),
+              reviewCount: parseNumber(productForm.reviewsSummary.reviewCount),
+              ratingBreakdown: Object.keys(ratingBreakdownPayload).length ? ratingBreakdownPayload : undefined,
+            }
             : undefined,
       };
 
@@ -1646,11 +1647,11 @@ export const AdminDashboardPage: React.FC = () => {
       case 'navigation':
         return (
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <rect x="3" y="3" width="7" height="7" rx="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-          <rect x="14" y="3" width="7" height="7" rx="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-          <rect x="3" y="14" width="7" height="7" rx="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-          <rect x="14" y="14" width="7" height="7" rx="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+            <rect x="3" y="3" width="7" height="7" rx="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="14" y="3" width="7" height="7" rx="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="3" y="14" width="7" height="7" rx="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="14" y="14" width="7" height="7" rx="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         );
       case 'homepage':
         return (
@@ -1843,9 +1844,9 @@ export const AdminDashboardPage: React.FC = () => {
         if (tab.id === 'homepage') {
           const activeHomepageLabel =
             homepageSection === 'featured' ? 'Featured highlights' :
-            homepageSection === 'categorydisplay' ? 'Categories display' :
-            homepageSection === 'manufacturers' ? 'Manufacturers display' :
-            homepageSection === 'legal' ? 'Legal Documents' : 'Hero slider';
+              homepageSection === 'categorydisplay' ? 'Categories display' :
+                homepageSection === 'manufacturers' ? 'Manufacturers display' :
+                  homepageSection === 'legal' ? 'Legal Documents' : 'Hero slider';
           return {
             id: tab.id,
             label: tab.label,
@@ -1865,10 +1866,10 @@ export const AdminDashboardPage: React.FC = () => {
         if (tab.id === 'categories') {
           const activeCatalogLabel =
             catalogSection === 'manufacturers' ? 'Manufacturers' :
-            catalogSection === 'brands' ? 'Brands' :
-            catalogSection === 'models' ? 'Models' :
-            catalogSection === 'tags' ? 'Tags' :
-            catalogSection === 'downloads' ? 'Downloads' : 'Categories';
+              catalogSection === 'brands' ? 'Brands' :
+                catalogSection === 'models' ? 'Models' :
+                  catalogSection === 'tags' ? 'Tags' :
+                    catalogSection === 'downloads' ? 'Downloads' : 'Categories';
           return {
             id: tab.id,
             label: tab.label,
@@ -1891,8 +1892,8 @@ export const AdminDashboardPage: React.FC = () => {
         if (tab.id === 'navigation') {
           const activeNavigationLabel =
             navigationSection === 'topnav' ? 'Top nav' :
-            navigationSection === 'quicklinks' ? 'Quick links' :
-            navigationSection === 'visible' ? 'Visible titles' : 'Titles';
+              navigationSection === 'quicklinks' ? 'Quick links' :
+                navigationSection === 'visible' ? 'Visible titles' : 'Titles';
           return {
             id: tab.id,
             label: tab.label,
@@ -1921,7 +1922,7 @@ export const AdminDashboardPage: React.FC = () => {
                     ? 'Coupons'
                     : productsView === 'taxes'
                       ? 'Tax rates'
-                    : 'All Products';
+                      : 'All Products';
           return {
             id: tab.id,
             label: tab.label,
@@ -1941,7 +1942,7 @@ export const AdminDashboardPage: React.FC = () => {
           };
         }
         if (tab.id === 'orders') {
-          const activeOrdersLabel = ordersSection === 'invoices' ? 'Invoices & Estimates' : 'Orders';
+          const activeOrdersLabel = ordersSection === 'invoices' ? 'Invoices & Estimates' : ordersSection === 'shipping' ? 'Shipping Settings' : 'Orders';
           return {
             id: tab.id,
             label: tab.label,
@@ -1950,6 +1951,7 @@ export const AdminDashboardPage: React.FC = () => {
               items: [
                 { id: 'orders', label: 'Orders' },
                 { id: 'invoices', label: 'Invoices & Estimates' },
+                { id: 'shipping', label: 'Shipping Settings' },
               ],
               activeId: activeTab === 'orders' ? ordersSection : undefined,
             },
@@ -1983,20 +1985,20 @@ export const AdminDashboardPage: React.FC = () => {
       return;
     }
 
-      if (id === 'categories') {
-        if (
-          dropdownId === 'categories' ||
-          dropdownId === 'manufacturers' ||
-          dropdownId === 'brands' ||
-          dropdownId === 'models' ||
-          dropdownId === 'tags' ||
-          dropdownId === 'downloads'
-        ) {
-          setCatalogSection(dropdownId);
-        }
-        setActiveTab('categories');
-        return;
+    if (id === 'categories') {
+      if (
+        dropdownId === 'categories' ||
+        dropdownId === 'manufacturers' ||
+        dropdownId === 'brands' ||
+        dropdownId === 'models' ||
+        dropdownId === 'tags' ||
+        dropdownId === 'downloads'
+      ) {
+        setCatalogSection(dropdownId);
       }
+      setActiveTab('categories');
+      return;
+    }
 
     if (id === 'navigation') {
       if (dropdownId === 'topnav' || dropdownId === 'sections' || dropdownId === 'quicklinks' || dropdownId === 'visible') {
@@ -2022,7 +2024,7 @@ export const AdminDashboardPage: React.FC = () => {
     }
 
     if (id === 'orders') {
-      if (dropdownId === 'orders' || dropdownId === 'invoices') {
+      if (dropdownId === 'orders' || dropdownId === 'invoices' || dropdownId === 'shipping') {
         setOrdersSection(dropdownId);
       }
       setActiveTab('orders');
@@ -2412,9 +2414,11 @@ export const AdminDashboardPage: React.FC = () => {
                   onUpdateStatus={updateOrderStatus}
                   onRefresh={refreshOrders}
                 />
-              ) : (
+              ) : ordersSection === 'invoices' ? (
                 <BillingDocumentsAdminSection />
-              )}
+              ) : ordersSection === 'shipping' ? (
+                <ShipEngineSettingsSection onMessage={(msg, isError) => setStatus(msg, isError ? msg : null)} />
+              ) : null}
             </motion.div>
           )}
         </AnimatePresence>

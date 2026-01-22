@@ -30,6 +30,8 @@ const estimateRoutes = require('./estimates');
 const downloadRoutes = require('./downloads');
 const legalDocumentRoutes = require('./legalDocuments');
 const analyticsRoutes = require('./analytics');
+const shipEngineSettingsRoutes = require('./shipEngineSettings');
+const shippingRoutes = require('./shipping');
 
 module.exports = () => {
   const router = express.Router();
@@ -65,6 +67,9 @@ module.exports = () => {
   router.use('/downloads', downloadRoutes);
   router.use('/legal-documents', legalDocumentRoutes);
   router.use('/analytics', analyticsRoutes);
+  router.use('/admin/shipengine-settings', shipEngineSettingsRoutes);
+  router.use('/shipping', shippingRoutes);
 
   return router;
 };
+

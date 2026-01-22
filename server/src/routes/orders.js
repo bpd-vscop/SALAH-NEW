@@ -4,6 +4,7 @@ const {
   getOrder,
   createOrder,
   updateOrder,
+  getOrderTracking,
 } = require('../controllers/orderController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
@@ -13,7 +14,9 @@ router.use(requireAuth);
 
 router.get('/', listOrders);
 router.get('/:id', getOrder);
+router.get('/:id/tracking', getOrderTracking);
 router.post('/', requireRole(['client']), createOrder);
 router.patch('/:id', requireRole(['super_admin', 'admin', 'staff']), updateOrder);
 
 module.exports = router;
+

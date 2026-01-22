@@ -40,6 +40,24 @@ const orderCouponSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const orderShipmentSchema = new mongoose.Schema(
+  {
+    labelId: { type: String, trim: true },
+    shipmentId: { type: String, trim: true },
+    trackingNumber: { type: String, trim: true },
+    trackingUrl: { type: String, trim: true },
+    carrierCode: { type: String, trim: true },
+    carrierId: { type: String, trim: true },
+    serviceCode: { type: String, trim: true },
+    serviceName: { type: String, trim: true },
+    labelUrl: { type: String, trim: true },
+    shippingCost: { type: Number, min: 0, default: 0 },
+    estimatedDelivery: { type: Date, default: null },
+    shippedAt: { type: Date, default: null },
+  },
+  { _id: false }
+);
+
 const orderSchema = new mongoose.Schema(
   {
     userId: {
@@ -78,8 +96,32 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'processing', 'completed', 'cancelled'],
+      enum: ['pending', 'processing', 'shipped', 'completed', 'cancelled'],
       default: 'pending',
+    },
+    shippingMethod: {
+      type: String,
+      enum: ['standard', 'express', 'overnight'],
+      default: 'standard',
+    },
+    shippingCost: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    shipment: {
+      type: orderShipmentSchema,
+      default: null,
+    },
+    shippingAddressSnapshot: {
+      fullName: String,
+      phone: String,
+      addressLine1: String,
+      addressLine2: String,
+      city: String,
+      state: String,
+      postalCode: String,
+      country: String,
     },
     createdAt: {
       type: Date,
@@ -137,15 +179,15 @@ const orderSchema = new mongoose.Schema(
             company: rawUser.company ?? null,
             billingAddress: rawUser.billingAddress
               ? {
-                  fullName: rawUser.billingAddress.fullName || null,
-                  phone: rawUser.billingAddress.phone || null,
-                  addressLine1: rawUser.billingAddress.addressLine1 || null,
-                  addressLine2: rawUser.billingAddress.addressLine2 || null,
-                  city: rawUser.billingAddress.city || null,
-                  state: rawUser.billingAddress.state || null,
-                  postalCode: rawUser.billingAddress.postalCode || null,
-                  country: rawUser.billingAddress.country || 'Morocco',
-                }
+                fullName: rawUser.billingAddress.fullName || null,
+                phone: rawUser.billingAddress.phone || null,
+                addressLine1: rawUser.billingAddress.addressLine1 || null,
+                addressLine2: rawUser.billingAddress.addressLine2 || null,
+                city: rawUser.billingAddress.city || null,
+                state: rawUser.billingAddress.state || null,
+                postalCode: rawUser.billingAddress.postalCode || null,
+                country: rawUser.billingAddress.country || 'Morocco',
+              }
               : null,
             taxExempt: typeof rawUser.taxExempt === 'boolean' ? rawUser.taxExempt : null,
             verificationFileUrl: rawUser.verificationFileUrl ?? null,
@@ -153,22 +195,22 @@ const orderSchema = new mongoose.Schema(
             profileImage: rawUser.profileImage ?? null,
             shippingAddresses: Array.isArray(rawUser.shippingAddresses)
               ? rawUser.shippingAddresses.map((addr) => ({
-                  id:
-                    typeof addr?.id === 'string'
-                      ? addr.id
-                      : addr?._id
-                        ? addr._id.toString()
-                        : null,
-                  fullName: addr?.fullName ?? null,
-                  phone: addr?.phone ?? null,
-                  addressLine1: addr?.addressLine1 ?? null,
-                  addressLine2: addr?.addressLine2 ?? null,
-                  city: addr?.city ?? null,
-                  state: addr?.state ?? null,
-                  postalCode: addr?.postalCode ?? null,
-                  country: addr?.country ?? 'Morocco',
-                  isDefault: addr?.isDefault || false,
-                }))
+                id:
+                  typeof addr?.id === 'string'
+                    ? addr.id
+                    : addr?._id
+                      ? addr._id.toString()
+                      : null,
+                fullName: addr?.fullName ?? null,
+                phone: addr?.phone ?? null,
+                addressLine1: addr?.addressLine1 ?? null,
+                addressLine2: addr?.addressLine2 ?? null,
+                city: addr?.city ?? null,
+                state: addr?.state ?? null,
+                postalCode: addr?.postalCode ?? null,
+                country: addr?.country ?? 'Morocco',
+                isDefault: addr?.isDefault || false,
+              }))
               : [],
             accountCreated: normalizeDate(rawUser.accountCreated),
             accountUpdated: normalizeDate(rawUser.accountUpdated),
@@ -179,17 +221,40 @@ const orderSchema = new mongoose.Schema(
 
         ret.products = Array.isArray(ret.products)
           ? ret.products.map((item) => ({
-              productId: item.productId ? item.productId.toString() : null,
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-              tagsAtPurchase: item.tagsAtPurchase,
-            }))
+            productId: item.productId ? item.productId.toString() : null,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            tagsAtPurchase: item.tagsAtPurchase,
+          }))
           : [];
         ret.taxRate = typeof ret.taxRate === 'number' ? ret.taxRate : 0;
         ret.taxAmount = typeof ret.taxAmount === 'number' ? ret.taxAmount : 0;
         ret.taxCountry = ret.taxCountry || null;
         ret.taxState = ret.taxState || null;
+        ret.shippingMethod = ret.shippingMethod || 'standard';
+        ret.shippingCost = typeof ret.shippingCost === 'number' ? ret.shippingCost : 0;
+        ret.shipment = ret.shipment
+          ? {
+            labelId: ret.shipment.labelId || null,
+            shipmentId: ret.shipment.shipmentId || null,
+            trackingNumber: ret.shipment.trackingNumber || null,
+            trackingUrl: ret.shipment.trackingUrl || null,
+            carrierCode: ret.shipment.carrierCode || null,
+            carrierId: ret.shipment.carrierId || null,
+            serviceCode: ret.shipment.serviceCode || null,
+            serviceName: ret.shipment.serviceName || null,
+            labelUrl: ret.shipment.labelUrl || null,
+            shippingCost: ret.shipment.shippingCost || 0,
+            estimatedDelivery: ret.shipment.estimatedDelivery
+              ? new Date(ret.shipment.estimatedDelivery).toISOString()
+              : null,
+            shippedAt: ret.shipment.shippedAt
+              ? new Date(ret.shipment.shippedAt).toISOString()
+              : null,
+          }
+          : null;
+        ret.shippingAddressSnapshot = ret.shippingAddressSnapshot || null;
         ret.createdAt = ret.createdAt ? new Date(ret.createdAt).toISOString() : null;
         ret.updatedAt = ret.updatedAt ? new Date(ret.updatedAt).toISOString() : null;
         delete ret._id;

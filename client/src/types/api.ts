@@ -2,7 +2,8 @@ export type UserRole = 'super_admin' | 'admin' | 'staff' | 'client';
 export type UserStatus = 'active' | 'inactive';
 export type ClientType = 'B2B' | 'C2B';
 export type VerificationStatus = 'none' | 'pending' | 'approved' | 'rejected';
-export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
+export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'completed' | 'cancelled';
+export type ShippingMethod = 'standard' | 'express' | 'overnight';
 export type ProductTag = 'coming soon';
 export type ProductStatusTag =
   | 'in stock'
@@ -411,6 +412,32 @@ export interface OrderUserSummary {
   accountUpdated: string | null;
 }
 
+export interface OrderShipment {
+  labelId: string | null;
+  shipmentId: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  carrierCode: string | null;
+  carrierId: string | null;
+  serviceCode: string | null;
+  serviceName: string | null;
+  labelUrl: string | null;
+  shippingCost: number;
+  estimatedDelivery: string | null;
+  shippedAt: string | null;
+}
+
+export interface ShippingAddressSnapshot {
+  fullName: string | null;
+  phone: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+}
+
 export interface Order {
   id: string;
   userId: string;
@@ -422,6 +449,10 @@ export interface Order {
   taxCountry?: string | null;
   taxState?: string | null;
   status: OrderStatus;
+  shippingMethod?: ShippingMethod;
+  shippingCost?: number;
+  shipment?: OrderShipment | null;
+  shippingAddressSnapshot?: ShippingAddressSnapshot | null;
   createdAt: string | null;
   updatedAt: string | null;
 }

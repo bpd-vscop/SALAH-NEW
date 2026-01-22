@@ -6,6 +6,7 @@ import { ordersApi } from '../api/orders';
 import { productsApi } from '../api/products';
 import { taxRatesApi } from '../api/taxRates';
 import { usersApi, type BillingAddressPayload, type ShippingAddressPayload } from '../api/users';
+import { shippingApi, type ShippingRate } from '../api/shipping';
 import { CountrySelect } from '../components/common/CountrySelect';
 import { PhoneNumberInput, type PhoneNumberInputValue } from '../components/common/PhoneInput';
 import { SiteLayout } from '../components/layout/SiteLayout';
@@ -19,7 +20,8 @@ import { getEffectivePrice } from '../utils/productStatus';
 type ShippingMethod = 'standard' | 'express' | 'overnight';
 type PaymentMethod = 'credit-card' | 'paypal' | 'bank-transfer';
 
-const shippingMethods = [
+// Fallback static shipping methods when API rates unavailable
+const fallbackShippingMethods = [
   { id: 'standard' as ShippingMethod, name: 'Standard Shipping', time: '5-7 business days', price: 0 },
   { id: 'express' as ShippingMethod, name: 'Express Shipping', time: '2-3 business days', price: 15 },
   { id: 'overnight' as ShippingMethod, name: 'Overnight Shipping', time: 'Next business day', price: 30 },
@@ -103,6 +105,12 @@ export const CheckoutPage: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(1); // 1: Address, 2: Shipping, 3: Payment, 4: Review
+  // Carrier rates from ShipEngine
+  const [carrierRates, setCarrierRates] = useState<ShippingRate[]>([]);
+  const [loadingRates, setLoadingRates] = useState(false);
+  const [ratesError, setRatesError] = useState<string | null>(null);
+  const [selectedRateId, setSelectedRateId] = useState<string | null>(null);
+  const [selectedRatePrice, setSelectedRatePrice] = useState<number>(0);
   const [showRequirementsModal, setShowRequirementsModal] = useState(false);
   const [requirementsSaving, setRequirementsSaving] = useState(false);
   const [requirementsError, setRequirementsError] = useState<string | null>(null);
@@ -161,6 +169,56 @@ export const CheckoutPage: React.FC = () => {
       setSelectedAddress(user.shippingAddresses[0].id || '0');
     }
   }, [user, selectedAddress]);
+
+  // Fetch carrier rates when shipping address is selected
+  useEffect(() => {
+    const fetchRates = async () => {
+      if (!selectedAddress || !user?.shippingAddresses) {
+        return;
+      }
+
+      const addressData = user.shippingAddresses.find((a) => a.id === selectedAddress);
+      if (!addressData || !addressData.postalCode) {
+        return;
+      }
+
+      setLoadingRates(true);
+      setRatesError(null);
+
+      try {
+        const response = await shippingApi.getRates({
+          shipTo: {
+            fullName: addressData.fullName ?? undefined,
+            phone: addressData.phone ?? undefined,
+            addressLine1: addressData.addressLine1 ?? undefined,
+            addressLine2: addressData.addressLine2 ?? undefined,
+            city: addressData.city ?? undefined,
+            state: addressData.state ?? undefined,
+            postalCode: addressData.postalCode ?? undefined,
+            country: addressData.country ?? undefined,
+          },
+        });
+
+        if (response.success && response.rates.length > 0) {
+          setCarrierRates(response.rates);
+          // Auto-select first rate
+          setSelectedRateId(response.rates[0].rateId);
+          setSelectedRatePrice(response.rates[0].price);
+        } else {
+          setCarrierRates([]);
+          setRatesError(response.message || 'No rates available');
+        }
+      } catch (err) {
+        console.error('Failed to fetch shipping rates:', err);
+        setCarrierRates([]);
+        setRatesError('Could not load carrier rates. Using default shipping options.');
+      } finally {
+        setLoadingRates(false);
+      }
+    };
+
+    void fetchRates();
+  }, [selectedAddress, user?.shippingAddresses]);
 
   useEffect(() => {
     if (!isCheckoutModalOpen || scrollLockRef.current) {
@@ -241,18 +299,22 @@ export const CheckoutPage: React.FC = () => {
   );
 
   const shippingCost = useMemo(() => {
-    const method = shippingMethods.find(m => m.id === selectedShipping);
+    // Use selected rate price if available, otherwise fall back to static method price
+    if (selectedRatePrice > 0) {
+      return selectedRatePrice;
+    }
+    const method = fallbackShippingMethods.find((m: { id: ShippingMethod }) => m.id === selectedShipping);
     return method?.price ?? 0;
-  }, [selectedShipping]);
+  }, [selectedShipping, selectedRatePrice]);
 
   const isB2BUser = user?.clientType === 'B2B';
   const isC2BUser = user?.clientType === 'C2B';
   const hasCompanyAddress = Boolean(user?.company?.address && user.company.address.trim());
   const hasBillingAddress = Boolean(
     user?.billingAddress?.addressLine1?.trim() &&
-      user?.billingAddress?.city?.trim() &&
-      user?.billingAddress?.state?.trim() &&
-      user?.billingAddress?.country?.trim()
+    user?.billingAddress?.city?.trim() &&
+    user?.billingAddress?.state?.trim() &&
+    user?.billingAddress?.country?.trim()
   );
   const hasVerificationFile = Boolean(user?.verificationFileUrl);
   const needsCompanyAddress = Boolean(isB2BUser && !hasCompanyAddress);
@@ -387,9 +449,9 @@ export const CheckoutPage: React.FC = () => {
         const params =
           isC2BUser && user?.billingAddress
             ? {
-                country: user.billingAddress.country ?? undefined,
-                state: user.billingAddress.state ?? undefined,
-              }
+              country: user.billingAddress.country ?? undefined,
+              state: user.billingAddress.state ?? undefined,
+            }
             : undefined;
         const { taxRate: matched } = await taxRatesApi.lookup(params);
         if (!active) return;
@@ -509,6 +571,8 @@ export const CheckoutPage: React.FC = () => {
       const couponPayload = appliedCoupon?.code ? { couponCode: appliedCoupon.code } : {};
       await ordersApi.create({
         products: items.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+        shippingMethod: selectedShipping,
+        shippingAddressId: selectedAddress,
         ...couponPayload,
       });
       await clearCart();
@@ -855,13 +919,12 @@ export const CheckoutPage: React.FC = () => {
                 <div key={step.label} className="flex items-center">
                   <div className="flex flex-col items-center">
                     <div
-                      className={`text-sm font-medium ${
-                        step.completed
-                          ? 'text-green-600'
-                          : step.active
+                      className={`text-sm font-medium ${step.completed
+                        ? 'text-green-600'
+                        : step.active
                           ? 'text-slate-900'
                           : 'text-slate-400'
-                      }`}
+                        }`}
                     >
                       {step.completed && <CheckCircle className="inline h-4 w-4 mr-1" />}
                       {step.label}
@@ -974,9 +1037,8 @@ export const CheckoutPage: React.FC = () => {
                   onClick={() => setCurrentStep(1)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                      currentStep > 1 ? 'bg-green-100 text-green-600' : 'bg-red-600 text-white'
-                    }`}>
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${currentStep > 1 ? 'bg-green-100 text-green-600' : 'bg-red-600 text-white'
+                      }`}>
                       {currentStep > 1 ? <CheckCircle className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
                     </div>
                     <h2 className="text-lg font-semibold text-slate-900">1. Shipping Address</h2>
@@ -1023,11 +1085,10 @@ export const CheckoutPage: React.FC = () => {
                             {user.shippingAddresses.map((address, index) => (
                               <label
                                 key={address.id || index}
-                                className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition ${
-                                  selectedAddress === (address.id || String(index))
-                                    ? 'border-red-600 bg-red-50'
-                                    : 'border-slate-200 hover:border-red-300'
-                                }`}
+                                className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition ${selectedAddress === (address.id || String(index))
+                                  ? 'border-red-600 bg-red-50'
+                                  : 'border-slate-200 hover:border-red-300'
+                                  }`}
                               >
                                 <input
                                   type="radio"
@@ -1155,9 +1216,8 @@ export const CheckoutPage: React.FC = () => {
                   }
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                      currentStep > 2 ? 'bg-green-100 text-green-600' : currentStep === 2 ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-400'
-                    }`}>
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${currentStep > 2 ? 'bg-green-100 text-green-600' : currentStep === 2 ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-400'
+                      }`}>
                       {currentStep > 2 ? <CheckCircle className="h-5 w-5" /> : <Truck className="h-5 w-5" />}
                     </div>
                     <h2 className="text-lg font-semibold text-slate-900">2. Shipping Method</h2>
@@ -1177,35 +1237,78 @@ export const CheckoutPage: React.FC = () => {
 
                 {currentStep === 2 && (
                   <div className="p-6 border-t border-slate-200">
-                    <div className="space-y-3">
-                      {shippingMethods.map((method) => (
-                        <label
-                          key={method.id}
-                          className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition ${
-                            selectedShipping === method.id
+                    {loadingRates ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                        <span className="ml-3 text-sm text-slate-600">Loading carrier rates...</span>
+                      </div>
+                    ) : carrierRates.length > 0 ? (
+                      <div className="space-y-3">
+                        {carrierRates.map((rate) => (
+                          <label
+                            key={rate.rateId}
+                            className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition ${selectedRateId === rate.rateId
                               ? 'border-red-600 bg-red-50'
                               : 'border-slate-200 hover:border-red-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="radio"
-                              name="shipping"
-                              checked={selectedShipping === method.id}
-                              onChange={() => setSelectedShipping(method.id)}
-                              className="h-4 w-4 text-red-600 focus:ring-red-500"
-                            />
-                            <div>
-                              <p className="font-medium text-slate-900">{method.name}</p>
-                              <p className="text-sm text-slate-600">{method.time}</p>
+                              }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="radio"
+                                name="shipping"
+                                checked={selectedRateId === rate.rateId}
+                                onChange={() => {
+                                  setSelectedRateId(rate.rateId);
+                                  setSelectedRatePrice(rate.price);
+                                }}
+                                className="h-4 w-4 text-red-600 focus:ring-red-500"
+                              />
+                              <div>
+                                <p className="font-medium text-slate-900">{rate.carrierName} - {rate.serviceName}</p>
+                                <p className="text-sm text-slate-600">
+                                  {rate.deliveryDays ? `${rate.deliveryDays} day${rate.deliveryDays > 1 ? 's' : ''} delivery` : 'Standard delivery'}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                          <p className="font-semibold text-slate-900">
-                            {method.price === 0 ? 'FREE' : formatCurrency(method.price)}
-                          </p>
-                        </label>
-                      ))}
-                    </div>
+                            <p className="font-semibold text-slate-900">
+                              {rate.price === 0 ? 'FREE' : formatCurrency(rate.price)}
+                            </p>
+                          </label>
+                        ))}
+                        {ratesError && (
+                          <p className="text-xs text-amber-600 mt-2">{ratesError}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {fallbackShippingMethods.map((method) => (
+                          <label
+                            key={method.id}
+                            className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition ${selectedShipping === method.id
+                              ? 'border-red-600 bg-red-50'
+                              : 'border-slate-200 hover:border-red-300'
+                              }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="radio"
+                                name="shipping"
+                                checked={selectedShipping === method.id}
+                                onChange={() => setSelectedShipping(method.id)}
+                                className="h-4 w-4 text-red-600 focus:ring-red-500"
+                              />
+                              <div>
+                                <p className="font-medium text-slate-900">{method.name}</p>
+                                <p className="text-sm text-slate-600">{method.time}</p>
+                              </div>
+                            </div>
+                            <p className="font-semibold text-slate-900">
+                              {method.price === 0 ? 'FREE' : formatCurrency(method.price)}
+                            </p>
+                          </label>
+                        ))}
+                      </div>
+                    )}
 
                     <div className="flex gap-3 mt-6">
                       <button
@@ -1226,7 +1329,12 @@ export const CheckoutPage: React.FC = () => {
 
                 {currentStep > 2 && (
                   <div className="px-6 pb-4 text-sm text-slate-600">
-                    <p>{shippingMethods.find(m => m.id === selectedShipping)?.name} - {shippingMethods.find(m => m.id === selectedShipping)?.time}</p>
+                    <p>
+                      {selectedRateId && carrierRates.length > 0
+                        ? carrierRates.find(r => r.rateId === selectedRateId)?.carrierName + ' - ' + carrierRates.find(r => r.rateId === selectedRateId)?.serviceName
+                        : (fallbackShippingMethods.find(m => m.id === selectedShipping)?.name ?? 'Standard') + ' - ' + (fallbackShippingMethods.find(m => m.id === selectedShipping)?.time ?? '5-7 days')
+                      }
+                    </p>
                   </div>
                 )}
               </div>
@@ -1244,9 +1352,8 @@ export const CheckoutPage: React.FC = () => {
                   }
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                      currentStep > 3 ? 'bg-green-100 text-green-600' : currentStep === 3 ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-400'
-                    }`}>
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${currentStep > 3 ? 'bg-green-100 text-green-600' : currentStep === 3 ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-400'
+                      }`}>
                       {currentStep > 3 ? <CheckCircle className="h-5 w-5" /> : <CreditCard className="h-5 w-5" />}
                     </div>
                     <h2 className="text-lg font-semibold text-slate-900">3. Payment Method</h2>
@@ -1270,11 +1377,10 @@ export const CheckoutPage: React.FC = () => {
                       {paymentMethods.map((method) => (
                         <label
                           key={method.id}
-                          className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition ${
-                            selectedPayment === method.id
-                              ? 'border-red-600 bg-red-50'
-                              : 'border-slate-200 hover:border-red-300'
-                          }`}
+                          className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition ${selectedPayment === method.id
+                            ? 'border-red-600 bg-red-50'
+                            : 'border-slate-200 hover:border-red-300'
+                            }`}
                         >
                           <input
                             type="radio"
@@ -1525,9 +1631,7 @@ export const CheckoutPage: React.FC = () => {
               </div>
 
               <div className="text-xs text-slate-500 mt-4 p-3 bg-slate-50 rounded-lg">
-                <p>- Secure checkout</p>
-                <p>- All prices in USD</p>
-                <p>- Free returns within 30 days</p>
+                <p>Secure checkout</p>
               </div>
             </div>
           </div>
@@ -1641,11 +1745,10 @@ export const CheckoutPage: React.FC = () => {
                       disabled={requirementsSaving}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                     />
-                    <div className={`border-2 border-dashed rounded-lg p-6 text-center transition ${
-                      requirementsSaving
-                        ? 'border-slate-300 bg-slate-50'
-                        : 'border-slate-300 hover:border-red-400 hover:bg-red-50'
-                    }`}>
+                    <div className={`border-2 border-dashed rounded-lg p-6 text-center transition ${requirementsSaving
+                      ? 'border-slate-300 bg-slate-50'
+                      : 'border-slate-300 hover:border-red-400 hover:bg-red-50'
+                      }`}>
                       <Upload className="h-10 w-10 mx-auto mb-2 text-slate-400" />
                       <p className="text-sm font-medium text-slate-900 mb-1">
                         {requirementsFile ? requirementsFile.name : 'Click to upload or drag and drop'}

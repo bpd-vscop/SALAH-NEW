@@ -46,6 +46,7 @@ export const catalogTabs = [
 export const ordersTabs = [
   { id: 'orders' as const, label: 'Orders' },
   { id: 'invoices' as const, label: 'Invoices & Estimates' },
+  { id: 'shipping' as const, label: 'Shipping Settings' },
 ];
 
 export const getMenuIcon = (tabId: string) => {
@@ -138,8 +139,8 @@ interface AdminSidebarOptions {
   setProductsView?: (view: 'all' | 'add' | 'inventory' | 'list' | 'coupons') => void;
   productsExpanded?: boolean;
   setProductsExpanded?: (expanded: boolean | ((prev: boolean) => boolean)) => void;
-  ordersSection?: 'orders' | 'invoices';
-  setOrdersSection?: (section: 'orders' | 'invoices') => void;
+  ordersSection?: 'orders' | 'invoices' | 'shipping';
+  setOrdersSection?: (section: 'orders' | 'invoices' | 'shipping') => void;
   ordersExpanded?: boolean;
   setOrdersExpanded?: (expanded: boolean | ((prev: boolean) => boolean)) => void;
 }

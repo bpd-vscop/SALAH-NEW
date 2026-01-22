@@ -9,7 +9,9 @@ const { extractCompanyLocation, findMatchingTaxRate } = require('../utils/taxRat
 const {
   sendOrderConfirmationEmail,
   sendAdminNewOrderEmail,
+  sendShippingConfirmationEmail,
 } = require('../services/emailService');
+const shipEngine = require('../services/shipEngineService');
 
 const ORDER_USER_SELECT =
   'name email phoneCode phoneNumber clientType status isEmailVerified company billingAddress verificationFileUrl verificationStatus profileImage shippingAddresses accountCreated accountUpdated';
@@ -278,14 +280,14 @@ const createOrder = async (req, res, next) => {
       const billing = req.user.billingAddress;
       const hasBillingAddress = Boolean(
         billing &&
-          typeof billing.addressLine1 === 'string' &&
-          billing.addressLine1.trim() &&
-          typeof billing.city === 'string' &&
-          billing.city.trim() &&
-          typeof billing.state === 'string' &&
-          billing.state.trim() &&
-          typeof billing.country === 'string' &&
-          billing.country.trim()
+        typeof billing.addressLine1 === 'string' &&
+        billing.addressLine1.trim() &&
+        typeof billing.city === 'string' &&
+        billing.city.trim() &&
+        typeof billing.state === 'string' &&
+        billing.state.trim() &&
+        typeof billing.country === 'string' &&
+        billing.country.trim()
       );
       if (!hasBillingAddress) {
         throw badRequest('Billing address is required before placing an order', [
@@ -364,26 +366,26 @@ const createOrder = async (req, res, next) => {
           { new: true }
         );
 
-      if (!updated) {
-        throw badRequest('Some products are no longer available in the requested quantity', [
-          { code: 'insufficient_stock', productId },
-        ]);
+        if (!updated) {
+          throw badRequest('Some products are no longer available in the requested quantity', [
+            { code: 'insufficient_stock', productId },
+          ]);
+        }
+
+        normalizeInventoryStatus(updated.inventory);
+        sanitizeProductTags(updated);
+        updated.markModified('inventory');
+        await updated.save();
+        continue;
       }
 
-      normalizeInventoryStatus(updated.inventory);
-      sanitizeProductTags(updated);
-      updated.markModified('inventory');
-      await updated.save();
-      continue;
+      const currentQuantity = typeof product.inventory.quantity === 'number' ? product.inventory.quantity : 0;
+      product.inventory.quantity = Math.max(0, currentQuantity - requestedQuantity);
+      normalizeInventoryStatus(product.inventory);
+      sanitizeProductTags(product);
+      product.markModified('inventory');
+      await product.save();
     }
-
-    const currentQuantity = typeof product.inventory.quantity === 'number' ? product.inventory.quantity : 0;
-    product.inventory.quantity = Math.max(0, currentQuantity - requestedQuantity);
-    normalizeInventoryStatus(product.inventory);
-    sanitizeProductTags(product);
-    product.markModified('inventory');
-    await product.save();
-  }
 
     const orderItems = Array.from(requestedByProductId.entries()).map(([productId, quantity]) => {
       const product = foundProducts.get(productId);
@@ -420,6 +422,45 @@ const createOrder = async (req, res, next) => {
       taxAmount = Math.round(discountedSubtotal * (taxRate / 100) * 100) / 100;
     }
 
+    // Calculate shipping cost based on method
+    const shippingCosts = { standard: 0, express: 15, overnight: 30 };
+    const shippingMethod = payload.shippingMethod || 'standard';
+    const shippingCost = shippingCosts[shippingMethod] || 0;
+
+    // Get selected shipping address for snapshot
+    let shippingAddressSnapshot = null;
+    if (payload.shippingAddressId && req.user.shippingAddresses) {
+      const selectedAddress = req.user.shippingAddresses.find(
+        (addr) => addr._id?.toString() === payload.shippingAddressId || addr.id === payload.shippingAddressId
+      );
+      if (selectedAddress) {
+        shippingAddressSnapshot = {
+          fullName: selectedAddress.fullName,
+          phone: selectedAddress.phone,
+          addressLine1: selectedAddress.addressLine1,
+          addressLine2: selectedAddress.addressLine2,
+          city: selectedAddress.city,
+          state: selectedAddress.state,
+          postalCode: selectedAddress.postalCode,
+          country: selectedAddress.country,
+        };
+      }
+    }
+    // Fallback to default shipping address if no specific one selected
+    if (!shippingAddressSnapshot && req.user.shippingAddresses?.length > 0) {
+      const defaultAddress = req.user.shippingAddresses.find((addr) => addr.isDefault) || req.user.shippingAddresses[0];
+      shippingAddressSnapshot = {
+        fullName: defaultAddress.fullName,
+        phone: defaultAddress.phone,
+        addressLine1: defaultAddress.addressLine1,
+        addressLine2: defaultAddress.addressLine2,
+        city: defaultAddress.city,
+        state: defaultAddress.state,
+        postalCode: defaultAddress.postalCode,
+        country: defaultAddress.country,
+      };
+    }
+
     const order = await Order.create({
       userId: req.user._id,
       products: orderItems,
@@ -429,6 +470,9 @@ const createOrder = async (req, res, next) => {
       taxAmount,
       taxCountry,
       taxState,
+      shippingMethod,
+      shippingCost,
+      shippingAddressSnapshot,
     });
 
     req.user.orderHistory.push(order._id);
@@ -486,10 +530,144 @@ const updateOrder = async (req, res, next) => {
       throw notFound('Order not found');
     }
 
+    const previousStatus = order.status;
     order.status = payload.status;
+
+    // Trigger shipment creation when status changes to 'shipped'
+    if (payload.status === 'shipped' && previousStatus !== 'shipped' && !order.shipment?.labelId) {
+      try {
+        const shipEngineConfig = await shipEngine.checkConfigurationFromDb();
+        if (shipEngineConfig.isConfigured) {
+          // Use shipping address snapshot or fall back to user's default address
+          const shipToAddress = order.shippingAddressSnapshot || {
+            fullName: order.userId?.name || 'Customer',
+            addressLine1: '123 Test St',
+            city: 'Austin',
+            state: 'TX',
+            postalCode: '78701',
+            country: 'United States',
+          };
+
+          // Calculate total weight from products (estimate 1 lb per item)
+          const totalItems = order.products.reduce((sum, item) => sum + item.quantity, 0);
+          const estimatedWeight = Math.max(16, totalItems * 8); // 8 oz per item, min 16 oz
+
+          // Map shipping method to service code (will use carrier's default if not matched)
+          const serviceCodeMap = {
+            standard: 'usps_priority_mail',
+            express: 'usps_priority_mail_express',
+            overnight: 'usps_priority_mail_express',
+          };
+          const serviceCode = serviceCodeMap[order.shippingMethod] || 'usps_priority_mail';
+
+          const labelResult = await shipEngine.createLabelFromDb({
+            shipTo: shipToAddress,
+            serviceCode,
+            packages: [{
+              weight: estimatedWeight,
+              weightUnit: 'ounce',
+              dimensions: { length: 12, width: 8, height: 4, unit: 'inch' },
+            }],
+          });
+
+          order.shipment = {
+            labelId: labelResult.labelId,
+            shipmentId: labelResult.shipmentId,
+            trackingNumber: labelResult.trackingNumber,
+            trackingUrl: labelResult.trackingUrl,
+            carrierCode: labelResult.carrierCode,
+            carrierId: labelResult.carrierId,
+            serviceCode: labelResult.serviceCode,
+            serviceName: labelResult.serviceName,
+            labelUrl: labelResult.labelDownload?.pdf || labelResult.labelDownload?.href,
+            shippingCost: labelResult.shippingCost?.amount || 0,
+            estimatedDelivery: labelResult.estimatedDelivery ? new Date(labelResult.estimatedDelivery) : null,
+            shippedAt: new Date(),
+          };
+          order.markModified('shipment');
+
+          // Send shipping confirmation email (fire-and-forget)
+          const clientEmail = order.userId?.email;
+          if (clientEmail && typeof sendShippingConfirmationEmail === 'function') {
+            sendShippingConfirmationEmail({
+              to: clientEmail,
+              fullName: order.userId?.name || 'Customer',
+              orderId: order._id.toString(),
+              trackingNumber: labelResult.trackingNumber,
+              trackingUrl: labelResult.trackingUrl,
+              carrierName: labelResult.serviceName || 'Carrier',
+              estimatedDelivery: labelResult.estimatedDelivery,
+            }).catch((err) => {
+              console.error('Failed to send shipping confirmation email', err);
+            });
+          }
+        } else {
+          console.warn('ShipEngine not configured - skipping label creation');
+        }
+      } catch (shipError) {
+        console.error('Failed to create shipping label:', shipError.message);
+        // Don't fail the status update if label creation fails
+      }
+    }
+
     await order.save();
 
     res.json({ order: order.toJSON() });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get tracking information for an order
+ */
+const getOrderTracking = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw notFound('Order not found');
+    }
+
+    const order = await Order.findById(id).populate({ path: 'userId', select: ORDER_USER_SELECT });
+    if (!order) {
+      throw notFound('Order not found');
+    }
+
+    const orderUserId = order.userId && typeof order.userId === 'object' ? order.userId._id : order.userId;
+    if (req.user.role === 'client' && String(orderUserId) !== String(req.user._id)) {
+      throw forbidden();
+    }
+
+    if (!order.shipment?.trackingNumber || !order.shipment?.carrierCode) {
+      return res.json({
+        hasTracking: false,
+        message: 'This order has not been shipped yet',
+        shipment: order.shipment || null,
+      });
+    }
+
+    try {
+      const trackingInfo = await shipEngine.getTrackingInfo(
+        order.shipment.carrierCode,
+        order.shipment.trackingNumber
+      );
+
+      res.json({
+        hasTracking: true,
+        orderId: order._id.toString(),
+        shipment: order.shipment,
+        tracking: trackingInfo,
+      });
+    } catch (trackingError) {
+      // Return basic shipment info even if tracking fetch fails
+      res.json({
+        hasTracking: true,
+        orderId: order._id.toString(),
+        shipment: order.shipment,
+        tracking: null,
+        trackingError: trackingError.message,
+      });
+    }
   } catch (error) {
     next(error);
   }
@@ -500,4 +678,5 @@ module.exports = {
   getOrder,
   createOrder,
   updateOrder,
+  getOrderTracking,
 };

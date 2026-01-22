@@ -20,12 +20,14 @@ const createOrderSchema = z
   .object({
     products: z.array(orderItemSchema).min(1),
     couponCode: couponCodeSchema.optional(),
+    shippingMethod: z.enum(['standard', 'express', 'overnight']).optional().default('standard'),
+    shippingAddressId: z.string().optional(),
   })
   .strict();
 
 const updateOrderSchema = z
   .object({
-    status: z.enum(['pending', 'processing', 'completed', 'cancelled']),
+    status: z.enum(['pending', 'processing', 'shipped', 'completed', 'cancelled']),
   })
   .strict();
 
@@ -33,3 +35,4 @@ module.exports = {
   validateCreateOrder: (payload) => parseWithSchema(createOrderSchema, payload),
   validateUpdateOrder: (payload) => parseWithSchema(updateOrderSchema, payload),
 };
+
