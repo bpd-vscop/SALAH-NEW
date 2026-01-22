@@ -20,13 +20,6 @@ import { getEffectivePrice } from '../utils/productStatus';
 type ShippingMethod = 'standard' | 'express' | 'overnight';
 type PaymentMethod = 'credit-card' | 'paypal' | 'bank-transfer';
 
-// Fallback static shipping methods when API rates unavailable
-const fallbackShippingMethods = [
-  { id: 'standard' as ShippingMethod, name: 'Standard Shipping', time: '5-7 business days', price: 0 },
-  { id: 'express' as ShippingMethod, name: 'Express Shipping', time: '2-3 business days', price: 15 },
-  { id: 'overnight' as ShippingMethod, name: 'Overnight Shipping', time: 'Next business day', price: 30 },
-];
-
 const paymentMethods = [
   { id: 'credit-card' as PaymentMethod, name: 'Credit Card', description: 'Pay with Visa, Mastercard, or Amex' },
   { id: 'paypal' as PaymentMethod, name: 'PayPal', description: 'Fast and secure payment' },
@@ -299,13 +292,9 @@ export const CheckoutPage: React.FC = () => {
   );
 
   const shippingCost = useMemo(() => {
-    // Use selected rate price if available, otherwise fall back to static method price
-    if (selectedRatePrice > 0) {
-      return selectedRatePrice;
-    }
-    const method = fallbackShippingMethods.find((m: { id: ShippingMethod }) => m.id === selectedShipping);
-    return method?.price ?? 0;
-  }, [selectedShipping, selectedRatePrice]);
+    // Use selected rate price from ShipEngine
+    return selectedRatePrice;
+  }, [selectedRatePrice]);
 
   const isB2BUser = user?.clientType === 'B2B';
   const isC2BUser = user?.clientType === 'C2B';
@@ -1280,33 +1269,29 @@ export const CheckoutPage: React.FC = () => {
                         )}
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        {fallbackShippingMethods.map((method) => (
-                          <label
-                            key={method.id}
-                            className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition ${selectedShipping === method.id
-                              ? 'border-red-600 bg-red-50'
-                              : 'border-slate-200 hover:border-red-300'
-                              }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <input
-                                type="radio"
-                                name="shipping"
-                                checked={selectedShipping === method.id}
-                                onChange={() => setSelectedShipping(method.id)}
-                                className="h-4 w-4 text-red-600 focus:ring-red-500"
-                              />
-                              <div>
-                                <p className="font-medium text-slate-900">{method.name}</p>
-                                <p className="text-sm text-slate-600">{method.time}</p>
-                              </div>
-                            </div>
-                            <p className="font-semibold text-slate-900">
-                              {method.price === 0 ? 'FREE' : formatCurrency(method.price)}
-                            </p>
-                          </label>
-                        ))}
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center">
+                        <Truck className="h-10 w-10 text-amber-500 mx-auto mb-3" />
+                        <p className="font-semibold text-amber-900 mb-1">
+                          Unable to load shipping rates
+                        </p>
+                        <p className="text-sm text-amber-700 mb-4">
+                          {ratesError || 'Please check that your shipping address is complete and try again.'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Trigger re-fetch by toggling address selection
+                            const currentAddr = selectedAddress;
+                            setSelectedAddress('');
+                            setTimeout(() => setSelectedAddress(currentAddr), 100);
+                          }}
+                          className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 transition"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          Retry
+                        </button>
                       </div>
                     )}
 
@@ -1332,7 +1317,7 @@ export const CheckoutPage: React.FC = () => {
                     <p>
                       {selectedRateId && carrierRates.length > 0
                         ? carrierRates.find(r => r.rateId === selectedRateId)?.carrierName + ' - ' + carrierRates.find(r => r.rateId === selectedRateId)?.serviceName
-                        : (fallbackShippingMethods.find(m => m.id === selectedShipping)?.name ?? 'Standard') + ' - ' + (fallbackShippingMethods.find(m => m.id === selectedShipping)?.time ?? '5-7 days')
+                        : 'No shipping method selected'
                       }
                     </p>
                   </div>

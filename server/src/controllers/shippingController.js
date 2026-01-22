@@ -4,6 +4,82 @@ const { badRequest } = require('../utils/appError');
 const SHIPENGINE_API_BASE = 'https://api.shipengine.com';
 
 /**
+ * Map US state name to 2-letter code
+ */
+const US_STATE_CODES = {
+    'alabama': 'AL',
+    'alaska': 'AK',
+    'arizona': 'AZ',
+    'arkansas': 'AR',
+    'california': 'CA',
+    'colorado': 'CO',
+    'connecticut': 'CT',
+    'delaware': 'DE',
+    'district of columbia': 'DC',
+    'florida': 'FL',
+    'georgia': 'GA',
+    'hawaii': 'HI',
+    'idaho': 'ID',
+    'illinois': 'IL',
+    'indiana': 'IN',
+    'iowa': 'IA',
+    'kansas': 'KS',
+    'kentucky': 'KY',
+    'louisiana': 'LA',
+    'maine': 'ME',
+    'maryland': 'MD',
+    'massachusetts': 'MA',
+    'michigan': 'MI',
+    'minnesota': 'MN',
+    'mississippi': 'MS',
+    'missouri': 'MO',
+    'montana': 'MT',
+    'nebraska': 'NE',
+    'nevada': 'NV',
+    'new hampshire': 'NH',
+    'new jersey': 'NJ',
+    'new mexico': 'NM',
+    'new york': 'NY',
+    'north carolina': 'NC',
+    'north dakota': 'ND',
+    'ohio': 'OH',
+    'oklahoma': 'OK',
+    'oregon': 'OR',
+    'pennsylvania': 'PA',
+    'rhode island': 'RI',
+    'south carolina': 'SC',
+    'south dakota': 'SD',
+    'tennessee': 'TN',
+    'texas': 'TX',
+    'utah': 'UT',
+    'vermont': 'VT',
+    'virginia': 'VA',
+    'washington': 'WA',
+    'west virginia': 'WV',
+    'wisconsin': 'WI',
+    'wyoming': 'WY',
+};
+
+const mapStateToCode = (state, countryCode) => {
+    if (!state) return '';
+
+    const normalized = state.toLowerCase().trim();
+
+    // If already a 2-letter code, return as uppercase
+    if (normalized.length === 2) {
+        return normalized.toUpperCase();
+    }
+
+    // Only map US states for US country
+    if (countryCode === 'US' && US_STATE_CODES[normalized]) {
+        return US_STATE_CODES[normalized];
+    }
+
+    // For non-US countries, return the state as-is (some countries don't require codes)
+    return state;
+};
+
+/**
  * Get shipping rates for cart items
  * Fetches real rates from ShipEngine based on configured carriers
  */
@@ -50,16 +126,26 @@ const getRates = async (req, res, next) => {
             address_residential_indicator: 'no',
         };
 
+
         // Format ship-to address
+        const countryCode = mapCountryToCode(shipTo.country);
+        if (!countryCode) {
+            return res.json({
+                success: false,
+                message: 'Shipping address country is required. Please update your address.',
+                rates: [],
+            });
+        }
+
         const shipToFormatted = {
             name: shipTo.fullName || shipTo.name || 'Customer',
             phone: shipTo.phone || '',
             address_line1: shipTo.addressLine1 || shipTo.address_line1 || '',
             address_line2: shipTo.addressLine2 || shipTo.address_line2 || '',
             city_locality: shipTo.city || shipTo.city_locality || '',
-            state_province: shipTo.state || shipTo.state_province || '',
+            state_province: mapStateToCode(shipTo.state || shipTo.state_province || '', countryCode),
             postal_code: shipTo.postalCode || shipTo.postal_code || '',
-            country_code: mapCountryToCode(shipTo.country) || 'US',
+            country_code: countryCode,
             address_residential_indicator: 'yes',
         };
 
@@ -77,7 +163,9 @@ const getRates = async (req, res, next) => {
             : [{ weight: { value: 16, unit: 'ounce' } }];
 
         const requestBody = {
-            carrier_ids: enabledCarriers.map((c) => c.carrierId),
+            rate_options: {
+                carrier_ids: enabledCarriers.map((c) => c.carrierId),
+            },
             shipment: {
                 validate_address: 'no_validation',
                 ship_to: shipToFormatted,
@@ -110,13 +198,11 @@ const getRates = async (req, res, next) => {
         const rates = (data.rate_response?.rates || [])
             .filter((rate) => !rate.error_messages?.length)
             .map((rate) => {
-                // Find carrier name from settings
-                const carrier = enabledCarriers.find((c) => c.carrierId === rate.carrier_id);
                 return {
                     rateId: rate.rate_id,
                     carrierId: rate.carrier_id,
                     carrierCode: rate.carrier_code,
-                    carrierName: carrier?.name || rate.carrier_friendly_name || rate.carrier_code,
+                    carrierName: rate.carrier_friendly_name || rate.carrier_nickname || rate.carrier_code,
                     serviceCode: rate.service_code,
                     serviceName: rate.service_type,
                     price: rate.shipping_amount?.amount || 0,
@@ -144,24 +230,69 @@ const getRates = async (req, res, next) => {
  * Map country name to ISO 2-letter code
  */
 const mapCountryToCode = (country) => {
-    if (!country) return 'US';
+    if (!country) return null; // Don't default to US
+
+    const normalized = country.toLowerCase().trim();
+
+    // If already a 2-letter code, return as uppercase
+    if (normalized.length === 2) {
+        return normalized.toUpperCase();
+    }
 
     const countryMap = {
         'united states': 'US',
         'united states of america': 'US',
-        usa: 'US',
-        us: 'US',
-        canada: 'CA',
-        mexico: 'MX',
+        'usa': 'US',
+        'u.s.a': 'US',
+        'u.s.a.': 'US',
+        'america': 'US',
+        'canada': 'CA',
+        'mexico': 'MX',
+        'méxico': 'MX',
         'united kingdom': 'GB',
-        uk: 'GB',
-        australia: 'AU',
-        germany: 'DE',
-        france: 'FR',
-        morocco: 'MA',
+        'great britain': 'GB',
+        'england': 'GB',
+        'uk': 'GB',
+        'australia': 'AU',
+        'germany': 'DE',
+        'deutschland': 'DE',
+        'france': 'FR',
+        'morocco': 'MA',
+        'maroc': 'MA',
+        'المغرب': 'MA',
+        'spain': 'ES',
+        'españa': 'ES',
+        'italy': 'IT',
+        'italia': 'IT',
+        'netherlands': 'NL',
+        'belgium': 'BE',
+        'portugal': 'PT',
+        'switzerland': 'CH',
+        'austria': 'AT',
+        'sweden': 'SE',
+        'norway': 'NO',
+        'denmark': 'DK',
+        'finland': 'FI',
+        'ireland': 'IE',
+        'poland': 'PL',
+        'japan': 'JP',
+        'china': 'CN',
+        'india': 'IN',
+        'brazil': 'BR',
+        'argentina': 'AR',
+        'south korea': 'KR',
+        'korea': 'KR',
+        'singapore': 'SG',
+        'new zealand': 'NZ',
+        'south africa': 'ZA',
+        'uae': 'AE',
+        'united arab emirates': 'AE',
+        'saudi arabia': 'SA',
+        'egypt': 'EG',
+        'algeria': 'DZ',
+        'tunisia': 'TN',
     };
 
-    const normalized = country.toLowerCase().trim();
     return countryMap[normalized] || country.substring(0, 2).toUpperCase();
 };
 
