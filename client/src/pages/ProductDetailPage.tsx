@@ -11,6 +11,7 @@ import { ProductRecommendationRail } from '../components/product/ProductRecommen
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+import { useToast } from '../context/ToastContext';
 import type { Category, Product, ProductInventoryStatus, ProductVariation } from '../types/api';
 import { formatCurrency } from '../utils/format';
 import { cn } from '../utils/cn';
@@ -171,6 +172,7 @@ export const ProductDetailPage: React.FC = () => {
   const { user } = useAuth();
   const { addItem } = useCart();
   const { items: wishlistItems, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
+  const { showToast } = useToast();
   const isSignedInClient = user?.role === 'client';
   const isStaffUser = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'staff';
   const showWishlistAction = !isStaffUser;
@@ -316,10 +318,10 @@ export const ProductDetailPage: React.FC = () => {
   const comingSoon = product ? isComingSoon(product) : false;
   const inventoryMeta = comingSoon
     ? {
-        label: 'Coming soon',
-        badge: 'border-sky-200 bg-sky-50 text-sky-700',
-        description: 'This product is coming soon and not yet available for purchase.',
-      }
+      label: 'Coming soon',
+      badge: 'border-sky-200 bg-sky-50 text-sky-700',
+      description: 'This product is coming soon and not yet available for purchase.',
+    }
     : inventoryStatusMeta[inventoryStatus] ?? inventoryStatusMeta.in_stock;
   const allowBackorder =
     activeVariation?.allowBackorder ?? product?.inventory?.allowBackorder ?? false;
@@ -370,6 +372,7 @@ export const ProductDetailPage: React.FC = () => {
   const handleAddToCart = () => {
     if (!product) return;
     addItem({ productId: product.id, quantity }, product);
+    showToast('Added to cart', 'success');
   };
 
   const handleNotifyMe = async () => {
@@ -469,404 +472,404 @@ export const ProductDetailPage: React.FC = () => {
         )}
         {product && !loading && !error && (
           <article className="space-y-10">
-          <header className="space-y-6">
-            <nav className="text-xs text-muted">
-              <Link to="/" className="font-medium text-slate-600 transition hover:text-primary">Home</Link>
-              <span className="mx-2">/</span>
-              <Link to="/products" className="font-medium text-slate-600 transition hover:text-primary">Products</Link>
-              {categoryTrail.map((category) => (
-                <span key={category.id}>
-                  <span className="mx-2">/</span>
-                  <Link
-                    to={`/categories/${category.id}`}
-                    className="font-medium text-slate-600 transition hover:text-primary"
-                  >
-                    {category.name}
-                  </Link>
-                </span>
-              ))}
-              <span className="mx-2">/</span>
-              <span className="font-semibold text-slate-900">{product.name}</span>
-            </nav>
-            {product.badges?.length ? (
-              <div className="flex flex-wrap gap-2">
-                {product.badges.map((badge, index) => (
-                  <span
-                    key={`${badge.label}-${index}`}
-                    className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
-                  >
-                    {badge.icon ? (
-                      <span aria-hidden="true" className="text-primary/80">{badge.icon}</span>
-                    ) : null}
-                    {badge.label}
+            <header className="space-y-6">
+              <nav className="text-xs text-muted">
+                <Link to="/" className="font-medium text-slate-600 transition hover:text-primary">Home</Link>
+                <span className="mx-2">/</span>
+                <Link to="/products" className="font-medium text-slate-600 transition hover:text-primary">Products</Link>
+                {categoryTrail.map((category) => (
+                  <span key={category.id}>
+                    <span className="mx-2">/</span>
+                    <Link
+                      to={`/categories/${category.id}`}
+                      className="font-medium text-slate-600 transition hover:text-primary"
+                    >
+                      {category.name}
+                    </Link>
                   </span>
                 ))}
-              </div>
-            ) : null}
-          </header>
-
-          <section className="grid gap-10 rounded-3xl border border-border bg-surface p-6 shadow-sm xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-            <ProductMediaGallery name={product.name} images={product.images} videoUrls={product.videoUrls} />
-
-            <div className="flex flex-col gap-6">
-              {/* Product Title Section */}
-              <div className="space-y-2">
-                <span className="text-xs uppercase tracking-[0.3em] text-primary/80">Product overview</span>
-                <h1 className="text-3xl font-semibold text-slate-900 lg:text-4xl">{product.name}</h1>
-                {product.shortDescription ? (
-                  <p className="text-sm text-muted">
-                    {product.shortDescription}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className={cn('inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold', inventoryMeta.badge)}>
-                    <span>{inventoryMeta.label}</span>
-                    {isLowStock ? <span className="rounded-full bg-amber-500/80 px-2 py-0.5 text-[10px] font-semibold text-white">Low</span> : null}
-                  </div>
-                  {savings > 0 && (
-                    <span className="rounded-full bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-600">
-                      Save {formatCurrency(savings)} ({discountPercent}%)
+                <span className="mx-2">/</span>
+                <span className="font-semibold text-slate-900">{product.name}</span>
+              </nav>
+              {product.badges?.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {product.badges.map((badge, index) => (
+                    <span
+                      key={`${badge.label}-${index}`}
+                      className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
+                    >
+                      {badge.icon ? (
+                        <span aria-hidden="true" className="text-primary/80">{badge.icon}</span>
+                      ) : null}
+                      {badge.label}
                     </span>
-                  )}
-                  {product.taxClass ? (
-                    <span className="rounded-full border border-dashed border-border px-3 py-1 text-xs text-muted">
-                      Tax class: {product.taxClass}
-                    </span>
-                  ) : null}
+                  ))}
                 </div>
+              ) : null}
+            </header>
 
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-end gap-3">
-                    <span className="text-3xl font-semibold text-slate-900">{formatCurrency(displayPrice)}</span>
-                    {saleData.saleActive && saleData.salePrice !== null ? (
-                      <span className="text-lg text-muted line-through">{formatCurrency(saleData.basePrice)}</span>
-                    ) : null}
-                  </div>
-                  {saleData.saleActive && product.saleEndDate ? (
-                    <p className="text-xs font-medium text-red-600">
-                      Sale ends {formatDate(product.saleEndDate)} or while stock lasts.
+            <section className="grid gap-10 rounded-3xl border border-border bg-surface p-6 shadow-sm xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+              <ProductMediaGallery name={product.name} images={product.images} videoUrls={product.videoUrls} />
+
+              <div className="flex flex-col gap-6">
+                {/* Product Title Section */}
+                <div className="space-y-2">
+                  <span className="text-xs uppercase tracking-[0.3em] text-primary/80">Product overview</span>
+                  <h1 className="text-3xl font-semibold text-slate-900 lg:text-4xl">{product.name}</h1>
+                  {product.shortDescription ? (
+                    <p className="text-sm text-muted">
+                      {product.shortDescription}
                     </p>
                   ) : null}
-                  <p className="text-sm text-muted">{inventoryMeta.description}</p>
-                  {product.inventory?.leadTime && (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                      Estimated lead time: <span className="font-semibold text-slate-900">{product.inventory.leadTime}</span>
-                    </div>
-                  )}
                 </div>
-              </div>
 
-              {product.variations?.length ? (
-                <div className="space-y-3 rounded-2xl border border-border bg-background p-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Available configurations</h2>
-                    <span className="text-xs text-muted">Select one</span>
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className={cn('inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold', inventoryMeta.badge)}>
+                      <span>{inventoryMeta.label}</span>
+                      {isLowStock ? <span className="rounded-full bg-amber-500/80 px-2 py-0.5 text-[10px] font-semibold text-white">Low</span> : null}
+                    </div>
+                    {savings > 0 && (
+                      <span className="rounded-full bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-600">
+                        Save {formatCurrency(savings)} ({discountPercent}%)
+                      </span>
+                    )}
+                    {product.taxClass ? (
+                      <span className="rounded-full border border-dashed border-border px-3 py-1 text-xs text-muted">
+                        Tax class: {product.taxClass}
+                      </span>
+                    ) : null}
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {product.variations.map((variation, index) => (
+
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-end gap-3">
+                      <span className="text-3xl font-semibold text-slate-900">{formatCurrency(displayPrice)}</span>
+                      {saleData.saleActive && saleData.salePrice !== null ? (
+                        <span className="text-lg text-muted line-through">{formatCurrency(saleData.basePrice)}</span>
+                      ) : null}
+                    </div>
+                    {saleData.saleActive && product.saleEndDate ? (
+                      <p className="text-xs font-medium text-red-600">
+                        Sale ends {formatDate(product.saleEndDate)} or while stock lasts.
+                      </p>
+                    ) : null}
+                    <p className="text-sm text-muted">{inventoryMeta.description}</p>
+                    {product.inventory?.leadTime && (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                        Estimated lead time: <span className="font-semibold text-slate-900">{product.inventory.leadTime}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {product.variations?.length ? (
+                  <div className="space-y-3 rounded-2xl border border-border bg-background p-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Available configurations</h2>
+                      <span className="text-xs text-muted">Select one</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {product.variations.map((variation, index) => (
+                        <button
+                          key={variation.id ?? index}
+                          type="button"
+                          onClick={() => setSelectedVariationId(variation.id ?? null)}
+                          className={cn(
+                            'rounded-xl border px-3 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                            (variation.id ?? null) === selectedVariationId
+                              ? 'border-primary bg-white text-primary shadow-sm'
+                              : 'border-border bg-white text-slate-700 hover:border-primary hover:text-primary'
+                          )}
+                        >
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium">{variationLabel(variation, index)}</span>
+                            {typeof variation.price === 'number' && variation.price !== product.price ? (
+                              <span className="text-xs text-muted">
+                                {formatCurrency(variation.price)}
+                                {typeof variation.salePrice === 'number' && variation.salePrice < variation.price ? (
+                                  <>
+                                    {' '}
+                                    <span className="text-red-600">{formatCurrency(variation.salePrice)}</span>
+                                  </>
+                                ) : null}
+                              </span>
+                            ) : null}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="space-y-4 rounded-2xl border border-border bg-background p-4">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="inline-flex items-center rounded-xl border border-border">
                       <button
-                        key={variation.id ?? index}
                         type="button"
-                        onClick={() => setSelectedVariationId(variation.id ?? null)}
+                        onClick={() => handleQuantityChange(-1)}
+                        className="aspect-square h-11 text-lg font-semibold text-slate-700 transition hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        aria-label="Decrease quantity"
+                      >
+                        −
+                      </button>
+                      <span className="w-12 text-center text-sm font-semibold text-slate-900">{quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleQuantityChange(1)}
+                        className="aspect-square h-11 text-lg font-semibold text-slate-700 transition hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        aria-label="Increase quantity"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className={cn(
+                        'inline-flex flex-1 items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+                        disableAddToCart ? 'cursor-not-allowed opacity-60' : 'hover:bg-primary-dark'
+                      )}
+                      onClick={handleAddToCart}
+                      disabled={disableAddToCart}
+                    >
+                      {comingSoon ? 'Coming soon' : disableAddToCart ? 'Currently unavailable' : 'Add to cart'}
+                    </button>
+                    {comingSoon && (
+                      <button
+                        type="button"
+                        onClick={() => void handleNotifyMe()}
+                        disabled={notifyStatus === 'loading' || notifyStatus === 'success'}
                         className={cn(
-                          'rounded-xl border px-3 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                          (variation.id ?? null) === selectedVariationId
-                            ? 'border-primary bg-white text-primary shadow-sm'
-                            : 'border-border bg-white text-slate-700 hover:border-primary hover:text-primary'
+                          'inline-flex items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-500/20',
+                          notifyStatus === 'loading' || notifyStatus === 'success'
+                            ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                            : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
                         )}
                       >
-                        <div className="flex flex-col text-left">
-                          <span className="font-medium">{variationLabel(variation, index)}</span>
-                          {typeof variation.price === 'number' && variation.price !== product.price ? (
-                            <span className="text-xs text-muted">
-                              {formatCurrency(variation.price)}
-                              {typeof variation.salePrice === 'number' && variation.salePrice < variation.price ? (
-                                <>
-                                  {' '}
-                                  <span className="text-red-600">{formatCurrency(variation.salePrice)}</span>
-                                </>
-                              ) : null}
-                            </span>
-                          ) : null}
-                        </div>
+                        {notifyStatus === 'loading' ? 'Notifying...' : notifyStatus === 'success' ? 'Notified' : 'Notify me'}
                       </button>
-                    ))}
+                    )}
                   </div>
+                  {showPurchaseDetails ? (
+                    <div className="flex flex-wrap gap-3 text-xs text-muted">
+                      {availabilityMessage ? <span>{availabilityMessage}</span> : null}
+                      {variationMessage ? (
+                        <span className="font-medium text-slate-700">{variationMessage}</span>
+                      ) : null}
+                      {returnPolicyMessage ? <span>{returnPolicyMessage}</span> : null}
+                    </div>
+                  ) : null}
+                  {notifyMessage ? (
+                    <p className={cn('text-xs font-medium', notifyStatus === 'error' ? 'text-red-600' : 'text-emerald-600')}>
+                      {notifyMessage}
+                    </p>
+                  ) : null}
                 </div>
-              ) : null}
 
-              <div className="space-y-4 rounded-2xl border border-border bg-background p-4">
-                <div className="flex flex-wrap items-center gap-4">
-                  <div className="inline-flex items-center rounded-xl border border-border">
-                    <button
-                      type="button"
-                      onClick={() => handleQuantityChange(-1)}
-                      className="aspect-square h-11 text-lg font-semibold text-slate-700 transition hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                      aria-label="Decrease quantity"
-                    >
-                      −
-                    </button>
-                    <span className="w-12 text-center text-sm font-semibold text-slate-900">{quantity}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleQuantityChange(1)}
-                      className="aspect-square h-11 text-lg font-semibold text-slate-700 transition hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                      aria-label="Increase quantity"
-                    >
-                      +
-                    </button>
-                  </div>
+                <div className="flex flex-wrap gap-3 text-sm text-slate-700">
                   <button
                     type="button"
-                    className={cn(
-                      'inline-flex flex-1 items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
-                      disableAddToCart ? 'cursor-not-allowed opacity-60' : 'hover:bg-primary-dark'
-                    )}
-                    onClick={handleAddToCart}
-                    disabled={disableAddToCart}
+                    onClick={() => window?.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline"
                   >
-                    {comingSoon ? 'Coming soon' : disableAddToCart ? 'Currently unavailable' : 'Add to cart'}
+                    Check fitment
                   </button>
-                  {comingSoon && (
+                  {showWishlistAction && (
                     <button
                       type="button"
-                      onClick={() => void handleNotifyMe()}
-                      disabled={notifyStatus === 'loading' || notifyStatus === 'success'}
-                      className={cn(
-                        'inline-flex items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-500/20',
-                        notifyStatus === 'loading' || notifyStatus === 'success'
-                          ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
-                          : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                      )}
+                      onClick={() => void handleToggleWishlist()}
+                      className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
                     >
-                      {notifyStatus === 'loading' ? 'Notifying...' : notifyStatus === 'success' ? 'Notified' : 'Notify me'}
+                      <Heart className={cn('h-4 w-4', isInWishlist ? 'text-rose-500' : 'text-slate-500')} />
+                      {isInWishlist ? 'Saved to wishlist' : 'Add to wishlist'}
                     </button>
                   )}
                 </div>
-                {showPurchaseDetails ? (
-                  <div className="flex flex-wrap gap-3 text-xs text-muted">
-                    {availabilityMessage ? <span>{availabilityMessage}</span> : null}
-                    {variationMessage ? (
-                      <span className="font-medium text-slate-700">{variationMessage}</span>
-                    ) : null}
-                    {returnPolicyMessage ? <span>{returnPolicyMessage}</span> : null}
+
+                <dl className="grid gap-3 rounded-2xl border border-border bg-background p-4 text-xs text-muted">
+                  {product.sku ? (
+                    <div className="flex items-center justify-between">
+                      <dt className="font-medium text-slate-600">SKU</dt>
+                      <dd className="font-semibold text-slate-900">{product.sku}</dd>
+                    </div>
+                  ) : null}
+                  {product.productCode ? (
+                    <div className="flex items-center justify-between">
+                      <dt className="font-medium text-slate-600">Product code</dt>
+                      <dd className="font-semibold text-slate-900">{product.productCode}</dd>
+                    </div>
+                  ) : null}
+                  {manufacturer ? (
+                    <div className="flex items-center justify-between">
+                      <dt className="font-medium text-slate-600">Manufacturer</dt>
+                      <dd>
+                        <Link
+                          to={`/products?manufacturerId=${manufacturer.id}`}
+                          className="font-semibold text-primary underline-offset-4 hover:underline"
+                        >
+                          {manufacturer.name}
+                        </Link>
+                      </dd>
+                    </div>
+                  ) : product.manufacturerName ? (
+                    <div className="flex items-center justify-between">
+                      <dt className="font-medium text-slate-600">Manufacturer</dt>
+                      <dd className="font-semibold text-slate-900">{product.manufacturerName}</dd>
+                    </div>
+                  ) : null}
+                  {categoriesToShow.length ? (
+                    <div className="flex items-center justify-between">
+                      <dt className="font-medium text-slate-600">{categoryLabel}</dt>
+                      <dd className="flex flex-wrap justify-end gap-1 text-right">
+                        {categoriesToShow.map((category) => (
+                          <Link
+                            key={category.id}
+                            to={`/categories/${category.id}`}
+                            className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-primary"
+                          >
+                            {category.name}
+                          </Link>
+                        ))}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {statusTags.length ? (
+                    <div className="flex items-start justify-between">
+                      <dt className="mt-1 font-medium text-slate-600">Tags</dt>
+                      <dd className="flex flex-wrap justify-end gap-1">
+                        {statusTags.map((tag) => (
+                          <span key={tag} className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-600">
+                            {tag}
+                          </span>
+                        ))}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+
+                {compatibilityMakes?.length ? (
+                  <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-xs text-primary">
+                    Verified fitment for {compatibilityMakes.length} make{compatibilityMakes.length === 1 ? '' : 's'} including{' '}
+                    <span className="font-semibold">
+                      {compatibilityMakes.slice(0, 3).join(', ')}
+                      {compatibilityMakes.length > 3 ? '…' : ''}
+                    </span>
+                    . Use the compatibility tools below to confirm your vehicle.
                   </div>
                 ) : null}
-                {notifyMessage ? (
-                  <p className={cn('text-xs font-medium', notifyStatus === 'error' ? 'text-red-600' : 'text-emerald-600')}>
-                    {notifyMessage}
-                  </p>
-                ) : null}
-              </div>
 
-              <div className="flex flex-wrap gap-3 text-sm text-slate-700">
-                <button
-                  type="button"
-                  onClick={() => window?.scrollTo({ top: 0, behavior: 'smooth' })}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline"
-                >
-                  Check fitment
-                </button>
-                {showWishlistAction && (
+                <div className="flex flex-wrap gap-3 text-xs text-muted">
                   <button
                     type="button"
-                    onClick={() => void handleToggleWishlist()}
-                    className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                  >
-                    <Heart className={cn('h-4 w-4', isInWishlist ? 'text-rose-500' : 'text-slate-500')} />
-                    {isInWishlist ? 'Saved to wishlist' : 'Add to wishlist'}
-                  </button>
-                )}
-              </div>
-
-              <dl className="grid gap-3 rounded-2xl border border-border bg-background p-4 text-xs text-muted">
-                {product.sku ? (
-                  <div className="flex items-center justify-between">
-                    <dt className="font-medium text-slate-600">SKU</dt>
-                    <dd className="font-semibold text-slate-900">{product.sku}</dd>
-                  </div>
-                ) : null}
-                {product.productCode ? (
-                  <div className="flex items-center justify-between">
-                    <dt className="font-medium text-slate-600">Product code</dt>
-                    <dd className="font-semibold text-slate-900">{product.productCode}</dd>
-                  </div>
-                ) : null}
-                {manufacturer ? (
-                  <div className="flex items-center justify-between">
-                    <dt className="font-medium text-slate-600">Manufacturer</dt>
-                    <dd>
-                      <Link
-                        to={`/products?manufacturerId=${manufacturer.id}`}
-                        className="font-semibold text-primary underline-offset-4 hover:underline"
-                      >
-                        {manufacturer.name}
-                      </Link>
-                    </dd>
-                  </div>
-                ) : product.manufacturerName ? (
-                  <div className="flex items-center justify-between">
-                    <dt className="font-medium text-slate-600">Manufacturer</dt>
-                    <dd className="font-semibold text-slate-900">{product.manufacturerName}</dd>
-                  </div>
-                ) : null}
-                {categoriesToShow.length ? (
-                  <div className="flex items-center justify-between">
-                    <dt className="font-medium text-slate-600">{categoryLabel}</dt>
-                    <dd className="flex flex-wrap justify-end gap-1 text-right">
-                      {categoriesToShow.map((category) => (
-                        <Link
-                          key={category.id}
-                          to={`/categories/${category.id}`}
-                          className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-primary"
-                        >
-                          {category.name}
-                        </Link>
-                      ))}
-                    </dd>
-                  </div>
-                ) : null}
-                {statusTags.length ? (
-                  <div className="flex items-start justify-between">
-                    <dt className="mt-1 font-medium text-slate-600">Tags</dt>
-                    <dd className="flex flex-wrap justify-end gap-1">
-                      {statusTags.map((tag) => (
-                        <span key={tag} className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-600">
-                          {tag}
-                        </span>
-                      ))}
-                    </dd>
-                  </div>
-                ) : null}
-              </dl>
-
-              {compatibilityMakes?.length ? (
-                <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-xs text-primary">
-                  Verified fitment for {compatibilityMakes.length} make{compatibilityMakes.length === 1 ? '' : 's'} including{' '}
-                  <span className="font-semibold">
-                    {compatibilityMakes.slice(0, 3).join(', ')}
-                    {compatibilityMakes.length > 3 ? '…' : ''}
-                  </span>
-                  . Use the compatibility tools below to confirm your vehicle.
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap gap-3 text-xs text-muted">
-                <button
-                  type="button"
-                  onClick={handleReportIncorrectInfo}
-                  className="text-primary underline-offset-4 hover:underline"
-                >
-                  Report incorrect product information
-                </button>
-                {product.support?.liveChatUrl ? (
-                  <a
-                    href={product.support.liveChatUrl}
+                    onClick={handleReportIncorrectInfo}
                     className="text-primary underline-offset-4 hover:underline"
                   >
-                    Live chat with a specialist
-                  </a>
-                ) : null}
-              </div>
-            </div>
-          </section>
-
-          <ProductDetailTabs
-            productId={product.id}
-            description={product.description}
-            featureHighlights={product.featureHighlights}
-            packageContents={product.packageContents}
-            specifications={product.specifications}
-            attributes={product.attributes ?? null}
-            customAttributes={product.customAttributes ?? null}
-            compatibility={product.compatibility}
-            documents={product.documents}
-            videoUrls={product.videoUrls}
-            reviewsSummary={product.reviewsSummary ?? null}
-            support={product.support ?? null}
-            shipping={product.shipping ?? null}
-            notes={product.notes ?? null}
-            seo={product.seo ?? null}
-          />
-
-          <section className="rounded-3xl bg-slate-900 p-6 shadow-sm">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
-                    <ShoppingCart className="h-6 w-6 text-white" />
-                  </div>
-                </div>
-                <div>
-                  <h4 className="mb-1 text-sm font-semibold text-white">Free Shipping</h4>
-                  <p className="text-xs text-slate-400">Free Express Shipping</p>
+                    Report incorrect product information
+                  </button>
+                  {product.support?.liveChatUrl ? (
+                    <a
+                      href={product.support.liveChatUrl}
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      Live chat with a specialist
+                    </a>
+                  ) : null}
                 </div>
               </div>
+            </section>
 
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
-                    <Shield className="h-6 w-6 text-white" />
-                  </div>
-                </div>
-                <div>
-                  <h4 className="mb-1 text-sm font-semibold text-white">Money Guarantee</h4>
-                  <p className="text-xs text-slate-400">Within our Refund Policy</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
-                    <Headphones className="h-6 w-6 text-white" />
-                  </div>
-                </div>
-                <div>
-                  <h4 className="mb-1 text-sm font-semibold text-white">Online Support</h4>
-                  <p className="text-xs text-slate-400">After-Sales technical support service</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
-                    <CreditCard className="h-6 w-6 text-white" />
-                  </div>
-                </div>
-                <div>
-                  <h4 className="mb-1 text-sm font-semibold text-white">Flexible Payment</h4>
-                  <p className="text-xs text-slate-400">Multiple Secured Payment Methods</p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <div className="space-y-12">
-            <ProductRecommendationRail
-              title="Frequently bought together"
-              products={upsellProducts}
-              columns={6}
-              showBrowseLink={false}
+            <ProductDetailTabs
+              productId={product.id}
+              description={product.description}
+              featureHighlights={product.featureHighlights}
+              packageContents={product.packageContents}
+              specifications={product.specifications}
+              attributes={product.attributes ?? null}
+              customAttributes={product.customAttributes ?? null}
+              compatibility={product.compatibility}
+              documents={product.documents}
+              videoUrls={product.videoUrls}
+              reviewsSummary={product.reviewsSummary ?? null}
+              support={product.support ?? null}
+              shipping={product.shipping ?? null}
+              notes={product.notes ?? null}
+              seo={product.seo ?? null}
             />
-            <ProductRecommendationRail
-              title="You might also like"
-              products={crossSellProducts}
-              columns={6}
-              showBrowseLink={false}
-            />
-            <div className="pb-12">
+
+            <section className="rounded-3xl bg-slate-900 p-6 shadow-sm">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
+                      <ShoppingCart className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="mb-1 text-sm font-semibold text-white">Free Shipping</h4>
+                    <p className="text-xs text-slate-400">Free Express Shipping</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
+                      <Shield className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="mb-1 text-sm font-semibold text-white">Money Guarantee</h4>
+                    <p className="text-xs text-slate-400">Within our Refund Policy</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
+                      <Headphones className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="mb-1 text-sm font-semibold text-white">Online Support</h4>
+                    <p className="text-xs text-slate-400">After-Sales technical support service</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
+                      <CreditCard className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="mb-1 text-sm font-semibold text-white">Flexible Payment</h4>
+                    <p className="text-xs text-slate-400">Multiple Secured Payment Methods</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <div className="space-y-12">
               <ProductRecommendationRail
-                title="Related products"
-                products={relatedProducts}
+                title="Frequently bought together"
+                products={upsellProducts}
                 columns={6}
                 showBrowseLink={false}
               />
+              <ProductRecommendationRail
+                title="You might also like"
+                products={crossSellProducts}
+                columns={6}
+                showBrowseLink={false}
+              />
+              <div className="pb-12">
+                <ProductRecommendationRail
+                  title="Related products"
+                  products={relatedProducts}
+                  columns={6}
+                  showBrowseLink={false}
+                />
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
         )}
       </div>
     </SiteLayout>

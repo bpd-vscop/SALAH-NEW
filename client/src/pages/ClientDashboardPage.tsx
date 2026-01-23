@@ -149,9 +149,9 @@ export const ClientDashboardPage: React.FC = () => {
   const isC2B = user?.clientType === 'C2B';
   const hasBillingAddress = Boolean(
     user?.billingAddress?.addressLine1?.trim() &&
-      user?.billingAddress?.city?.trim() &&
-      user?.billingAddress?.state?.trim() &&
-      user?.billingAddress?.country?.trim()
+    user?.billingAddress?.city?.trim() &&
+    user?.billingAddress?.state?.trim() &&
+    user?.billingAddress?.country?.trim()
   );
   const verificationStatus = user?.verificationStatus ?? (user?.verificationFileUrl ? 'pending' : 'none');
 
@@ -369,14 +369,14 @@ export const ClientDashboardPage: React.FC = () => {
   const getReviewReplies = (review: ProductReview) => {
     const legacyReply = review.adminComment
       ? [
-          {
-            id: `legacy-${review.id}`,
-            authorRole: 'admin' as const,
-            authorName: 'ULKSupply Team',
-            message: review.adminComment,
-            createdAt: null,
-          },
-        ]
+        {
+          id: `legacy-${review.id}`,
+          authorRole: 'admin' as const,
+          authorName: 'ULKSupply Team',
+          message: review.adminComment,
+          createdAt: null,
+        },
+      ]
       : [];
     return [...legacyReply, ...(review.replies ?? [])];
   };
@@ -1241,11 +1241,10 @@ export const ClientDashboardPage: React.FC = () => {
                     <div key={tab.id} className="relative">
                       <button
                         onClick={() => handleTabChange(tab.id)}
-                        className={`relative flex h-12 w-12 items-center justify-center rounded-xl transition ${
-                          activeTab === tab.id
+                        className={`relative flex h-12 w-12 items-center justify-center rounded-xl transition ${activeTab === tab.id
                             ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md'
                             : 'text-slate-600 hover:bg-slate-100'
-                        }`}
+                          }`}
                         title={tab.label}
                       >
                         {getTabIcon(tab.id)}
@@ -1310,11 +1309,10 @@ export const ClientDashboardPage: React.FC = () => {
                           onClick={() => {
                             handleTabChange(tab.id);
                           }}
-                          className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition ${
-                            activeTab === tab.id
+                          className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition ${activeTab === tab.id
                               ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md'
                               : 'text-slate-700 hover:bg-slate-100'
-                          }`}
+                            }`}
                         >
                           <span className="relative flex h-5 w-5 items-center justify-center">{getTabIcon(tab.id)}</span>
                           <span className="font-medium">
@@ -1372,26 +1370,25 @@ export const ClientDashboardPage: React.FC = () => {
               style={
                 isFixed
                   ? {
-                      position: 'fixed',
-                      top: `${MOBILE_MENU_STICKY_OFFSET}px`,
-                      width: mobileHeaderRef.current?.parentElement?.clientWidth,
-                      willChange: 'transform',
-                    }
+                    position: 'fixed',
+                    top: `${MOBILE_MENU_STICKY_OFFSET}px`,
+                    width: mobileHeaderRef.current?.parentElement?.clientWidth,
+                    willChange: 'transform',
+                  }
                   : isBottom
-                  ? {
+                    ? {
                       position: 'absolute',
                       bottom: 0,
                       width: mobileHeaderRef.current?.parentElement?.clientWidth,
                       willChange: 'transform',
                     }
-                  : { willChange: 'auto' }
+                    : { willChange: 'auto' }
               }
             >
               <div className="relative">
                 <div
-                  className={`flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/70 lg:rounded-none lg:border-none lg:bg-transparent lg:px-0 lg:py-0 lg:shadow-none ${
-                    sidebarOpen ? 'z-40' : ''
-                  }`}
+                  className={`flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/70 lg:rounded-none lg:border-none lg:bg-transparent lg:px-0 lg:py-0 lg:shadow-none ${sidebarOpen ? 'z-40' : ''
+                    }`}
                 >
                   <button
                     type="button"
@@ -1405,9 +1402,8 @@ export const ClientDashboardPage: React.FC = () => {
                   </button>
 
                   <h1 className="hidden text-2xl font-bold text-slate-900 lg:block">{getTabTitle()}</h1>
-                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
-                    user.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-                  }`}>
+                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${user.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                    }`}>
                     {user.status === 'active' ? 'Active' : 'Inactive'}
                   </span>
                 </div>
@@ -1429,11 +1425,10 @@ export const ClientDashboardPage: React.FC = () => {
                           <div key={tab.id} className="relative">
                             <button
                               onClick={() => handleTabChange(tab.id)}
-                              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                                activeTab === tab.id
+                              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition ${activeTab === tab.id
                                   ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-md'
                                   : 'text-slate-700 hover:bg-slate-100'
-                              }`}
+                                }`}
                             >
                               <span className="relative flex h-5 w-5 items-center justify-center">{getTabIcon(tab.id)}</span>
                               <span>
@@ -1496,336 +1491,1147 @@ export const ClientDashboardPage: React.FC = () => {
                 transition={{ duration: 0.25, ease: 'easeOut' }}
                 className="rounded-2xl border border-border bg-white p-6 shadow-sm"
               >
-              {activeTab === 'account' && (
-                <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-1">
-                  {/* Profile Picture Section */}
-                  <form onSubmit={handleProfileUpdate} className="space-y-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-slate-100 text-2xl font-semibold text-slate-500">
-                          {profileImagePreview ? (
-                            <img src={profileImagePreview} alt="Profile" className="h-full w-full object-cover" />
-                          ) : (
-                            <span>{displayInitial}</span>
-                          )}
-                        </div>
-                        <div className="space-y-2 text-sm text-slate-600">
-                          <p className="font-semibold text-slate-900">Profile Photo</p>
-                          <div className="flex flex-wrap items-center gap-3">
-                            <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-border bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary">
-                              <input
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp"
-                                className="sr-only"
-                                onChange={handleProfileImageChange}
-                              />
-                              Upload new
-                            </label>
-                            {!removeProfileImage && (profileImagePreview || initialProfileImage) && !profileImageFile && (
-                              <button
-                                type="button"
-                                onClick={handleRemoveProfileImage}
-                                className="text-sm font-semibold text-red-600 transition hover:text-red-700"
-                              >
-                                Remove
-                              </button>
-                            )}
-                            {profileImageFile && (
-                              <button
-                                type="button"
-                                onClick={handleUndoRemoveProfileImage}
-                                className="text-sm font-semibold text-slate-600 transition hover:text-slate-900"
-                              >
-                                Cancel
-                              </button>
-                            )}
-                            {removeProfileImage && initialProfileImage && (
-                              <button
-                                type="button"
-                                onClick={handleUndoRemoveProfileImage}
-                                className="text-sm font-semibold text-slate-600 transition hover:text-slate-900"
-                              >
-                                Undo
-                              </button>
+                {activeTab === 'account' && (
+                  <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-1">
+                    {/* Profile Picture Section */}
+                    <form onSubmit={handleProfileUpdate} className="space-y-6">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-slate-100 text-2xl font-semibold text-slate-500">
+                            {profileImagePreview ? (
+                              <img src={profileImagePreview} alt="Profile" className="h-full w-full object-cover" />
+                            ) : (
+                              <span>{displayInitial}</span>
                             )}
                           </div>
-                          {profileImageFile && (
-                            <p className="text-xs text-slate-500">Selected: {profileImageFile.name}</p>
-                          )}
-                          {removeProfileImage && (
-                            <p className="text-xs text-amber-600">Photo will be removed after saving.</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {(profileImageFile || removeProfileImage) && (
-                      <div className="flex justify-end">
-                        <button
-                          type="submit"
-                          disabled={loading}
-                          className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
-                        >
-                          {loading ? 'Saving...' : 'Save Photo'}
-                        </button>
-                      </div>
-                    )}
-                  </form>
-
-                  {/* Account Details - Read Only */}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-slate-600">Full Name</label>
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900">
-                        {user.name}
-                      </div>
-                      <p className="text-xs text-slate-500">Set during registration - cannot be changed</p>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-slate-600">Email Address</label>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900">
-                          {user.email || 'Not provided'}
-                        </div>
-                        {user.isEmailVerified && (
-                          <span className="inline-flex items-center gap-1 text-emerald-600" title="Verified">
-                            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500">Set during registration - cannot be changed</p>
-                    </div>
-
-                    {(user.phoneCode || user.phoneNumber || isEditingPhone) && (
-                      <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-slate-600">Phone Number</label>
-                        {isEditingPhone ? (
-                          <PhoneNumberInput
-                            value={editPhoneValue}
-                            onChange={setEditPhoneValue}
-                            placeholder="600000000"
-                            portalZIndex={30}
-                          />
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900">
-                              {user.phoneCode}{user.phoneNumber}
+                          <div className="space-y-2 text-sm text-slate-600">
+                            <p className="font-semibold text-slate-900">Profile Photo</p>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-border bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary">
+                                <input
+                                  type="file"
+                                  accept="image/png,image/jpeg,image/webp"
+                                  className="sr-only"
+                                  onChange={handleProfileImageChange}
+                                />
+                                Upload new
+                              </label>
+                              {!removeProfileImage && (profileImagePreview || initialProfileImage) && !profileImageFile && (
+                                <button
+                                  type="button"
+                                  onClick={handleRemoveProfileImage}
+                                  className="text-sm font-semibold text-red-600 transition hover:text-red-700"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                              {profileImageFile && (
+                                <button
+                                  type="button"
+                                  onClick={handleUndoRemoveProfileImage}
+                                  className="text-sm font-semibold text-slate-600 transition hover:text-slate-900"
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                              {removeProfileImage && initialProfileImage && (
+                                <button
+                                  type="button"
+                                  onClick={handleUndoRemoveProfileImage}
+                                  className="text-sm font-semibold text-slate-600 transition hover:text-slate-900"
+                                >
+                                  Undo
+                                </button>
+                              )}
                             </div>
-                            <button
-                              onClick={() => {
-                                setEditPhoneValue(parsePhoneNumber(user.phoneCode, user.phoneNumber));
-                                setIsEditingPhone(true);
-                              }}
-                              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
+                            {profileImageFile && (
+                              <p className="text-xs text-slate-500">Selected: {profileImageFile.name}</p>
+                            )}
+                            {removeProfileImage && (
+                              <p className="text-xs text-amber-600">Photo will be removed after saving.</p>
+                            )}
                           </div>
-                        )}
-                        {isEditingPhone && (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setIsEditingPhone(false)}
-                              className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={async () => {
-                                if (!user) return;
-                                setPhoneUpdateLoading(true);
-                                setError(null);
-
-                                try {
-                                  await usersApi.updatePhone(user.id, {
-                                    phoneCode: editPhoneValue.countryCode,
-                                    phoneNumber: editPhoneValue.number,
-                                  });
-                                  await refresh();
-                                  setStatusMessage('Phone number updated successfully');
-                                  setIsEditingPhone(false);
-                                } catch (err) {
-                                  console.error(err);
-                                  setError(err instanceof Error ? err.message : 'Failed to update phone number');
-                                } finally {
-                                  setPhoneUpdateLoading(false);
-                                }
-                              }}
-                              disabled={phoneUpdateLoading || !editPhoneValue.number}
-                              className="flex-1 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-50"
-                            >
-                              {phoneUpdateLoading ? 'Saving...' : 'Save'}
-                            </button>
-                          </div>
-                        )}
+                        </div>
                       </div>
-                    )}
 
-                    {user.username && (
+                      {(profileImageFile || removeProfileImage) && (
+                        <div className="flex justify-end">
+                          <button
+                            type="submit"
+                            disabled={loading}
+                            className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
+                          >
+                            {loading ? 'Saving...' : 'Save Photo'}
+                          </button>
+                        </div>
+                      )}
+                    </form>
+
+                    {/* Account Details - Read Only */}
+                    <div className="grid gap-4 md:grid-cols-2">
                       <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-slate-600">Username</label>
+                        <label className="text-sm font-medium text-slate-600">Full Name</label>
                         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900">
-                          {user.username}
+                          {user.name}
                         </div>
                         <p className="text-xs text-slate-500">Set during registration - cannot be changed</p>
                       </div>
-                    )}
 
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-slate-600">Account Type</label>
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900">
-                        {isB2B ? 'Business (B2B)' : 'Consumer (C2B)'}
-                      </div>
-                    </div>
-
-                    {user.accountCreated && (
                       <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-slate-600">Member Since</label>
+                        <label className="text-sm font-medium text-slate-600">Email Address</label>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                            {user.email || 'Not provided'}
+                          </div>
+                          {user.isEmailVerified && (
+                            <span className="inline-flex items-center gap-1 text-emerald-600" title="Verified">
+                              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">Set during registration - cannot be changed</p>
+                      </div>
+
+                      {(user.phoneCode || user.phoneNumber || isEditingPhone) && (
+                        <div className="flex flex-col gap-2">
+                          <label className="text-sm font-medium text-slate-600">Phone Number</label>
+                          {isEditingPhone ? (
+                            <PhoneNumberInput
+                              value={editPhoneValue}
+                              onChange={setEditPhoneValue}
+                              placeholder="600000000"
+                              portalZIndex={30}
+                            />
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                                {user.phoneCode}{user.phoneNumber}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setEditPhoneValue(parsePhoneNumber(user.phoneCode, user.phoneNumber));
+                                  setIsEditingPhone(true);
+                                }}
+                                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                          {isEditingPhone && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setIsEditingPhone(false)}
+                                className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!user) return;
+                                  setPhoneUpdateLoading(true);
+                                  setError(null);
+
+                                  try {
+                                    await usersApi.updatePhone(user.id, {
+                                      phoneCode: editPhoneValue.countryCode,
+                                      phoneNumber: editPhoneValue.number,
+                                    });
+                                    await refresh();
+                                    setStatusMessage('Phone number updated successfully');
+                                    setIsEditingPhone(false);
+                                  } catch (err) {
+                                    console.error(err);
+                                    setError(err instanceof Error ? err.message : 'Failed to update phone number');
+                                  } finally {
+                                    setPhoneUpdateLoading(false);
+                                  }
+                                }}
+                                disabled={phoneUpdateLoading || !editPhoneValue.number}
+                                className="flex-1 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-50"
+                              >
+                                {phoneUpdateLoading ? 'Saving...' : 'Save'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {user.username && (
+                        <div className="flex flex-col gap-2">
+                          <label className="text-sm font-medium text-slate-600">Username</label>
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                            {user.username}
+                          </div>
+                          <p className="text-xs text-slate-500">Set during registration - cannot be changed</p>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-medium text-slate-600">Account Type</label>
                         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900">
-                          {new Date(user.accountCreated).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
+                          {isB2B ? 'Business (B2B)' : 'Consumer (C2B)'}
                         </div>
                       </div>
-                    )}
 
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-slate-600">User ID</label>
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-mono text-slate-900">
-                        {user.id}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Company Information (B2B Only) */}
-                  {isB2B && user.company && (
-                    <div className="space-y-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
-                      <div className="flex items-start gap-2">
-                        <svg className="h-5 w-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                        </svg>
-                        <p className="text-sm text-blue-800 font-medium">
-                          Company information cannot be changed. Contact support if you need to update these details.
-                        </p>
-                      </div>
-
-                      <h3 className="text-lg font-semibold text-slate-900">Company Information</h3>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {user.company.name && (
-                          <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium text-slate-600">Company Name</label>
-                            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
-                              {user.company.name}
-                            </div>
+                      {user.accountCreated && (
+                        <div className="flex flex-col gap-2">
+                          <label className="text-sm font-medium text-slate-600">Member Since</label>
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                            {new Date(user.accountCreated).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
                           </div>
-                        )}
-                        {user.company.address && (
-                          <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium text-slate-600">Company Address</label>
-                            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
-                              {user.company.address}
-                            </div>
-                          </div>
-                        )}
-                        {user.company.phone && (
-                          <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium text-slate-600">Company Phone</label>
-                            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
-                              {user.company.phone}
-                            </div>
-                          </div>
-                        )}
-                        {user.company.businessType && (
-                          <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium text-slate-600">Business Type</label>
-                            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
-                              {user.company.businessType}
-                            </div>
-                          </div>
-                        )}
-                        {user.company.taxId && (
-                          <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium text-slate-600">Tax ID</label>
-                            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-mono text-slate-900">
-                              {user.company.taxId}
-                            </div>
-                          </div>
-                        )}
-                        {user.company.website && (
-                          <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium text-slate-600">Website</label>
-                            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
-                              {(() => {
-                                const raw = user.company?.website ?? '';
-                                const normalized = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
-                                return (
-                                  <a href={normalized} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                                    {raw}
-                                  </a>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {isB2B && user.company && (!user.company.taxId || !user.company.website || !user.company.address) && (
-                    <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
-                      <h3 className="text-lg font-semibold text-slate-900">Complete Company Details</h3>
-                      <p className="text-sm text-slate-600">
-                        Add the remaining required company information below. Once saved, these fields become locked.
-                      </p>
-                      {companyDetailsError && (
-                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-                          {companyDetailsError}
                         </div>
                       )}
-                      {companyDetailsSuccess && (
-                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
-                          {companyDetailsSuccess}
+
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-medium text-slate-600">User ID</label>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-mono text-slate-900">
+                          {user.id}
                         </div>
-                      )}
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {!user.company.address && (
-                          <div className="flex flex-col gap-4 md:col-span-2">
+                      </div>
+                    </div>
+
+                    {/* Company Information (B2B Only) */}
+                    {isB2B && user.company && (
+                      <div className="space-y-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                        <div className="flex items-start gap-2">
+                          <svg className="h-5 w-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          <p className="text-sm text-blue-800 font-medium">
+                            Company information cannot be changed. Contact support if you need to update these details.
+                          </p>
+                        </div>
+
+                        <h3 className="text-lg font-semibold text-slate-900">Company Information</h3>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {user.company.name && (
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-medium text-slate-600">Company Name</label>
+                              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
+                                {user.company.name}
+                              </div>
+                            </div>
+                          )}
+                          {user.company.address && (
                             <div className="flex flex-col gap-2">
                               <label className="text-sm font-medium text-slate-600">Company Address</label>
-                              <input
-                                type="text"
-                                value={companyAddressDraft}
-                                onChange={(event) => setCompanyAddressDraft(event.target.value)}
-                                placeholder="Street address"
-                                disabled={companyDetailsLoading}
-                                className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              />
+                              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
+                                {user.company.address}
+                              </div>
                             </div>
+                          )}
+                          {user.company.phone && (
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-medium text-slate-600">Company Phone</label>
+                              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
+                                {user.company.phone}
+                              </div>
+                            </div>
+                          )}
+                          {user.company.businessType && (
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-medium text-slate-600">Business Type</label>
+                              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
+                                {user.company.businessType}
+                              </div>
+                            </div>
+                          )}
+                          {user.company.taxId && (
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-medium text-slate-600">Tax ID</label>
+                              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-mono text-slate-900">
+                                {user.company.taxId}
+                              </div>
+                            </div>
+                          )}
+                          {user.company.website && (
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-medium text-slate-600">Website</label>
+                              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
+                                {(() => {
+                                  const raw = user.company?.website ?? '';
+                                  const normalized = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+                                  return (
+                                    <a href={normalized} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                      {raw}
+                                    </a>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
-                            <div className="grid gap-4 md:grid-cols-3">
+                    {isB2B && user.company && (!user.company.taxId || !user.company.website || !user.company.address) && (
+                      <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+                        <h3 className="text-lg font-semibold text-slate-900">Complete Company Details</h3>
+                        <p className="text-sm text-slate-600">
+                          Add the remaining required company information below. Once saved, these fields become locked.
+                        </p>
+                        {companyDetailsError && (
+                          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+                            {companyDetailsError}
+                          </div>
+                        )}
+                        {companyDetailsSuccess && (
+                          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+                            {companyDetailsSuccess}
+                          </div>
+                        )}
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {!user.company.address && (
+                            <div className="flex flex-col gap-4 md:col-span-2">
                               <div className="flex flex-col gap-2">
-                                <label className="text-sm font-medium text-slate-600">Country</label>
+                                <label className="text-sm font-medium text-slate-600">Company Address</label>
+                                <input
+                                  type="text"
+                                  value={companyAddressDraft}
+                                  onChange={(event) => setCompanyAddressDraft(event.target.value)}
+                                  placeholder="Street address"
+                                  disabled={companyDetailsLoading}
+                                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                />
+                              </div>
+
+                              <div className="grid gap-4 md:grid-cols-3">
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-sm font-medium text-slate-600">Country</label>
+                                  <CountrySelect
+                                    value={companyCountryDraft}
+                                    onChange={setCompanyCountryDraft}
+                                    placeholder="Select country"
+                                    searchPlaceholder="Search countries..."
+                                    portalZIndex={30}
+                                    className="w-full"
+                                  />
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-sm font-medium text-slate-600">State</label>
+                                  {isUnitedStatesCompanyDetails ? (
+                                    <CountrySelect
+                                      value={companyStateDraft}
+                                      onChange={setCompanyStateDraft}
+                                      options={US_STATES}
+                                      placeholder="Select state"
+                                      searchPlaceholder="Search states..."
+                                      portalZIndex={30}
+                                      className="w-full"
+                                    />
+                                  ) : (
+                                    <input
+                                      id="companyState"
+                                      type="text"
+                                      value={companyStateDraft}
+                                      onChange={(event) => setCompanyStateDraft(event.target.value)}
+                                      placeholder="State / Province"
+                                      disabled={companyDetailsLoading}
+                                      className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    />
+                                  )}
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-sm font-medium text-slate-600">City</label>
+                                  <input
+                                    id="companyCity"
+                                    type="text"
+                                    value={companyCityDraft}
+                                    onChange={(event) => setCompanyCityDraft(event.target.value)}
+                                    placeholder="City"
+                                    disabled={companyDetailsLoading}
+                                    className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <button
+                                  type="button"
+                                  onClick={handleSaveCompanyAddress}
+                                  disabled={
+                                    companyDetailsLoading ||
+                                    !companyAddressDraft.trim() ||
+                                    !companyCityDraft.trim() ||
+                                    !companyStateDraft.trim() ||
+                                    !companyCountryDraft.trim()
+                                  }
+                                  className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Save Address
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {!user.company.taxId && (
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-medium text-slate-600">Tax ID</label>
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                <input
+                                  type="text"
+                                  value={companyTaxIdDraft}
+                                  onChange={(event) => setCompanyTaxIdDraft(event.target.value)}
+                                  placeholder="Tax ID / EIN"
+                                  disabled={companyDetailsLoading}
+                                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleSaveCompanyTaxId}
+                                  disabled={companyDetailsLoading || !companyTaxIdDraft.trim()}
+                                  className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {!user.company.website && (
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-medium text-slate-600">Company Website</label>
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                <input
+                                  type="text"
+                                  value={companyWebsiteDraft}
+                                  onChange={(event) => setCompanyWebsiteDraft(event.target.value)}
+                                  placeholder="example.com"
+                                  disabled={companyDetailsLoading}
+                                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleSaveCompanyWebsite}
+                                  disabled={companyDetailsLoading || !companyWebsiteDraft.trim()}
+                                  className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Verification Section (B2B Only) */}
+                    {isB2B && (
+                      <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50 p-6">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+                            <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-slate-900">Business Verification</h3>
+                            <p className="text-sm text-slate-600 mt-1">
+                              Upload your business license, tax certificate, or other official business documentation to verify your B2B account and unlock full purchasing capabilities.
+                            </p>
+                          </div>
+                        </div>
+
+                        {verificationStatus === 'approved' ? (
+                          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                            <div className="flex items-center gap-3">
+                              <svg className="h-8 w-8 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              <div>
+                                <p className="font-semibold text-emerald-900">Verification Approved</p>
+                                <p className="text-sm text-emerald-700">Your document has been approved.</p>
+                                {user.verificationFileUrl && (
+                                  <a
+                                    href={user.verificationFileUrl.startsWith('http') ? user.verificationFileUrl : `/uploads/${user.verificationFileUrl}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-emerald-600 hover:underline mt-1 inline-block"
+                                  >
+                                    View approved document
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : verificationStatus === 'pending' && user.verificationFileUrl ? (
+                          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <div className="flex items-center gap-3">
+                              <svg className="h-8 w-8 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V7a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                              <div>
+                                <p className="font-semibold text-amber-900">Verification Under Review</p>
+                                <p className="text-sm text-amber-700">Your document is under review. We'll notify you once it's approved.</p>
+                                <a
+                                  href={user.verificationFileUrl.startsWith('http') ? user.verificationFileUrl : `/uploads/${user.verificationFileUrl}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm text-amber-600 hover:underline mt-1 inline-block"
+                                >
+                                  View submitted document
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {verificationStatus === 'rejected' && (
+                              <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                                <div className="flex items-center gap-3">
+                                  <svg className="h-8 w-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.536-10.95a1 1 0 00-1.414-1.414L10 8.586 7.879 6.636a1 1 0 10-1.414 1.414L8.586 10l-2.121 2.121a1 1 0 101.414 1.414L10 11.414l2.121 2.121a1 1 0 001.414-1.414L11.414 10l2.122-2.122z" clipRule="evenodd" />
+                                  </svg>
+                                  <div>
+                                    <p className="font-semibold text-red-900">Verification Revoked</p>
+                                    <p className="text-sm text-red-700">Please upload a new document so we can review your account again.</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            <form onSubmit={handleVerificationUpload} className="space-y-4">
+                              <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium text-slate-700">Upload Verification Document</label>
+                                <input
+                                  type="file"
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                  onChange={(e) => setVerificationFile(e.target.files?.[0] || null)}
+                                  className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
+                                />
+                                <p className="text-xs text-slate-500">Accepted formats: PDF, JPG, PNG (max 10MB)</p>
+                              </div>
+                              {verificationFile && (
+                                <div className="flex justify-end">
+                                  <button
+                                    type="submit"
+                                    disabled={verificationLoading}
+                                    className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
+                                  >
+                                    {verificationLoading ? 'Uploading...' : 'Upload Document'}
+                                  </button>
+                                </div>
+                              )}
+                            </form>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'orders' && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h2 className="text-2xl font-bold text-slate-900">My Orders</h2>
+                        <p className="text-sm text-slate-600 mt-1">Track and manage your recent purchases</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => navigate('/products')}
+                          className="inline-flex items-center gap-2 rounded-lg border-2 border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-red-600 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <ShoppingBag className="h-4 w-4" />
+                          Continue Shopping
+                        </button>
+                        <button
+                          onClick={() => loadOrders()}
+                          disabled={ordersLoading}
+                          className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <RefreshCw className={cn("h-4 w-4", ordersLoading && "animate-spin")} />
+                          {ordersLoading ? 'Refreshing...' : 'Refresh'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {user.taxExempt && (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                        Your account is tax exempt. Taxes will not be applied to your orders.
+                      </div>
+                    )}
+
+                    {ordersError && (
+                      <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                        <div className="flex items-center gap-3">
+                          <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                          <p className="text-sm text-red-800">{ordersError}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {ordersLoading && (
+                      <div className="rounded-lg border border-slate-200 bg-white p-8">
+                        <div className="flex items-center justify-center gap-3">
+                          <RefreshCw className="h-5 w-5 text-slate-400 animate-spin" />
+                          <p className="text-sm text-slate-600">Loading your orders...</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {!ordersLoading && orders.length === 0 && (
+                      <div className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-12">
+                        <div className="flex flex-col items-center justify-center text-center">
+                          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100">
+                            <Package className="h-10 w-10 text-slate-400" />
+                          </div>
+                          <h3 className="text-xl font-semibold text-slate-900">No orders yet</h3>
+                          <p className="mt-2 text-sm text-slate-600 max-w-sm">Start shopping to see your order history here. Browse our products and place your first order!</p>
+                          <button
+                            onClick={() => navigate('/products')}
+                            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
+                          >
+                            <ShoppingBag className="h-4 w-4" />
+                            Browse Products
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {orders.length > 0 && (
+                      <div className="max-h-[600px] overflow-y-auto pr-2 space-y-4 scrollbar-custom">
+                        {orders.map((order) => {
+                          const itemCount = order.products.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                          const subtotal = order.products.reduce(
+                            (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
+                            0
+                          );
+                          const discount = order.coupon?.discountAmount ?? 0;
+                          const taxAmount = order.taxAmount ?? 0;
+                          const total = Math.max(0, subtotal - discount) + taxAmount;
+
+                          const getStatusConfig = (status: string) => {
+                            switch (status) {
+                              case 'pending':
+                                return {
+                                  label: 'Processing',
+                                  icon: Clock,
+                                  bgColor: 'bg-amber-50',
+                                  textColor: 'text-amber-700',
+                                  borderColor: 'border-amber-200',
+                                  iconColor: 'text-amber-600'
+                                };
+                              case 'completed':
+                                return {
+                                  label: 'Completed',
+                                  icon: CheckCircle,
+                                  bgColor: 'bg-green-50',
+                                  textColor: 'text-green-700',
+                                  borderColor: 'border-green-200',
+                                  iconColor: 'text-green-600'
+                                };
+                              case 'cancelled':
+                                return {
+                                  label: 'Cancelled',
+                                  icon: XCircle,
+                                  bgColor: 'bg-red-50',
+                                  textColor: 'text-red-700',
+                                  borderColor: 'border-red-200',
+                                  iconColor: 'text-red-600'
+                                };
+                              default:
+                                return {
+                                  label: status,
+                                  icon: Package,
+                                  bgColor: 'bg-slate-50',
+                                  textColor: 'text-slate-700',
+                                  borderColor: 'border-slate-200',
+                                  iconColor: 'text-slate-600'
+                                };
+                            }
+                          };
+
+                          const statusConfig = getStatusConfig(order.status);
+                          const StatusIcon = statusConfig.icon;
+
+                          return (
+                            <div key={order.id} className="rounded-lg border border-slate-200 bg-white overflow-hidden hover:shadow-md transition-shadow">
+                              {/* Order Header */}
+                              <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
+                                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                  <div className="flex items-start gap-4">
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100">
+                                      <Package className="h-6 w-6 text-red-600" />
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Order</p>
+                                        <code className="text-xs font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                          #{order.id.slice(-8)}
+                                        </code>
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                        <p className="text-sm text-slate-600">{formatOrderDate(order.createdAt)}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <div className={cn(
+                                      "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 border",
+                                      statusConfig.bgColor,
+                                      statusConfig.textColor,
+                                      statusConfig.borderColor
+                                    )}>
+                                      <StatusIcon className={cn("h-4 w-4", statusConfig.iconColor)} />
+                                      <span className="text-sm font-semibold">{statusConfig.label}</span>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-xs text-slate-500">
+                                        Shipping: {order.shippingCost === 0 ? 'Free' : formatCurrency(order.shippingCost)}
+                                      </p>
+                                      {order.shippingMethod && (
+                                        <p className="text-[10px] text-slate-400 max-w-[100px] truncate" title={order.shippingMethod}>
+                                          {order.shippingMethod === 'standard' ? 'Standard' :
+                                            order.shippingMethod === 'express' ? 'Express' :
+                                              order.shippingMethod === 'overnight' ? 'Overnight' :
+                                                order.shippingMethod}
+                                        </p>
+                                      )}
+                                      <p className="text-xs text-slate-500 mt-1">Total</p>
+                                      <p className="text-2xl font-bold text-slate-900">{formatCurrency(total)}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Order Items */}
+                              <div className="p-6">
+                                <div className="flex items-center gap-2 mb-4">
+                                  <ShoppingBag className="h-4 w-4 text-slate-400" />
+                                  <h3 className="text-sm font-semibold text-slate-700">
+                                    {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
+                                  </h3>
+                                </div>
+                                <div className="space-y-3">
+                                  {order.products.map((item, index) => (
+                                    <div
+                                      key={`${order.id}-line-${index}`}
+                                      className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-100 hover:bg-slate-100 transition-colors"
+                                    >
+                                      <div className="flex-1">
+                                        <p className="font-semibold text-slate-900">{item.name}</p>
+                                        <p className="text-sm text-slate-500 mt-0.5">Quantity: {item.quantity}</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="font-bold text-slate-900">
+                                          {formatCurrency((item.price || 0) * (item.quantity || 0))}
+                                        </p>
+                                        <p className="text-xs text-slate-500 mt-0.5">
+                                          {formatCurrency(item.price || 0)} each
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'reviews' && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h2 className="text-2xl font-bold text-slate-900">My Reviews</h2>
+                        <p className="text-sm text-slate-600 mt-1">Track the feedback you have shared.</p>
+                      </div>
+                      <button
+                        onClick={() => loadReviews()}
+                        disabled={reviewsLoading}
+                        className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <RefreshCw className={cn("h-4 w-4", reviewsLoading && "animate-spin")} />
+                        {reviewsLoading ? 'Refreshing...' : 'Refresh'}
+                      </button>
+                    </div>
+
+                    {reviewsError && (
+                      <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                        <div className="flex items-center gap-3">
+                          <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                          <p className="text-sm text-red-800">{reviewsError}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {reviewsLoading && (
+                      <div className="rounded-lg border border-slate-200 bg-white p-8">
+                        <div className="flex items-center justify-center gap-3">
+                          <RefreshCw className="h-5 w-5 text-slate-400 animate-spin" />
+                          <p className="text-sm text-slate-600">Loading your reviews...</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {!reviewsLoading && reviews.length === 0 && (
+                      <div className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-12">
+                        <div className="flex flex-col items-center justify-center text-center">
+                          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100">
+                            <Star className="h-10 w-10 text-slate-400" />
+                          </div>
+                          <h3 className="text-xl font-semibold text-slate-900">No reviews yet</h3>
+                          <p className="mt-2 text-sm text-slate-600 max-w-sm">
+                            Reviews for products you have purchased will appear here once submitted.
+                          </p>
+                          <button
+                            onClick={() => navigate('/products')}
+                            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
+                          >
+                            <ShoppingBag className="h-4 w-4" />
+                            Browse Products
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {reviews.length > 0 && (
+                      <div className="space-y-4">
+                        {reviews.map((review) => {
+                          const product = reviewProducts[review.productId];
+                          const displayReplies = getReviewReplies(review);
+                          return (
+                            <div
+                              key={review.id}
+                              className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
+                            >
+                              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="space-y-1">
+                                  <Link
+                                    to={`/products/${review.productId}`}
+                                    className="text-base font-semibold text-slate-900 hover:text-primary"
+                                  >
+                                    {product?.name ?? 'Product'}
+                                  </Link>
+                                  <p className="text-xs text-slate-500">{formatReviewDate(review.createdAt)}</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  {review.isVerifiedPurchase ? (
+                                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                                      Verified purchase
+                                    </span>
+                                  ) : null}
+                                  <div className="flex items-center gap-1 text-amber-500">
+                                    {Array.from({ length: 5 }).map((_, index) => (
+                                      <Star
+                                        key={index}
+                                        className={cn(
+                                          "h-4 w-4",
+                                          review.rating >= index + 1 ? "fill-current text-amber-500" : "text-slate-200"
+                                        )}
+                                      />
+                                    ))}
+                                    <span className="text-xs font-semibold text-slate-700">{review.rating.toFixed(1)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <p className="mt-3 text-sm text-slate-700">{review.comment}</p>
+                              {displayReplies.length > 0 && (
+                                <div className="mt-3 space-y-2">
+                                  {displayReplies.map((reply) => (
+                                    <div
+                                      key={reply.id}
+                                      className={cn(
+                                        'rounded-xl border px-3 py-2 text-xs',
+                                        reply.authorRole === 'admin'
+                                          ? 'border-slate-200 bg-slate-50 text-slate-700'
+                                          : 'border-primary/20 bg-primary/5 text-slate-700'
+                                      )}
+                                    >
+                                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                                        <span className="font-semibold text-slate-700">{getReplyAuthor(reply)}</span>
+                                        {reply.createdAt ? <span>{formatReviewDate(reply.createdAt)}</span> : null}
+                                      </div>
+                                      <p className="mt-1 whitespace-pre-line">{reply.message}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'settings' && (
+                  <div className="space-y-8">
+                    {isC2B && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h2 className="text-xl font-semibold text-slate-900">Billing Address</h2>
+                            <p className="mt-1 text-sm text-slate-600">Used to calculate taxes at checkout</p>
+                          </div>
+                        </div>
+
+                        {showBillingForm ? (
+                          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <form onSubmit={handleSaveBillingAddress} className="space-y-4">
+                              <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 1 *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={billingForm.addressLine1 ?? ''}
+                                  onChange={(e) => setBillingForm({ ...billingForm, addressLine1: e.target.value })}
+                                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                                  placeholder="Street address, P.O. box"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 2</label>
+                                <input
+                                  type="text"
+                                  value={billingForm.addressLine2 ?? ''}
+                                  onChange={(e) => setBillingForm({ ...billingForm, addressLine2: e.target.value })}
+                                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                                  placeholder="Apartment, suite, unit, building, floor, etc."
+                                />
+                              </div>
+
+                              <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">Country *</label>
                                 <CountrySelect
-                                  value={companyCountryDraft}
-                                  onChange={setCompanyCountryDraft}
-                                  placeholder="Select country"
-                                  searchPlaceholder="Search countries..."
+                                  value={billingForm.country || 'United States'}
+                                  onChange={(countryName) => {
+                                    setBillingForm({ ...billingForm, country: countryName });
+                                  }}
                                   portalZIndex={30}
                                   className="w-full"
                                 />
                               </div>
 
-                              <div className="flex flex-col gap-2">
-                                <label className="text-sm font-medium text-slate-600">State</label>
-                                {isUnitedStatesCompanyDetails ? (
+                              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                <div>
+                                  <label className="mb-2 block text-sm font-medium text-slate-700">State/Province *</label>
+                                  {isUnitedStatesBilling ? (
+                                    <CountrySelect
+                                      value={billingForm.state || ''}
+                                      onChange={(stateName) => setBillingForm({ ...billingForm, state: stateName })}
+                                      options={US_STATES}
+                                      placeholder="Select state"
+                                      searchPlaceholder="Search states..."
+                                      portalZIndex={30}
+                                      className="w-full"
+                                    />
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={billingForm.state ?? ''}
+                                      onChange={(e) => setBillingForm({ ...billingForm, state: e.target.value })}
+                                      className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                                      placeholder="State / Province"
+                                    />
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="mb-2 block text-sm font-medium text-slate-700">City *</label>
+                                  <input
+                                    type="text"
+                                    required
+                                    value={billingForm.city ?? ''}
+                                    onChange={(e) => setBillingForm({ ...billingForm, city: e.target.value })}
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                                    placeholder="City name"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-2 block text-sm font-medium text-slate-700">Postal Code</label>
+                                  <input
+                                    type="text"
+                                    value={billingForm.postalCode ?? ''}
+                                    onChange={(e) => setBillingForm({ ...billingForm, postalCode: e.target.value })}
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                                    placeholder="20000"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex gap-3">
+                                <button
+                                  type="submit"
+                                  disabled={billingSaving || !billingFormComplete}
+                                  className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
+                                >
+                                  {billingSaving ? 'Saving...' : 'Save Billing Address'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelBillingAddress}
+                                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+                        ) : (
+                          <>
+                            {hasBillingAddress ? (
+                              <div className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <MapPin className="h-4 w-4 text-slate-400" />
+                                      <span className="font-semibold text-slate-900">Billing address</span>
+                                    </div>
+                                    <p className="mt-2 text-sm text-slate-600">
+                                      {user.billingAddress?.addressLine1}
+                                      {user.billingAddress?.addressLine2 && `, ${user.billingAddress.addressLine2}`}
+                                    </p>
+                                    <p className="text-sm text-slate-600">
+                                      {user.billingAddress?.city}, {user.billingAddress?.state} {user.billingAddress?.postalCode}
+                                    </p>
+                                    <p className="text-sm text-slate-600">{user.billingAddress?.country}</p>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => setShowBillingForm(true)}
+                                      className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100"
+                                      title="Edit billing address"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={handleDeleteBillingAddress}
+                                      className="rounded-lg p-2 text-rose-600 transition hover:bg-rose-50"
+                                      title="Delete billing address"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+                                <MapPin className="mx-auto h-10 w-10 text-slate-400" />
+                                <p className="mt-2 font-semibold text-slate-900">No billing address yet</p>
+                                <p className="mt-1 text-sm text-slate-600">Add your billing address to calculate taxes.</p>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowBillingForm(true)}
+                                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  Add Billing Address
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Shipping Addresses Section */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-xl font-semibold text-slate-900">Shipping Addresses</h2>
+                          <p className="mt-1 text-sm text-slate-600">Manage your delivery addresses</p>
+                        </div>
+                        {!showAddressForm && (
+                          <button
+                            onClick={handleAddNewAddress}
+                            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Add Address
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Address Form */}
+                      {showAddressForm && (
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                          <h3 className="mb-4 text-lg font-semibold text-slate-900">
+                            {editingAddressId ? 'Edit Address' : 'Add New Address'}
+                          </h3>
+                          <form onSubmit={handleAddressFormSubmit} className="space-y-4">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                              <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">Full Name *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={addressForm.fullName}
+                                  onChange={(e) => setAddressForm({ ...addressForm, fullName: e.target.value })}
+                                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                                  placeholder="John Doe"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">Phone *</label>
+                                <PhoneNumberInput
+                                  value={addressPhoneValue}
+                                  onChange={(val) => {
+                                    setAddressPhoneValue(val);
+                                    setAddressForm({ ...addressForm, phone: `${val.countryCode}${val.number}` });
+                                  }}
+                                  placeholder="600000000"
+                                  placement="bottom"
+                                  portalZIndex={30}
+                                  size="compact"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 1 *</label>
+                              <input
+                                type="text"
+                                required
+                                value={addressForm.addressLine1}
+                                onChange={(e) => setAddressForm({ ...addressForm, addressLine1: e.target.value })}
+                                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                                placeholder="Street address, P.O. box"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 2</label>
+                              <input
+                                type="text"
+                                value={addressForm.addressLine2}
+                                onChange={(e) => setAddressForm({ ...addressForm, addressLine2: e.target.value })}
+                                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                                placeholder="Apartment, suite, unit, building, floor, etc."
+                              />
+                            </div>
+
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-slate-700">Country *</label>
+                              <CountrySelect
+                                value={addressForm.country || 'United States'}
+                                onChange={(countryName) => {
+                                  setAddressForm({ ...addressForm, country: countryName });
+                                }}
+                                defaultPhoneCode={addressPhoneValue.countryCode}
+                                portalZIndex={30}
+                                className="w-full"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                              <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">State/Province</label>
+                                {isUnitedStatesShipping ? (
                                   <CountrySelect
-                                    value={companyStateDraft}
-                                    onChange={setCompanyStateDraft}
+                                    value={addressForm.state || ''}
+                                    onChange={(stateName) => setAddressForm({ ...addressForm, state: stateName })}
                                     options={US_STATES}
                                     placeholder="Select state"
                                     searchPlaceholder="Search states..."
@@ -1834,1476 +2640,457 @@ export const ClientDashboardPage: React.FC = () => {
                                   />
                                 ) : (
                                   <input
-                                    id="companyState"
                                     type="text"
-                                    value={companyStateDraft}
-                                    onChange={(event) => setCompanyStateDraft(event.target.value)}
+                                    value={addressForm.state}
+                                    onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
                                     placeholder="State / Province"
-                                    disabled={companyDetailsLoading}
-                                    className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                                   />
                                 )}
                               </div>
-
-                              <div className="flex flex-col gap-2">
-                                <label className="text-sm font-medium text-slate-600">City</label>
+                              <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">City *</label>
                                 <input
-                                  id="companyCity"
                                   type="text"
-                                  value={companyCityDraft}
-                                  onChange={(event) => setCompanyCityDraft(event.target.value)}
-                                  placeholder="City"
-                                  disabled={companyDetailsLoading}
-                                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                  required
+                                  value={addressForm.city}
+                                  onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
+                                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                                  placeholder="City name"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">Postal Code</label>
+                                <input
+                                  type="text"
+                                  value={addressForm.postalCode}
+                                  onChange={(e) => setAddressForm({ ...addressForm, postalCode: e.target.value })}
+                                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                                  placeholder="20000"
                                 />
                               </div>
                             </div>
 
-                            <div>
-                              <button
-                                type="button"
-                                onClick={handleSaveCompanyAddress}
-                                disabled={
-                                  companyDetailsLoading ||
-                                  !companyAddressDraft.trim() ||
-                                  !companyCityDraft.trim() ||
-                                  !companyStateDraft.trim() ||
-                                  !companyCountryDraft.trim()
-                                }
-                                className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                Save Address
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {!user.company.taxId && (
-                          <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium text-slate-600">Tax ID</label>
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                            <div className="flex items-center gap-2">
                               <input
-                                type="text"
-                                value={companyTaxIdDraft}
-                                onChange={(event) => setCompanyTaxIdDraft(event.target.value)}
-                                placeholder="Tax ID / EIN"
-                                disabled={companyDetailsLoading}
-                                className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                type="checkbox"
+                                id="isDefault"
+                                checked={addressForm.isDefault}
+                                onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
+                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-4 focus:ring-primary/20"
                               />
+                              <label htmlFor="isDefault" className="text-sm font-medium text-slate-700">
+                                Set as default address
+                              </label>
+                            </div>
+
+                            <div className="flex gap-3">
+                              <button
+                                type="submit"
+                                disabled={addressLoading}
+                                className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
+                              >
+                                {addressLoading ? 'Saving...' : editingAddressId ? 'Update Address' : 'Add Address'}
+                              </button>
                               <button
                                 type="button"
-                                onClick={handleSaveCompanyTaxId}
-                                disabled={companyDetailsLoading || !companyTaxIdDraft.trim()}
-                                className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                onClick={handleCancelAddressForm}
+                                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                               >
-                                Save
+                                Cancel
                               </button>
                             </div>
-                          </div>
-                        )}
-                        {!user.company.website && (
-                          <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium text-slate-600">Company Website</label>
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                              <input
-                                type="text"
-                                value={companyWebsiteDraft}
-                                onChange={(event) => setCompanyWebsiteDraft(event.target.value)}
-                                placeholder="example.com"
-                                disabled={companyDetailsLoading}
-                                className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              />
-                              <button
-                                type="button"
-                                onClick={handleSaveCompanyWebsite}
-                                disabled={companyDetailsLoading || !companyWebsiteDraft.trim()}
-                                className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                Save
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                          </form>
+                        </div>
+                      )}
 
-                  {/* Verification Section (B2B Only) */}
-                  {isB2B && (
-                    <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50 p-6">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
-                          <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-slate-900">Business Verification</h3>
-                          <p className="text-sm text-slate-600 mt-1">
-                            Upload your business license, tax certificate, or other official business documentation to verify your B2B account and unlock full purchasing capabilities.
-                          </p>
-                        </div>
-                      </div>
-
-                      {verificationStatus === 'approved' ? (
-                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                          <div className="flex items-center gap-3">
-                            <svg className="h-8 w-8 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <div>
-                              <p className="font-semibold text-emerald-900">Verification Approved</p>
-                              <p className="text-sm text-emerald-700">Your document has been approved.</p>
-                              {user.verificationFileUrl && (
-                                <a
-                                  href={user.verificationFileUrl.startsWith('http') ? user.verificationFileUrl : `/uploads/${user.verificationFileUrl}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-sm text-emerald-600 hover:underline mt-1 inline-block"
-                                >
-                                  View approved document
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : verificationStatus === 'pending' && user.verificationFileUrl ? (
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                          <div className="flex items-center gap-3">
-                            <svg className="h-8 w-8 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V7a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <div>
-                              <p className="font-semibold text-amber-900">Verification Under Review</p>
-                              <p className="text-sm text-amber-700">Your document is under review. We'll notify you once it's approved.</p>
-                              <a
-                                href={user.verificationFileUrl.startsWith('http') ? user.verificationFileUrl : `/uploads/${user.verificationFileUrl}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-amber-600 hover:underline mt-1 inline-block"
+                      {/* Address List */}
+                      {!showAddressForm && (
+                        <div className="space-y-3">
+                          {user.shippingAddresses && user.shippingAddresses.length > 0 ? (
+                            user.shippingAddresses.map((address: ShippingAddress) => (
+                              <div
+                                key={address.id}
+                                className={`rounded-2xl border p-4 transition ${address.isDefault
+                                    ? 'border-primary bg-primary/5'
+                                    : 'border-slate-200 bg-white hover:border-slate-300'
+                                  }`}
                               >
-                                View submitted document
-                              </a>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          {verificationStatus === 'rejected' && (
-                            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                              <div className="flex items-center gap-3">
-                                <svg className="h-8 w-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.536-10.95a1 1 0 00-1.414-1.414L10 8.586 7.879 6.636a1 1 0 10-1.414 1.414L8.586 10l-2.121 2.121a1 1 0 101.414 1.414L10 11.414l2.121 2.121a1 1 0 001.414-1.414L11.414 10l2.122-2.122z" clipRule="evenodd" />
-                                </svg>
-                                <div>
-                                  <p className="font-semibold text-red-900">Verification Revoked</p>
-                                  <p className="text-sm text-red-700">Please upload a new document so we can review your account again.</p>
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <MapPin className="h-4 w-4 text-slate-400" />
+                                      <span className="font-semibold text-slate-900">{address.fullName}</span>
+                                      {address.isDefault && (
+                                        <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
+                                          Default
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="mt-2 text-sm text-slate-600">
+                                      {address.addressLine1}
+                                      {address.addressLine2 && `, ${address.addressLine2}`}
+                                    </p>
+                                    <p className="text-sm text-slate-600">
+                                      {address.city}, {address.state} {address.postalCode}
+                                    </p>
+                                    <p className="text-sm text-slate-600">{address.country}</p>
+                                    {address.phone && <p className="mt-1 text-sm text-slate-600">Phone: {address.phone}</p>}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleEditAddress(address)}
+                                      className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100"
+                                      title="Edit address"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteAddress(address.id)}
+                                      className="rounded-lg p-2 text-rose-600 transition hover:bg-rose-50"
+                                      title="Delete address"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
                                 </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                              <MapPin className="mx-auto h-12 w-12 text-slate-400" />
+                              <p className="mt-2 font-semibold text-slate-900">No addresses yet</p>
+                              <p className="mt-1 text-sm text-slate-600">Add your first shipping address to get started.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Password Change Section */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-xl font-semibold text-slate-900">Change Password</h2>
+                          <p className="mt-1 text-sm text-slate-600">Update your account password with email verification</p>
+                        </div>
+                        {!showPasswordForm && (
+                          <button
+                            onClick={() => setShowPasswordForm(true)}
+                            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
+                          >
+                            <Lock className="h-4 w-4" />
+                            Change Password
+                          </button>
+                        )}
+                      </div>
+
+                      {showPasswordForm && (
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                          {passwordStep === 'request' && (
+                            <div className="space-y-4">
+                              <div className="flex items-start gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                                  <Mail className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="text-lg font-semibold text-slate-900">Email Verification Required</h3>
+                                  <p className="mt-1 text-sm text-slate-600">
+                                    We'll send a 6-digit verification code to <strong>{user.email}</strong> to verify it's you.
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-3">
+                                <button
+                                  onClick={handleRequestPasswordChange}
+                                  disabled={passwordLoading}
+                                  className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
+                                >
+                                  {passwordLoading ? 'Sending...' : 'Send Verification Code'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelPasswordForm}
+                                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                  Cancel
+                                </button>
                               </div>
                             </div>
                           )}
-                          <form onSubmit={handleVerificationUpload} className="space-y-4">
-                            <div className="flex flex-col gap-2">
-                              <label className="text-sm font-medium text-slate-700">Upload Verification Document</label>
-                              <input
-                                type="file"
-                                accept=".pdf,.jpg,.jpeg,.png"
-                                onChange={(e) => setVerificationFile(e.target.files?.[0] || null)}
-                                className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
-                              />
-                              <p className="text-xs text-slate-500">Accepted formats: PDF, JPG, PNG (max 10MB)</p>
-                            </div>
-                            {verificationFile && (
-                              <div className="flex justify-end">
+
+                          {passwordStep === 'verify' && (
+                            <form onSubmit={handleChangePassword} className="space-y-6">
+                              <div className="flex items-start gap-3 rounded-xl bg-emerald-50 p-4">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
+                                  <KeyRound className="h-5 w-5 text-emerald-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="text-lg font-semibold text-slate-900">Enter Verification Code</h3>
+                                  <p className="mt-1 text-sm text-slate-600">
+                                    Check your email for the 6-digit code we just sent to <strong>{user.email}</strong>
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium text-slate-700">Verification Code *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  maxLength={6}
+                                  value={verificationCode}
+                                  onChange={(e) => setVerificationCode(e.target.value)}
+                                  className="rounded-xl border border-slate-300 px-4 py-2 text-center text-2xl font-mono tracking-widest transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
+                                  placeholder="000000"
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-sm font-medium text-slate-700">New Password *</label>
+                                  <div className="relative">
+                                    <input
+                                      type={showNewPassword ? 'text' : 'password'}
+                                      required
+                                      minLength={8}
+                                      value={newPassword}
+                                      onChange={(e) => setNewPassword(e.target.value)}
+                                      className={cn(
+                                        'w-full rounded-xl border px-4 py-2 pr-10 text-sm transition focus:outline-none',
+                                        newPassword ? passwordStrength.borderClass : 'border-slate-300',
+                                        newPassword ? passwordStrength.focusClass : 'focus:border-primary focus:ring-4 focus:ring-primary/20'
+                                      )}
+                                      placeholder="Enter new password"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowNewPassword(!showNewPassword)}
+                                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                                      aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </button>
+                                  </div>
+                                  {newPassword && (
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+                                          <div
+                                            className={cn(
+                                              'h-full transition-all duration-300',
+                                              passwordStrength.level === 'weak' && 'w-1/3 bg-rose-500',
+                                              passwordStrength.level === 'good' && 'w-2/3 bg-amber-500',
+                                              passwordStrength.level === 'strong' && 'w-full bg-emerald-500'
+                                            )}
+                                          />
+                                        </div>
+                                        {passwordStrength.label && (
+                                          <span className={cn('text-xs font-medium', passwordStrength.colorClass)}>
+                                            {passwordStrength.label}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                  <p className="text-xs text-slate-500">{PASSWORD_COMPLEXITY_MESSAGE}</p>
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-sm font-medium text-slate-700">Confirm New Password *</label>
+                                  <div className="relative">
+                                    <input
+                                      type={showConfirmPassword ? 'text' : 'password'}
+                                      required
+                                      minLength={8}
+                                      value={confirmPassword}
+                                      onChange={(e) => setConfirmPassword(e.target.value)}
+                                      className={cn(
+                                        'w-full rounded-xl border px-4 py-2 pr-10 text-sm transition focus:outline-none',
+                                        confirmPassword && passwordsMatch !== null
+                                          ? passwordsMatch
+                                            ? 'border-emerald-500 focus:ring-4 focus:ring-emerald-400/25 focus:border-emerald-600'
+                                            : 'border-rose-500 focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600'
+                                          : 'border-slate-300 focus:border-primary focus:ring-4 focus:ring-primary/20'
+                                      )}
+                                      placeholder="Re-enter new password"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </button>
+                                  </div>
+                                  {confirmPassword && passwordsMatch !== null && (
+                                    <p className={cn('text-xs font-medium', passwordsMatch ? 'text-emerald-600' : 'text-rose-600')}>
+                                      {passwordsMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-slate-500">Must match the new password above</p>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-3">
                                 <button
                                   type="submit"
-                                  disabled={verificationLoading}
+                                  disabled={passwordLoading || !verificationCode || !newPassword || !confirmPassword || !passwordsMatch}
                                   className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
                                 >
-                                  {verificationLoading ? 'Uploading...' : 'Upload Document'}
+                                  {passwordLoading ? 'Changing...' : 'Change Password'}
                                 </button>
-                              </div>
-                            )}
-                          </form>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'orders' && (
-                <div className="space-y-6">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h2 className="text-2xl font-bold text-slate-900">My Orders</h2>
-                      <p className="text-sm text-slate-600 mt-1">Track and manage your recent purchases</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => navigate('/products')}
-                        className="inline-flex items-center gap-2 rounded-lg border-2 border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-red-600 hover:text-red-600 hover:bg-red-50"
-                      >
-                        <ShoppingBag className="h-4 w-4" />
-                        Continue Shopping
-                      </button>
-                      <button
-                        onClick={() => loadOrders()}
-                        disabled={ordersLoading}
-                        className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <RefreshCw className={cn("h-4 w-4", ordersLoading && "animate-spin")} />
-                        {ordersLoading ? 'Refreshing...' : 'Refresh'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {user.taxExempt && (
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                      Your account is tax exempt. Taxes will not be applied to your orders.
-                    </div>
-                  )}
-
-                  {ordersError && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                      <div className="flex items-center gap-3">
-                        <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                        <p className="text-sm text-red-800">{ordersError}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {ordersLoading && (
-                    <div className="rounded-lg border border-slate-200 bg-white p-8">
-                      <div className="flex items-center justify-center gap-3">
-                        <RefreshCw className="h-5 w-5 text-slate-400 animate-spin" />
-                        <p className="text-sm text-slate-600">Loading your orders...</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {!ordersLoading && orders.length === 0 && (
-                    <div className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-12">
-                      <div className="flex flex-col items-center justify-center text-center">
-                        <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100">
-                          <Package className="h-10 w-10 text-slate-400" />
-                        </div>
-                        <h3 className="text-xl font-semibold text-slate-900">No orders yet</h3>
-                        <p className="mt-2 text-sm text-slate-600 max-w-sm">Start shopping to see your order history here. Browse our products and place your first order!</p>
-                        <button
-                          onClick={() => navigate('/products')}
-                          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
-                        >
-                          <ShoppingBag className="h-4 w-4" />
-                          Browse Products
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {orders.length > 0 && (
-                    <div className="max-h-[600px] overflow-y-auto pr-2 space-y-4 scrollbar-custom">
-                      {orders.map((order) => {
-                        const itemCount = order.products.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                        const subtotal = order.products.reduce(
-                          (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
-                          0
-                        );
-                        const discount = order.coupon?.discountAmount ?? 0;
-                        const taxAmount = order.taxAmount ?? 0;
-                        const total = Math.max(0, subtotal - discount) + taxAmount;
-
-                        const getStatusConfig = (status: string) => {
-                          switch (status) {
-                            case 'pending':
-                              return {
-                                label: 'Processing',
-                                icon: Clock,
-                                bgColor: 'bg-amber-50',
-                                textColor: 'text-amber-700',
-                                borderColor: 'border-amber-200',
-                                iconColor: 'text-amber-600'
-                              };
-                            case 'completed':
-                              return {
-                                label: 'Completed',
-                                icon: CheckCircle,
-                                bgColor: 'bg-green-50',
-                                textColor: 'text-green-700',
-                                borderColor: 'border-green-200',
-                                iconColor: 'text-green-600'
-                              };
-                            case 'cancelled':
-                              return {
-                                label: 'Cancelled',
-                                icon: XCircle,
-                                bgColor: 'bg-red-50',
-                                textColor: 'text-red-700',
-                                borderColor: 'border-red-200',
-                                iconColor: 'text-red-600'
-                              };
-                            default:
-                              return {
-                                label: status,
-                                icon: Package,
-                                bgColor: 'bg-slate-50',
-                                textColor: 'text-slate-700',
-                                borderColor: 'border-slate-200',
-                                iconColor: 'text-slate-600'
-                              };
-                          }
-                        };
-
-                        const statusConfig = getStatusConfig(order.status);
-                        const StatusIcon = statusConfig.icon;
-
-                        return (
-                          <div key={order.id} className="rounded-lg border border-slate-200 bg-white overflow-hidden hover:shadow-md transition-shadow">
-                            {/* Order Header */}
-                            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
-                              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="flex items-start gap-4">
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100">
-                                    <Package className="h-6 w-6 text-red-600" />
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Order</p>
-                                      <code className="text-xs font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                                        #{order.id.slice(-8)}
-                                      </code>
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                                      <p className="text-sm text-slate-600">{formatOrderDate(order.createdAt)}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <div className={cn(
-                                    "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 border",
-                                    statusConfig.bgColor,
-                                    statusConfig.textColor,
-                                    statusConfig.borderColor
-                                  )}>
-                                    <StatusIcon className={cn("h-4 w-4", statusConfig.iconColor)} />
-                                    <span className="text-sm font-semibold">{statusConfig.label}</span>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-xs text-slate-500">Total</p>
-                                    <p className="text-2xl font-bold text-slate-900">{formatCurrency(total)}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Order Items */}
-                            <div className="p-6">
-                              <div className="flex items-center gap-2 mb-4">
-                                <ShoppingBag className="h-4 w-4 text-slate-400" />
-                                <h3 className="text-sm font-semibold text-slate-700">
-                                  {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
-                                </h3>
-                              </div>
-                              <div className="space-y-3">
-                                {order.products.map((item, index) => (
-                                  <div
-                                    key={`${order.id}-line-${index}`}
-                                    className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-100 hover:bg-slate-100 transition-colors"
-                                  >
-                                    <div className="flex-1">
-                                      <p className="font-semibold text-slate-900">{item.name}</p>
-                                      <p className="text-sm text-slate-500 mt-0.5">Quantity: {item.quantity}</p>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="font-bold text-slate-900">
-                                        {formatCurrency((item.price || 0) * (item.quantity || 0))}
-                                      </p>
-                                      <p className="text-xs text-slate-500 mt-0.5">
-                                        {formatCurrency(item.price || 0)} each
-                                      </p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'reviews' && (
-                <div className="space-y-6">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h2 className="text-2xl font-bold text-slate-900">My Reviews</h2>
-                      <p className="text-sm text-slate-600 mt-1">Track the feedback you have shared.</p>
-                    </div>
-                    <button
-                      onClick={() => loadReviews()}
-                      disabled={reviewsLoading}
-                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <RefreshCw className={cn("h-4 w-4", reviewsLoading && "animate-spin")} />
-                      {reviewsLoading ? 'Refreshing...' : 'Refresh'}
-                    </button>
-                  </div>
-
-                  {reviewsError && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                      <div className="flex items-center gap-3">
-                        <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                        <p className="text-sm text-red-800">{reviewsError}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {reviewsLoading && (
-                    <div className="rounded-lg border border-slate-200 bg-white p-8">
-                      <div className="flex items-center justify-center gap-3">
-                        <RefreshCw className="h-5 w-5 text-slate-400 animate-spin" />
-                        <p className="text-sm text-slate-600">Loading your reviews...</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {!reviewsLoading && reviews.length === 0 && (
-                    <div className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-12">
-                      <div className="flex flex-col items-center justify-center text-center">
-                        <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100">
-                          <Star className="h-10 w-10 text-slate-400" />
-                        </div>
-                        <h3 className="text-xl font-semibold text-slate-900">No reviews yet</h3>
-                        <p className="mt-2 text-sm text-slate-600 max-w-sm">
-                          Reviews for products you have purchased will appear here once submitted.
-                        </p>
-                        <button
-                          onClick={() => navigate('/products')}
-                          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
-                        >
-                          <ShoppingBag className="h-4 w-4" />
-                          Browse Products
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {reviews.length > 0 && (
-                    <div className="space-y-4">
-                      {reviews.map((review) => {
-                        const product = reviewProducts[review.productId];
-                        const displayReplies = getReviewReplies(review);
-                        return (
-                          <div
-                            key={review.id}
-                            className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
-                          >
-                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                              <div className="space-y-1">
-                                <Link
-                                  to={`/products/${review.productId}`}
-                                  className="text-base font-semibold text-slate-900 hover:text-primary"
-                                >
-                                  {product?.name ?? 'Product'}
-                                </Link>
-                                <p className="text-xs text-slate-500">{formatReviewDate(review.createdAt)}</p>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                {review.isVerifiedPurchase ? (
-                                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-                                    Verified purchase
-                                  </span>
-                                ) : null}
-                                <div className="flex items-center gap-1 text-amber-500">
-                                  {Array.from({ length: 5 }).map((_, index) => (
-                                    <Star
-                                      key={index}
-                                      className={cn(
-                                        "h-4 w-4",
-                                        review.rating >= index + 1 ? "fill-current text-amber-500" : "text-slate-200"
-                                      )}
-                                    />
-                                  ))}
-                                  <span className="text-xs font-semibold text-slate-700">{review.rating.toFixed(1)}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <p className="mt-3 text-sm text-slate-700">{review.comment}</p>
-                            {displayReplies.length > 0 && (
-                              <div className="mt-3 space-y-2">
-                                {displayReplies.map((reply) => (
-                                  <div
-                                    key={reply.id}
-                                    className={cn(
-                                      'rounded-xl border px-3 py-2 text-xs',
-                                      reply.authorRole === 'admin'
-                                        ? 'border-slate-200 bg-slate-50 text-slate-700'
-                                        : 'border-primary/20 bg-primary/5 text-slate-700'
-                                    )}
-                                  >
-                                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
-                                      <span className="font-semibold text-slate-700">{getReplyAuthor(reply)}</span>
-                                      {reply.createdAt ? <span>{formatReviewDate(reply.createdAt)}</span> : null}
-                                    </div>
-                                    <p className="mt-1 whitespace-pre-line">{reply.message}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'settings' && (
-  <div className="space-y-8">
-    {isC2B && (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">Billing Address</h2>
-            <p className="mt-1 text-sm text-slate-600">Used to calculate taxes at checkout</p>
-          </div>
-        </div>
-
-        {showBillingForm ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <form onSubmit={handleSaveBillingAddress} className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 1 *</label>
-                <input
-                  type="text"
-                  required
-                  value={billingForm.addressLine1 ?? ''}
-                  onChange={(e) => setBillingForm({ ...billingForm, addressLine1: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                  placeholder="Street address, P.O. box"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 2</label>
-                <input
-                  type="text"
-                  value={billingForm.addressLine2 ?? ''}
-                  onChange={(e) => setBillingForm({ ...billingForm, addressLine2: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                  placeholder="Apartment, suite, unit, building, floor, etc."
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Country *</label>
-                <CountrySelect
-                  value={billingForm.country || 'United States'}
-                  onChange={(countryName) => {
-                    setBillingForm({ ...billingForm, country: countryName });
-                  }}
-                  portalZIndex={30}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">State/Province *</label>
-                  {isUnitedStatesBilling ? (
-                    <CountrySelect
-                      value={billingForm.state || ''}
-                      onChange={(stateName) => setBillingForm({ ...billingForm, state: stateName })}
-                      options={US_STATES}
-                      placeholder="Select state"
-                      searchPlaceholder="Search states..."
-                      portalZIndex={30}
-                      className="w-full"
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      value={billingForm.state ?? ''}
-                      onChange={(e) => setBillingForm({ ...billingForm, state: e.target.value })}
-                      className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                      placeholder="State / Province"
-                    />
-                  )}
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">City *</label>
-                  <input
-                    type="text"
-                    required
-                    value={billingForm.city ?? ''}
-                    onChange={(e) => setBillingForm({ ...billingForm, city: e.target.value })}
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                    placeholder="City name"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Postal Code</label>
-                  <input
-                    type="text"
-                    value={billingForm.postalCode ?? ''}
-                    onChange={(e) => setBillingForm({ ...billingForm, postalCode: e.target.value })}
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                    placeholder="20000"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  disabled={billingSaving || !billingFormComplete}
-                  className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
-                >
-                  {billingSaving ? 'Saving...' : 'Save Billing Address'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCancelBillingAddress}
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        ) : (
-          <>
-            {hasBillingAddress ? (
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-slate-400" />
-                      <span className="font-semibold text-slate-900">Billing address</span>
-                    </div>
-                    <p className="mt-2 text-sm text-slate-600">
-                      {user.billingAddress?.addressLine1}
-                      {user.billingAddress?.addressLine2 && `, ${user.billingAddress.addressLine2}`}
-                    </p>
-                    <p className="text-sm text-slate-600">
-                      {user.billingAddress?.city}, {user.billingAddress?.state} {user.billingAddress?.postalCode}
-                    </p>
-                    <p className="text-sm text-slate-600">{user.billingAddress?.country}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setShowBillingForm(true)}
-                      className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100"
-                      title="Edit billing address"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={handleDeleteBillingAddress}
-                      className="rounded-lg p-2 text-rose-600 transition hover:bg-rose-50"
-                      title="Delete billing address"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center">
-                <MapPin className="mx-auto h-10 w-10 text-slate-400" />
-                <p className="mt-2 font-semibold text-slate-900">No billing address yet</p>
-                <p className="mt-1 text-sm text-slate-600">Add your billing address to calculate taxes.</p>
-                <button
-                  type="button"
-                  onClick={() => setShowBillingForm(true)}
-                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Billing Address
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    )}
-
-    {/* Shipping Addresses Section */}
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">Shipping Addresses</h2>
-          <p className="mt-1 text-sm text-slate-600">Manage your delivery addresses</p>
-        </div>
-        {!showAddressForm && (
-          <button
-            onClick={handleAddNewAddress}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
-          >
-            <Plus className="h-4 w-4" />
-            Add Address
-          </button>
-        )}
-      </div>
-
-      {/* Address Form */}
-      {showAddressForm && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">
-            {editingAddressId ? 'Edit Address' : 'Add New Address'}
-          </h3>
-          <form onSubmit={handleAddressFormSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={addressForm.fullName}
-                  onChange={(e) => setAddressForm({ ...addressForm, fullName: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                  placeholder="John Doe"
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Phone *</label>
-                <PhoneNumberInput
-                  value={addressPhoneValue}
-                  onChange={(val) => {
-                    setAddressPhoneValue(val);
-                    setAddressForm({ ...addressForm, phone: `${val.countryCode}${val.number}` });
-                  }}
-                  placeholder="600000000"
-                  placement="bottom"
-                  portalZIndex={30}
-                  size="compact"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 1 *</label>
-              <input
-                type="text"
-                required
-                value={addressForm.addressLine1}
-                onChange={(e) => setAddressForm({ ...addressForm, addressLine1: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                placeholder="Street address, P.O. box"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Address Line 2</label>
-              <input
-                type="text"
-                value={addressForm.addressLine2}
-                onChange={(e) => setAddressForm({ ...addressForm, addressLine2: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                placeholder="Apartment, suite, unit, building, floor, etc."
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Country *</label>
-              <CountrySelect
-                value={addressForm.country || 'United States'}
-                onChange={(countryName) => {
-                  setAddressForm({ ...addressForm, country: countryName });
-                }}
-                defaultPhoneCode={addressPhoneValue.countryCode}
-                portalZIndex={30}
-                className="w-full"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">State/Province</label>
-                {isUnitedStatesShipping ? (
-                  <CountrySelect
-                    value={addressForm.state || ''}
-                    onChange={(stateName) => setAddressForm({ ...addressForm, state: stateName })}
-                    options={US_STATES}
-                    placeholder="Select state"
-                    searchPlaceholder="Search states..."
-                    portalZIndex={30}
-                    className="w-full"
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={addressForm.state}
-                    onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                    placeholder="State / Province"
-                  />
-                )}
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">City *</label>
-                <input
-                  type="text"
-                  required
-                  value={addressForm.city}
-                  onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                  placeholder="City name"
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Postal Code</label>
-                <input
-                  type="text"
-                  value={addressForm.postalCode}
-                  onChange={(e) => setAddressForm({ ...addressForm, postalCode: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                  placeholder="20000"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isDefault"
-                checked={addressForm.isDefault}
-                onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-4 focus:ring-primary/20"
-              />
-              <label htmlFor="isDefault" className="text-sm font-medium text-slate-700">
-                Set as default address
-              </label>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={addressLoading}
-                className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
-              >
-                {addressLoading ? 'Saving...' : editingAddressId ? 'Update Address' : 'Add Address'}
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelAddressForm}
-                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Address List */}
-      {!showAddressForm && (
-        <div className="space-y-3">
-          {user.shippingAddresses && user.shippingAddresses.length > 0 ? (
-            user.shippingAddresses.map((address: ShippingAddress) => (
-              <div
-                key={address.id}
-                className={`rounded-2xl border p-4 transition ${
-                  address.isDefault
-                    ? 'border-primary bg-primary/5'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-slate-400" />
-                      <span className="font-semibold text-slate-900">{address.fullName}</span>
-                      {address.isDefault && (
-                        <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
-                          Default
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-2 text-sm text-slate-600">
-                      {address.addressLine1}
-                      {address.addressLine2 && `, ${address.addressLine2}`}
-                    </p>
-                    <p className="text-sm text-slate-600">
-                      {address.city}, {address.state} {address.postalCode}
-                    </p>
-                    <p className="text-sm text-slate-600">{address.country}</p>
-                    {address.phone && <p className="mt-1 text-sm text-slate-600">Phone: {address.phone}</p>}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEditAddress(address)}
-                      className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100"
-                      title="Edit address"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAddress(address.id)}
-                      className="rounded-lg p-2 text-rose-600 transition hover:bg-rose-50"
-                      title="Delete address"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-              <MapPin className="mx-auto h-12 w-12 text-slate-400" />
-              <p className="mt-2 font-semibold text-slate-900">No addresses yet</p>
-              <p className="mt-1 text-sm text-slate-600">Add your first shipping address to get started.</p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-
-    {/* Password Change Section */}
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">Change Password</h2>
-          <p className="mt-1 text-sm text-slate-600">Update your account password with email verification</p>
-        </div>
-        {!showPasswordForm && (
-          <button
-            onClick={() => setShowPasswordForm(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
-          >
-            <Lock className="h-4 w-4" />
-            Change Password
-          </button>
-        )}
-      </div>
-
-      {showPasswordForm && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          {passwordStep === 'request' && (
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                  <Mail className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900">Email Verification Required</h3>
-                  <p className="mt-1 text-sm text-slate-600">
-                    We'll send a 6-digit verification code to <strong>{user.email}</strong> to verify it's you.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={handleRequestPasswordChange}
-                  disabled={passwordLoading}
-                  className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
-                >
-                  {passwordLoading ? 'Sending...' : 'Send Verification Code'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCancelPasswordForm}
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
-          {passwordStep === 'verify' && (
-            <form onSubmit={handleChangePassword} className="space-y-6">
-              <div className="flex items-start gap-3 rounded-xl bg-emerald-50 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
-                  <KeyRound className="h-5 w-5 text-emerald-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900">Enter Verification Code</h3>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Check your email for the 6-digit code we just sent to <strong>{user.email}</strong>
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-slate-700">Verification Code *</label>
-                <input
-                  type="text"
-                  required
-                  maxLength={6}
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                  className="rounded-xl border border-slate-300 px-4 py-2 text-center text-2xl font-mono tracking-widest transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                  placeholder="000000"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-slate-700">New Password *</label>
-                  <div className="relative">
-                    <input
-                      type={showNewPassword ? 'text' : 'password'}
-                      required
-                      minLength={8}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className={cn(
-                        'w-full rounded-xl border px-4 py-2 pr-10 text-sm transition focus:outline-none',
-                        newPassword ? passwordStrength.borderClass : 'border-slate-300',
-                        newPassword ? passwordStrength.focusClass : 'focus:border-primary focus:ring-4 focus:ring-primary/20'
-                      )}
-                      placeholder="Enter new password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-                      aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  {newPassword && (
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
-                          <div
-                            className={cn(
-                              'h-full transition-all duration-300',
-                              passwordStrength.level === 'weak' && 'w-1/3 bg-rose-500',
-                              passwordStrength.level === 'good' && 'w-2/3 bg-amber-500',
-                              passwordStrength.level === 'strong' && 'w-full bg-emerald-500'
-                            )}
-                          />
-                        </div>
-                        {passwordStrength.label && (
-                          <span className={cn('text-xs font-medium', passwordStrength.colorClass)}>
-                            {passwordStrength.label}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-xs text-slate-500">{PASSWORD_COMPLEXITY_MESSAGE}</p>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-slate-700">Confirm New Password *</label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      required
-                      minLength={8}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className={cn(
-                        'w-full rounded-xl border px-4 py-2 pr-10 text-sm transition focus:outline-none',
-                        confirmPassword && passwordsMatch !== null
-                          ? passwordsMatch
-                            ? 'border-emerald-500 focus:ring-4 focus:ring-emerald-400/25 focus:border-emerald-600'
-                            : 'border-rose-500 focus:ring-4 focus:ring-rose-500/25 focus:border-rose-600'
-                          : 'border-slate-300 focus:border-primary focus:ring-4 focus:ring-primary/20'
-                      )}
-                      placeholder="Re-enter new password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  {confirmPassword && passwordsMatch !== null && (
-                    <p className={cn('text-xs font-medium', passwordsMatch ? 'text-emerald-600' : 'text-rose-600')}>
-                      {passwordsMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
-                    </p>
-                  )}
-                  <p className="text-xs text-slate-500">Must match the new password above</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  disabled={passwordLoading || !verificationCode || !newPassword || !confirmPassword || !passwordsMatch}
-                  className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-50"
-                >
-                  {passwordLoading ? 'Changing...' : 'Change Password'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCancelPasswordForm}
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      )}
-    </div>
-  </div>
-)}
-
-              {activeTab === 'b2b-upgrade' && isC2B && (
-                <div className="space-y-6">
-                  {b2bConversionStep === 'info' ? (
-                    <div className="relative overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 p-8 shadow-lg animate-[highlight_3s_ease-in-out]">
-                      <div className="pointer-events-none absolute top-0 right-0 -mt-4 -mr-4 z-0">
-                        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-4xl shadow-lg">
-                          🚀
-                        </div>
-                      </div>
-                      <div className="relative z-10">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-4">Upgrade to B2B Account</h2>
-                        <p className="text-slate-700 mb-6">
-                          Unlock exclusive benefits and access to our full B2B catalog! Over 90% of our products are available exclusively to B2B customers.
-                        </p>
-                        <div className="grid gap-4 md:grid-cols-2 mb-6">
-                          <div className="flex items-start gap-3">
-                            <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <div>
-                              <p className="font-semibold text-slate-900">Access to B2B Catalog</p>
-                              <p className="text-sm text-slate-600">90%+ of products available</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <div>
-                              <p className="font-semibold text-slate-900">Wholesale Pricing</p>
-                              <p className="text-sm text-slate-600">Better prices for bulk orders</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <div>
-                              <p className="font-semibold text-slate-900">Priority Support</p>
-                              <p className="text-sm text-slate-600">Dedicated account manager</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <div>
-                              <p className="font-semibold text-slate-900">Flexible Payment Terms</p>
-                              <p className="text-sm text-slate-600">Net 30/60 options available</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="rounded-lg border border-red-200 bg-red-50 p-4 mb-6">
-                          <div className="flex items-start gap-2">
-                            <svg className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-sm text-red-900">
-                              <strong>Important:</strong> Once converted to B2B, your company information cannot be changed. Please ensure all details are accurate before proceeding. Contact support if you need assistance.
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setUseCustomBusinessType(false);
-                            setB2bConversionStep('form');
-                          }}
-                          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-8 py-3 text-base font-semibold text-white shadow-lg transition hover:from-amber-600 hover:to-orange-700 hover:shadow-xl"
-                        >
-                          Start Upgrade Process
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <form
-                      onSubmit={async (e) => {
-                        e.preventDefault();
-                        if (!user) return;
-
-                        setError(null);
-                        setStatusMessage(null);
-
-                        const trimmedCompanyName = b2bFormData.companyName.trim();
-                        const trimmedBusinessType = b2bFormData.businessType.trim();
-                        const trimmedTaxId = b2bFormData.taxId.trim();
-                        const trimmedWebsite = b2bFormData.website.trim();
-                        const trimmedAddress = b2bFormData.companyAddress.trim();
-                        const trimmedCity = b2bFormData.companyCity.trim();
-                        const trimmedState = b2bFormData.companyState.trim();
-                        const trimmedCountry = b2bFormData.companyCountry.trim();
-
-                        if (
-                          !trimmedCompanyName ||
-                          !trimmedBusinessType ||
-                          !trimmedTaxId ||
-                          !trimmedAddress ||
-                          !trimmedCity ||
-                          !trimmedState ||
-                          !trimmedCountry
-                        ) {
-                          setError('Please fill out all required company details before converting to B2B.');
-                          return;
-                        }
-
-                        if (!b2bVerificationFile) {
-                          setError('Please upload a verification document to complete the B2B conversion.');
-                          return;
-                        }
-
-                        setB2bConversionLoading(true);
-
-                        try {
-                          const formData = new FormData();
-                          formData.append('companyName', trimmedCompanyName);
-                          formData.append('businessType', trimmedBusinessType);
-                          formData.append('taxId', trimmedTaxId);
-                          formData.append('companyAddress', trimmedAddress);
-                          formData.append('companyCity', trimmedCity);
-                          formData.append('companyState', trimmedState);
-                          formData.append('companyCountry', trimmedCountry);
-                          if (trimmedWebsite) {
-                            formData.append('website', trimmedWebsite);
-                          }
-                          formData.append('verificationFile', b2bVerificationFile);
-
-                          const response = await usersApi.convertToB2B(user.id, formData);
-                          await refresh();
-                          setStatusMessage(response.message || 'Successfully converted to B2B account!');
-                          handleTabChange('account');
-                          setB2bConversionStep('info');
-                          setB2bFormData({
-                            companyName: '',
-                            businessType: '',
-                            taxId: '',
-                            website: '',
-                            companyAddress: '',
-                            companyCity: '',
-                            companyState: '',
-                            companyCountry: 'United States',
-                          });
-                          setUseCustomBusinessType(false);
-                          setB2bVerificationFile(null);
-                        } catch (err) {
-                          setError(err instanceof Error ? err.message : 'Failed to convert to B2B account');
-                        } finally {
-                          setB2bConversionLoading(false);
-                        }
-                      }}
-                      className="space-y-6"
-                    >
-                      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <h3 className="text-xl font-semibold text-slate-900 mb-4">Company Information</h3>
-                        <p className="text-sm text-slate-600 mb-6">Please provide your business details to complete the B2B conversion.</p>
-
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <label htmlFor="companyName" className="block text-sm font-medium text-slate-700">
-                              Company Name <span className="text-red-600">*</span>
-                            </label>
-                            <input
-                              id="companyName"
-                              type="text"
-                              value={b2bFormData.companyName}
-                              onChange={(e) => setB2bFormData({ ...b2bFormData, companyName: e.target.value })}
-                              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              placeholder="Your company name"
-                              required
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <label htmlFor="businessType" className="block text-sm font-medium text-slate-700">
-                              Business Type <span className="text-red-600">*</span>
-                            </label>
-                            <BusinessTypeSelect
-                              value={
-                                !useCustomBusinessType && isBusinessTypeOption(b2bFormData.businessType)
-                                  ? b2bFormData.businessType
-                                  : ''
-                              }
-                              onSelect={handleBusinessTypePresetSelect}
-                              onSelectCustom={handleEnableCustomBusinessType}
-                              placeholder="Select business type"
-                            />
-                            {useCustomBusinessType && (
-                              <div className="grid gap-2 pt-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                                <input
-                                  type="text"
-                                  value={b2bFormData.businessType}
-                                  onChange={(event) => handleCustomBusinessTypeChange(event.target.value)}
-                                  className="h-12 w-full rounded-2xl border border-border/60 bg-white/95 px-4 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
-                                  placeholder="Enter your business type"
-                                  required
-                                />
                                 <button
                                   type="button"
-                                  className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-100"
-                                  onClick={() => {
-                                    setUseCustomBusinessType(false);
-                                    setB2bFormData((prev) => ({ ...prev, businessType: '' }));
-                                  }}
+                                  onClick={handleCancelPasswordForm}
+                                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                                 >
-                                  Choose preset
+                                  Cancel
                                 </button>
                               </div>
-                            )}
-                          </div>
+                            </form>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-                          <div className="grid gap-4 md:grid-cols-3">
-                            <div className="space-y-2 md:col-span-3">
-                              <div className="flex items-center justify-between">
-                                <label htmlFor="companyAddress" className="block text-sm font-medium text-slate-700">
-                                  Company Address <span className="text-red-600">*</span>
-                                </label>
-                                {user.billingAddress?.addressLine1?.trim() && (
-                                  <button
-                                    type="button"
-                                    onClick={handleUseBillingAddress}
-                                    className="text-xs font-semibold text-red-600 hover:text-red-700"
-                                  >
-                                    Use billing address
-                                  </button>
-                                )}
-                              </div>
-                              <input
-                                id="companyAddress"
-                                type="text"
-                                value={b2bFormData.companyAddress}
-                                onChange={(e) => setB2bFormData({ ...b2bFormData, companyAddress: e.target.value })}
-                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                placeholder="Street address"
-                                required
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <label className="block text-sm font-medium text-slate-700">
-                                Country <span className="text-red-600">*</span>
-                              </label>
-                              <CountrySelect
-                                value={b2bFormData.companyCountry}
-                                onChange={(countryName) =>
-                                  setB2bFormData({ ...b2bFormData, companyCountry: countryName })
-                                }
-                                placeholder="Select country"
-                                searchPlaceholder="Search countries..."
-                                portalZIndex={30}
-                                className="w-full"
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <label className="block text-sm font-medium text-slate-700">
-                                State <span className="text-red-600">*</span>
-                              </label>
-                              {isUnitedStates ? (
-                                <CountrySelect
-                                  value={b2bFormData.companyState}
-                                  onChange={(stateName) =>
-                                    setB2bFormData({ ...b2bFormData, companyState: stateName })
-                                  }
-                                  options={US_STATES}
-                                  placeholder="Select state"
-                                  searchPlaceholder="Search states..."
-                                  portalZIndex={30}
-                                  className="w-full"
-                                />
-                              ) : (
-                                <input
-                                  id="companyState"
-                                  type="text"
-                                  value={b2bFormData.companyState}
-                                  onChange={(e) => setB2bFormData({ ...b2bFormData, companyState: e.target.value })}
-                                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                  placeholder="State / Province"
-                                  required
-                                />
-                              )}
-                            </div>
-
-                            <div className="space-y-2">
-                              <label className="block text-sm font-medium text-slate-700">
-                                City <span className="text-red-600">*</span>
-                              </label>
-                              <input
-                                id="companyCity"
-                                type="text"
-                                value={b2bFormData.companyCity}
-                                onChange={(e) => setB2bFormData({ ...b2bFormData, companyCity: e.target.value })}
-                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                placeholder="City"
-                                required
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <label htmlFor="taxId" className="block text-sm font-medium text-slate-700">
-                              Tax ID <span className="text-red-600">*</span>
-                            </label>
-                            <input
-                              id="taxId"
-                              type="text"
-                              value={b2bFormData.taxId}
-                              onChange={(e) => setB2bFormData({ ...b2bFormData, taxId: e.target.value })}
-                              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              placeholder="EIN / VAT number"
-                              required
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <label htmlFor="website" className="block text-sm font-medium text-slate-700">
-                              Company Website
-                            </label>
-                            <input
-                              id="website"
-                              type="text"
-                              value={b2bFormData.website}
-                              onChange={(e) => setB2bFormData({ ...b2bFormData, website: e.target.value })}
-                              pattern="^[^\s]+\.[^\s]+$"
-                              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              placeholder="example.com"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <label htmlFor="verificationFile" className="block text-sm font-medium text-slate-700">
-                              Business Verification Document <span className="text-red-600">*</span>
-                            </label>
-                            <input
-                              id="verificationFile"
-                              type="file"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={(e) => setB2bVerificationFile(e.target.files?.[0] || null)}
-                              className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
-                              required
-                            />
-                            <p className="text-xs text-slate-500">Upload your business license, tax certificate, or other official business documentation (PDF, JPG, PNG - max 10MB)</p>
+                {activeTab === 'b2b-upgrade' && isC2B && (
+                  <div className="space-y-6">
+                    {b2bConversionStep === 'info' ? (
+                      <div className="relative overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 p-8 shadow-lg animate-[highlight_3s_ease-in-out]">
+                        <div className="pointer-events-none absolute top-0 right-0 -mt-4 -mr-4 z-0">
+                          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-4xl shadow-lg">
+                            🚀
                           </div>
                         </div>
+                        <div className="relative z-10">
+                          <h2 className="text-2xl font-bold text-slate-900 mb-4">Upgrade to B2B Account</h2>
+                          <p className="text-slate-700 mb-6">
+                            Unlock exclusive benefits and access to our full B2B catalog! Over 90% of our products are available exclusively to B2B customers.
+                          </p>
+                          <div className="grid gap-4 md:grid-cols-2 mb-6">
+                            <div className="flex items-start gap-3">
+                              <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              <div>
+                                <p className="font-semibold text-slate-900">Access to B2B Catalog</p>
+                                <p className="text-sm text-slate-600">90%+ of products available</p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              <div>
+                                <p className="font-semibold text-slate-900">Wholesale Pricing</p>
+                                <p className="text-sm text-slate-600">Better prices for bulk orders</p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              <div>
+                                <p className="font-semibold text-slate-900">Priority Support</p>
+                                <p className="text-sm text-slate-600">Dedicated account manager</p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              <div>
+                                <p className="font-semibold text-slate-900">Flexible Payment Terms</p>
+                                <p className="text-sm text-slate-600">Net 30/60 options available</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="rounded-lg border border-red-200 bg-red-50 p-4 mb-6">
+                            <div className="flex items-start gap-2">
+                              <svg className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                              </svg>
+                              <p className="text-sm text-red-900">
+                                <strong>Important:</strong> Once converted to B2B, your company information cannot be changed. Please ensure all details are accurate before proceeding. Contact support if you need assistance.
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUseCustomBusinessType(false);
+                              setB2bConversionStep('form');
+                            }}
+                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-8 py-3 text-base font-semibold text-white shadow-lg transition hover:from-amber-600 hover:to-orange-700 hover:shadow-xl"
+                          >
+                            Start Upgrade Process
+                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
+                    ) : (
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          if (!user) return;
 
-                      <div className="flex items-center gap-4">
-                        <button
-                          type="button"
-                          onClick={() => {
+                          setError(null);
+                          setStatusMessage(null);
+
+                          const trimmedCompanyName = b2bFormData.companyName.trim();
+                          const trimmedBusinessType = b2bFormData.businessType.trim();
+                          const trimmedTaxId = b2bFormData.taxId.trim();
+                          const trimmedWebsite = b2bFormData.website.trim();
+                          const trimmedAddress = b2bFormData.companyAddress.trim();
+                          const trimmedCity = b2bFormData.companyCity.trim();
+                          const trimmedState = b2bFormData.companyState.trim();
+                          const trimmedCountry = b2bFormData.companyCountry.trim();
+
+                          if (
+                            !trimmedCompanyName ||
+                            !trimmedBusinessType ||
+                            !trimmedTaxId ||
+                            !trimmedAddress ||
+                            !trimmedCity ||
+                            !trimmedState ||
+                            !trimmedCountry
+                          ) {
+                            setError('Please fill out all required company details before converting to B2B.');
+                            return;
+                          }
+
+                          if (!b2bVerificationFile) {
+                            setError('Please upload a verification document to complete the B2B conversion.');
+                            return;
+                          }
+
+                          setB2bConversionLoading(true);
+
+                          try {
+                            const formData = new FormData();
+                            formData.append('companyName', trimmedCompanyName);
+                            formData.append('businessType', trimmedBusinessType);
+                            formData.append('taxId', trimmedTaxId);
+                            formData.append('companyAddress', trimmedAddress);
+                            formData.append('companyCity', trimmedCity);
+                            formData.append('companyState', trimmedState);
+                            formData.append('companyCountry', trimmedCountry);
+                            if (trimmedWebsite) {
+                              formData.append('website', trimmedWebsite);
+                            }
+                            formData.append('verificationFile', b2bVerificationFile);
+
+                            const response = await usersApi.convertToB2B(user.id, formData);
+                            await refresh();
+                            setStatusMessage(response.message || 'Successfully converted to B2B account!');
+                            handleTabChange('account');
                             setB2bConversionStep('info');
                             setB2bFormData({
                               companyName: '',
@@ -3315,27 +3102,245 @@ export const ClientDashboardPage: React.FC = () => {
                               companyState: '',
                               companyCountry: 'United States',
                             });
+                            setUseCustomBusinessType(false);
                             setB2bVerificationFile(null);
-                          }}
-                          className="rounded-xl border border-slate-300 px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={b2bConversionLoading}
-                          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-8 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-4 focus:ring-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {b2bConversionLoading ? 'Converting...' : 'Complete B2B Conversion'}
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                          </svg>
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-              )}
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : 'Failed to convert to B2B account');
+                          } finally {
+                            setB2bConversionLoading(false);
+                          }
+                        }}
+                        className="space-y-6"
+                      >
+                        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                          <h3 className="text-xl font-semibold text-slate-900 mb-4">Company Information</h3>
+                          <p className="text-sm text-slate-600 mb-6">Please provide your business details to complete the B2B conversion.</p>
+
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <label htmlFor="companyName" className="block text-sm font-medium text-slate-700">
+                                Company Name <span className="text-red-600">*</span>
+                              </label>
+                              <input
+                                id="companyName"
+                                type="text"
+                                value={b2bFormData.companyName}
+                                onChange={(e) => setB2bFormData({ ...b2bFormData, companyName: e.target.value })}
+                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                placeholder="Your company name"
+                                required
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <label htmlFor="businessType" className="block text-sm font-medium text-slate-700">
+                                Business Type <span className="text-red-600">*</span>
+                              </label>
+                              <BusinessTypeSelect
+                                value={
+                                  !useCustomBusinessType && isBusinessTypeOption(b2bFormData.businessType)
+                                    ? b2bFormData.businessType
+                                    : ''
+                                }
+                                onSelect={handleBusinessTypePresetSelect}
+                                onSelectCustom={handleEnableCustomBusinessType}
+                                placeholder="Select business type"
+                              />
+                              {useCustomBusinessType && (
+                                <div className="grid gap-2 pt-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                                  <input
+                                    type="text"
+                                    value={b2bFormData.businessType}
+                                    onChange={(event) => handleCustomBusinessTypeChange(event.target.value)}
+                                    className="h-12 w-full rounded-2xl border border-border/60 bg-white/95 px-4 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
+                                    placeholder="Enter your business type"
+                                    required
+                                  />
+                                  <button
+                                    type="button"
+                                    className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-100"
+                                    onClick={() => {
+                                      setUseCustomBusinessType(false);
+                                      setB2bFormData((prev) => ({ ...prev, businessType: '' }));
+                                    }}
+                                  >
+                                    Choose preset
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-3">
+                              <div className="space-y-2 md:col-span-3">
+                                <div className="flex items-center justify-between">
+                                  <label htmlFor="companyAddress" className="block text-sm font-medium text-slate-700">
+                                    Company Address <span className="text-red-600">*</span>
+                                  </label>
+                                  {user.billingAddress?.addressLine1?.trim() && (
+                                    <button
+                                      type="button"
+                                      onClick={handleUseBillingAddress}
+                                      className="text-xs font-semibold text-red-600 hover:text-red-700"
+                                    >
+                                      Use billing address
+                                    </button>
+                                  )}
+                                </div>
+                                <input
+                                  id="companyAddress"
+                                  type="text"
+                                  value={b2bFormData.companyAddress}
+                                  onChange={(e) => setB2bFormData({ ...b2bFormData, companyAddress: e.target.value })}
+                                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                  placeholder="Street address"
+                                  required
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="block text-sm font-medium text-slate-700">
+                                  Country <span className="text-red-600">*</span>
+                                </label>
+                                <CountrySelect
+                                  value={b2bFormData.companyCountry}
+                                  onChange={(countryName) =>
+                                    setB2bFormData({ ...b2bFormData, companyCountry: countryName })
+                                  }
+                                  placeholder="Select country"
+                                  searchPlaceholder="Search countries..."
+                                  portalZIndex={30}
+                                  className="w-full"
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="block text-sm font-medium text-slate-700">
+                                  State <span className="text-red-600">*</span>
+                                </label>
+                                {isUnitedStates ? (
+                                  <CountrySelect
+                                    value={b2bFormData.companyState}
+                                    onChange={(stateName) =>
+                                      setB2bFormData({ ...b2bFormData, companyState: stateName })
+                                    }
+                                    options={US_STATES}
+                                    placeholder="Select state"
+                                    searchPlaceholder="Search states..."
+                                    portalZIndex={30}
+                                    className="w-full"
+                                  />
+                                ) : (
+                                  <input
+                                    id="companyState"
+                                    type="text"
+                                    value={b2bFormData.companyState}
+                                    onChange={(e) => setB2bFormData({ ...b2bFormData, companyState: e.target.value })}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    placeholder="State / Province"
+                                    required
+                                  />
+                                )}
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="block text-sm font-medium text-slate-700">
+                                  City <span className="text-red-600">*</span>
+                                </label>
+                                <input
+                                  id="companyCity"
+                                  type="text"
+                                  value={b2bFormData.companyCity}
+                                  onChange={(e) => setB2bFormData({ ...b2bFormData, companyCity: e.target.value })}
+                                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                  placeholder="City"
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label htmlFor="taxId" className="block text-sm font-medium text-slate-700">
+                                Tax ID <span className="text-red-600">*</span>
+                              </label>
+                              <input
+                                id="taxId"
+                                type="text"
+                                value={b2bFormData.taxId}
+                                onChange={(e) => setB2bFormData({ ...b2bFormData, taxId: e.target.value })}
+                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                placeholder="EIN / VAT number"
+                                required
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <label htmlFor="website" className="block text-sm font-medium text-slate-700">
+                                Company Website
+                              </label>
+                              <input
+                                id="website"
+                                type="text"
+                                value={b2bFormData.website}
+                                onChange={(e) => setB2bFormData({ ...b2bFormData, website: e.target.value })}
+                                pattern="^[^\s]+\.[^\s]+$"
+                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                placeholder="example.com"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <label htmlFor="verificationFile" className="block text-sm font-medium text-slate-700">
+                                Business Verification Document <span className="text-red-600">*</span>
+                              </label>
+                              <input
+                                id="verificationFile"
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) => setB2bVerificationFile(e.target.files?.[0] || null)}
+                                className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
+                                required
+                              />
+                              <p className="text-xs text-slate-500">Upload your business license, tax certificate, or other official business documentation (PDF, JPG, PNG - max 10MB)</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setB2bConversionStep('info');
+                              setB2bFormData({
+                                companyName: '',
+                                businessType: '',
+                                taxId: '',
+                                website: '',
+                                companyAddress: '',
+                                companyCity: '',
+                                companyState: '',
+                                companyCountry: 'United States',
+                              });
+                              setB2bVerificationFile(null);
+                            }}
+                            className="rounded-xl border border-slate-300 px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={b2bConversionLoading}
+                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-8 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-4 focus:ring-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {b2bConversionLoading ? 'Converting...' : 'Complete B2B Conversion'}
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                )}
               </motion.div>
             </AnimatePresence>
           </div>

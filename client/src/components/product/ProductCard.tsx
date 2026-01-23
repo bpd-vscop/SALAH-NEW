@@ -5,6 +5,7 @@ import { formatCurrency } from '../../utils/format';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { useToast } from '../../context/ToastContext';
 import { cn } from '../../utils/cn';
 import { getProductStatusTags, isComingSoon, isOnSale } from '../../utils/productStatus';
 
@@ -89,6 +90,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
   const { addItem } = useCart();
   const { user } = useAuth();
   const { items: wishlistItems, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
+  const { showToast } = useToast();
   const isSignedInClient = user?.role === 'client';
   const isStaffUser = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'staff';
   const showWishlistAction = !isStaffUser;
@@ -111,6 +113,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
       return;
     }
     addItem({ productId: product.id, quantity: 1 }, product);
+    showToast('Added to cart', 'success');
   };
 
   const isInWishlist = wishlistItems.some((line) => line.productId === product.id);

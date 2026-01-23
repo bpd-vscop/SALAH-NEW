@@ -422,10 +422,30 @@ const createOrder = async (req, res, next) => {
       taxAmount = Math.round(discountedSubtotal * (taxRate / 100) * 100) / 100;
     }
 
-    // Calculate shipping cost based on method
-    const shippingCosts = { standard: 0, express: 15, overnight: 30 };
-    const shippingMethod = payload.shippingMethod || 'standard';
-    const shippingCost = shippingCosts[shippingMethod] || 0;
+    // Calculate shipping cost based on method or ShipEngine rate
+    let shippingMethod = payload.shippingMethod || 'standard';
+    let shippingCost = 0;
+    let shippingRateInfo = null;
+
+    if (payload.shippingRate) {
+      // Use ShipEngine rate info
+      shippingRateInfo = {
+        rateId: payload.shippingRate.rateId,
+        carrierId: payload.shippingRate.carrierId,
+        carrierCode: payload.shippingRate.carrierCode,
+        carrierName: payload.shippingRate.carrierName,
+        serviceCode: payload.shippingRate.serviceCode,
+        serviceName: payload.shippingRate.serviceName,
+        deliveryDays: payload.shippingRate.deliveryDays,
+        estimatedDelivery: payload.shippingRate.estimatedDelivery,
+      };
+      shippingCost = payload.shippingRate.price || 0;
+      shippingMethod = `${payload.shippingRate.carrierName} - ${payload.shippingRate.serviceName}`;
+    } else {
+      // Fallback to static costs
+      const shippingCosts = { standard: 0, express: 15, overnight: 30 };
+      shippingCost = shippingCosts[shippingMethod] || 0;
+    }
 
     // Get selected shipping address for snapshot
     let shippingAddressSnapshot = null;
@@ -473,6 +493,7 @@ const createOrder = async (req, res, next) => {
       shippingMethod,
       shippingCost,
       shippingAddressSnapshot,
+      ...(shippingRateInfo ? { shippingRateInfo } : {}),
     });
 
     req.user.orderHistory.push(order._id);

@@ -101,13 +101,22 @@ const orderSchema = new mongoose.Schema(
     },
     shippingMethod: {
       type: String,
-      enum: ['standard', 'express', 'overnight'],
       default: 'standard',
     },
     shippingCost: {
       type: Number,
       min: 0,
       default: 0,
+    },
+    shippingRateInfo: {
+      rateId: String,
+      carrierId: String,
+      carrierCode: String,
+      carrierName: String,
+      serviceCode: String,
+      serviceName: String,
+      deliveryDays: Number,
+      estimatedDelivery: String,
     },
     shipment: {
       type: orderShipmentSchema,

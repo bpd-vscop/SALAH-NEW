@@ -22,6 +22,19 @@ const createOrderSchema = z
     couponCode: couponCodeSchema.optional(),
     shippingMethod: z.enum(['standard', 'express', 'overnight']).optional().default('standard'),
     shippingAddressId: z.string().optional(),
+    // ShipEngine rate info
+    shippingRate: z.object({
+      rateId: z.string(),
+      carrierId: z.string().optional(),
+      carrierCode: z.string().optional(),
+      carrierName: z.string(),
+      serviceCode: z.string().optional(),
+      serviceName: z.string(),
+      price: z.number(),
+      currency: z.string().optional(),
+      deliveryDays: z.number().optional().nullable(),
+      estimatedDelivery: z.string().optional().nullable(),
+    }).optional(),
   })
   .strict();
 

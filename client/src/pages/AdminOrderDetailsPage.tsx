@@ -298,6 +298,22 @@ export const AdminOrderDetailsPage: React.FC = () => {
                       </div>
                     )}
                     <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-600">
+                        Shipping
+                        {order?.shippingMethod && (
+                          <span className="ml-1 text-xs text-muted">
+                            ({order.shippingMethod === 'standard' ? 'Standard' :
+                              order.shippingMethod === 'express' ? 'Express' :
+                                order.shippingMethod === 'overnight' ? 'Overnight' :
+                                  order.shippingMethod})
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-sm font-semibold text-slate-900">
+                        {order?.shippingCost === 0 ? 'Free' : formatCurrency(order?.shippingCost ?? 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-600">Total</span>
                       <span className="text-xl font-bold text-slate-900">{formatCurrency(total)}</span>
                     </div>

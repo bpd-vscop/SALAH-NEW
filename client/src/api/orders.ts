@@ -3,11 +3,25 @@ import type { Order, OrderStatus } from '../types/api';
 
 export type ShippingMethod = 'standard' | 'express' | 'overnight';
 
+export interface ShippingRatePayload {
+  rateId: string;
+  carrierId?: string;
+  carrierCode?: string;
+  carrierName: string;
+  serviceCode?: string;
+  serviceName: string;
+  price: number;
+  currency?: string;
+  deliveryDays?: number | null;
+  estimatedDelivery?: string | null;
+}
+
 export interface CreateOrderPayload {
   products: Array<{ productId: string; quantity: number }>;
   couponCode?: string;
   shippingMethod?: ShippingMethod;
   shippingAddressId?: string;
+  shippingRate?: ShippingRatePayload;
 }
 
 export interface TrackingEvent {
