@@ -558,30 +558,11 @@ export const CheckoutPage: React.FC = () => {
     setError(null);
     try {
       const couponPayload = appliedCoupon?.code ? { couponCode: appliedCoupon.code } : {};
-      // Find the selected rate details to send to backend
-      const selectedRate = carrierRates.find((r) => r.rateId === selectedRateId);
-      const shippingRatePayload = selectedRate
-        ? {
-          shippingRate: {
-            rateId: selectedRate.rateId,
-            carrierId: selectedRate.carrierId,
-            carrierCode: selectedRate.carrierCode,
-            carrierName: selectedRate.carrierName,
-            serviceCode: selectedRate.serviceCode,
-            serviceName: selectedRate.serviceName,
-            price: selectedRate.price,
-            currency: selectedRate.currency,
-            deliveryDays: selectedRate.deliveryDays,
-            estimatedDelivery: selectedRate.estimatedDelivery,
-          },
-        }
-        : {};
       await ordersApi.create({
         products: items.map((line) => ({ productId: line.productId, quantity: line.quantity })),
         shippingMethod: selectedShipping,
         shippingAddressId: selectedAddress,
         ...couponPayload,
-        ...shippingRatePayload,
       });
       await clearCart();
       clearStoredCouponCode();
@@ -1617,13 +1598,7 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">
-                    Shipping
-                    {selectedRateId && carrierRates.length > 0 && (() => {
-                      const rate = carrierRates.find(r => r.rateId === selectedRateId);
-                      return rate ? <span className="block text-xs text-slate-400 font-normal">{rate.carrierName} - {rate.serviceName}</span> : null;
-                    })()}
-                  </span>
+                  <span className="text-slate-600">Shipping:</span>
                   <span className="font-semibold text-slate-900">
                     {shippingCost === 0 ? 'FREE' : formatCurrency(shippingCost)}
                   </span>

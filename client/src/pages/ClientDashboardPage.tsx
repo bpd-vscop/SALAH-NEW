@@ -2184,18 +2184,7 @@ export const ClientDashboardPage: React.FC = () => {
                                       <span className="text-sm font-semibold">{statusConfig.label}</span>
                                     </div>
                                     <div className="text-right">
-                                      <p className="text-xs text-slate-500">
-                                        Shipping: {order.shippingCost === 0 ? 'Free' : formatCurrency(order.shippingCost)}
-                                      </p>
-                                      {order.shippingMethod && (
-                                        <p className="text-[10px] text-slate-400 max-w-[100px] truncate" title={order.shippingMethod}>
-                                          {order.shippingMethod === 'standard' ? 'Standard' :
-                                            order.shippingMethod === 'express' ? 'Express' :
-                                              order.shippingMethod === 'overnight' ? 'Overnight' :
-                                                order.shippingMethod}
-                                        </p>
-                                      )}
-                                      <p className="text-xs text-slate-500 mt-1">Total</p>
+                                      <p className="text-xs text-slate-500">Total</p>
                                       <p className="text-2xl font-bold text-slate-900">{formatCurrency(total)}</p>
                                     </div>
                                   </div>
