@@ -188,4 +188,31 @@ export const productsApi = {
   notify: (id: string) =>
     http.post<{ subscribed: boolean; alreadySubscribed?: boolean }>(`/products/${id}/notify`),
   delete: (id: string) => http.delete<void>(`/products/${id}`),
+  exportCSV: async () => {
+    // We can't use http.get directly for file download because we need a blob
+    // and standard Axios/Fetch wrapper might expect JSON.
+    // However, if we assume http deals with standard requests, we might do a direct fetch or handle blob.
+    // Let's rely on standard window behavior for download if possible, but for auth we need token.
+    // So we use fetch with auth headers.
+    const token = localStorage.getItem('auth_token'); // basic assumption on auth storage
+    const response = await fetch('/api/products/export/csv', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!response.ok) throw new Error('Export failed');
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'products.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  },
+  importCSV: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return http.post<{ message: string; processed: number; errors?: string[] }>('/products/import/csv', formData);
+  }
 };

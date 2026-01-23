@@ -25,7 +25,10 @@ const productDocumentAllowedMimeTypes = [
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'text/plain',
+  'text/csv',
+  'application/csv',
   'image/png',
+
   'image/jpeg',
   'image/webp',
 ];
