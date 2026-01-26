@@ -558,10 +558,28 @@ export const CheckoutPage: React.FC = () => {
     setError(null);
     try {
       const couponPayload = appliedCoupon?.code ? { couponCode: appliedCoupon.code } : {};
+      const selectedRate = selectedRateId
+        ? carrierRates.find((rate) => rate.rateId === selectedRateId)
+        : null;
+      const shippingRatePayload = selectedRate
+        ? {
+          rateId: selectedRate.rateId,
+          carrierId: selectedRate.carrierId,
+          carrierCode: selectedRate.carrierCode,
+          carrierName: selectedRate.carrierName,
+          serviceCode: selectedRate.serviceCode,
+          serviceName: selectedRate.serviceName,
+          price: selectedRate.price,
+          currency: selectedRate.currency,
+          deliveryDays: selectedRate.deliveryDays,
+          estimatedDelivery: selectedRate.estimatedDelivery,
+        }
+        : undefined;
       await ordersApi.create({
         products: items.map((line) => ({ productId: line.productId, quantity: line.quantity })),
         shippingMethod: selectedShipping,
         shippingAddressId: selectedAddress,
+        ...(shippingRatePayload ? { shippingRate: shippingRatePayload } : {}),
         ...couponPayload,
       });
       await clearCart();

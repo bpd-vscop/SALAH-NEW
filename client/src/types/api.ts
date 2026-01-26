@@ -427,6 +427,17 @@ export interface OrderShipment {
   shippedAt: string | null;
 }
 
+export interface ShippingRateInfo {
+  rateId?: string | null;
+  carrierId?: string | null;
+  carrierCode?: string | null;
+  carrierName?: string | null;
+  serviceCode?: string | null;
+  serviceName?: string | null;
+  deliveryDays?: number | null;
+  estimatedDelivery?: string | null;
+}
+
 export interface ShippingAddressSnapshot {
   fullName: string | null;
   phone: string | null;
@@ -444,6 +455,8 @@ export interface Order {
   user?: OrderUserSummary | null;
   products: OrderProductItem[];
   coupon?: OrderCoupon | null;
+  subtotal?: number;
+  discountAmount?: number;
   taxRate?: number | null;
   taxAmount?: number | null;
   taxCountry?: string | null;
@@ -451,8 +464,10 @@ export interface Order {
   status: OrderStatus;
   shippingMethod?: ShippingMethod;
   shippingCost?: number;
+  shippingRateInfo?: ShippingRateInfo | null;
   shipment?: OrderShipment | null;
   shippingAddressSnapshot?: ShippingAddressSnapshot | null;
+  total?: number;
   createdAt: string | null;
   updatedAt: string | null;
 }

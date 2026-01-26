@@ -127,6 +127,7 @@ export const ClientDashboardPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [expandedOrderSummaries, setExpandedOrderSummaries] = useState<Set<string>>(() => new Set());
   const [ordersLastSeenAt, setOrdersLastSeenAt] = useState<number>(() => {
     if (typeof window === 'undefined') return 0;
     const stored = Number(localStorage.getItem('ordersLastSeenAt') || '0');
@@ -2099,13 +2100,29 @@ export const ClientDashboardPage: React.FC = () => {
                       <div className="max-h-[600px] overflow-y-auto pr-2 space-y-4 scrollbar-custom">
                         {orders.map((order) => {
                           const itemCount = order.products.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                          const subtotal = order.products.reduce(
-                            (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
-                            0
-                          );
-                          const discount = order.coupon?.discountAmount ?? 0;
+                          const subtotal = typeof order.subtotal === 'number'
+                            ? order.subtotal
+                            : order.products.reduce(
+                              (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
+                              0
+                            );
+                          const discount = order.discountAmount ?? order.coupon?.discountAmount ?? 0;
                           const taxAmount = order.taxAmount ?? 0;
-                          const total = Math.max(0, subtotal - discount) + taxAmount;
+                          const shippingCost = order.shippingCost ?? 0;
+                          const computedTotal = Math.max(0, subtotal - discount) + taxAmount + shippingCost;
+                          const total = typeof order.total === 'number' ? order.total : computedTotal;
+                          const isSummaryOpen = expandedOrderSummaries.has(order.id);
+                          const toggleSummary = () => {
+                            setExpandedOrderSummaries((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(order.id)) {
+                                next.delete(order.id);
+                              } else {
+                                next.add(order.id);
+                              }
+                              return next;
+                            });
+                          };
 
                           const getStatusConfig = (status: string) => {
                             switch (status) {
@@ -2154,7 +2171,13 @@ export const ClientDashboardPage: React.FC = () => {
                           return (
                             <div key={order.id} className="rounded-lg border border-slate-200 bg-white overflow-hidden hover:shadow-md transition-shadow">
                               {/* Order Header */}
-                              <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
+                              <button
+                                type="button"
+                                onClick={toggleSummary}
+                                aria-expanded={isSummaryOpen}
+                                aria-controls={`order-details-${order.id}`}
+                                className="w-full bg-slate-50 border-b border-slate-200 px-6 py-4 text-left transition hover:bg-slate-100/60"
+                              >
                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                                   <div className="flex items-start gap-4">
                                     <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100">
@@ -2183,44 +2206,97 @@ export const ClientDashboardPage: React.FC = () => {
                                       <StatusIcon className={cn("h-4 w-4", statusConfig.iconColor)} />
                                       <span className="text-sm font-semibold">{statusConfig.label}</span>
                                     </div>
-                                    <div className="text-right">
-                                      <p className="text-xs text-slate-500">Total</p>
-                                      <p className="text-2xl font-bold text-slate-900">{formatCurrency(total)}</p>
+                                    <div className="group inline-flex items-center gap-2 text-right">
+                                      <div className="text-right">
+                                        <p className="text-xs text-slate-500 uppercase tracking-wide">Total</p>
+                                        <p className="text-2xl font-bold text-slate-900 leading-tight">
+                                          {formatCurrency(total)}
+                                        </p>
+                                      </div>
+                                      <ChevronDown
+                                        className={cn(
+                                          "h-4 w-4 text-slate-400 transition-transform",
+                                          isSummaryOpen && "rotate-180"
+                                        )}
+                                      />
                                     </div>
                                   </div>
                                 </div>
-                              </div>
+                              </button>
 
-                              {/* Order Items */}
-                              <div className="p-6">
-                                <div className="flex items-center gap-2 mb-4">
-                                  <ShoppingBag className="h-4 w-4 text-slate-400" />
-                                  <h3 className="text-sm font-semibold text-slate-700">
-                                    {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
-                                  </h3>
-                                </div>
-                                <div className="space-y-3">
-                                  {order.products.map((item, index) => (
-                                    <div
-                                      key={`${order.id}-line-${index}`}
-                                      className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-100 hover:bg-slate-100 transition-colors"
-                                    >
-                                      <div className="flex-1">
-                                        <p className="font-semibold text-slate-900">{item.name}</p>
-                                        <p className="text-sm text-slate-500 mt-0.5">Quantity: {item.quantity}</p>
+                              {isSummaryOpen && (
+                                <div id={`order-details-${order.id}`}>
+                                  {/* Order Items */}
+                                  <div className="p-6">
+                                    <div className="flex items-center gap-2 mb-4">
+                                      <ShoppingBag className="h-4 w-4 text-slate-400" />
+                                      <h3 className="text-sm font-semibold text-slate-700">
+                                        {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
+                                      </h3>
+                                    </div>
+                                    <div className="space-y-3">
+                                      {order.products.map((item, index) => (
+                                        <div
+                                          key={`${order.id}-line-${index}`}
+                                          className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-100 hover:bg-slate-100 transition-colors"
+                                        >
+                                          <div className="flex-1">
+                                            <p className="font-semibold text-slate-900">{item.name}</p>
+                                            <p className="text-sm text-slate-500 mt-0.5">Quantity: {item.quantity}</p>
+                                          </div>
+                                          <div className="text-right">
+                                            <p className="font-bold text-slate-900">
+                                              {formatCurrency((item.price || 0) * (item.quantity || 0))}
+                                            </p>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                              {formatCurrency(item.price || 0)} each
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* Order Summary */}
+                                  <div
+                                    id={`order-summary-${order.id}`}
+                                    className="border-t border-slate-200 bg-slate-50/70 px-6 py-4"
+                                  >
+                                    <div className="flex flex-col gap-2 text-sm text-slate-700">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-slate-600">Subtotal</span>
+                                        <span className="font-semibold text-slate-900">{formatCurrency(subtotal)}</span>
                                       </div>
-                                      <div className="text-right">
-                                        <p className="font-bold text-slate-900">
-                                          {formatCurrency((item.price || 0) * (item.quantity || 0))}
-                                        </p>
-                                        <p className="text-xs text-slate-500 mt-0.5">
-                                          {formatCurrency(item.price || 0)} each
-                                        </p>
+                                      {discount > 0 && (
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-600">
+                                            Discount{order.coupon?.code ? ` (${order.coupon.code})` : ''}
+                                          </span>
+                                          <span className="font-semibold text-emerald-600">
+                                            -{formatCurrency(discount)}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {taxAmount > 0 && (
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-600">Tax</span>
+                                          <span className="font-semibold text-slate-900">{formatCurrency(taxAmount)}</span>
+                                        </div>
+                                      )}
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-slate-600">Shipping</span>
+                                        <span className="font-semibold text-slate-900">
+                                          {shippingCost === 0 ? 'FREE' : formatCurrency(shippingCost)}
+                                        </span>
+                                      </div>
+                                      <div className="mt-1 flex items-center justify-between border-t border-slate-200 pt-3">
+                                        <span className="text-sm font-semibold text-slate-900">Total</span>
+                                        <span className="text-lg font-bold text-slate-900">{formatCurrency(total)}</span>
                                       </div>
                                     </div>
-                                  ))}
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                             </div>
                           );
                         })}

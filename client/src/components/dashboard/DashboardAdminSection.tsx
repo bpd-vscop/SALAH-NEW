@@ -407,14 +407,22 @@ const VisitorDeviceChart: React.FC<{
   );
 };
 
-const getOrderSubtotal = (order: Order) =>
-  order.products.reduce((sum, item) => sum + item.price * item.quantity, 0);
+const getOrderSubtotal = (order: Order) => {
+  if (typeof order.subtotal === 'number') {
+    return order.subtotal;
+  }
+  return order.products.reduce((sum, item) => sum + item.price * item.quantity, 0);
+};
 
 const getOrderTotal = (order: Order) => {
+  if (typeof order.total === 'number') {
+    return order.total;
+  }
   const subtotal = getOrderSubtotal(order);
-  const discount = order.coupon?.discountAmount ?? 0;
+  const discount = order.discountAmount ?? order.coupon?.discountAmount ?? 0;
   const taxAmount = order.taxAmount ?? 0;
-  return Math.max(0, subtotal - discount) + taxAmount;
+  const shippingCost = order.shippingCost ?? 0;
+  return Math.max(0, subtotal - discount) + taxAmount + shippingCost;
 };
 
 const getOrderTimestamp = (order: Order) => {

@@ -54,12 +54,21 @@ export const AdminOrderDetailsPage: React.FC = () => {
 
   const subtotal = useMemo(() => {
     if (!order) return 0;
+    if (typeof order.subtotal === 'number') return order.subtotal;
     return order.products.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [order]);
 
-  const discount = order?.coupon?.discountAmount ?? 0;
+  const discount = order?.discountAmount ?? order?.coupon?.discountAmount ?? 0;
   const taxAmount = order?.taxAmount ?? 0;
-  const total = useMemo(() => Math.max(0, subtotal - discount) + taxAmount, [discount, subtotal, taxAmount]);
+  const shippingCost = order?.shippingCost ?? 0;
+  const carrierName = order?.shippingRateInfo?.carrierName ?? null;
+  const carrierId = order?.shippingRateInfo?.carrierId ?? null;
+  const serviceName = order?.shippingRateInfo?.serviceName ?? null;
+  const storedTotal = order?.total;
+  const total = useMemo(() => {
+    if (typeof storedTotal === 'number') return storedTotal;
+    return Math.max(0, subtotal - discount) + taxAmount + shippingCost;
+  }, [discount, shippingCost, storedTotal, subtotal, taxAmount]);
 
   const totalQty = useMemo(() => {
     if (!order) return 0;
@@ -298,6 +307,10 @@ export const AdminOrderDetailsPage: React.FC = () => {
                       </div>
                     )}
                     <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-600">Shipping</span>
+                      <span className="text-sm font-semibold text-slate-900">{formatCurrency(shippingCost)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-600">Total</span>
                       <span className="text-xl font-bold text-slate-900">{formatCurrency(total)}</span>
                     </div>
@@ -399,6 +412,29 @@ export const AdminOrderDetailsPage: React.FC = () => {
                       </a>
                     )}
                   </div>
+                </div>
+              </section>
+
+              {/* Shipping Carrier */}
+              <section className="rounded-2xl border border-border bg-surface shadow-sm">
+                <div className="border-b border-border px-6 py-4">
+                  <h2 className="text-lg font-semibold text-slate-900">Shipping Carrier</h2>
+                </div>
+                <div className="p-6 space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600">Carrier</span>
+                    <span className="font-semibold text-slate-900">{carrierName || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600">Carrier ID</span>
+                    <span className="font-semibold text-slate-900">{carrierId || '—'}</span>
+                  </div>
+                  {serviceName && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600">Service</span>
+                      <span className="font-semibold text-slate-900">{serviceName}</span>
+                    </div>
+                  )}
                 </div>
               </section>
 

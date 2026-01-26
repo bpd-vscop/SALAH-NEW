@@ -398,8 +398,9 @@ const createOrder = async (req, res, next) => {
       };
     });
 
-    const orderSubtotal = orderItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
-    const orderDiscount = appliedCoupon?.discountAmount ?? 0;
+    const orderSubtotalRaw = orderItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
+    const orderSubtotal = Math.round(orderSubtotalRaw * 100) / 100;
+    const orderDiscount = Math.round((appliedCoupon?.discountAmount ?? 0) * 100) / 100;
     const discountedSubtotal = Math.max(0, orderSubtotal - orderDiscount);
     let taxRate = 0;
     let taxAmount = 0;
@@ -439,12 +440,12 @@ const createOrder = async (req, res, next) => {
         deliveryDays: payload.shippingRate.deliveryDays,
         estimatedDelivery: payload.shippingRate.estimatedDelivery,
       };
-      shippingCost = payload.shippingRate.price || 0;
+      shippingCost = Math.max(0, payload.shippingRate.price || 0);
       shippingMethod = `${payload.shippingRate.carrierName} - ${payload.shippingRate.serviceName}`;
     } else {
       // Fallback to static costs
       const shippingCosts = { standard: 0, express: 15, overnight: 30 };
-      shippingCost = shippingCosts[shippingMethod] || 0;
+      shippingCost = Math.max(0, shippingCosts[shippingMethod] || 0);
     }
 
     // Get selected shipping address for snapshot
@@ -481,11 +482,15 @@ const createOrder = async (req, res, next) => {
       };
     }
 
+    const orderTotal = Math.round((discountedSubtotal + taxAmount + shippingCost) * 100) / 100;
+
     const order = await Order.create({
       userId: req.user._id,
       products: orderItems,
       status: 'pending',
       ...(appliedCoupon ? { coupon: appliedCoupon } : {}),
+      subtotal: orderSubtotal,
+      discountAmount: orderDiscount,
       taxRate,
       taxAmount,
       taxCountry,
@@ -494,6 +499,7 @@ const createOrder = async (req, res, next) => {
       shippingCost,
       shippingAddressSnapshot,
       ...(shippingRateInfo ? { shippingRateInfo } : {}),
+      total: orderTotal,
     });
 
     req.user.orderHistory.push(order._id);
@@ -501,7 +507,6 @@ const createOrder = async (req, res, next) => {
     await req.user.save();
 
     // Fire-and-forget notifications (do not block order creation on email failures)
-    const orderTotal = Math.max(0, orderSubtotal - orderDiscount) + taxAmount;
     const clientEmail = req.user.email;
     const clientName = req.user.name;
 

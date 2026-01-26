@@ -73,6 +73,16 @@ const orderSchema = new mongoose.Schema(
       type: orderCouponSchema,
       default: null,
     },
+    subtotal: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    discountAmount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
     taxRate: {
       type: Number,
       min: 0,
@@ -131,6 +141,11 @@ const orderSchema = new mongoose.Schema(
       state: String,
       postalCode: String,
       country: String,
+    },
+    total: {
+      type: Number,
+      min: 0,
+      default: 0,
     },
     createdAt: {
       type: Date,
@@ -237,12 +252,35 @@ const orderSchema = new mongoose.Schema(
             tagsAtPurchase: item.tagsAtPurchase,
           }))
           : [];
+        const computedSubtotal = ret.products.reduce((sum, item) => {
+          const price = typeof item.price === 'number' ? item.price : 0;
+          const quantity = typeof item.quantity === 'number' ? item.quantity : 0;
+          return sum + price * quantity;
+        }, 0);
+        ret.subtotal = typeof ret.subtotal === 'number' ? ret.subtotal : computedSubtotal;
+        ret.discountAmount =
+          typeof ret.discountAmount === 'number' ? ret.discountAmount : ret.coupon?.discountAmount ?? 0;
         ret.taxRate = typeof ret.taxRate === 'number' ? ret.taxRate : 0;
         ret.taxAmount = typeof ret.taxAmount === 'number' ? ret.taxAmount : 0;
         ret.taxCountry = ret.taxCountry || null;
         ret.taxState = ret.taxState || null;
         ret.shippingMethod = ret.shippingMethod || 'standard';
         ret.shippingCost = typeof ret.shippingCost === 'number' ? ret.shippingCost : 0;
+        ret.shippingRateInfo = ret.shippingRateInfo
+          ? {
+            rateId: ret.shippingRateInfo.rateId || null,
+            carrierId: ret.shippingRateInfo.carrierId || null,
+            carrierCode: ret.shippingRateInfo.carrierCode || null,
+            carrierName: ret.shippingRateInfo.carrierName || null,
+            serviceCode: ret.shippingRateInfo.serviceCode || null,
+            serviceName: ret.shippingRateInfo.serviceName || null,
+            deliveryDays: typeof ret.shippingRateInfo.deliveryDays === 'number' ? ret.shippingRateInfo.deliveryDays : null,
+            estimatedDelivery: ret.shippingRateInfo.estimatedDelivery || null,
+          }
+          : null;
+        const discountedSubtotal = Math.max(0, ret.subtotal - ret.discountAmount);
+        const computedTotal = Math.round((discountedSubtotal + ret.taxAmount + ret.shippingCost) * 100) / 100;
+        ret.total = typeof ret.total === 'number' ? ret.total : computedTotal;
         ret.shipment = ret.shipment
           ? {
             labelId: ret.shipment.labelId || null,
