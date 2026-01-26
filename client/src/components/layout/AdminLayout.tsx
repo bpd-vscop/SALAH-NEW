@@ -117,26 +117,36 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, topNav, cont
             <img src="/logo.webp" alt="ULKs Logo" className="h-8 w-auto" />
           </a>
 
-          {/* Mobile & Tablet: Back arrow */}
+          {/* Mobile & Tablet: Back to Store icon */}
           <a
             href="/"
             className="admin-mobile-tablet h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
             aria-label="Back to Store"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 7l1-4h16l1 4M4 7h16l-1 13H5L4 7zm5 13V10h6v10"
+              />
             </svg>
           </a>
 
-          {/* Desktop: Back to Store link with text */}
+          {/* Desktop: Back to Store icon */}
           <a
             href="/"
-            className="admin-desktop-inline items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            className="admin-desktop-inline h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label="Back to Store"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 7l1-4h16l1 4M4 7h16l-1 13H5L4 7zm5 13V10h6v10"
+              />
             </svg>
-            Store
           </a>
 
           {/* Tablet: Page Title */}
