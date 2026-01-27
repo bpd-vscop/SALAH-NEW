@@ -21,6 +21,7 @@ interface ProductCardProps {
   className?: string;
   badge?: ProductCardBadge;
   hideTags?: boolean;
+  imageFit?: 'cover' | 'contain';
 }
 
 const badgeStyles: Record<
@@ -86,7 +87,13 @@ const ProductBadge: React.FC<{ badge: ProductCardBadge }> = ({ badge }) => {
   );
 };
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, className, badge, hideTags = false }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({
+  product,
+  className,
+  badge,
+  hideTags = false,
+  imageFit = 'cover',
+}) => {
   const { addItem } = useCart();
   const { user } = useAuth();
   const { items: wishlistItems, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
@@ -159,12 +166,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, className, ba
       )}
     >
       {/* Image Container with Hover Zoom */}
-      <div className="relative aspect-[10/9] w-full overflow-hidden bg-slate-100">
+      <div
+        className={cn(
+          'relative aspect-[10/9] w-full overflow-hidden',
+          imageFit === 'contain'
+            ? 'bg-white p-4 rounded-2xl flex items-center justify-center'
+            : 'bg-slate-100'
+        )}
+      >
         <img
           src={product.images[0] ?? 'https://placehold.co/400x300?text=Product'}
           alt={product.name}
           loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
+          className={cn(
+            'transition-transform duration-500 ease-in-out',
+            imageFit === 'contain'
+              ? 'max-h-full max-w-full object-contain rounded-2xl'
+              : 'h-full w-full object-cover group-hover:scale-110'
+          )}
         />
 
         {/* Badge/Tags Overlay - Top Left */}

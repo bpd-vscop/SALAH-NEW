@@ -61,7 +61,7 @@ export const NewProductsSection: React.FC = () => {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
           <h2 className="text-2xl font-semibold text-slate-900">New Products</h2>
         </div>
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {Array.from({ length: DESKTOP_LIMIT }).map((_, index) => (
             <div key={index} className="aspect-[3/4] animate-pulse rounded-2xl bg-slate-200" />
           ))}
@@ -86,12 +86,13 @@ export const NewProductsSection: React.FC = () => {
         </Link>
       </div>
 
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
         {products.slice(0, DESKTOP_LIMIT).map((product, index) => (
           <ProductCard
             key={product.id}
             product={product}
             hideTags
+            imageFit="contain"
             className={index >= MOBILE_LIMIT ? 'hidden sm:flex' : undefined}
           />
         ))}

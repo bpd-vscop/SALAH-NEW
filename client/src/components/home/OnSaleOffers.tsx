@@ -210,7 +210,7 @@ export const OnSaleOffers: React.FC = () => {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
           <h2 className="text-2xl font-semibold text-slate-900">On sale</h2>
         </div>
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {Array.from({ length: 5 }).map((_, index) => (
             <div key={index} className="aspect-[3/4] animate-pulse rounded-2xl bg-slate-200" />
           ))}
@@ -271,25 +271,27 @@ export const OnSaleOffers: React.FC = () => {
               <div
                 key={`${product.id}-${index}`}
                 data-product-item
-                className="w-[calc(50vw-2rem)] sm:w-[calc(33.333vw-2rem)] md:w-[calc(25vw-2rem)] lg:w-[calc(20vw-2rem)] flex-shrink-0"
+                className="w-[calc(50vw-2rem)] sm:w-[calc(33.333vw-2rem)] md:w-[calc(25vw-2rem)] lg:w-[calc(16.666vw-2rem)] flex-shrink-0"
               >
                 <ProductCard
                   product={product}
                   badge={{ label: 'On sale', variant: 'onSale' }}
                   hideTags
+                  imageFit="contain"
                 />
               </div>
             ))}
           </div>
         </div>
       ) : (
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 pb-8">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 pb-8">
           {products.map((product) => (
             <ProductCard
               key={product.id}
               product={product}
               badge={{ label: 'On sale', variant: 'onSale' }}
               hideTags
+              imageFit="contain"
             />
           ))}
         </div>

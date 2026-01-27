@@ -218,7 +218,7 @@ export const FeaturedOffers: React.FC = () => {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6">
           <h2 className="text-2xl font-semibold text-slate-900">Featured Products</h2>
         </div>
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {Array.from({ length: itemsPerPage }).map((_, index) => (
             <div key={index} className="aspect-[3/4] animate-pulse rounded-2xl bg-slate-200" />
           ))}
@@ -301,13 +301,14 @@ export const FeaturedOffers: React.FC = () => {
           >
             {pages.map((pageProducts, index) => (
               <div key={index} className="min-w-full">
-                <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                   {pageProducts.map((product) => (
                     <ProductCard
                       key={product.id}
                       product={product}
                       badge={{ label: 'In stock', variant: 'inStock' }}
                       hideTags
+                      imageFit="contain"
                     />
                   ))}
                 </div>
