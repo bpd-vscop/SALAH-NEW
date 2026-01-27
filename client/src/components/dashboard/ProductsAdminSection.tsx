@@ -53,6 +53,7 @@ interface ProductsAdminSectionProps {
   onRefreshProducts: () => Promise<void>;
   view: 'all' | 'add';
   onViewChange: (view: 'all' | 'add') => void;
+  canManageCsv: boolean;
 }
 
 const productTypes: ProductType[] = ['simple', 'variable', 'grouped'];
@@ -153,6 +154,7 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
   onRefreshProducts,
   view,
   onViewChange,
+  canManageCsv,
 }) => {
   const [displayMode, setDisplayMode] = useState<'card' | 'table'>('card');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1383,42 +1385,46 @@ export const ProductsAdminSection: React.FC<ProductsAdminSectionProps> = ({
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-semibold text-slate-900">Products</h2>
             <div className="flex items-center gap-2">
-              {importCSVError && (
-                <div className="mr-2 text-xs font-semibold text-red-600">{importCSVError}</div>
+              {canManageCsv && (
+                <>
+                  {importCSVError && (
+                    <div className="mr-2 text-xs font-semibold text-red-600">{importCSVError}</div>
+                  )}
+                  {importCSVSuccess && (
+                    <div className="mr-2 text-xs font-semibold text-green-600">{importCSVSuccess}</div>
+                  )}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept=".csv"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleExportCSV}
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                    title="Export products to CSV"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">Export</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleImportCSVClick}
+                    disabled={isImportingCSV}
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+                    title="Import products from CSV"
+                  >
+                    {isImportingCSV ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-transparent" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    <span className="hidden sm:inline">Import</span>
+                  </button>
+                </>
               )}
-              {importCSVSuccess && (
-                <div className="mr-2 text-xs font-semibold text-green-600">{importCSVSuccess}</div>
-              )}
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept=".csv"
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={handleExportCSV}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                title="Export products to CSV"
-              >
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Export</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleImportCSVClick}
-                disabled={isImportingCSV}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
-                title="Import products from CSV"
-              >
-                {isImportingCSV ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-transparent" />
-                ) : (
-                  <Upload className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">Import</span>
-              </button>
               <button
                 type="button"
                 onClick={() => {

@@ -2273,6 +2273,7 @@ export const AdminDashboardPage: React.FC = () => {
                   view={productsView}
                   onViewChange={setProductsView}
                   manufacturers={manufacturers}
+                  canManageCsv={role === 'super_admin'}
                 />
               )}
             </motion.div>
