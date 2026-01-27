@@ -1942,6 +1942,7 @@ export const AdminDashboardPage: React.FC = () => {
           };
         }
         if (tab.id === 'orders') {
+          const pendingOrdersCount = orders.filter((o) => o.status === 'pending').length;
           const activeOrdersLabel = ordersSection === 'invoices' ? 'Invoices & Estimates' : ordersSection === 'shipping' ? 'Shipping Settings' : 'Orders';
           return {
             id: tab.id,
@@ -1949,14 +1950,14 @@ export const AdminDashboardPage: React.FC = () => {
             icon: getMenuIcon(tab.id),
             dropdown: {
               items: [
-                { id: 'orders', label: 'Orders' },
+                { id: 'orders', label: 'Orders', badgeCount: pendingOrdersCount },
                 { id: 'invoices', label: 'Invoices & Estimates' },
                 { id: 'shipping', label: 'Shipping Settings' },
               ],
               activeId: activeTab === 'orders' ? ordersSection : undefined,
             },
             activeLabel: activeTab === 'orders' ? activeOrdersLabel : undefined,
-            badgeCount: orders.filter((o) => o.status === 'pending').length,
+            badgeCount: pendingOrdersCount,
           };
         }
         return {
