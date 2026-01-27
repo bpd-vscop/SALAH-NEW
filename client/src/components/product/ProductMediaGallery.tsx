@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '../../utils/cn';
 
 interface ProductMediaGalleryProps {
@@ -143,6 +143,25 @@ export const ProductMediaGallery: React.FC<ProductMediaGalleryProps> = ({ name, 
   const mediaItems = useMemo(() => buildMediaItems(images, videoUrls), [images, videoUrls]);
   const [activeId, setActiveId] = useState<string>(mediaItems[0]?.id ?? 'placeholder');
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const mainMediaRef = useRef<HTMLDivElement>(null);
+  const mainImageRef = useRef<HTMLImageElement>(null);
+  const [lensState, setLensState] = useState<{
+    visible: boolean;
+    left: number;
+    top: number;
+    bgX: number;
+    bgY: number;
+    bgW: number;
+    bgH: number;
+  }>({
+    visible: false,
+    left: 0,
+    top: 0,
+    bgX: 0,
+    bgY: 0,
+    bgW: 0,
+    bgH: 0,
+  });
 
   useEffect(() => {
     if (!mediaItems.find((item) => item.id === activeId)) {
@@ -153,6 +172,8 @@ export const ProductMediaGallery: React.FC<ProductMediaGalleryProps> = ({ name, 
   const activeItem = mediaItems.find((item) => item.id === activeId) ?? mediaItems[0];
   const isVideoActive = activeItem?.type === 'video';
   const isVideoPlaying = isVideoActive && playingVideoId === activeItem.id;
+  const LENS_SIZE = 200;
+  const ZOOM_SCALE = 1.4;
 
   const handleSelectMedia = (item: MediaItem) => {
     setActiveId(item.id);
@@ -202,66 +223,160 @@ export const ProductMediaGallery: React.FC<ProductMediaGalleryProps> = ({ name, 
     );
   };
 
+  const hasThumbnails = mediaItems.length > 1;
+  const showLens = lensState.visible && !isVideoActive;
+
+  const handleLensMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!mainMediaRef.current || !mainImageRef.current || isVideoActive) {
+      return;
+    }
+    const container = mainMediaRef.current;
+    const rect = container.getBoundingClientRect();
+    const img = mainImageRef.current;
+    const naturalWidth = img.naturalWidth;
+    const naturalHeight = img.naturalHeight;
+    if (!naturalWidth || !naturalHeight) {
+      return;
+    }
+
+    const containerWidth = rect.width;
+    const containerHeight = rect.height;
+    const scale = Math.min(containerWidth / naturalWidth, containerHeight / naturalHeight);
+    const displayWidth = naturalWidth * scale;
+    const displayHeight = naturalHeight * scale;
+    const offsetX = (containerWidth - displayWidth) / 2;
+    const offsetY = (containerHeight - displayHeight) / 2;
+
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+    const maxLeft = Math.max(0, containerWidth - LENS_SIZE);
+    const left = clamp(x - LENS_SIZE / 2, 0, maxLeft);
+    const minTop = Math.max(0, offsetY);
+    const maxTop = Math.min(containerHeight - LENS_SIZE, offsetY + displayHeight - LENS_SIZE);
+    const safeMaxTop = Math.max(minTop, maxTop);
+    const top = clamp(y - LENS_SIZE / 2, minTop, safeMaxTop);
+
+    const clampedCenterX = clamp(x, offsetX, offsetX + displayWidth);
+    const clampedCenterY = clamp(y, offsetY, offsetY + displayHeight);
+    const imgX = clampedCenterX - offsetX;
+    const imgY = clampedCenterY - offsetY;
+    const bgX = -(imgX * ZOOM_SCALE - LENS_SIZE / 2);
+    const bgY = -(imgY * ZOOM_SCALE - LENS_SIZE / 2);
+    const bgMinX = Math.min(0, LENS_SIZE - displayWidth * ZOOM_SCALE);
+    const bgMinY = Math.min(0, LENS_SIZE - displayHeight * ZOOM_SCALE);
+    const clampedBgX = clamp(bgX, bgMinX, 0);
+    const clampedBgY = clamp(bgY, bgMinY, 0);
+
+    setLensState({
+      visible: true,
+      left,
+      top,
+      bgX: clampedBgX,
+      bgY: clampedBgY,
+      bgW: displayWidth * ZOOM_SCALE,
+      bgH: displayHeight * ZOOM_SCALE,
+    });
+  };
+
+  const handleLensLeave = () => {
+    setLensState((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-black/5">
-        {activeItem?.type === 'video' ? (
-          <div className="aspect-[4/3] w-full bg-black">{renderVideoFrame()}</div>
-        ) : (
-          <img
-            src={activeItem?.url ?? PLACEHOLDER}
-            alt={`${name} preview`}
-            className="aspect-[4/3] w-full object-cover"
-          />
-        )}
-
-        {activeItem?.type === 'video' && (
-          <span className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className="h-3.5 w-3.5"
-            >
-              <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3h9A1.5 1.5 0 0 1 16 4.5v11a1.5 1.5 0 0 1-2.238 1.306l-6.724-3.862A1.5 1.5 0 0 1 6 11.616V4.5Z" />
-            </svg>
-            Video
-          </span>
-        )}
-      </div>
-
-      {mediaItems.length > 1 && (
-        <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
-          {mediaItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => handleSelectMedia(item)}
-              className={cn(
-                'group relative overflow-hidden rounded-xl border border-border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                activeId === item.id ? 'border-primary ring-2 ring-primary/40' : 'hover:border-primary'
-              )}
-              aria-label={item.label}
-            >
-              <div className="relative aspect-square w-full overflow-hidden">
-                <img
-                  src={item.type === 'video' ? item.thumbnail || PLACEHOLDER : item.url}
-                  alt={item.label}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition group-hover:scale-[1.02]"
-                />
-                {item.type === 'video' && (
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 transition group-hover:opacity-100">
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6 text-white">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </span>
+    <div
+      className={cn(
+        'grid gap-4',
+        hasThumbnails ? 'lg:grid-cols-[88px_minmax(0,1fr)]' : 'lg:grid-cols-1'
+      )}
+    >
+      {hasThumbnails && (
+        <div className="order-2 lg:order-1">
+          <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 lg:grid-cols-1 lg:gap-3 lg:max-h-[520px] lg:overflow-y-auto lg:pr-1">
+            {mediaItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleSelectMedia(item)}
+                className={cn(
+                  'group relative overflow-hidden rounded-xl border border-border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                  activeId === item.id ? 'border-primary ring-2 ring-primary/40' : 'hover:border-primary'
                 )}
-              </div>
-            </button>
-          ))}
+                aria-label={item.label}
+              >
+                <div className="relative aspect-square w-full overflow-hidden bg-white">
+                  <img
+                    src={item.type === 'video' ? item.thumbnail || PLACEHOLDER : item.url}
+                    alt={item.label}
+                    loading="lazy"
+                    className="h-full w-full object-contain transition group-hover:scale-[1.02]"
+                  />
+                  {item.type === 'video' && (
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 transition group-hover:opacity-100">
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6 text-white">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
+
+      <div className={cn('order-1', hasThumbnails ? 'lg:order-2' : undefined)}>
+        <div className="relative w-full overflow-hidden rounded-2xl border border-border bg-white p-4">
+          <div
+            ref={mainMediaRef}
+            onMouseMove={handleLensMove}
+            onMouseLeave={handleLensLeave}
+            className="relative flex h-[320px] w-full items-center justify-center overflow-hidden cursor-none sm:h-[420px] lg:h-[520px]"
+          >
+            {activeItem?.type === 'video' ? (
+              <div className="h-full w-full overflow-hidden rounded-xl bg-black">{renderVideoFrame()}</div>
+            ) : (
+              <img
+                src={activeItem?.url ?? PLACEHOLDER}
+                alt={`${name} preview`}
+                className="h-full w-full object-contain"
+                ref={mainImageRef}
+              />
+            )}
+
+            {showLens && (
+              <div
+                className="pointer-events-none absolute rounded-xl border-[1px] border-red-500 shadow-[0_12px_30px_rgba(15,23,42,0.25)]"
+                style={{
+                  left: lensState.left,
+                  top: lensState.top,
+                  width: LENS_SIZE,
+                  height: LENS_SIZE,
+                  backgroundImage: `url(${activeItem?.url ?? PLACEHOLDER})`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: `${lensState.bgW}px ${lensState.bgH}px`,
+                  backgroundPosition: `${lensState.bgX}px ${lensState.bgY}px`,
+                }}
+              />
+            )}
+          </div>
+
+          {activeItem?.type === 'video' && (
+            <span className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="h-3.5 w-3.5"
+              >
+                <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3h9A1.5 1.5 0 0 1 16 4.5v11a1.5 1.5 0 0 1-2.238 1.306l-6.724-3.862A1.5 1.5 0 0 1 6 11.616V4.5Z" />
+              </svg>
+              Video
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
