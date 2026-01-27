@@ -53,13 +53,15 @@ export const ProductRecommendationRail: React.FC<ProductRecommendationRailProps>
               key={product.id}
               className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
             >
-              <div className="relative aspect-[4/3] w-full overflow-hidden">
-                <img
-                  src={product.images[0] ?? 'https://placehold.co/400x300?text=Product'}
-                  alt={product.name}
-                  loading="lazy"
-                  className="h-full w-full object-cover"
-                />
+              <div className="relative aspect-square w-full overflow-hidden rounded-3xl bg-white p-2">
+                <div className="h-full w-full overflow-hidden rounded-xl">
+                  <img
+                    src={product.images[0] ?? 'https://placehold.co/400x300?text=Product'}
+                    alt={product.name}
+                    loading="lazy"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
                 {displayTags.length ? (
                   <div className="absolute left-3 top-3 flex flex-wrap gap-2">
                     {displayTags.slice(0, 2).map((tag) => (
