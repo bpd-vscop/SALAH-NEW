@@ -12,6 +12,7 @@ const {
   sendShippingConfirmationEmail,
 } = require('../services/emailService');
 const shipEngine = require('../services/shipEngineService');
+const { verifyPaypalPayment } = require('./paymentsController');
 
 const ORDER_USER_SELECT =
   'name email phoneCode phoneNumber clientType status isEmailVerified company billingAddress verificationFileUrl verificationStatus profileImage shippingAddresses accountCreated accountUpdated';
@@ -484,10 +485,30 @@ const createOrder = async (req, res, next) => {
 
     const orderTotal = Math.round((discountedSubtotal + taxAmount + shippingCost) * 100) / 100;
 
+    // ── Payment verification ──────────────────────────────────────
+    const paymentMethod = payload.paymentMethod || 'none';
+    const paymentId = payload.paymentId || null;
+    let paymentStatus = 'pending';
+
+    if (paymentMethod === 'paypal' && paymentId) {
+      const result = await verifyPaypalPayment(paymentId);
+      if (!result.verified) {
+        throw badRequest(`Payment verification failed: ${result.reason}`);
+      }
+      paymentStatus = 'paid';
+    } else if (paymentMethod === 'stripe') {
+      throw badRequest('Stripe payments are not available');
+    }
+
+    const initialStatus = paymentStatus === 'paid' ? 'processing' : 'pending';
+
     const order = await Order.create({
       userId: req.user._id,
       products: orderItems,
-      status: 'pending',
+      status: initialStatus,
+      paymentMethod,
+      paymentId,
+      paymentStatus,
       ...(appliedCoupon ? { coupon: appliedCoupon } : {}),
       subtotal: orderSubtotal,
       discountAmount: orderDiscount,

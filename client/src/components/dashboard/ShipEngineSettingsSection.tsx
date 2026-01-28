@@ -51,9 +51,12 @@ export function ShipEngineSettingsSection({ onMessage }: Props) {
     const handleSave = async () => {
         setSaving(true);
         try {
+            // Filter out empty carrier rows before saving
+            const validCarriers = carriers.filter((c) => c.carrierId.trim());
+
             const payload: Parameters<typeof shipEngineSettingsApi.update>[0] = {
                 isSandbox,
-                carriers,
+                carriers: validCarriers,
                 defaultCarrierId,
                 shipFromAddress,
             };
@@ -65,11 +68,16 @@ export function ShipEngineSettingsSection({ onMessage }: Props) {
 
             const { settings: updated, message } = await shipEngineSettingsApi.update(payload);
             setSettings(updated);
+            setCarriers(updated.carriers || []);
+            setDefaultCarrierId(updated.defaultCarrierId || '');
+            setShipFromAddress(updated.shipFromAddress || {});
+            setIsSandbox(updated.isSandbox);
             setApiKey(''); // Clear the input after save
             onMessage?.(message || 'Settings saved successfully');
         } catch (error) {
             console.error('Failed to save settings:', error);
-            onMessage?.('Failed to save settings', true);
+            const msg = error instanceof Error ? error.message : 'Failed to save settings';
+            onMessage?.(msg, true);
         } finally {
             setSaving(false);
         }

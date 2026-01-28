@@ -40,6 +40,12 @@ const formatDate = (value?: string | null) => {
   }
 };
 
+const formatPaymentMethod = (method?: Order['paymentMethod']) => {
+  if (method === 'paypal') return 'PayPal';
+  if (method === 'none') return 'Not specified';
+  return 'Not specified';
+};
+
 export const AdminOrderDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -313,6 +319,9 @@ export const AdminOrderDetailsPage: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-600">Total</span>
                       <span className="text-xl font-bold text-slate-900">{formatCurrency(total)}</span>
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      Payment method: {formatPaymentMethod(order.paymentMethod)}
                     </div>
                   </div>
                 </div>

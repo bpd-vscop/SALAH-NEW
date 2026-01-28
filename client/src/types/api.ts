@@ -449,6 +449,9 @@ export interface ShippingAddressSnapshot {
   country: string | null;
 }
 
+export type PaymentMethod = 'paypal' | 'none';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+
 export interface Order {
   id: string;
   userId: string;
@@ -461,6 +464,9 @@ export interface Order {
   taxAmount?: number | null;
   taxCountry?: string | null;
   taxState?: string | null;
+  paymentMethod?: PaymentMethod;
+  paymentId?: string | null;
+  paymentStatus?: PaymentStatus;
   status: OrderStatus;
   shippingMethod?: ShippingMethod;
   shippingCost?: number;

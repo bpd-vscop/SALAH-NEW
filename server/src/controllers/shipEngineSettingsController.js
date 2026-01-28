@@ -37,9 +37,9 @@ const updateSettings = async (req, res, next) => {
         }
         if (Array.isArray(data.carriers)) {
             updateData.carriers = data.carriers
-                .filter((c) => c && typeof c.name === 'string' && typeof c.carrierId === 'string')
+                .filter((c) => c && typeof c.carrierId === 'string' && c.carrierId.trim())
                 .map((c) => ({
-                    name: c.name.trim(),
+                    name: (typeof c.name === 'string' && c.name.trim()) ? c.name.trim() : c.carrierId.trim(),
                     carrierId: c.carrierId.trim(),
                     carrierCode: typeof c.carrierCode === 'string' ? c.carrierCode.trim() : '',
                     isEnabled: c.isEnabled !== false,

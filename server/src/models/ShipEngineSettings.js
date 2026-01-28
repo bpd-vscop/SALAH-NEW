@@ -91,6 +91,22 @@ const shipEngineSettingsSchema = new mongoose.Schema(
                         isEnabled: c.isEnabled !== false,
                     }))
                     : [];
+                ret.warehouseId = ret.warehouseId || '';
+                ret.isSandbox = typeof ret.isSandbox === 'boolean' ? ret.isSandbox : true;
+                ret.defaultCarrierId = ret.defaultCarrierId || '';
+                // Always return a complete shipFromAddress object
+                const sfa = ret.shipFromAddress || {};
+                ret.shipFromAddress = {
+                    name: sfa.name || '',
+                    companyName: sfa.companyName || '',
+                    phone: sfa.phone || '',
+                    addressLine1: sfa.addressLine1 || '',
+                    addressLine2: sfa.addressLine2 || '',
+                    city: sfa.city || '',
+                    state: sfa.state || '',
+                    postalCode: sfa.postalCode || '',
+                    country: sfa.country || 'US',
+                };
                 ret.createdAt = ret.createdAt ? new Date(ret.createdAt).toISOString() : null;
                 ret.updatedAt = ret.updatedAt ? new Date(ret.updatedAt).toISOString() : null;
                 delete ret._id;

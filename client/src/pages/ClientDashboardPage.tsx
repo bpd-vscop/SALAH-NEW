@@ -2111,6 +2111,8 @@ export const ClientDashboardPage: React.FC = () => {
                           const shippingCost = order.shippingCost ?? 0;
                           const computedTotal = Math.max(0, subtotal - discount) + taxAmount + shippingCost;
                           const total = typeof order.total === 'number' ? order.total : computedTotal;
+                          const paymentMethodLabel =
+                            order.paymentMethod === 'paypal' ? 'PayPal' : 'Not specified';
                           const isSummaryOpen = expandedOrderSummaries.has(order.id);
                           const toggleSummary = () => {
                             setExpandedOrderSummaries((prev) => {
@@ -2134,6 +2136,15 @@ export const ClientDashboardPage: React.FC = () => {
                                   textColor: 'text-amber-700',
                                   borderColor: 'border-amber-200',
                                   iconColor: 'text-amber-600'
+                                };
+                              case 'processing':
+                                return {
+                                  label: 'Preparing order',
+                                  icon: Package,
+                                  bgColor: 'bg-slate-50',
+                                  textColor: 'text-slate-700',
+                                  borderColor: 'border-slate-200',
+                                  iconColor: 'text-slate-600'
                                 };
                               case 'completed':
                                 return {
@@ -2289,9 +2300,16 @@ export const ClientDashboardPage: React.FC = () => {
                                           {shippingCost === 0 ? 'FREE' : formatCurrency(shippingCost)}
                                         </span>
                                       </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-slate-600">Payment method</span>
+                                        <span className="font-semibold text-slate-900">{paymentMethodLabel}</span>
+                                      </div>
                                       <div className="mt-1 flex items-center justify-between border-t border-slate-200 pt-3">
                                         <span className="text-sm font-semibold text-slate-900">Total</span>
                                         <span className="text-lg font-bold text-slate-900">{formatCurrency(total)}</span>
+                                      </div>
+                                      <div className="text-xs text-slate-500">
+                                        Payment method: {paymentMethodLabel}
                                       </div>
                                     </div>
                                   </div>

@@ -16,12 +16,16 @@ export interface ShippingRatePayload {
   estimatedDelivery?: string | null;
 }
 
+export type PaymentMethodType = 'paypal' | 'none';
+
 export interface CreateOrderPayload {
   products: Array<{ productId: string; quantity: number }>;
   couponCode?: string;
   shippingMethod?: ShippingMethod;
   shippingAddressId?: string;
   shippingRate?: ShippingRatePayload;
+  paymentMethod?: PaymentMethodType;
+  paymentId?: string;
 }
 
 export interface TrackingEvent {

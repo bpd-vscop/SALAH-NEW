@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { MapPin, CreditCard, Package, CheckCircle, AlertCircle, Truck, Upload, X } from 'lucide-react';
 import { couponsApi } from '../api/coupons';
 import { ordersApi } from '../api/orders';
+import { paymentsApi, type PaymentConfigResponse } from '../api/payments';
 import { productsApi } from '../api/products';
 import { taxRatesApi } from '../api/taxRates';
 import { usersApi, type BillingAddressPayload, type ShippingAddressPayload } from '../api/users';
@@ -18,13 +19,64 @@ import { formatCurrency } from '../utils/format';
 import { getEffectivePrice } from '../utils/productStatus';
 
 type ShippingMethod = 'standard' | 'express' | 'overnight';
-type PaymentMethod = 'credit-card' | 'paypal' | 'bank-transfer';
+type ActivePaymentMethod = 'paypal';
 
-const paymentMethods = [
-  { id: 'credit-card' as PaymentMethod, name: 'Credit Card', description: 'Pay with Visa, Mastercard, or Amex' },
-  { id: 'paypal' as PaymentMethod, name: 'PayPal', description: 'Fast and secure payment' },
-  { id: 'bank-transfer' as PaymentMethod, name: 'Bank Transfer', description: 'Direct bank payment' },
-];
+/* ── PayPal Checkout Button ───────────────────────────────────── */
+interface PayPalCheckoutButtonProps {
+  amount: number;
+  disabled?: boolean;
+  onSuccess: (paypalOrderId: string) => void;
+  onError: (message: string) => void;
+}
+
+function PayPalCheckoutButton({ amount, disabled, onSuccess, onError }: PayPalCheckoutButtonProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const renderedRef = useRef(false);
+  const latestAmount = useRef(amount);
+  latestAmount.current = amount;
+
+  useEffect(() => {
+    const pp = (window as unknown as Record<string, unknown>).paypal as
+      | { Buttons: (opts: Record<string, unknown>) => { render: (el: HTMLElement) => void } }
+      | undefined;
+    if (!pp || !containerRef.current || renderedRef.current) return;
+    renderedRef.current = true;
+
+    pp.Buttons({
+      style: { layout: 'horizontal', color: 'gold', shape: 'rect', label: 'paypal', tagline: false, height: 45 },
+      createOrder: async () => {
+        try {
+          const res = await paymentsApi.createPaypalOrder(latestAmount.current);
+          return res.paypalOrderId;
+        } catch (err) {
+          onError(err instanceof Error ? err.message : 'Failed to create PayPal order');
+          throw err;
+        }
+      },
+      onApprove: async (data: { orderID: string }) => {
+        try {
+          const capture = await paymentsApi.capturePaypalOrder(data.orderID);
+          if (capture.success) {
+            onSuccess(data.orderID);
+          } else {
+            onError('PayPal payment was not completed');
+          }
+        } catch (err) {
+          onError(err instanceof Error ? err.message : 'Failed to capture PayPal payment');
+        }
+      },
+      onError: (err: unknown) => {
+        onError(err instanceof Error ? err.message : 'PayPal encountered an error');
+      },
+    }).render(containerRef.current);
+  }, [onSuccess, onError]);
+
+  return (
+    <div className={disabled ? 'pointer-events-none opacity-50' : ''}>
+      <div ref={containerRef} id="paypal-button-container" />
+    </div>
+  );
+}
 
 const US_STATES = [
   'Alabama',
@@ -93,11 +145,16 @@ export const CheckoutPage: React.FC = () => {
   const [taxRate, setTaxRate] = useState(0);
   const [selectedAddress, setSelectedAddress] = useState<string>('');
   const [selectedShipping, setSelectedShipping] = useState<ShippingMethod>('standard');
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('credit-card');
+  const [selectedPayment, setSelectedPayment] = useState<ActivePaymentMethod | ''>('');
   const [placingOrder, setPlacingOrder] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(1); // 1: Address, 2: Shipping, 3: Payment, 4: Review
+  // Payment gateway config
+  const [paymentConfig, setPaymentConfig] = useState<PaymentConfigResponse | null>(null);
+  const [paypalSdkReady, setPaypalSdkReady] = useState(false);
+  const [paypalSdkError, setPaypalSdkError] = useState<string | null>(null);
+  const [completedPaypalOrderId, setCompletedPaypalOrderId] = useState<string | null>(null);
   // Carrier rates from ShipEngine
   const [carrierRates, setCarrierRates] = useState<ShippingRate[]>([]);
   const [loadingRates, setLoadingRates] = useState(false);
@@ -162,6 +219,57 @@ export const CheckoutPage: React.FC = () => {
       setSelectedAddress(user.shippingAddresses[0].id || '0');
     }
   }, [user, selectedAddress]);
+
+  // Fetch payment configuration from server (locked to .env)
+  useEffect(() => {
+    let cancelled = false;
+    paymentsApi.getConfig().then((config) => {
+      if (cancelled) return;
+      setPaymentConfig(config);
+      // Auto-select the first available payment method
+      if (config.methods.length > 0) {
+        setSelectedPayment(config.methods[0].id as ActivePaymentMethod);
+      }
+      // Load PayPal SDK if configured
+      if (config.paypal) {
+        setPaypalSdkError(null);
+        const existing = document.querySelector('script[data-paypal-sdk]');
+        if (existing) {
+          const existingClientId = existing.getAttribute('data-paypal-client-id');
+          if (existingClientId && existingClientId !== config.paypal.clientId) {
+            existing.remove();
+          } else {
+            const hasSdk = Boolean((window as unknown as Record<string, unknown>).paypal);
+            if (hasSdk) {
+              setPaypalSdkReady(true);
+              return;
+            }
+            existing.addEventListener('load', () => {
+              if (!cancelled) setPaypalSdkReady(true);
+            }, { once: true });
+            existing.addEventListener('error', () => {
+              if (!cancelled) setPaypalSdkError('PayPal SDK failed to load. Check your client ID and network.');
+            }, { once: true });
+            return;
+          }
+        }
+        setPaypalSdkReady(false);
+        const script = document.createElement('script');
+        script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(config.paypal.clientId)}&currency=USD&intent=capture`;
+        script.setAttribute('data-paypal-sdk', 'true');
+        script.setAttribute('data-paypal-client-id', config.paypal.clientId);
+        script.async = true;
+        script.onload = () => { if (!cancelled) setPaypalSdkReady(true); };
+        script.onerror = () => { if (!cancelled) setPaypalSdkError('PayPal SDK failed to load. Check your client ID and network.'); };
+        document.head.appendChild(script);
+      } else {
+        setPaypalSdkReady(false);
+      }
+    }).catch((err) => {
+      console.error('Failed to load payment config', err);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Fetch carrier rates when shipping address is selected
   useEffect(() => {
@@ -315,6 +423,10 @@ export const CheckoutPage: React.FC = () => {
   }, [discountedSubtotal, isB2BUser, isC2BUser, taxRate, user?.taxExempt]);
 
   const total = discountedSubtotal + shippingCost + tax;
+  const paypalMethod = useMemo(
+    () => paymentConfig?.methods.find((method) => method.id === 'paypal') ?? null,
+    [paymentConfig]
+  );
 
   const selectedAddressData = useMemo(() => {
     return user?.shippingAddresses?.find((addr) => addr.id === selectedAddress);
@@ -527,7 +639,7 @@ export const CheckoutPage: React.FC = () => {
     return { valid: true };
   };
 
-  const placeOrder = async () => {
+  const placeOrder = async (paypalOrderId?: string) => {
     if (!items.length) {
       setError('Your cart is empty.');
       return;
@@ -575,12 +687,27 @@ export const CheckoutPage: React.FC = () => {
           estimatedDelivery: selectedRate.estimatedDelivery,
         }
         : undefined;
+
+      // ── Process payment based on selected method ──────────────
+      let paymentMethod: 'paypal' | 'none' = 'none';
+      let paymentId: string | undefined;
+
+      if (selectedPayment === 'paypal') {
+        // PayPal flow already completed via PayPalCheckoutButton
+        const orderId = paypalOrderId ?? completedPaypalOrderId;
+        if (!orderId) throw new Error('Please complete PayPal payment first');
+        paymentMethod = 'paypal';
+        paymentId = orderId;
+      }
+
       await ordersApi.create({
         products: items.map((line) => ({ productId: line.productId, quantity: line.quantity })),
         shippingMethod: selectedShipping,
         shippingAddressId: selectedAddress,
         ...(shippingRatePayload ? { shippingRate: shippingRatePayload } : {}),
         ...couponPayload,
+        paymentMethod,
+        paymentId,
       });
       await clearCart();
       clearStoredCouponCode();
@@ -589,6 +716,7 @@ export const CheckoutPage: React.FC = () => {
       setEligibleSubtotal(0);
       setCouponError(null);
       setCouponCode('');
+      setCompletedPaypalOrderId(null);
       setStatusMessage('Order placed successfully! Redirecting to products...');
       setTimeout(() => {
         navigate('/products');
@@ -1374,52 +1502,53 @@ export const CheckoutPage: React.FC = () => {
                   )}
                 </div>
 
-                {currentStep === 3 && (
-                  <div className="p-6 border-t border-slate-200">
-                    <div className="space-y-3">
-                      {paymentMethods.map((method) => (
-                        <label
-                          key={method.id}
-                          className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition ${selectedPayment === method.id
-                            ? 'border-red-600 bg-red-50'
-                            : 'border-slate-200 hover:border-red-300'
-                            }`}
+                <div className={`p-6 border-t border-slate-200 ${currentStep === 3 ? 'block' : 'hidden'}`}>
+                  {paymentConfig && paymentConfig.methods.length > 0 ? (
+                    <div className="space-y-5">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          disabled={!paypalMethod}
+                          onClick={() => {
+                            if (!paypalMethod) return;
+                            setSelectedPayment('paypal');
+                            setCompletedPaypalOrderId(null);
+                          }}
+                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${selectedPayment === 'paypal'
+                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                            } ${!paypalMethod ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          <input
-                            type="radio"
-                            name="payment"
-                            checked={selectedPayment === method.id}
-                            onChange={() => setSelectedPayment(method.id)}
-                            className="mt-1 h-4 w-4 text-red-600 focus:ring-red-500"
-                          />
-                          <div>
-                            <p className="font-medium text-slate-900">{method.name}</p>
-                            <p className="text-sm text-slate-600">{method.description}</p>
-                          </div>
-                        </label>
-                      ))}
+                          PayPal
+                        </button>
+                      </div>
                     </div>
+                  ) : (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center">
+                      <p className="text-sm text-amber-800">No payment methods are currently configured. Please contact the store administrator.</p>
+                    </div>
+                  )}
 
-                    <div className="flex gap-3 mt-6">
-                      <button
-                        onClick={() => setCurrentStep(2)}
-                        className="flex-1 border-2 border-slate-300 text-slate-700 px-6 py-3 rounded-lg font-semibold hover:bg-slate-50 transition"
-                      >
-                        Back
-                      </button>
-                      <button
-                        onClick={() => setCurrentStep(4)}
-                        className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
-                      >
-                        Review Order
-                      </button>
-                    </div>
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => setCurrentStep(2)}
+                      className="flex-1 border-2 border-slate-300 text-slate-700 px-6 py-3 rounded-lg font-semibold hover:bg-slate-50 transition"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={() => setCurrentStep(4)}
+                      disabled={!selectedPayment}
+                      className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Review Order
+                    </button>
                   </div>
-                )}
+                </div>
 
                 {currentStep > 3 && (
                   <div className="px-6 pb-4 text-sm text-slate-600">
-                    <p>{paymentMethods.find(m => m.id === selectedPayment)?.name}</p>
+                    <p>{paymentConfig?.methods.find(m => m.id === selectedPayment)?.name ?? selectedPayment}</p>
                   </div>
                 )}
               </div>
@@ -1528,6 +1657,14 @@ export const CheckoutPage: React.FC = () => {
                     return null;
                   })()}
 
+                  {/* ── Payment form (rendered in review step) ──── */}
+                  {selectedPayment === 'paypal' && completedPaypalOrderId && (
+                    <div className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 flex items-center gap-3">
+                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                      <p className="text-sm text-green-800">PayPal payment confirmed. Finalizing your order...</p>
+                    </div>
+                  )}
+
                   <div className="flex gap-3 mt-6">
                     <button
                       onClick={() => setCurrentStep(3)}
@@ -1535,13 +1672,42 @@ export const CheckoutPage: React.FC = () => {
                     >
                       Back
                     </button>
-                    <button
-                      onClick={placeOrder}
-                      disabled={placingOrder}
-                      className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {placingOrder ? 'Placing Order...' : 'Place Order'}
-                    </button>
+
+                    {selectedPayment === 'paypal' ? (
+                      completedPaypalOrderId ? (
+                        <button
+                          onClick={() => placeOrder(completedPaypalOrderId)}
+                          disabled={placingOrder}
+                          className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {placingOrder ? 'Finalizing...' : 'Retry Place Order'}
+                        </button>
+                      ) : paypalSdkReady ? (
+                        <div className="flex-1">
+                          <PayPalCheckoutButton
+                            amount={total}
+                            disabled={placingOrder}
+                            onSuccess={(orderId) => {
+                              setCompletedPaypalOrderId(orderId);
+                              void placeOrder(orderId);
+                            }}
+                            onError={(msg) => setError(msg)}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex-1 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                          {paypalSdkError ?? 'Loading PayPal...'}
+                        </div>
+                      )
+                    ) : (
+                      <button
+                        onClick={placeOrder}
+                        disabled={placingOrder}
+                        className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {placingOrder ? 'Processing...' : 'Place Order'}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

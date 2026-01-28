@@ -104,6 +104,21 @@ const orderSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    paymentMethod: {
+      type: String,
+      enum: ['stripe', 'paypal', 'none'],
+      default: 'none',
+    },
+    paymentId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'paid', 'failed', 'refunded'],
+      default: 'pending',
+    },
     status: {
       type: String,
       enum: ['pending', 'processing', 'shipped', 'completed', 'cancelled'],
@@ -264,6 +279,9 @@ const orderSchema = new mongoose.Schema(
         ret.taxAmount = typeof ret.taxAmount === 'number' ? ret.taxAmount : 0;
         ret.taxCountry = ret.taxCountry || null;
         ret.taxState = ret.taxState || null;
+        ret.paymentMethod = ret.paymentMethod || 'none';
+        ret.paymentId = ret.paymentId || null;
+        ret.paymentStatus = ret.paymentStatus || 'pending';
         ret.shippingMethod = ret.shippingMethod || 'standard';
         ret.shippingCost = typeof ret.shippingCost === 'number' ? ret.shippingCost : 0;
         ret.shippingRateInfo = ret.shippingRateInfo
