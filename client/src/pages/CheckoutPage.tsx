@@ -1951,10 +1951,10 @@ export const CheckoutPage: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="flex gap-3 mt-6">
+                  <div className="flex items-start gap-3 mt-6">
                     <button
                       onClick={() => setCurrentStep(3)}
-                      className="flex-1 border-2 border-slate-300 text-slate-700 px-6 py-3 rounded-lg font-semibold hover:bg-slate-50 transition"
+                      className="flex-1 border-2 border-slate-300 text-slate-700 px-6 rounded-lg font-semibold hover:bg-slate-50 transition h-[45px] flex items-center justify-center"
                     >
                       Back
                     </button>
@@ -1987,7 +1987,7 @@ export const CheckoutPage: React.FC = () => {
                       )
                     ) : (
                       <button
-                        onClick={placeOrder}
+                        onClick={() => void placeOrder()}
                         disabled={
                           placingOrder ||
                           (selectedPayment === 'card' && (!isCardFormComplete || !stripePromise))

@@ -191,6 +191,12 @@
     display: none;
   }
 
+  /* PayPal button – match Back button rounded shape */
+  #paypal-button-container iframe {
+    display: block;
+    border-radius: 18px !important;
+  }
+
   /* Firefox-specific dropdown styling */
   @-moz-document url-prefix() {
     select option {
