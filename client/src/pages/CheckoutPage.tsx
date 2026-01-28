@@ -132,6 +132,13 @@ const US_STATES = [
   'Wyoming',
 ];
 
+const MAX_VISIBLE_SHIPPING_RATES = 5;
+const SHIPPING_RATE_ROW_MIN_HEIGHT = 76;
+const SHIPPING_RATE_GAP = 12;
+const SHIPPING_RATE_LIST_MAX_HEIGHT =
+  MAX_VISIBLE_SHIPPING_RATES * SHIPPING_RATE_ROW_MIN_HEIGHT +
+  (MAX_VISIBLE_SHIPPING_RATES - 1) * SHIPPING_RATE_GAP;
+
 export const CheckoutPage: React.FC = () => {
   const { user, refresh } = useAuth();
   const { items, clearCart } = useCart();
@@ -1378,16 +1385,20 @@ export const CheckoutPage: React.FC = () => {
                         <span className="ml-3 text-sm text-slate-600">Loading carrier rates...</span>
                       </div>
                     ) : carrierRates.length > 0 ? (
-                      <div className="space-y-3">
+                      <div
+                        className="space-y-3 overflow-y-auto pr-2"
+                        style={{ maxHeight: SHIPPING_RATE_LIST_MAX_HEIGHT }}
+                      >
                         {carrierRates.map((rate) => (
                           <label
                             key={rate.rateId}
+                            style={{ minHeight: SHIPPING_RATE_ROW_MIN_HEIGHT }}
                             className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition ${selectedRateId === rate.rateId
                               ? 'border-red-600 bg-red-50'
                               : 'border-slate-200 hover:border-red-300'
                               }`}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
                               <input
                                 type="radio"
                                 name="shipping"
@@ -1398,9 +1409,9 @@ export const CheckoutPage: React.FC = () => {
                                 }}
                                 className="h-4 w-4 text-red-600 focus:ring-red-500"
                               />
-                              <div>
-                                <p className="font-medium text-slate-900">{rate.carrierName} - {rate.serviceName}</p>
-                                <p className="text-sm text-slate-600">
+                              <div className="min-w-0">
+                                <p className="font-medium text-slate-900 truncate">{rate.carrierName} - {rate.serviceName}</p>
+                                <p className="text-sm text-slate-600 truncate">
                                   {rate.deliveryDays ? `${rate.deliveryDays} day${rate.deliveryDays > 1 ? 's' : ''} delivery` : 'Standard delivery'}
                                 </p>
                               </div>
