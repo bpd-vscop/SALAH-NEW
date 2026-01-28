@@ -36,7 +36,7 @@ const createOrderSchema = z
       estimatedDelivery: z.string().optional().nullable(),
     }).optional(),
     // Payment info
-    paymentMethod: z.enum(['paypal', 'none']).optional().default('none'),
+    paymentMethod: z.enum(['paypal', 'stripe', 'none']).optional().default('none'),
     paymentId: z.string().optional(),
   })
   .strict();

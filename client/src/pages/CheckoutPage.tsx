@@ -1,5 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  CardCvcElement,
+  CardExpiryElement,
+  CardNumberElement,
+  Elements,
+  useElements,
+  useStripe,
+} from '@stripe/react-stripe-js';
+import {
+  loadStripe,
+  type Stripe,
+  type StripeCardCvcElementChangeEvent,
+  type StripeCardExpiryElementChangeEvent,
+  type StripeCardNumberElementChangeEvent,
+  type StripeElements,
+} from '@stripe/stripe-js';
 import { MapPin, CreditCard, Package, CheckCircle, AlertCircle, Truck, Upload, X } from 'lucide-react';
 import { couponsApi } from '../api/coupons';
 import { ordersApi } from '../api/orders';
@@ -78,6 +94,97 @@ function PayPalCheckoutButton({ amount, disabled, onSuccess, onError }: PayPalCh
   );
 }
 
+type StripeElementChangeEvent =
+  | StripeCardNumberElementChangeEvent
+  | StripeCardExpiryElementChangeEvent
+  | StripeCardCvcElementChangeEvent;
+
+interface StripeCardFieldsProps {
+  holderName: string;
+  onHolderNameChange: (value: string) => void;
+  onStripeReady: (stripe: Stripe | null, elements: StripeElements | null) => void;
+  onFieldChange: (field: 'number' | 'expiry' | 'cvc', complete: boolean, error?: string | null) => void;
+  disabled?: boolean;
+  errorMessage?: string | null;
+}
+
+function StripeCardFields({
+  holderName,
+  onHolderNameChange,
+  onStripeReady,
+  onFieldChange,
+  disabled,
+  errorMessage,
+}: StripeCardFieldsProps) {
+  const stripe = useStripe();
+  const elements = useElements();
+
+  useEffect(() => {
+    onStripeReady(stripe, elements);
+  }, [stripe, elements, onStripeReady]);
+
+  const handleChange =
+    (field: 'number' | 'expiry' | 'cvc') =>
+      (event: StripeElementChangeEvent) => {
+        onFieldChange(field, event.complete, event.error?.message ?? null);
+      };
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+      <h3 className="text-sm font-semibold text-slate-900 mb-4">Card details</h3>
+      <div className="grid gap-4">
+        <label className="text-sm text-slate-600">
+          <span className="mb-1 block">Card holder name</span>
+          <input
+            type="text"
+            value={holderName}
+            onChange={(event) => onHolderNameChange(event.target.value)}
+            placeholder="Name on card"
+            autoComplete="cc-name"
+            disabled={disabled}
+            className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+          />
+        </label>
+        <label className="text-sm text-slate-600">
+          <span className="mb-1 block">Card number</span>
+          <div className="flex h-11 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-within:border-red-500 focus-within:ring-1 focus-within:ring-red-500">
+            <CardNumberElement
+              options={{ ...STRIPE_ELEMENT_BASE_OPTIONS, showIcon: true, disabled }}
+              onChange={handleChange('number')}
+              className="w-full"
+            />
+          </div>
+        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm text-slate-600">
+            <span className="mb-1 block">Expiration</span>
+            <div className="flex h-11 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-within:border-red-500 focus-within:ring-1 focus-within:ring-red-500">
+              <CardExpiryElement
+                options={{ ...STRIPE_ELEMENT_BASE_OPTIONS, disabled }}
+                onChange={handleChange('expiry')}
+                className="w-full"
+              />
+            </div>
+          </label>
+          <label className="text-sm text-slate-600">
+            <span className="mb-1 block">CVC</span>
+            <div className="flex h-11 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-within:border-red-500 focus-within:ring-1 focus-within:ring-red-500">
+              <CardCvcElement
+                options={{ ...STRIPE_ELEMENT_BASE_OPTIONS, disabled }}
+                onChange={handleChange('cvc')}
+                className="w-full"
+              />
+            </div>
+          </label>
+        </div>
+      </div>
+      {errorMessage && (
+        <p className="mt-3 text-xs text-red-600">{errorMessage}</p>
+      )}
+    </div>
+  );
+}
+
 const US_STATES = [
   'Alabama',
   'Alaska',
@@ -138,24 +245,18 @@ const SHIPPING_RATE_GAP = 12;
 const SHIPPING_RATE_LIST_MAX_HEIGHT =
   MAX_VISIBLE_SHIPPING_RATES * SHIPPING_RATE_ROW_MIN_HEIGHT +
   (MAX_VISIBLE_SHIPPING_RATES - 1) * SHIPPING_RATE_GAP;
-const CARD_METHOD_CONFIG = {
-  id: 'card',
-  name: 'Card',
-  description: 'Pay with a credit or debit card',
+const CARD_METHOD_LABEL = 'Card';
+const STRIPE_ELEMENT_BASE_OPTIONS = {
+  style: {
+    base: {
+      color: '#0f172a',
+      fontFamily: 'inherit',
+      fontSize: '14px',
+      '::placeholder': { color: '#94a3b8' },
+    },
+    invalid: { color: '#dc2626' },
+  },
 };
-
-const formatCardNumber = (value: string) => {
-  const digits = value.replace(/\D/g, '').slice(0, 19);
-  return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
-};
-
-const formatExpiry = (value: string) => {
-  const digits = value.replace(/\D/g, '').slice(0, 4);
-  if (digits.length <= 2) return digits;
-  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-};
-
-const formatCvc = (value: string) => value.replace(/\D/g, '').slice(0, 4);
 
 export const CheckoutPage: React.FC = () => {
   const { user, refresh } = useAuth();
@@ -182,10 +283,15 @@ export const CheckoutPage: React.FC = () => {
   const [completedPaypalOrderId, setCompletedPaypalOrderId] = useState<string | null>(null);
   const [cardForm, setCardForm] = useState({
     holderName: '',
-    cardNumber: '',
-    expiry: '',
-    cvc: '',
   });
+  const [cardFieldState, setCardFieldState] = useState({
+    numberComplete: false,
+    expiryComplete: false,
+    cvcComplete: false,
+  });
+  const [cardError, setCardError] = useState<string | null>(null);
+  const stripeRef = useRef<Stripe | null>(null);
+  const elementsRef = useRef<StripeElements | null>(null);
   // Carrier rates from ShipEngine
   const [carrierRates, setCarrierRates] = useState<ShippingRate[]>([]);
   const [loadingRates, setLoadingRates] = useState(false);
@@ -260,9 +366,15 @@ export const CheckoutPage: React.FC = () => {
       // Auto-select PayPal if configured, otherwise default to Card
       if (config.methods.length > 0) {
         const hasPaypal = config.methods.some((method) => method.id === 'paypal');
-        setSelectedPayment((prev) => prev || (hasPaypal ? 'paypal' : 'card'));
+        const hasCard = config.methods.some((method) => method.id === 'card');
+        const next = hasPaypal
+          ? 'paypal'
+          : hasCard
+            ? 'card'
+            : (config.methods[0].id as ActivePaymentMethod);
+        setSelectedPayment((prev) => prev || next);
       } else {
-        setSelectedPayment((prev) => prev || 'card');
+        setSelectedPayment((prev) => prev || '');
       }
       // Load PayPal SDK if configured
       if (config.paypal) {
@@ -461,29 +573,50 @@ export const CheckoutPage: React.FC = () => {
     () => paymentConfig?.methods.find((method) => method.id === 'paypal') ?? null,
     [paymentConfig]
   );
-  const paymentOptions = useMemo(() => {
-    const methods = paymentConfig?.methods ?? [];
-    const hasCard = methods.some((method) => method.id === 'card');
-    return hasCard ? methods : [...methods, CARD_METHOD_CONFIG];
-  }, [paymentConfig]);
-  const cardNumberDigits = cardForm.cardNumber.replace(/\D/g, '');
-  const expiryDigits = cardForm.expiry.replace(/\D/g, '');
-  const cvcDigits = cardForm.cvc.replace(/\D/g, '');
+  const cardMethod = useMemo(
+    () => paymentConfig?.methods.find((method) => method.id === 'card') ?? null,
+    [paymentConfig]
+  );
+  const stripePromise = useMemo(() => {
+    const key = paymentConfig?.stripe?.publishableKey;
+    return key ? loadStripe(key) : null;
+  }, [paymentConfig?.stripe?.publishableKey]);
   const isCardFormComplete = Boolean(
     cardForm.holderName.trim() &&
-    cardNumberDigits.length >= 12 &&
-    expiryDigits.length === 4 &&
-    cvcDigits.length >= 3
+    cardFieldState.numberComplete &&
+    cardFieldState.expiryComplete &&
+    cardFieldState.cvcComplete
   );
   const selectedPaymentLabel = useMemo(() => {
-    if (selectedPayment === 'card') return CARD_METHOD_CONFIG.name;
+    if (selectedPayment === 'card') return cardMethod?.name || CARD_METHOD_LABEL;
     return paymentConfig?.methods.find((method) => method.id === selectedPayment)?.name ?? selectedPayment;
-  }, [paymentConfig, selectedPayment]);
+  }, [paymentConfig, selectedPayment, cardMethod]);
 
   const selectedAddressData = useMemo(() => {
     return user?.shippingAddresses?.find((addr) => addr.id === selectedAddress);
   }, [user, selectedAddress]);
   const billingAddressData = useMemo(() => user?.billingAddress ?? null, [user]);
+
+  const handleStripeReady = useCallback(
+    (stripeInstance: Stripe | null, elementsInstance: StripeElements | null) => {
+      stripeRef.current = stripeInstance;
+      elementsRef.current = elementsInstance;
+    },
+    []
+  );
+
+  const handleCardFieldChange = useCallback(
+    (field: 'number' | 'expiry' | 'cvc', complete: boolean, error?: string | null) => {
+      setCardFieldState((prev) => ({
+        ...prev,
+        numberComplete: field === 'number' ? complete : prev.numberComplete,
+        expiryComplete: field === 'expiry' ? complete : prev.expiryComplete,
+        cvcComplete: field === 'cvc' ? complete : prev.cvcComplete,
+      }));
+      setCardError(error || null);
+    },
+    []
+  );
 
   const validateCoupon = useCallback(async (code: string, silent = false) => {
     const normalizedCode = code.trim();
@@ -722,6 +855,10 @@ export const CheckoutPage: React.FC = () => {
       setError('Please enter complete card details.');
       return;
     }
+    if (selectedPayment === 'card' && !stripePromise) {
+      setError('Card payments are not configured. Please choose another method.');
+      return;
+    }
 
     setPlacingOrder(true);
     setError(null);
@@ -746,7 +883,7 @@ export const CheckoutPage: React.FC = () => {
         : undefined;
 
       // ── Process payment based on selected method ──────────────
-      let paymentMethod: 'paypal' | 'none' = 'none';
+      let paymentMethod: 'paypal' | 'stripe' | 'none' = 'none';
       let paymentId: string | undefined;
 
       if (selectedPayment === 'paypal') {
@@ -755,6 +892,49 @@ export const CheckoutPage: React.FC = () => {
         if (!orderId) throw new Error('Please complete PayPal payment first');
         paymentMethod = 'paypal';
         paymentId = orderId;
+      } else if (selectedPayment === 'card') {
+        const stripe = stripeRef.current;
+        const elements = elementsRef.current;
+
+        if (!stripe || !elements) {
+          throw new Error('Card payment is not ready. Please try again.');
+        }
+
+        const cardElement = elements.getElement(CardNumberElement);
+        if (!cardElement) {
+          throw new Error('Card details are incomplete.');
+        }
+
+        const intentResponse = await paymentsApi.createStripePaymentIntent({
+          products: items.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+          shippingMethod: selectedShipping,
+          shippingAddressId: selectedAddress,
+          ...(shippingRatePayload ? { shippingRate: shippingRatePayload } : {}),
+          ...couponPayload,
+        });
+
+        const result = await stripe.confirmCardPayment(intentResponse.clientSecret, {
+          payment_method: {
+            card: cardElement,
+            billing_details: { name: cardForm.holderName.trim() },
+          },
+        });
+
+        if (result.error) {
+          throw new Error(result.error.message || 'Card payment failed');
+        }
+
+        const paymentIntent = result.paymentIntent;
+        if (!paymentIntent) {
+          throw new Error('Payment confirmation failed');
+        }
+
+        if (!['succeeded', 'processing'].includes(paymentIntent.status)) {
+          throw new Error(`Payment status: ${paymentIntent.status}`);
+        }
+
+        paymentMethod = 'stripe';
+        paymentId = paymentIntent.id;
       }
 
       await ordersApi.create({
@@ -1564,38 +1744,47 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 <div className={`p-6 border-t border-slate-200 ${currentStep === 3 ? 'block' : 'hidden'}`}>
-                  {paymentOptions.length > 0 ? (
+                  {paymentConfig && paymentConfig.methods.length > 0 ? (
                     <div className="space-y-5">
                       <div className="flex flex-col gap-3 sm:flex-row">
-                        <button
-                          type="button"
-                          disabled={!paypalMethod}
-                          onClick={() => {
-                            if (!paypalMethod) return;
-                            setSelectedPayment('paypal');
-                            setCompletedPaypalOrderId(null);
-                          }}
-                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${selectedPayment === 'paypal'
-                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
-                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                            } ${!paypalMethod ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          PayPal
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedPayment('card');
-                            setCompletedPaypalOrderId(null);
-                          }}
-                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${selectedPayment === 'card'
-                            ? 'border-red-500 bg-red-50 text-red-700 shadow-sm'
-                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                            }`}
-                        >
-                          Card
-                        </button>
+                        {paypalMethod && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPayment('paypal');
+                              setCompletedPaypalOrderId(null);
+                              setCardError(null);
+                            }}
+                            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${selectedPayment === 'paypal'
+                              ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                              }`}
+                          >
+                            {paypalMethod.name || 'PayPal'}
+                          </button>
+                        )}
+                        {cardMethod && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPayment('card');
+                              setCompletedPaypalOrderId(null);
+                              setCardError(null);
+                            }}
+                            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${selectedPayment === 'card'
+                              ? 'border-red-500 bg-red-50 text-red-700 shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                              }`}
+                          >
+                            {cardMethod.name || CARD_METHOD_LABEL}
+                          </button>
+                        )}
                       </div>
+                      {!paypalMethod && !cardMethod && (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center">
+                          <p className="text-sm text-amber-800">No payment methods are currently configured. Please contact the store administrator.</p>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center">
@@ -1740,83 +1929,25 @@ export const CheckoutPage: React.FC = () => {
                   )}
 
                   {selectedPayment === 'card' && (
-                    <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-5">
-                      <h3 className="text-sm font-semibold text-slate-900 mb-4">Card details</h3>
-                      <div className="grid gap-4">
-                        <label className="text-sm text-slate-600">
-                          <span className="mb-1 block">Card holder name</span>
-                          <input
-                            type="text"
-                            value={cardForm.holderName}
-                            onChange={(event) =>
-                              setCardForm((prev) => ({ ...prev, holderName: event.target.value }))
+                    <div className="mt-6">
+                      {stripePromise ? (
+                        <Elements stripe={stripePromise}>
+                          <StripeCardFields
+                            holderName={cardForm.holderName}
+                            onHolderNameChange={(value) =>
+                              setCardForm((prev) => ({ ...prev, holderName: value }))
                             }
-                            placeholder="Name on card"
-                            autoComplete="cc-name"
+                            onStripeReady={handleStripeReady}
+                            onFieldChange={handleCardFieldChange}
                             disabled={placingOrder}
-                            className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                            errorMessage={cardError}
                           />
-                        </label>
-                        <label className="text-sm text-slate-600">
-                          <span className="mb-1 block">Card number</span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={cardForm.cardNumber}
-                            onChange={(event) =>
-                              setCardForm((prev) => ({
-                                ...prev,
-                                cardNumber: formatCardNumber(event.target.value),
-                              }))
-                            }
-                            placeholder="1234 1234 1234 1234"
-                            autoComplete="cc-number"
-                            maxLength={19}
-                            disabled={placingOrder}
-                            className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                          />
-                        </label>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <label className="text-sm text-slate-600">
-                            <span className="mb-1 block">Expiration</span>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={cardForm.expiry}
-                              onChange={(event) =>
-                                setCardForm((prev) => ({
-                                  ...prev,
-                                  expiry: formatExpiry(event.target.value),
-                                }))
-                              }
-                              placeholder="MM/YY"
-                              autoComplete="cc-exp"
-                              maxLength={5}
-                              disabled={placingOrder}
-                              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                            />
-                          </label>
-                          <label className="text-sm text-slate-600">
-                            <span className="mb-1 block">CVC</span>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={cardForm.cvc}
-                              onChange={(event) =>
-                                setCardForm((prev) => ({
-                                  ...prev,
-                                  cvc: formatCvc(event.target.value),
-                                }))
-                              }
-                              placeholder="CVC"
-                              autoComplete="cc-csc"
-                              maxLength={4}
-                              disabled={placingOrder}
-                              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                            />
-                          </label>
+                        </Elements>
+                      ) : (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                          Card payments are not configured. Please choose another method.
                         </div>
-                      </div>
+                      )}
                     </div>
                   )}
 
@@ -1857,7 +1988,10 @@ export const CheckoutPage: React.FC = () => {
                     ) : (
                       <button
                         onClick={placeOrder}
-                        disabled={placingOrder || (selectedPayment === 'card' && !isCardFormComplete)}
+                        disabled={
+                          placingOrder ||
+                          (selectedPayment === 'card' && (!isCardFormComplete || !stripePromise))
+                        }
                         className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {placingOrder ? 'Processing...' : 'Place Order'}

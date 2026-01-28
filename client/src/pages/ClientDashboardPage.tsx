@@ -2112,7 +2112,11 @@ export const ClientDashboardPage: React.FC = () => {
                           const computedTotal = Math.max(0, subtotal - discount) + taxAmount + shippingCost;
                           const total = typeof order.total === 'number' ? order.total : computedTotal;
                           const paymentMethodLabel =
-                            order.paymentMethod === 'paypal' ? 'PayPal' : 'Not specified';
+                            order.paymentMethod === 'paypal'
+                              ? 'PayPal'
+                              : order.paymentMethod === 'stripe'
+                                ? 'Card'
+                                : 'Not specified';
                           const isSummaryOpen = expandedOrderSummaries.has(order.id);
                           const toggleSummary = () => {
                             setExpandedOrderSummaries((prev) => {

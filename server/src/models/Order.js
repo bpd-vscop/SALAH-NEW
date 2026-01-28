@@ -119,6 +119,10 @@ const orderSchema = new mongoose.Schema(
       enum: ['pending', 'paid', 'failed', 'refunded'],
       default: 'pending',
     },
+    paymentDetails: {
+      brand: { type: String, trim: true, default: null },
+      last4: { type: String, trim: true, default: null },
+    },
     status: {
       type: String,
       enum: ['pending', 'processing', 'shipped', 'completed', 'cancelled'],
@@ -282,6 +286,12 @@ const orderSchema = new mongoose.Schema(
         ret.paymentMethod = ret.paymentMethod || 'none';
         ret.paymentId = ret.paymentId || null;
         ret.paymentStatus = ret.paymentStatus || 'pending';
+        ret.paymentDetails = ret.paymentDetails
+          ? {
+            brand: ret.paymentDetails.brand || null,
+            last4: ret.paymentDetails.last4 || null,
+          }
+          : null;
         ret.shippingMethod = ret.shippingMethod || 'standard';
         ret.shippingCost = typeof ret.shippingCost === 'number' ? ret.shippingCost : 0;
         ret.shippingRateInfo = ret.shippingRateInfo

@@ -40,8 +40,13 @@ const formatDate = (value?: string | null) => {
   }
 };
 
-const formatPaymentMethod = (method?: Order['paymentMethod']) => {
+const formatPaymentMethod = (order?: Order | null) => {
+  const method = order?.paymentMethod;
   if (method === 'paypal') return 'PayPal';
+  if (method === 'stripe') {
+    const last4 = order?.paymentDetails?.last4;
+    return last4 ? `Card •••• ${last4}` : 'Card';
+  }
   if (method === 'none') return 'Not specified';
   return 'Not specified';
 };
@@ -321,7 +326,7 @@ export const AdminOrderDetailsPage: React.FC = () => {
                       <span className="text-xl font-bold text-slate-900">{formatCurrency(total)}</span>
                     </div>
                     <div className="text-xs text-slate-500">
-                      Payment method: {formatPaymentMethod(order.paymentMethod)}
+                      Payment method: {formatPaymentMethod(order)}
                     </div>
                   </div>
                 </div>
