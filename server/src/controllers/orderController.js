@@ -177,15 +177,39 @@ const createOrder = async (req, res, next) => {
     const clientName = req.user.name;
 
     const notifications = [];
+    const clientSnapshot = {
+      id: req.user._id ? req.user._id.toString() : null,
+      name: req.user.name || null,
+      email: clientEmail || null,
+      phoneCode: req.user.phoneCode || null,
+      phoneNumber: req.user.phoneNumber || null,
+      clientType: req.user.clientType || null,
+      isEmailVerified: typeof req.user.isEmailVerified === 'boolean' ? req.user.isEmailVerified : null,
+      company: req.user.company || null,
+    };
+
     if (clientEmail) {
       notifications.push(
         sendOrderConfirmationEmail({
           to: clientEmail,
           fullName: clientName,
+          customer: clientSnapshot,
           orderId: order._id.toString(),
+          status: order.status,
           items: orderItems,
-          status: 'processing',
+          subtotal: orderSubtotal,
+          discountAmount: orderDiscount,
+          couponCode: appliedCoupon?.code || null,
+          taxRate,
+          taxAmount,
+          shippingCost,
+          shippingMethod,
+          shippingRateInfo,
+          shippingAddress: shippingAddressSnapshot,
+          paymentMethod,
+          paymentDetails,
           total: orderTotal,
+          createdAt: order.createdAt,
         }).catch((err) => {
           console.error('Failed to send client order confirmation', err);
         })
@@ -194,11 +218,22 @@ const createOrder = async (req, res, next) => {
 
     notifications.push(
       sendAdminNewOrderEmail({
-        clientEmail,
-        clientId: req.user._id ? req.user._id.toString() : undefined,
+        client: clientSnapshot,
         orderId: order._id.toString(),
-        total: orderTotal,
         items: orderItems,
+        subtotal: orderSubtotal,
+        discountAmount: orderDiscount,
+        couponCode: appliedCoupon?.code || null,
+        taxRate,
+        taxAmount,
+        shippingCost,
+        shippingMethod,
+        shippingRateInfo,
+        shippingAddress: shippingAddressSnapshot,
+        paymentMethod,
+        paymentDetails,
+        total: orderTotal,
+        createdAt: order.createdAt,
       }).catch((err) => {
         console.error('Failed to send admin new order alert', err);
       })

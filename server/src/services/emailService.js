@@ -613,54 +613,592 @@ const formatCurrency = (value) => {
   return `$${amount.toFixed(2)}`;
 };
 
-const sendOrderConfirmationEmail = async ({ to, fullName, orderId, items, status, total }) => {
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const formatDateTime = (value) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const datePart = new Intl.DateTimeFormat('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: '2-digit',
+  }).format(date);
+  const timePart = new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+  return `${datePart} - ${timePart}`;
+};
+
+const formatPaymentMethodLabel = (method, details) => {
+  if (method === 'paypal') return 'PayPal';
+  if (method === 'stripe') {
+    const last4 = details?.last4;
+    return last4 ? `Card **** ${last4}` : 'Card';
+  }
+  if (method === 'none') return 'Not specified';
+  return method ? String(method) : 'Not specified';
+};
+
+const formatShippingMethodLabel = (method) => {
+  if (!method) return '-';
+  const text = String(method);
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
+const formatShortId = (value, fallbackLength) => {
+  if (!value) return '';
+  const text = String(value);
+  const length = Number.isFinite(fallbackLength) ? fallbackLength : 6;
+  return text.length > length ? text.slice(-length) : text;
+};
+
+const buildMailtoLink = (email) => {
+  const trimmed = String(email || '').trim();
+  if (!trimmed) return null;
+  const encoded = encodeURIComponent(trimmed);
+  return `<a href="mailto:${encoded}" style="color: #f6b210; font-weight: 700; text-decoration: none;">${escapeHtml(trimmed)}</a>`;
+};
+
+const buildTelLink = (phone) => {
+  const trimmed = String(phone || '').trim();
+  if (!trimmed) return null;
+  const digits = trimmed.replace(/[^+\d]/g, '');
+  const href = digits ? `tel:${digits}` : `tel:${encodeURIComponent(trimmed)}`;
+  return `<a href="${href}" style="color: #f6b210; font-weight: 700; text-decoration: none;">${escapeHtml(trimmed)}</a>`;
+};
+
+const buildKeyValueRowsHtml = (rows, { valueAlign = 'left' } = {}) =>
+  rows
+    .map(({ label, value, valueHtml }) => {
+      const renderedValue = valueHtml ?? escapeHtml(value ?? '-');
+      return `<tr>
+          <td style="padding: 6px 0; font-size: 13px; color: #64748b; width: 150px; vertical-align: top;"><strong>${escapeHtml(
+            label
+          )}</strong></td>
+          <td style="padding: 6px 0; font-size: 13px; color: #0f172a; text-align: ${valueAlign};">${renderedValue}</td>
+        </tr>`;
+    })
+    .join('');
+
+const buildSectionCardHtml = ({ title, bodyHtml }) => `
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px 18px; margin: 0 0 14px;">
+    <div style="font-size: 12px; font-weight: 800; color: #64748b; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 10px; text-align: left;">
+      ${escapeHtml(title)}
+    </div>
+    ${bodyHtml}
+  </div>
+`;
+
+const buildOrderItemsTableHtml = (items) => {
+  const safeItems = Array.isArray(items) ? items : [];
+  if (!safeItems.length) {
+    return `<div style="padding: 12px; font-size: 13px; color: #94a3b8; text-align: center;">No items in this order.</div>`;
+  }
+
+  const rows = safeItems
+    .map((item) => {
+      const name = escapeHtml(item?.name ?? '');
+      const productId = item?.productId ? String(item.productId) : '';
+      const shortProductId = productId ? formatShortId(productId, 12) : '';
+      const quantity = Number(item?.quantity ?? 0);
+      const price = Number(item?.price ?? 0);
+      const lineTotal = price * quantity;
+
+      const productMeta = shortProductId
+        ? `<div style="font-size: 11px; color: #94a3b8; font-family: 'Courier New', Courier, monospace;">${escapeHtml(
+            shortProductId
+          )}</div>`
+        : '';
+
+      return `<tr>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e2e8f0;">
+          <div style="font-size: 14px; font-weight: 600; color: #0f172a;">${name || '-'}</div>
+          ${productMeta}
+        </td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 13px; color: #475569;">${quantity}</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-size: 13px; color: #475569;">${formatCurrency(
+          price
+        )}</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-size: 13px; font-weight: 700; color: #0f172a;">${formatCurrency(
+          lineTotal
+        )}</td>
+      </tr>`;
+    })
+    .join('');
+
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse: collapse;">
+    <thead>
+      <tr style="background: #f8fafc;">
+        <th style="padding: 10px 8px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; text-align: left; color: #64748b;">Product</th>
+        <th style="padding: 10px 8px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; color: #64748b;">Qty</th>
+        <th style="padding: 10px 8px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; text-align: right; color: #64748b;">Price</th>
+        <th style="padding: 10px 8px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; text-align: right; color: #64748b;">Total</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+};
+
+const buildAddressLines = (address) => {
+  if (!address) return [];
+  const lines = [];
+  if (address.fullName) lines.push(address.fullName);
+  if (address.addressLine1) lines.push(address.addressLine1);
+  if (address.addressLine2) lines.push(address.addressLine2);
+  const cityLine = [address.city, address.state, address.postalCode].filter(Boolean).join(', ');
+  if (cityLine) lines.push(cityLine);
+  if (address.country) lines.push(address.country);
+  if (address.phone) lines.push(address.phone);
+  return lines;
+};
+
+const formatAddressHtml = (address) => {
+  const lines = buildAddressLines(address);
+  if (!lines.length) return '-';
+  return lines.map((line) => escapeHtml(line)).join('<br />');
+};
+
+const formatAddressText = (address) => {
+  const lines = buildAddressLines(address);
+  if (!lines.length) return '-';
+  return lines.join('\n');
+};
+
+const buildOrderEmailHtml = ({
+  title,
+  subtitle,
+  metaRows,
+  items,
+  summaryRows,
+  customerRows,
+  shippingRows,
+  note,
+}) => {
+  const metaTable = buildKeyValueRowsHtml(metaRows || []);
+  const summaryTable = buildKeyValueRowsHtml(summaryRows || [], { valueAlign: 'right' });
+  const customerTable = customerRows?.length ? buildKeyValueRowsHtml(customerRows) : '';
+  const shippingTable = shippingRows?.length ? buildKeyValueRowsHtml(shippingRows) : '';
+
+  const noteHtml = note
+    ? `<div style="margin-top: 14px; font-size: 13px; color: #64748b; text-align: center;">${escapeHtml(
+        note
+      )}</div>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title)}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f3f4f6;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f3f4f6; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08); overflow: hidden;">
+          <tr>
+            <td style="padding: 36px 40px 30px 40px;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <img src="${logoSrc}" alt="ULK Supply" style="height: 80px; width: auto; display: inline-block;" />
+              </div>
+
+              <h2 style="margin: 0 0 8px; font-size: 26px; font-weight: 800; color: #0f172a; text-align: center;">
+                ${escapeHtml(title)}
+              </h2>
+              <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #475569; text-align: center;">
+                ${escapeHtml(subtitle || '')}
+              </p>
+
+              ${buildSectionCardHtml({
+                title: 'Order details',
+                bodyHtml: `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">${metaTable}</table>`,
+              })}
+
+              ${buildSectionCardHtml({
+                title: 'Items',
+                bodyHtml: buildOrderItemsTableHtml(items),
+              })}
+
+              ${buildSectionCardHtml({
+                title: 'Totals',
+                bodyHtml: `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">${summaryTable}</table>`,
+              })}
+
+              ${
+                customerTable
+                  ? buildSectionCardHtml({
+                      title: 'Customer',
+                      bodyHtml: `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">${customerTable}</table>`,
+                    })
+                  : ''
+              }
+
+              ${
+                shippingTable
+                  ? buildSectionCardHtml({
+                      title: 'Shipping',
+                      bodyHtml: `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">${shippingTable}</table>`,
+                    })
+                  : ''
+              }
+
+              ${noteHtml}
+
+              <div style="border-top: 1px solid #e2e8f0; padding-top: 24px; margin-top: 26px;">
+                <p style="margin: 0 0 10px; font-size: 14px; color: #94a3b8; text-align: center;">
+                  Need help? Contact us at <a href="mailto:support@ulksupply.com" style="color: #f6b210; text-decoration: none; font-weight: 700;">support@ulksupply.com</a>
+                </p>
+                <p style="margin: 0; font-size: 12px; color: #cbd5e1; text-align: center;">
+                  ${new Date().getFullYear()} ULK Supply LLC. All rights reserved.
+                </p>
+                <p style="margin: 10px 0 0; font-size: 11px; color: #cbd5e1; text-align: center;">
+                  Powered by <a href="https://www.bpd.ma" style="color: #f6b210; text-decoration: none; font-weight: 700;">BP. Digital</a>
+                </p>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+};
+
+const sendOrderConfirmationEmail = async ({
+  to,
+  fullName,
+  customer,
+  orderId,
+  status,
+  items,
+  subtotal,
+  discountAmount,
+  couponCode,
+  taxRate,
+  taxAmount,
+  shippingCost,
+  shippingMethod,
+  shippingRateInfo,
+  shippingAddress,
+  paymentMethod,
+  paymentDetails,
+  total,
+  createdAt,
+}) => {
   if (!to) return;
-  const subject = `We received your order #${orderId}`;
-  const itemLines = items
-    .map((item) => `- ${item.name} x${item.quantity} (${formatCurrency(item.price)})`)
+  const shortId = formatShortId(orderId, 6);
+  const subject = `We received your order #${shortId || orderId}`;
+  const displayName = fullName || 'there';
+  const statusLabel = status || 'processing';
+
+  const itemLines = (Array.isArray(items) ? items : [])
+    .map((item) => {
+      const name = item?.name || 'Item';
+      const quantity = Number(item?.quantity ?? 0);
+      const price = Number(item?.price ?? 0);
+      const lineTotal = price * quantity;
+      return `- ${name} x${quantity} @ ${formatCurrency(price)} = ${formatCurrency(lineTotal)}`;
+    })
     .join('\n');
+
+  const orderLines = [
+    `Order ID: ${orderId || '-'}`,
+    `Created: ${formatDateTime(createdAt)}`,
+    `Payment: ${formatPaymentMethodLabel(paymentMethod, paymentDetails)}`,
+  ];
+
+  const summaryLines = [
+    `Subtotal: ${formatCurrency(subtotal ?? 0)}`,
+    ...(discountAmount > 0 ? [`Discount${couponCode ? ` (${couponCode})` : ''}: -${formatCurrency(discountAmount)}`] : []),
+    ...(taxAmount > 0 ? [`Tax${taxRate ? ` (${taxRate}%)` : ''}: ${formatCurrency(taxAmount)}`] : []),
+    `Shipping: ${formatCurrency(shippingCost ?? 0)}`,
+    `Total: ${formatCurrency(total ?? 0)}`,
+  ];
+
+  const shippingLines = shippingAddress ? formatAddressText(shippingAddress) : '-';
+
   const text = [
-    `Hi ${fullName || 'there'},`,
+    `Hi ${displayName},`,
     '',
-    `Thanks for your purchase! Your order #${orderId} is now ${status || 'processing'}.`,
+    `Thanks for your purchase! Your order ${shortId ? `#${shortId}` : `#${orderId}`} is now ${statusLabel}.`,
     '',
     'Order details:',
+    ...orderLines,
+    '',
+    'Items:',
     itemLines || '- (no line items found)',
     '',
-    `Order total: ${formatCurrency(total)}`,
+    'Totals:',
+    ...summaryLines,
+    '',
+    'Shipping address:',
+    shippingLines,
+    `Shipping method: ${formatShippingMethodLabel(shippingMethod)}`,
+    ...(shippingRateInfo?.estimatedDelivery
+      ? [`Estimated delivery: ${formatDateTime(shippingRateInfo.estimatedDelivery)}`]
+      : []),
     '',
     'We will notify you when it ships.',
   ].join('\n');
+
+  const metaRows = [
+    { label: 'Order ID', value: orderId || '-' },
+    { label: 'Created', value: formatDateTime(createdAt) },
+    { label: 'Payment', value: formatPaymentMethodLabel(paymentMethod, paymentDetails) },
+  ];
+
+  const summaryRows = [
+    { label: 'Subtotal', value: formatCurrency(subtotal ?? 0) },
+    ...(discountAmount > 0
+      ? [
+          {
+            label: `Discount${couponCode ? ` (${couponCode})` : ''}`,
+            valueHtml: `<span style="color: #16a34a; font-weight: 700;">-${formatCurrency(discountAmount)}</span>`,
+          },
+        ]
+      : []),
+    ...(taxAmount > 0
+      ? [
+          {
+            label: `Tax${taxRate ? ` (${taxRate}%)` : ''}`,
+            value: formatCurrency(taxAmount),
+          },
+        ]
+      : []),
+    { label: 'Shipping', value: formatCurrency(shippingCost ?? 0) },
+    { label: 'Total', valueHtml: `<span style="font-size: 16px; font-weight: 800; color: #0f172a;">${formatCurrency(total ?? 0)}</span>` },
+  ];
+
+  const shippingRows = [];
+  if (shippingAddress) {
+    shippingRows.push({ label: 'Ship to', valueHtml: formatAddressHtml(shippingAddress) });
+  }
+  if (shippingMethod || shippingAddress) {
+    shippingRows.push({ label: 'Shipping method', value: formatShippingMethodLabel(shippingMethod) });
+  }
+  if (shippingRateInfo?.estimatedDelivery) {
+    shippingRows.push({ label: 'Estimated delivery', value: formatDateTime(shippingRateInfo.estimatedDelivery) });
+  }
+
+  const customerRows = customer
+    ? [
+        { label: 'Name', value: customer.name || '-' },
+        { label: 'Email', valueHtml: buildMailtoLink(customer.email) || escapeHtml(customer.email || '-') },
+        ...(customer.phoneNumber
+          ? [
+              {
+                label: 'Phone',
+                valueHtml: buildTelLink(
+                  `${customer.phoneCode || ''}${customer.phoneCode ? ' ' : ''}${customer.phoneNumber}`
+                ) || escapeHtml(customer.phoneNumber),
+              },
+            ]
+          : []),
+        ...(customer.clientType ? [{ label: 'Type', value: customer.clientType }] : []),
+        ...(customer.company?.name ? [{ label: 'Company', value: customer.company.name }] : []),
+        ...(customer.company?.website ? [{ label: 'Company website', value: customer.company.website }] : []),
+      ]
+    : [];
+
+  const html = buildOrderEmailHtml({
+    title: `We received your order ${shortId ? `#${shortId}` : orderId ? `#${orderId}` : ''}`.trim(),
+    subtitle: `Thanks for your purchase! Your order is now ${statusLabel}.`,
+    metaRows,
+    items,
+    summaryRows,
+    customerRows,
+    shippingRows,
+    note: 'We will notify you when it ships.',
+  });
 
   await sendMail({
     to,
     subject,
     text,
+    html,
+    attachments: hasLogoFile
+      ? [
+          {
+            filename: LOGO_FILENAME,
+            path: logoPath,
+            cid: LOGO_CID,
+          },
+        ]
+      : undefined,
   });
 };
 
-const sendAdminNewOrderEmail = async ({ clientEmail, clientId, orderId, total, items }) => {
+const sendAdminNewOrderEmail = async ({
+  client,
+  orderId,
+  items,
+  subtotal,
+  discountAmount,
+  couponCode,
+  taxRate,
+  taxAmount,
+  shippingCost,
+  shippingMethod,
+  shippingRateInfo,
+  shippingAddress,
+  paymentMethod,
+  paymentDetails,
+  total,
+  createdAt,
+}) => {
   const recipients = parseAdminRecipients();
   if (recipients.length === 0) return;
 
-  const subject = `New order #${orderId} from ${clientEmail || clientId || 'client'}`;
-  const itemLines = items
-    .map((item) => `- ${item.name} x${item.quantity} (${formatCurrency(item.price)})`)
+  const clientEmail = client?.email || null;
+  const clientId = client?.id || null;
+  const shortId = formatShortId(orderId, 6);
+  const subject = `New order #${shortId || orderId} from ${clientEmail || clientId || 'client'}`;
+  const clientName = client?.name || 'N/A';
+  const phone = client?.phoneNumber
+    ? `${client?.phoneCode || ''}${client?.phoneCode ? ' ' : ''}${client?.phoneNumber}`
+    : null;
+
+  const itemLines = (Array.isArray(items) ? items : [])
+    .map((item) => {
+      const name = item?.name || 'Item';
+      const quantity = Number(item?.quantity ?? 0);
+      const price = Number(item?.price ?? 0);
+      const lineTotal = price * quantity;
+      return `- ${name} x${quantity} @ ${formatCurrency(price)} = ${formatCurrency(lineTotal)}`;
+    })
     .join('\n');
+
+  const orderLines = [
+    `Order ID: ${orderId || '-'}`,
+    `Created: ${formatDateTime(createdAt)}`,
+    `Payment: ${formatPaymentMethodLabel(paymentMethod, paymentDetails)}`,
+  ];
+
+  const summaryLines = [
+    `Subtotal: ${formatCurrency(subtotal ?? 0)}`,
+    ...(discountAmount > 0 ? [`Discount${couponCode ? ` (${couponCode})` : ''}: -${formatCurrency(discountAmount)}`] : []),
+    ...(taxAmount > 0 ? [`Tax${taxRate ? ` (${taxRate}%)` : ''}: ${formatCurrency(taxAmount)}`] : []),
+    `Shipping: ${formatCurrency(shippingCost ?? 0)}`,
+    `Total: ${formatCurrency(total ?? 0)}`,
+  ];
+
+  const shippingLines = shippingAddress ? formatAddressText(shippingAddress) : '-';
+
   const text = [
-    `New order received: #${orderId}`,
-    `Client: ${clientEmail || 'N/A'} (${clientId || 'id unknown'})`,
+    `New order received: ${shortId ? `#${shortId}` : `#${orderId}`}`,
+    `Client: ${clientName}`,
+    `Client email: ${clientEmail || 'N/A'}`,
+    `Client ID: ${clientId || 'N/A'}`,
+    ...(phone ? [`Client phone: ${phone}`] : []),
+    ...(client?.clientType ? [`Client type: ${client.clientType}`] : []),
+    ...(typeof client?.isEmailVerified === 'boolean'
+      ? [`Email verified: ${client.isEmailVerified ? 'Yes' : 'No'}`]
+      : []),
+    '',
+    'Order details:',
+    ...orderLines,
     '',
     'Items:',
     itemLines || '- (no line items found)',
     '',
-    `Order total: ${formatCurrency(total)}`,
+    'Totals:',
+    ...summaryLines,
+    '',
+    'Shipping address:',
+    shippingLines,
+    `Shipping method: ${formatShippingMethodLabel(shippingMethod)}`,
+    ...(shippingRateInfo?.estimatedDelivery
+      ? [`Estimated delivery: ${formatDateTime(shippingRateInfo.estimatedDelivery)}`]
+      : []),
   ].join('\n');
+
+  const metaRows = [
+    { label: 'Order ID', value: orderId || '-' },
+    { label: 'Created', value: formatDateTime(createdAt) },
+    { label: 'Payment', value: formatPaymentMethodLabel(paymentMethod, paymentDetails) },
+  ];
+
+  const summaryRows = [
+    { label: 'Subtotal', value: formatCurrency(subtotal ?? 0) },
+    ...(discountAmount > 0
+      ? [
+          {
+            label: `Discount${couponCode ? ` (${couponCode})` : ''}`,
+            valueHtml: `<span style="color: #16a34a; font-weight: 700;">-${formatCurrency(discountAmount)}</span>`,
+          },
+        ]
+      : []),
+    ...(taxAmount > 0
+      ? [
+          {
+            label: `Tax${taxRate ? ` (${taxRate}%)` : ''}`,
+            value: formatCurrency(taxAmount),
+          },
+        ]
+      : []),
+    { label: 'Shipping', value: formatCurrency(shippingCost ?? 0) },
+    { label: 'Total', valueHtml: `<span style="font-size: 16px; font-weight: 800; color: #0f172a;">${formatCurrency(total ?? 0)}</span>` },
+  ];
+
+  const customerRows = [
+    { label: 'Name', value: clientName },
+    { label: 'Email', valueHtml: buildMailtoLink(clientEmail) || escapeHtml(clientEmail || '-') },
+    { label: 'Client ID', value: clientId || '-' },
+    ...(phone ? [{ label: 'Phone', valueHtml: buildTelLink(phone) || escapeHtml(phone) }] : []),
+    ...(client?.clientType ? [{ label: 'Type', value: client.clientType }] : []),
+    ...(typeof client?.isEmailVerified === 'boolean'
+      ? [{ label: 'Email verified', value: client.isEmailVerified ? 'Yes' : 'No' }]
+      : []),
+    ...(client?.company?.name ? [{ label: 'Company', value: client.company.name }] : []),
+    ...(client?.company?.website ? [{ label: 'Company website', value: client.company.website }] : []),
+  ];
+
+  const shippingRows = [];
+  if (shippingAddress) {
+    shippingRows.push({ label: 'Ship to', valueHtml: formatAddressHtml(shippingAddress) });
+  }
+  if (shippingMethod || shippingAddress) {
+    shippingRows.push({ label: 'Shipping method', value: formatShippingMethodLabel(shippingMethod) });
+  }
+  if (shippingRateInfo?.estimatedDelivery) {
+    shippingRows.push({ label: 'Estimated delivery', value: formatDateTime(shippingRateInfo.estimatedDelivery) });
+  }
+
+  const subtitleName = clientName && clientName !== 'N/A' ? clientName : clientEmail || 'a customer';
+  const html = buildOrderEmailHtml({
+    title: 'New order received',
+    subtitle: `A new order was placed by ${subtitleName}.`,
+    metaRows,
+    items,
+    summaryRows,
+    customerRows,
+    shippingRows,
+  });
 
   await sendMail({
     to: recipients,
     subject,
     text,
+    html,
+    attachments: hasLogoFile
+      ? [
+          {
+            filename: LOGO_FILENAME,
+            path: logoPath,
+            cid: LOGO_CID,
+          },
+        ]
+      : undefined,
   });
 };
 
