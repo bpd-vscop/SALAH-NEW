@@ -19,7 +19,7 @@ import { formatCurrency } from '../utils/format';
 import { getEffectivePrice } from '../utils/productStatus';
 
 type ShippingMethod = 'standard' | 'express' | 'overnight';
-type ActivePaymentMethod = 'paypal';
+type ActivePaymentMethod = 'paypal' | 'card';
 
 /* ── PayPal Checkout Button ───────────────────────────────────── */
 interface PayPalCheckoutButtonProps {
@@ -138,6 +138,24 @@ const SHIPPING_RATE_GAP = 12;
 const SHIPPING_RATE_LIST_MAX_HEIGHT =
   MAX_VISIBLE_SHIPPING_RATES * SHIPPING_RATE_ROW_MIN_HEIGHT +
   (MAX_VISIBLE_SHIPPING_RATES - 1) * SHIPPING_RATE_GAP;
+const CARD_METHOD_CONFIG = {
+  id: 'card',
+  name: 'Card',
+  description: 'Pay with a credit or debit card',
+};
+
+const formatCardNumber = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 19);
+  return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+};
+
+const formatExpiry = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+};
+
+const formatCvc = (value: string) => value.replace(/\D/g, '').slice(0, 4);
 
 export const CheckoutPage: React.FC = () => {
   const { user, refresh } = useAuth();
@@ -162,6 +180,12 @@ export const CheckoutPage: React.FC = () => {
   const [paypalSdkReady, setPaypalSdkReady] = useState(false);
   const [paypalSdkError, setPaypalSdkError] = useState<string | null>(null);
   const [completedPaypalOrderId, setCompletedPaypalOrderId] = useState<string | null>(null);
+  const [cardForm, setCardForm] = useState({
+    holderName: '',
+    cardNumber: '',
+    expiry: '',
+    cvc: '',
+  });
   // Carrier rates from ShipEngine
   const [carrierRates, setCarrierRates] = useState<ShippingRate[]>([]);
   const [loadingRates, setLoadingRates] = useState(false);
@@ -233,9 +257,12 @@ export const CheckoutPage: React.FC = () => {
     paymentsApi.getConfig().then((config) => {
       if (cancelled) return;
       setPaymentConfig(config);
-      // Auto-select the first available payment method
+      // Auto-select PayPal if configured, otherwise default to Card
       if (config.methods.length > 0) {
-        setSelectedPayment(config.methods[0].id as ActivePaymentMethod);
+        const hasPaypal = config.methods.some((method) => method.id === 'paypal');
+        setSelectedPayment((prev) => prev || (hasPaypal ? 'paypal' : 'card'));
+      } else {
+        setSelectedPayment((prev) => prev || 'card');
       }
       // Load PayPal SDK if configured
       if (config.paypal) {
@@ -434,6 +461,24 @@ export const CheckoutPage: React.FC = () => {
     () => paymentConfig?.methods.find((method) => method.id === 'paypal') ?? null,
     [paymentConfig]
   );
+  const paymentOptions = useMemo(() => {
+    const methods = paymentConfig?.methods ?? [];
+    const hasCard = methods.some((method) => method.id === 'card');
+    return hasCard ? methods : [...methods, CARD_METHOD_CONFIG];
+  }, [paymentConfig]);
+  const cardNumberDigits = cardForm.cardNumber.replace(/\D/g, '');
+  const expiryDigits = cardForm.expiry.replace(/\D/g, '');
+  const cvcDigits = cardForm.cvc.replace(/\D/g, '');
+  const isCardFormComplete = Boolean(
+    cardForm.holderName.trim() &&
+    cardNumberDigits.length >= 12 &&
+    expiryDigits.length === 4 &&
+    cvcDigits.length >= 3
+  );
+  const selectedPaymentLabel = useMemo(() => {
+    if (selectedPayment === 'card') return CARD_METHOD_CONFIG.name;
+    return paymentConfig?.methods.find((method) => method.id === selectedPayment)?.name ?? selectedPayment;
+  }, [paymentConfig, selectedPayment]);
 
   const selectedAddressData = useMemo(() => {
     return user?.shippingAddresses?.find((addr) => addr.id === selectedAddress);
@@ -670,6 +715,11 @@ export const CheckoutPage: React.FC = () => {
     const validation = validateCartForCheckout();
     if (!validation.valid) {
       setError(validation.error || 'Unable to place order');
+      return;
+    }
+
+    if (selectedPayment === 'card' && !isCardFormComplete) {
+      setError('Please enter complete card details.');
       return;
     }
 
@@ -1514,9 +1564,9 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 <div className={`p-6 border-t border-slate-200 ${currentStep === 3 ? 'block' : 'hidden'}`}>
-                  {paymentConfig && paymentConfig.methods.length > 0 ? (
+                  {paymentOptions.length > 0 ? (
                     <div className="space-y-5">
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-col gap-3 sm:flex-row">
                         <button
                           type="button"
                           disabled={!paypalMethod}
@@ -1531,6 +1581,19 @@ export const CheckoutPage: React.FC = () => {
                             } ${!paypalMethod ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           PayPal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPayment('card');
+                            setCompletedPaypalOrderId(null);
+                          }}
+                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${selectedPayment === 'card'
+                            ? 'border-red-500 bg-red-50 text-red-700 shadow-sm'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                            }`}
+                        >
+                          Card
                         </button>
                       </div>
                     </div>
@@ -1559,7 +1622,7 @@ export const CheckoutPage: React.FC = () => {
 
                 {currentStep > 3 && (
                   <div className="px-6 pb-4 text-sm text-slate-600">
-                    <p>{paymentConfig?.methods.find(m => m.id === selectedPayment)?.name ?? selectedPayment}</p>
+                    <p>{selectedPaymentLabel}</p>
                   </div>
                 )}
               </div>
@@ -1676,6 +1739,87 @@ export const CheckoutPage: React.FC = () => {
                     </div>
                   )}
 
+                  {selectedPayment === 'card' && (
+                    <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-5">
+                      <h3 className="text-sm font-semibold text-slate-900 mb-4">Card details</h3>
+                      <div className="grid gap-4">
+                        <label className="text-sm text-slate-600">
+                          <span className="mb-1 block">Card holder name</span>
+                          <input
+                            type="text"
+                            value={cardForm.holderName}
+                            onChange={(event) =>
+                              setCardForm((prev) => ({ ...prev, holderName: event.target.value }))
+                            }
+                            placeholder="Name on card"
+                            autoComplete="cc-name"
+                            disabled={placingOrder}
+                            className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                          />
+                        </label>
+                        <label className="text-sm text-slate-600">
+                          <span className="mb-1 block">Card number</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={cardForm.cardNumber}
+                            onChange={(event) =>
+                              setCardForm((prev) => ({
+                                ...prev,
+                                cardNumber: formatCardNumber(event.target.value),
+                              }))
+                            }
+                            placeholder="1234 1234 1234 1234"
+                            autoComplete="cc-number"
+                            maxLength={19}
+                            disabled={placingOrder}
+                            className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                          />
+                        </label>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <label className="text-sm text-slate-600">
+                            <span className="mb-1 block">Expiration</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={cardForm.expiry}
+                              onChange={(event) =>
+                                setCardForm((prev) => ({
+                                  ...prev,
+                                  expiry: formatExpiry(event.target.value),
+                                }))
+                              }
+                              placeholder="MM/YY"
+                              autoComplete="cc-exp"
+                              maxLength={5}
+                              disabled={placingOrder}
+                              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                            />
+                          </label>
+                          <label className="text-sm text-slate-600">
+                            <span className="mb-1 block">CVC</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={cardForm.cvc}
+                              onChange={(event) =>
+                                setCardForm((prev) => ({
+                                  ...prev,
+                                  cvc: formatCvc(event.target.value),
+                                }))
+                              }
+                              placeholder="CVC"
+                              autoComplete="cc-csc"
+                              maxLength={4}
+                              disabled={placingOrder}
+                              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-3 mt-6">
                     <button
                       onClick={() => setCurrentStep(3)}
@@ -1713,7 +1857,7 @@ export const CheckoutPage: React.FC = () => {
                     ) : (
                       <button
                         onClick={placeOrder}
-                        disabled={placingOrder}
+                        disabled={placingOrder || (selectedPayment === 'card' && !isCardFormComplete)}
                         className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {placingOrder ? 'Processing...' : 'Place Order'}
