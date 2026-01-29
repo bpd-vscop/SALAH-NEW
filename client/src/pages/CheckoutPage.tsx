@@ -1948,11 +1948,6 @@ export const CheckoutPage: React.FC = () => {
                           </button>
                         )}
                       </div>
-                      {affirmMethod && !affirmEligible && (
-                        <p className="text-xs text-slate-500">
-                          Affirm is available for orders of {formatCurrency(affirmMinTotal)} or more.
-                        </p>
-                      )}
                       {!paypalMethod && !cardMethod && !affirmMethod && (
                         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center">
                           <p className="text-sm text-amber-800">No payment methods are currently configured. Please contact the store administrator.</p>
@@ -2294,6 +2289,16 @@ export const CheckoutPage: React.FC = () => {
                   <span className="font-semibold text-slate-900">Total:</span>
                   <span className="text-xl font-bold text-red-600">{formatCurrency(total)}</span>
                 </div>
+                {affirmMethod && !affirmEligible && (
+                  <p className="pt-3 text-xs text-slate-500">
+                    <img
+                      src="https://cdn-assets.affirm.com/images/black_logo-transparent_bg.png"
+                      alt="Affirm"
+                      className="relative -top-1 inline-block h-4"
+                    />{' '}
+                    is available for orders of {formatCurrency(affirmMinTotal)} or more.
+                  </p>
+                )}
               </div>
 
               <div className="text-xs text-slate-500 mt-4 p-3 bg-slate-50 rounded-lg">
