@@ -450,7 +450,7 @@ export interface ShippingAddressSnapshot {
 }
 
 export type PaymentMethod = 'paypal' | 'stripe' | 'affirm' | 'none';
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+export type PaymentStatus = 'pending' | 'authorized' | 'paid' | 'failed' | 'refunded';
 
 export interface PaymentDetails {
   brand: string | null;

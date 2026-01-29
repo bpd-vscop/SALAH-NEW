@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { CreditCard, Headphones, Heart, Shield, ShoppingCart } from 'lucide-react';
 import { categoriesApi } from '../api/categories';
 import { manufacturersApi, type Manufacturer } from '../api/manufacturers';
-import { ordersApi } from '../api/orders';
 import { paymentsApi, type PaymentConfigResponse } from '../api/payments';
 import { productsApi } from '../api/products';
 import { SiteLayout } from '../components/layout/SiteLayout';
@@ -17,7 +16,6 @@ import { useToast } from '../context/ToastContext';
 import type { Category, Product, ProductInventoryStatus, ProductVariation } from '../types/api';
 import { formatCurrency } from '../utils/format';
 import { cn } from '../utils/cn';
-import { initMockAffirm, loadAffirm, refreshAffirmUi } from '../utils/affirm';
 import { getEffectiveInventoryStatus, getProductStatusTags, isComingSoon } from '../utils/productStatus';
 
 type InventoryStatusMeta = {
@@ -176,7 +174,7 @@ export const ProductDetailPage: React.FC = () => {
   const [affirmError, setAffirmError] = useState<string | null>(null);
 
   const { user } = useAuth();
-  const { addItem } = useCart();
+  const { addItem, setItems } = useCart();
   const { items: wishlistItems, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
   const { showToast } = useToast();
   const isSignedInClient = user?.role === 'client';
@@ -382,27 +380,7 @@ export const ProductDetailPage: React.FC = () => {
     setAffirmError(null);
   }, [displayPrice, product, quantity]);
 
-  useEffect(() => {
-    if (!affirmConfig || !showAffirmPromo) return;
-    let cancelled = false;
-    if (affirmConfig.mode === 'mock') {
-      initMockAffirm();
-      return () => {
-        cancelled = true;
-      };
-    }
-    loadAffirm({
-      publicKey: affirmConfig.publicKey,
-      scriptUrl: affirmConfig.scriptUrl,
-    }).then(() => {
-      if (!cancelled) refreshAffirmUi();
-    }).catch((err) => {
-      console.error('Unable to load Affirm', err);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [affirmConfig, showAffirmPromo, displayPrice]);
+  // No SDK init needed here since checkout is handled on the checkout page.
 
   const compatibilityMakes = useMemo(() => {
     if (!product?.compatibility?.length) return null;
@@ -458,83 +436,19 @@ export const ProductDetailPage: React.FC = () => {
         throw new Error('Affirm payments are not configured.');
       }
 
-      await loadAffirm({
-        publicKey: activeConfig.publicKey,
-        scriptUrl: activeConfig.scriptUrl,
-      });
-
-      const defaultAddress =
-        user.shippingAddresses?.find((addr) => addr.isDefault) || user.shippingAddresses?.[0];
-
-      if (!defaultAddress?.id) {
-        throw new Error('Add a shipping address before using Affirm.');
+      if (!activeConfig) {
+        throw new Error('Affirm payments are not configured.');
       }
 
-      const payload = {
-        products: [{ productId: product.id, quantity }],
-        shippingAddressId: defaultAddress.id,
-      };
-
-      const response = await paymentsApi.createAffirmCheckout(payload);
-
-      type AffirmCheckout = ((data: Record<string, unknown>) => void) & {
-        open: (opts: {
-          onSuccess?: (result: { checkout_id?: string }) => void;
-          onFail?: () => void;
-          onValidationError?: (err: { message?: string }) => void;
-        }) => void;
-      };
-      const affirm = (window as unknown as Record<string, unknown>).affirm as
-        | { checkout: AffirmCheckout }
-        | undefined;
-
-      if (!affirm || typeof affirm.checkout !== 'function' || typeof affirm.checkout.open !== 'function') {
-        throw new Error('Affirm is not ready. Please try again.');
+      if (displayPrice < affirmMinTotal) {
+        throw new Error(`Affirm is available for orders of $${affirmMinTotal} or more.`);
       }
 
-      affirm.checkout(response.checkout as Record<string, unknown>);
-      affirm.checkout.open({
-        onSuccess: async (result) => {
-          const checkoutToken = result?.checkout_id;
-          if (!checkoutToken) {
-            setAffirmError('Affirm did not return a checkout token.');
-            setAffirmProcessing(false);
-            return;
-          }
-          try {
-            const auth = await paymentsApi.authorizeAffirmTransaction({
-              ...payload,
-              checkoutToken,
-              orderId: response.orderId,
-            });
-
-            await ordersApi.create({
-              ...payload,
-              paymentMethod: 'affirm',
-              paymentId: auth.transactionId,
-            });
-
-            showToast('Order placed successfully with Affirm.', 'success');
-            setTimeout(() => {
-              navigate('/products');
-            }, 1500);
-          } catch (err) {
-            setAffirmError(err instanceof Error ? err.message : 'Unable to authorize Affirm payment.');
-          } finally {
-            setAffirmProcessing(false);
-          }
-        },
-        onFail: () => {
-          setAffirmError('Affirm checkout was canceled.');
-          setAffirmProcessing(false);
-        },
-        onValidationError: (err) => {
-          setAffirmError(err?.message ?? 'Affirm checkout validation failed.');
-          setAffirmProcessing(false);
-        },
-      });
+      await setItems([{ productId: product.id, quantity, product }]);
+      navigate('/checkout?payment=affirm');
     } catch (err) {
       setAffirmError(err instanceof Error ? err.message : 'Unable to start Affirm checkout.');
+    } finally {
       setAffirmProcessing(false);
     }
   };

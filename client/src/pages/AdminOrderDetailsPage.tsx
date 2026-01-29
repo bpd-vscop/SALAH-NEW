@@ -52,6 +52,7 @@ const formatPaymentMethod = (order?: Order | null) => {
   return 'Not specified';
 };
 
+
 export const AdminOrderDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();

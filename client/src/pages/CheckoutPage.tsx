@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   CardCvcElement,
   CardExpiryElement,
@@ -343,6 +343,7 @@ export const CheckoutPage: React.FC = () => {
     postalCode: '',
     country: 'United States',
   });
+  const location = useLocation();
   const navigate = useNavigate();
   const scrollLockRef = useRef<{
     bodyOverflow: string;
@@ -354,6 +355,8 @@ export const CheckoutPage: React.FC = () => {
   } | null>(null);
   const lastValidatedSignatureRef = useRef('');
   const storedCouponLoadedRef = useRef(false);
+  const paymentParamAppliedRef = useRef(false);
+  const paymentParam = useMemo(() => new URLSearchParams(location.search).get('payment'), [location.search]);
   const isCheckoutModalOpen = showRequirementsModal || showShippingModal || showBillingModal;
 
   // Auto-select first address if available
@@ -425,6 +428,19 @@ export const CheckoutPage: React.FC = () => {
     });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (paymentParamAppliedRef.current) return;
+    if (paymentParam !== 'affirm') return;
+    if (!paymentConfig?.methods?.length) return;
+    const hasAffirm = paymentConfig.methods.some((method) => method.id === 'affirm');
+    if (!hasAffirm) {
+      paymentParamAppliedRef.current = true;
+      return;
+    }
+    setSelectedPayment('affirm');
+    paymentParamAppliedRef.current = true;
+  }, [paymentConfig, paymentParam]);
 
   useEffect(() => {
     if (!paymentConfig?.affirm) {

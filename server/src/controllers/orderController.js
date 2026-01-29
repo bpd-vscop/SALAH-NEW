@@ -150,10 +150,11 @@ const createOrder = async (req, res, next) => {
       if (!result.verified) {
         throw badRequest(`Payment verification failed: ${result.reason}`);
       }
-      paymentStatus = 'paid';
+      const status = String(result.status || '').toLowerCase();
+      paymentStatus = status === 'captured' || status === 'paid' ? 'paid' : 'authorized';
     }
 
-    const initialStatus = paymentStatus === 'paid' ? 'processing' : 'pending';
+    const initialStatus = paymentStatus === 'paid' || paymentStatus === 'authorized' ? 'processing' : 'pending';
 
     const order = await Order.create({
       userId: req.user._id,
@@ -350,6 +351,8 @@ const updateOrder = async (req, res, next) => {
       const captureResult = await captureAffirmTransaction(order.paymentId, order.total);
       if (!captureResult.captured) {
         console.error('Affirm capture failed:', captureResult.reason || 'Unknown error');
+      } else {
+        order.paymentStatus = 'paid';
       }
     }
 

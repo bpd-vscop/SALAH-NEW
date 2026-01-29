@@ -80,13 +80,55 @@ const getStatusTone = (status: OrderStatus) => {
 };
 
 // Check if order has backorder items
-const getOrderPaymentInfo = (order: Order): { type: string; status: 'paid' | 'pending'; statusColor: string } => {
+const getOrderPaymentInfo = (
+  order: Order
+): {
+  type: string;
+  statusLabel: string;
+  badgeTone: string;
+  dotTone: string;
+} => {
   const hasBackorder = order.products.some((p) => p.tagsAtPurchase?.includes('out of stock'));
+  const type = hasBackorder ? 'Backorder' : 'Standard';
+  const status = order.paymentStatus || 'pending';
 
-  if (hasBackorder) {
-    return { type: 'Backorder', status: 'pending', statusColor: 'bg-orange-100 text-orange-700' };
+  switch (status) {
+    case 'paid':
+      return {
+        type,
+        statusLabel: 'Paid',
+        badgeTone: 'bg-emerald-100 text-emerald-700',
+        dotTone: 'bg-emerald-500',
+      };
+    case 'authorized':
+      return {
+        type,
+        statusLabel: 'Authorized',
+        badgeTone: 'bg-amber-100 text-amber-700',
+        dotTone: 'bg-amber-500',
+      };
+    case 'failed':
+      return {
+        type,
+        statusLabel: 'Failed',
+        badgeTone: 'bg-red-100 text-red-700',
+        dotTone: 'bg-red-500',
+      };
+    case 'refunded':
+      return {
+        type,
+        statusLabel: 'Refunded',
+        badgeTone: 'bg-slate-100 text-slate-700',
+        dotTone: 'bg-slate-500',
+      };
+    default:
+      return {
+        type,
+        statusLabel: 'Pending',
+        badgeTone: 'bg-amber-100 text-amber-700',
+        dotTone: 'bg-amber-500',
+      };
   }
-  return { type: 'Standard', status: 'paid', statusColor: 'bg-emerald-100 text-emerald-700' };
 };
 
 const buildComposeClient = (order: Order) => {
@@ -895,13 +937,13 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                         <span className="text-xs text-slate-600">{paymentInfo.type}</span>
                         <span className={cn(
                           'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium w-fit',
-                          paymentInfo.statusColor
+                          paymentInfo.badgeTone
                         )}>
                           <span className={cn(
                             'h-1.5 w-1.5 rounded-full',
-                            paymentInfo.status === 'paid' ? 'bg-emerald-500' : 'bg-amber-500'
+                            paymentInfo.dotTone
                           )} />
-                          {paymentInfo.status === 'paid' ? 'Paid' : 'Pending'}
+                          {paymentInfo.statusLabel}
                         </span>
                       </div>
                     </td>

@@ -2119,6 +2119,16 @@ export const ClientDashboardPage: React.FC = () => {
                                 : order.paymentMethod === 'affirm'
                                   ? 'Affirm'
                                   : 'Not specified';
+                          const paymentStatusLabel =
+                            order.paymentStatus === 'authorized'
+                              ? 'Authorized'
+                              : order.paymentStatus === 'paid'
+                                ? 'Paid'
+                                : order.paymentStatus === 'failed'
+                                  ? 'Failed'
+                                  : order.paymentStatus === 'refunded'
+                                    ? 'Refunded'
+                                    : 'Pending';
                           const isSummaryOpen = expandedOrderSummaries.has(order.id);
                           const toggleSummary = () => {
                             setExpandedOrderSummaries((prev) => {
@@ -2310,12 +2320,19 @@ export const ClientDashboardPage: React.FC = () => {
                                         <span className="text-slate-600">Payment method</span>
                                         <span className="font-semibold text-slate-900">{paymentMethodLabel}</span>
                                       </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-slate-600">Payment status</span>
+                                        <span className="font-semibold text-slate-900">{paymentStatusLabel}</span>
+                                      </div>
                                       <div className="mt-1 flex items-center justify-between border-t border-slate-200 pt-3">
                                         <span className="text-sm font-semibold text-slate-900">Total</span>
                                         <span className="text-lg font-bold text-slate-900">{formatCurrency(total)}</span>
                                       </div>
                                       <div className="text-xs text-slate-500">
                                         Payment method: {paymentMethodLabel}
+                                      </div>
+                                      <div className="text-xs text-slate-500">
+                                        Payment status: {paymentStatusLabel}
                                       </div>
                                     </div>
                                   </div>
