@@ -106,7 +106,7 @@ const orderSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['stripe', 'paypal', 'none'],
+      enum: ['stripe', 'paypal', 'affirm', 'none'],
       default: 'none',
     },
     paymentId: {

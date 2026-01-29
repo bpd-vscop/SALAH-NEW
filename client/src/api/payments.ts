@@ -11,6 +11,7 @@ export interface PaymentConfigResponse {
     methods: PaymentMethodConfig[];
     paypal: { clientId: string; mode: string } | null;
     stripe: { publishableKey: string } | null;
+    affirm: { publicKey: string; mode: string; scriptUrl: string; minTotal: number } | null;
 }
 
 export interface PaypalOrderResponse {
@@ -39,6 +40,27 @@ export interface StripePaymentIntentResponse {
     currency: string;
 }
 
+export type AffirmCheckoutObject = Record<string, unknown>;
+
+export interface AffirmCheckoutResponse {
+    checkout: AffirmCheckoutObject;
+    orderId: string;
+    total: number;
+    currency: string;
+}
+
+export interface AffirmAuthorizePayload extends StripePaymentIntentPayload {
+    checkoutToken: string;
+    orderId: string;
+}
+
+export interface AffirmAuthorizeResponse {
+    transactionId: string;
+    status: string;
+    amount: number;
+    currency: string;
+}
+
 export const paymentsApi = {
     getConfig: () => http.get<PaymentConfigResponse>('/payments/config'),
 
@@ -55,4 +77,10 @@ export const paymentsApi = {
 
     createStripePaymentIntent: (payload: StripePaymentIntentPayload) =>
         http.post<StripePaymentIntentResponse>('/payments/stripe/create-intent', payload),
+
+    createAffirmCheckout: (payload: StripePaymentIntentPayload) =>
+        http.post<AffirmCheckoutResponse>('/payments/affirm/checkout', payload),
+
+    authorizeAffirmTransaction: (payload: AffirmAuthorizePayload) =>
+        http.post<AffirmAuthorizeResponse>('/payments/affirm/authorize', payload),
 };

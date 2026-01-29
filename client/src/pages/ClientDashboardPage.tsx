@@ -2116,7 +2116,9 @@ export const ClientDashboardPage: React.FC = () => {
                               ? 'PayPal'
                               : order.paymentMethod === 'stripe'
                                 ? 'Card'
-                                : 'Not specified';
+                                : order.paymentMethod === 'affirm'
+                                  ? 'Affirm'
+                                  : 'Not specified';
                           const isSummaryOpen = expandedOrderSummaries.has(order.id);
                           const toggleSummary = () => {
                             setExpandedOrderSummaries((prev) => {

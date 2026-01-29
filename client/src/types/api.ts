@@ -449,7 +449,7 @@ export interface ShippingAddressSnapshot {
   country: string | null;
 }
 
-export type PaymentMethod = 'paypal' | 'stripe' | 'none';
+export type PaymentMethod = 'paypal' | 'stripe' | 'affirm' | 'none';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 
 export interface PaymentDetails {

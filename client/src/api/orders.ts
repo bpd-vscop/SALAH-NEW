@@ -16,7 +16,7 @@ export interface ShippingRatePayload {
   estimatedDelivery?: string | null;
 }
 
-export type PaymentMethodType = 'paypal' | 'stripe' | 'none';
+export type PaymentMethodType = 'paypal' | 'stripe' | 'affirm' | 'none';
 
 export interface CreateOrderPayload {
   products: Array<{ productId: string; quantity: number }>;

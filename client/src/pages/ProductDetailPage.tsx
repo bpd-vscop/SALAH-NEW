@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { CreditCard, Headphones, Heart, Shield, ShoppingCart } from 'lucide-react';
 import { categoriesApi } from '../api/categories';
 import { manufacturersApi, type Manufacturer } from '../api/manufacturers';
+import { ordersApi } from '../api/orders';
+import { paymentsApi, type PaymentConfigResponse } from '../api/payments';
 import { productsApi } from '../api/products';
 import { SiteLayout } from '../components/layout/SiteLayout';
 import { ProductMediaGallery } from '../components/product/ProductMediaGallery';
@@ -15,6 +17,7 @@ import { useToast } from '../context/ToastContext';
 import type { Category, Product, ProductInventoryStatus, ProductVariation } from '../types/api';
 import { formatCurrency } from '../utils/format';
 import { cn } from '../utils/cn';
+import { initMockAffirm, loadAffirm, refreshAffirmUi } from '../utils/affirm';
 import { getEffectiveInventoryStatus, getProductStatusTags, isComingSoon } from '../utils/productStatus';
 
 type InventoryStatusMeta = {
@@ -168,6 +171,9 @@ export const ProductDetailPage: React.FC = () => {
   const [quantity, setQuantity] = useState<number>(1);
   const [notifyStatus, setNotifyStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
+  const [affirmConfig, setAffirmConfig] = useState<PaymentConfigResponse['affirm'] | null>(null);
+  const [affirmProcessing, setAffirmProcessing] = useState(false);
+  const [affirmError, setAffirmError] = useState<string | null>(null);
 
   const { user } = useAuth();
   const { addItem } = useCart();
@@ -219,6 +225,7 @@ export const ProductDetailPage: React.FC = () => {
       setQuantity(1);
       setNotifyStatus('idle');
       setNotifyMessage(null);
+      setAffirmConfig(null);
       return;
     }
 
@@ -313,6 +320,25 @@ export const ProductDetailPage: React.FC = () => {
     saleData.saleActive && saleData.salePrice !== null && saleData.basePrice > 0
       ? Math.round((1 - saleData.salePrice / saleData.basePrice) * 100)
       : 0;
+  const affirmMinTotal = affirmConfig?.minTotal ?? 1000;
+
+  useEffect(() => {
+    if (!product) return;
+    if (affirmConfig) return;
+    if (displayPrice < affirmMinTotal) return;
+    let cancelled = false;
+    paymentsApi.getConfig()
+      .then((config) => {
+        if (cancelled) return;
+        setAffirmConfig(config.affirm);
+      })
+      .catch((err) => {
+        console.error('Unable to load payment config', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product, displayPrice, affirmMinTotal, affirmConfig]);
 
   const inventoryStatus: ProductInventoryStatus = product ? getEffectiveInventoryStatus(product) : 'in_stock';
   const comingSoon = product ? isComingSoon(product) : false;
@@ -342,6 +368,8 @@ export const ProductDetailPage: React.FC = () => {
     (!allowBackorder &&
       ((Number.isFinite(maxQuantity) && maxQuantity <= 0) || inventoryStatus === 'out_of_stock'));
 
+  const showAffirmPromo = Boolean(affirmConfig) && displayPrice >= affirmMinTotal && !disableAddToCart;
+
   const isLowStock =
     !comingSoon &&
     product?.manageStock !== false &&
@@ -349,6 +377,32 @@ export const ProductDetailPage: React.FC = () => {
     typeof product.inventory.lowStockThreshold === 'number' &&
     product.inventory.quantity > 0 &&
     product.inventory.quantity <= product.inventory.lowStockThreshold;
+
+  useEffect(() => {
+    setAffirmError(null);
+  }, [displayPrice, product, quantity]);
+
+  useEffect(() => {
+    if (!affirmConfig || !showAffirmPromo) return;
+    let cancelled = false;
+    if (affirmConfig.mode === 'mock') {
+      initMockAffirm();
+      return () => {
+        cancelled = true;
+      };
+    }
+    loadAffirm({
+      publicKey: affirmConfig.publicKey,
+      scriptUrl: affirmConfig.scriptUrl,
+    }).then(() => {
+      if (!cancelled) refreshAffirmUi();
+    }).catch((err) => {
+      console.error('Unable to load Affirm', err);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [affirmConfig, showAffirmPromo, displayPrice]);
 
   const compatibilityMakes = useMemo(() => {
     if (!product?.compatibility?.length) return null;
@@ -373,6 +427,116 @@ export const ProductDetailPage: React.FC = () => {
     if (!product) return;
     addItem({ productId: product.id, quantity }, product);
     showToast('Added to cart', 'success');
+  };
+
+  const handleAffirmCheckout = async () => {
+    if (!product) return;
+    if (disableAddToCart) return;
+    if (!showAffirmPromo) return;
+    if (!user) {
+      const target = `${location.pathname}${location.search}`;
+      navigate('/login', { state: { from: target } });
+      return;
+    }
+    if (user.role !== 'client') {
+      showToast('Only client accounts can use Affirm checkout.', 'error');
+      return;
+    }
+
+    setAffirmProcessing(true);
+    setAffirmError(null);
+
+    try {
+      let activeConfig = affirmConfig;
+      if (!activeConfig) {
+        const config = await paymentsApi.getConfig();
+        activeConfig = config.affirm;
+        setAffirmConfig(config.affirm);
+      }
+
+      if (!activeConfig) {
+        throw new Error('Affirm payments are not configured.');
+      }
+
+      await loadAffirm({
+        publicKey: activeConfig.publicKey,
+        scriptUrl: activeConfig.scriptUrl,
+      });
+
+      const defaultAddress =
+        user.shippingAddresses?.find((addr) => addr.isDefault) || user.shippingAddresses?.[0];
+
+      if (!defaultAddress?.id) {
+        throw new Error('Add a shipping address before using Affirm.');
+      }
+
+      const payload = {
+        products: [{ productId: product.id, quantity }],
+        shippingAddressId: defaultAddress.id,
+      };
+
+      const response = await paymentsApi.createAffirmCheckout(payload);
+
+      type AffirmCheckout = ((data: Record<string, unknown>) => void) & {
+        open: (opts: {
+          onSuccess?: (result: { checkout_id?: string }) => void;
+          onFail?: () => void;
+          onValidationError?: (err: { message?: string }) => void;
+        }) => void;
+      };
+      const affirm = (window as unknown as Record<string, unknown>).affirm as
+        | { checkout: AffirmCheckout }
+        | undefined;
+
+      if (!affirm || typeof affirm.checkout !== 'function' || typeof affirm.checkout.open !== 'function') {
+        throw new Error('Affirm is not ready. Please try again.');
+      }
+
+      affirm.checkout(response.checkout as Record<string, unknown>);
+      affirm.checkout.open({
+        onSuccess: async (result) => {
+          const checkoutToken = result?.checkout_id;
+          if (!checkoutToken) {
+            setAffirmError('Affirm did not return a checkout token.');
+            setAffirmProcessing(false);
+            return;
+          }
+          try {
+            const auth = await paymentsApi.authorizeAffirmTransaction({
+              ...payload,
+              checkoutToken,
+              orderId: response.orderId,
+            });
+
+            await ordersApi.create({
+              ...payload,
+              paymentMethod: 'affirm',
+              paymentId: auth.transactionId,
+            });
+
+            showToast('Order placed successfully with Affirm.', 'success');
+            setTimeout(() => {
+              navigate('/products');
+            }, 1500);
+          } catch (err) {
+            setAffirmError(err instanceof Error ? err.message : 'Unable to authorize Affirm payment.');
+          } finally {
+            setAffirmProcessing(false);
+          }
+        },
+        onFail: () => {
+          setAffirmError('Affirm checkout was canceled.');
+          setAffirmProcessing(false);
+        },
+        onValidationError: (err) => {
+          setAffirmError(err?.message ?? 'Affirm checkout validation failed.');
+          setAffirmProcessing(false);
+        },
+      });
+    } catch (err) {
+      setAffirmError(err instanceof Error ? err.message : 'Unable to start Affirm checkout.');
+      setAffirmProcessing(false);
+    }
   };
 
   const handleNotifyMe = async () => {
@@ -649,6 +813,37 @@ export const ProductDetailPage: React.FC = () => {
                       </button>
                     )}
                   </div>
+                  {showAffirmPromo && (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-xs font-medium text-slate-600">
+                          Pay over time with{' '}
+                          <span
+                            className="affirm-product-modal"
+                            data-page-type="product"
+                            data-amount={Math.round(displayPrice * 100)}
+                          >
+                            <img
+                              src="https://cdn-assets.affirm.com/images/black_logo-transparent_bg.png"
+                              alt="Affirm"
+                              className="relative -top-1 inline-block h-4"
+                            />
+                          </span>.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => void handleAffirmCheckout()}
+                          disabled={affirmProcessing}
+                          className="text-xs font-semibold text-emerald-700 underline underline-offset-2 hover:text-emerald-800 disabled:opacity-60"
+                        >
+                          {affirmProcessing ? 'Starting...' : 'Checkout with Affirm'}
+                        </button>
+                      </div>
+                      {affirmError ? (
+                        <p className="mt-2 text-xs text-red-600">{affirmError}</p>
+                      ) : null}
+                    </div>
+                  )}
                   {showPurchaseDetails ? (
                     <div className="flex flex-wrap gap-3 text-xs text-muted">
                       {availabilityMessage ? <span>{availabilityMessage}</span> : null}

@@ -10,7 +10,7 @@ const {
   sendShippingConfirmationEmail,
 } = require('../services/emailService');
 const shipEngine = require('../services/shipEngineService');
-const { verifyPaypalPayment, verifyStripePayment } = require('./paymentsController');
+const { verifyPaypalPayment, verifyStripePayment, verifyAffirmPayment, captureAffirmTransaction } = require('./paymentsController');
 
 const ORDER_USER_SELECT =
   'name email phoneCode phoneNumber clientType status isEmailVerified company billingAddress verificationFileUrl verificationStatus profileImage shippingAddresses accountCreated accountUpdated';
@@ -142,6 +142,15 @@ const createOrder = async (req, res, next) => {
       paymentDetails = result.cardLast4
         ? { brand: result.cardBrand || null, last4: result.cardLast4 }
         : null;
+    } else if (paymentMethod === 'affirm') {
+      if (!paymentId) {
+        throw badRequest('Affirm payment requires a transaction ID');
+      }
+      const result = await verifyAffirmPayment(paymentId, orderTotal, 'usd');
+      if (!result.verified) {
+        throw badRequest(`Payment verification failed: ${result.reason}`);
+      }
+      paymentStatus = 'paid';
     }
 
     const initialStatus = paymentStatus === 'paid' ? 'processing' : 'pending';
@@ -334,6 +343,13 @@ const updateOrder = async (req, res, next) => {
       } catch (shipError) {
         console.error('Failed to create shipping label:', shipError.message);
         // Don't fail the status update if label creation fails
+      }
+    }
+
+    if (payload.status === 'shipped' && previousStatus !== 'shipped' && order.paymentMethod === 'affirm' && order.paymentId) {
+      const captureResult = await captureAffirmTransaction(order.paymentId, order.total);
+      if (!captureResult.captured) {
+        console.error('Affirm capture failed:', captureResult.reason || 'Unknown error');
       }
     }
 

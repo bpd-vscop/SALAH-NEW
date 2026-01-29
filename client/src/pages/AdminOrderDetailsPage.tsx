@@ -47,6 +47,7 @@ const formatPaymentMethod = (order?: Order | null) => {
     const last4 = order?.paymentDetails?.last4;
     return last4 ? `Card •••• ${last4}` : 'Card';
   }
+  if (method === 'affirm') return 'Affirm';
   if (method === 'none') return 'Not specified';
   return 'Not specified';
 };

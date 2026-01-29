@@ -643,6 +643,7 @@ const formatPaymentMethodLabel = (method, details) => {
     const last4 = details?.last4;
     return last4 ? `Card **** ${last4}` : 'Card';
   }
+  if (method === 'affirm') return 'Affirm';
   if (method === 'none') return 'Not specified';
   return method ? String(method) : 'Not specified';
 };

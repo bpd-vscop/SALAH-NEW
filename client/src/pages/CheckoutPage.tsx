@@ -31,11 +31,12 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import type { Coupon, Product } from '../types/api';
 import { clearStoredCouponCode, readStoredCouponCode, writeStoredCouponCode } from '../utils/couponStorage';
+import { initMockAffirm, loadAffirm } from '../utils/affirm';
 import { formatCurrency } from '../utils/format';
 import { getEffectivePrice } from '../utils/productStatus';
 
 type ShippingMethod = 'standard' | 'express' | 'overnight';
-type ActivePaymentMethod = 'paypal' | 'card';
+type ActivePaymentMethod = 'paypal' | 'card' | 'affirm';
 
 /* ── PayPal Checkout Button ───────────────────────────────────── */
 interface PayPalCheckoutButtonProps {
@@ -281,6 +282,11 @@ export const CheckoutPage: React.FC = () => {
   const [paypalSdkReady, setPaypalSdkReady] = useState(false);
   const [paypalSdkError, setPaypalSdkError] = useState<string | null>(null);
   const [completedPaypalOrderId, setCompletedPaypalOrderId] = useState<string | null>(null);
+  const [affirmSdkReady, setAffirmSdkReady] = useState(false);
+  const [affirmSdkError, setAffirmSdkError] = useState<string | null>(null);
+  const [affirmProcessing, setAffirmProcessing] = useState(false);
+  const [affirmError, setAffirmError] = useState<string | null>(null);
+  const [completedAffirmTransactionId, setCompletedAffirmTransactionId] = useState<string | null>(null);
   const [cardForm, setCardForm] = useState({
     holderName: '',
   });
@@ -367,11 +373,14 @@ export const CheckoutPage: React.FC = () => {
       if (config.methods.length > 0) {
         const hasPaypal = config.methods.some((method) => method.id === 'paypal');
         const hasCard = config.methods.some((method) => method.id === 'card');
+        const hasAffirm = config.methods.some((method) => method.id === 'affirm');
         const next = hasPaypal
           ? 'paypal'
           : hasCard
             ? 'card'
-            : (config.methods[0].id as ActivePaymentMethod);
+            : hasAffirm
+              ? 'affirm'
+              : (config.methods[0].id as ActivePaymentMethod);
         setSelectedPayment((prev) => prev || next);
       } else {
         setSelectedPayment((prev) => prev || '');
@@ -416,6 +425,31 @@ export const CheckoutPage: React.FC = () => {
     });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!paymentConfig?.affirm) {
+      setAffirmSdkReady(false);
+      return;
+    }
+    let cancelled = false;
+    setAffirmSdkError(null);
+
+    if (paymentConfig.affirm.mode === 'mock') {
+      initMockAffirm();
+      setAffirmSdkReady(true);
+      return () => { cancelled = true; };
+    }
+
+    loadAffirm({
+      publicKey: paymentConfig.affirm.publicKey,
+      scriptUrl: paymentConfig.affirm.scriptUrl,
+    }).then(() => {
+      if (!cancelled) setAffirmSdkReady(true);
+    }).catch((err) => {
+      if (!cancelled) setAffirmSdkError(err instanceof Error ? err.message : 'Affirm SDK failed to load.');
+    });
+    return () => { cancelled = true; };
+  }, [paymentConfig?.affirm?.publicKey, paymentConfig?.affirm?.scriptUrl, paymentConfig?.affirm?.mode]);
 
   // Fetch carrier rates when shipping address is selected
   useEffect(() => {
@@ -577,6 +611,12 @@ export const CheckoutPage: React.FC = () => {
     () => paymentConfig?.methods.find((method) => method.id === 'card') ?? null,
     [paymentConfig]
   );
+  const affirmMethod = useMemo(
+    () => paymentConfig?.methods.find((method) => method.id === 'affirm') ?? null,
+    [paymentConfig]
+  );
+  const affirmMinTotal = paymentConfig?.affirm?.minTotal ?? 1000;
+  const affirmEligible = total >= affirmMinTotal;
   const stripePromise = useMemo(() => {
     const key = paymentConfig?.stripe?.publishableKey;
     return key ? loadStripe(key) : null;
@@ -591,6 +631,26 @@ export const CheckoutPage: React.FC = () => {
     if (selectedPayment === 'card') return cardMethod?.name || CARD_METHOD_LABEL;
     return paymentConfig?.methods.find((method) => method.id === selectedPayment)?.name ?? selectedPayment;
   }, [paymentConfig, selectedPayment, cardMethod]);
+
+  useEffect(() => {
+    if (selectedPayment === 'affirm' && !affirmEligible) {
+      const fallback = paypalMethod ? 'paypal' : cardMethod ? 'card' : '';
+      setSelectedPayment(fallback);
+    }
+  }, [affirmEligible, cardMethod, paypalMethod, selectedPayment]);
+
+  useEffect(() => {
+    if (selectedPayment !== 'affirm') {
+      setCompletedAffirmTransactionId(null);
+      setAffirmError(null);
+    }
+  }, [selectedPayment]);
+
+  useEffect(() => {
+    if (selectedPayment === 'affirm') {
+      setCompletedAffirmTransactionId(null);
+    }
+  }, [total, selectedPayment]);
 
   const selectedAddressData = useMemo(() => {
     return user?.shippingAddresses?.find((addr) => addr.id === selectedAddress);
@@ -824,32 +884,143 @@ export const CheckoutPage: React.FC = () => {
     return { valid: true };
   };
 
-  const placeOrder = async (paypalOrderId?: string) => {
+  const canProceedWithPayment = () => {
     if (!items.length) {
       setError('Your cart is empty.');
-      return;
+      return false;
     }
     if (needsShippingAddressAfterB2B) {
       setError('Please add a shipping address before checkout.');
       openShippingModal();
-      return;
+      return false;
     }
     if (needsBillingAddressAfterB2B) {
       setError('Please add a billing address before checkout.');
       openBillingModal();
-      return;
+      return false;
     }
     if (!selectedAddress) {
       setError('Please select a shipping address.');
-      return;
+      return false;
     }
 
-    // Validate cart against user account type and verification
     const validation = validateCartForCheckout();
     if (!validation.valid) {
       setError(validation.error || 'Unable to place order');
+      return false;
+    }
+
+    return true;
+  };
+
+  const buildOrderPayload = () => {
+    const couponPayload = appliedCoupon?.code ? { couponCode: appliedCoupon.code } : {};
+    const selectedRate = selectedRateId
+      ? carrierRates.find((rate) => rate.rateId === selectedRateId)
+      : null;
+    const shippingRatePayload = selectedRate
+      ? {
+        rateId: selectedRate.rateId,
+        carrierId: selectedRate.carrierId,
+        carrierCode: selectedRate.carrierCode,
+        carrierName: selectedRate.carrierName,
+        serviceCode: selectedRate.serviceCode,
+        serviceName: selectedRate.serviceName,
+        price: selectedRate.price,
+        currency: selectedRate.currency,
+        deliveryDays: selectedRate.deliveryDays,
+        estimatedDelivery: selectedRate.estimatedDelivery,
+      }
+      : undefined;
+
+    const payload = {
+      products: items.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+      shippingMethod: selectedShipping,
+      shippingAddressId: selectedAddress,
+      ...(shippingRatePayload ? { shippingRate: shippingRatePayload } : {}),
+      ...couponPayload,
+    };
+
+    return { payload, shippingRatePayload };
+  };
+
+  const startAffirmCheckout = async () => {
+    if (!canProceedWithPayment()) return;
+    if (!affirmEligible) {
+      setError(`Affirm is available for orders of $${affirmMinTotal} or more.`);
       return;
     }
+    if (!paymentConfig?.affirm) {
+      setError('Affirm payments are not configured. Please choose another method.');
+      return;
+    }
+    if (!affirmSdkReady) {
+      setAffirmError(affirmSdkError ?? 'Affirm is still loading. Please try again.');
+      return;
+    }
+
+    setAffirmProcessing(true);
+    setAffirmError(null);
+    setError(null);
+
+    try {
+      const { payload } = buildOrderPayload();
+      const response = await paymentsApi.createAffirmCheckout(payload);
+      type AffirmCheckout = ((data: Record<string, unknown>) => void) & {
+        open: (opts: {
+          onSuccess?: (result: { checkout_id?: string }) => void;
+          onFail?: () => void;
+          onValidationError?: (err: { message?: string }) => void;
+        }) => void;
+      };
+      const affirm = (window as unknown as Record<string, unknown>).affirm as
+        | { checkout: AffirmCheckout }
+        | undefined;
+
+      if (!affirm || typeof affirm.checkout !== 'function' || typeof affirm.checkout.open !== 'function') {
+        throw new Error('Affirm is not ready. Please try again.');
+      }
+
+      affirm.checkout(response.checkout as Record<string, unknown>);
+      affirm.checkout.open({
+        onSuccess: async (result) => {
+          const checkoutToken = result?.checkout_id;
+          if (!checkoutToken) {
+            setAffirmError('Affirm did not return a checkout token.');
+            setAffirmProcessing(false);
+            return;
+          }
+          try {
+            const auth = await paymentsApi.authorizeAffirmTransaction({
+              ...payload,
+              checkoutToken,
+              orderId: response.orderId,
+            });
+            setCompletedAffirmTransactionId(auth.transactionId);
+            await placeOrder({ affirmTransactionId: auth.transactionId });
+          } catch (err) {
+            setAffirmError(err instanceof Error ? err.message : 'Unable to authorize Affirm payment.');
+          } finally {
+            setAffirmProcessing(false);
+          }
+        },
+        onFail: () => {
+          setAffirmError('Affirm checkout was canceled.');
+          setAffirmProcessing(false);
+        },
+        onValidationError: (err) => {
+          setAffirmError(err?.message ?? 'Affirm checkout validation failed.');
+          setAffirmProcessing(false);
+        },
+      });
+    } catch (err) {
+      setAffirmError(err instanceof Error ? err.message : 'Unable to start Affirm checkout.');
+      setAffirmProcessing(false);
+    }
+  };
+
+  const placeOrder = async (options?: { paypalOrderId?: string; affirmTransactionId?: string }) => {
+    if (!canProceedWithPayment()) return;
 
     if (selectedPayment === 'card' && !isCardFormComplete) {
       setError('Please enter complete card details.');
@@ -863,35 +1034,23 @@ export const CheckoutPage: React.FC = () => {
     setPlacingOrder(true);
     setError(null);
     try {
-      const couponPayload = appliedCoupon?.code ? { couponCode: appliedCoupon.code } : {};
-      const selectedRate = selectedRateId
-        ? carrierRates.find((rate) => rate.rateId === selectedRateId)
-        : null;
-      const shippingRatePayload = selectedRate
-        ? {
-          rateId: selectedRate.rateId,
-          carrierId: selectedRate.carrierId,
-          carrierCode: selectedRate.carrierCode,
-          carrierName: selectedRate.carrierName,
-          serviceCode: selectedRate.serviceCode,
-          serviceName: selectedRate.serviceName,
-          price: selectedRate.price,
-          currency: selectedRate.currency,
-          deliveryDays: selectedRate.deliveryDays,
-          estimatedDelivery: selectedRate.estimatedDelivery,
-        }
-        : undefined;
+      const { payload } = buildOrderPayload();
 
       // ── Process payment based on selected method ──────────────
-      let paymentMethod: 'paypal' | 'stripe' | 'none' = 'none';
+      let paymentMethod: 'paypal' | 'stripe' | 'affirm' | 'none' = 'none';
       let paymentId: string | undefined;
 
       if (selectedPayment === 'paypal') {
         // PayPal flow already completed via PayPalCheckoutButton
-        const orderId = paypalOrderId ?? completedPaypalOrderId;
+        const orderId = options?.paypalOrderId ?? completedPaypalOrderId;
         if (!orderId) throw new Error('Please complete PayPal payment first');
         paymentMethod = 'paypal';
         paymentId = orderId;
+      } else if (selectedPayment === 'affirm') {
+        const affirmId = options?.affirmTransactionId ?? completedAffirmTransactionId;
+        if (!affirmId) throw new Error('Please complete Affirm checkout first');
+        paymentMethod = 'affirm';
+        paymentId = affirmId;
       } else if (selectedPayment === 'card') {
         const stripe = stripeRef.current;
         const elements = elementsRef.current;
@@ -905,13 +1064,7 @@ export const CheckoutPage: React.FC = () => {
           throw new Error('Card details are incomplete.');
         }
 
-        const intentResponse = await paymentsApi.createStripePaymentIntent({
-          products: items.map((line) => ({ productId: line.productId, quantity: line.quantity })),
-          shippingMethod: selectedShipping,
-          shippingAddressId: selectedAddress,
-          ...(shippingRatePayload ? { shippingRate: shippingRatePayload } : {}),
-          ...couponPayload,
-        });
+        const intentResponse = await paymentsApi.createStripePaymentIntent(payload);
 
         const result = await stripe.confirmCardPayment(intentResponse.clientSecret, {
           payment_method: {
@@ -938,11 +1091,7 @@ export const CheckoutPage: React.FC = () => {
       }
 
       await ordersApi.create({
-        products: items.map((line) => ({ productId: line.productId, quantity: line.quantity })),
-        shippingMethod: selectedShipping,
-        shippingAddressId: selectedAddress,
-        ...(shippingRatePayload ? { shippingRate: shippingRatePayload } : {}),
-        ...couponPayload,
+        ...payload,
         paymentMethod,
         paymentId,
       });
@@ -954,6 +1103,7 @@ export const CheckoutPage: React.FC = () => {
       setCouponError(null);
       setCouponCode('');
       setCompletedPaypalOrderId(null);
+      setCompletedAffirmTransactionId(null);
       setStatusMessage('Order placed successfully! Redirecting to products...');
       setTimeout(() => {
         navigate('/products');
@@ -1769,6 +1919,7 @@ export const CheckoutPage: React.FC = () => {
                             onClick={() => {
                               setSelectedPayment('card');
                               setCompletedPaypalOrderId(null);
+                              setCompletedAffirmTransactionId(null);
                               setCardError(null);
                             }}
                             className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${selectedPayment === 'card'
@@ -1779,8 +1930,30 @@ export const CheckoutPage: React.FC = () => {
                             {cardMethod.name || CARD_METHOD_LABEL}
                           </button>
                         )}
+                        {affirmMethod && affirmEligible && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPayment('affirm');
+                              setCompletedPaypalOrderId(null);
+                              setCompletedAffirmTransactionId(null);
+                              setCardError(null);
+                            }}
+                            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${selectedPayment === 'affirm'
+                              ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                              }`}
+                          >
+                            {affirmMethod.name || 'Affirm'}
+                          </button>
+                        )}
                       </div>
-                      {!paypalMethod && !cardMethod && (
+                      {affirmMethod && !affirmEligible && (
+                        <p className="text-xs text-slate-500">
+                          Affirm is available for orders of {formatCurrency(affirmMinTotal)} or more.
+                        </p>
+                      )}
+                      {!paypalMethod && !cardMethod && !affirmMethod && (
                         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center">
                           <p className="text-sm text-amber-800">No payment methods are currently configured. Please contact the store administrator.</p>
                         </div>
@@ -1928,6 +2101,19 @@ export const CheckoutPage: React.FC = () => {
                     </div>
                   )}
 
+                  {selectedPayment === 'affirm' && completedAffirmTransactionId && (
+                    <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
+                      <CheckCircle className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+                      <p className="text-sm text-emerald-800">Affirm payment authorized. Finalizing your order...</p>
+                    </div>
+                  )}
+
+                  {selectedPayment === 'affirm' && affirmError && (
+                    <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                      {affirmError}
+                    </div>
+                  )}
+
                   {selectedPayment === 'card' && (
                     <div className="mt-6">
                       {stripePromise ? (
@@ -1962,7 +2148,7 @@ export const CheckoutPage: React.FC = () => {
                     {selectedPayment === 'paypal' ? (
                       completedPaypalOrderId ? (
                         <button
-                          onClick={() => placeOrder(completedPaypalOrderId)}
+                          onClick={() => placeOrder({ paypalOrderId: completedPaypalOrderId })}
                           disabled={placingOrder}
                           className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -1975,7 +2161,7 @@ export const CheckoutPage: React.FC = () => {
                             disabled={placingOrder}
                             onSuccess={(orderId) => {
                               setCompletedPaypalOrderId(orderId);
-                              void placeOrder(orderId);
+                              void placeOrder({ paypalOrderId: orderId });
                             }}
                             onError={(msg) => setError(msg)}
                           />
@@ -1983,6 +2169,28 @@ export const CheckoutPage: React.FC = () => {
                       ) : (
                         <div className="flex-1 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                           {paypalSdkError ?? 'Loading PayPal...'}
+                        </div>
+                      )
+                    ) : selectedPayment === 'affirm' ? (
+                      completedAffirmTransactionId ? (
+                        <button
+                          onClick={() => placeOrder({ affirmTransactionId: completedAffirmTransactionId })}
+                          disabled={placingOrder}
+                          className="flex-1 bg-emerald-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {placingOrder ? 'Finalizing...' : 'Retry Place Order'}
+                        </button>
+                      ) : affirmSdkReady ? (
+                        <button
+                          onClick={() => void startAffirmCheckout()}
+                          disabled={placingOrder || affirmProcessing}
+                          className="flex-1 bg-emerald-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {affirmProcessing ? 'Starting Affirm...' : 'Continue with Affirm'}
+                        </button>
+                      ) : (
+                        <div className="flex-1 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                          {affirmSdkError ?? 'Loading Affirm...'}
                         </div>
                       )
                     ) : (
